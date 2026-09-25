@@ -12,6 +12,8 @@ export const COVERAGE_DATASET = Object.freeze({
   WETLANDS: 'wetlands',
   HYDROGRAPHY: 'hydrography',
   OCCURRENCE: 'occurrence',
+  OCCURRENCE_INATURALIST: 'occurrence-inaturalist',
+  OCCURRENCE_EBIRD: 'occurrence-ebird',
   ACCESS_VERIFICATION: 'access-verification',
 });
 export const DEFAULT_CANDIDATE_ACCESS = Object.freeze({ status: 'UNVERIFIED', note: 'Road Naturalist has not established public, legal, or practical access.' });

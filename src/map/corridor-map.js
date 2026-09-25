@@ -15,6 +15,7 @@ export function createCorridorMap(container, { onSelect } = {}) {
   let corridors = [];
   let selected = null;
   let overlay = null;
+  let occurrenceOverlay = null;
   let zoom = 1;
   let pan = { x: 0, y: 0 };
   let dragging = null;
@@ -27,10 +28,11 @@ export function createCorridorMap(container, { onSelect } = {}) {
   }
   function fit() { zoom = 1; pan = { x: 0, y: 0 }; viewBox(); }
 
-  function draw({ corridors: next = [], selectedId = null, overlay: nextOverlay = null } = {}) {
+  function draw({ corridors: next = [], selectedId = null, overlay: nextOverlay = null, occurrenceOverlay: nextOccurrence = null } = {}) {
     corridors = Array.isArray(next) ? next : [];
     selected = corridors.find(corridor => corridor.id === selectedId) ?? null;
     overlay = nextOverlay ?? null;
+    occurrenceOverlay = nextOccurrence ?? null;
     fit();
     render();
   }
@@ -60,9 +62,30 @@ export function createCorridorMap(container, { onSelect } = {}) {
       faint.setAttribute('aria-hidden', 'true');
     }
     drawOverlay();
+    drawOccurrenceOverlay();
     if (selected) drawSelected(selected);
     svg.append(text('map-label', 20, 35, projection.readout()));
     svg.append(text('map-badge', 20, 660, selected?.badge ?? 'OREGON ROAD PILOT · REAL ROAD GEOMETRY · ACCESS UNVERIFIED'));
+  }
+
+  // Occurrence points are precise public observations only, already privacy-filtered by the
+  // occurrence layer; obscured, approximate, and unavailable locations never reach this function.
+  function drawOccurrenceOverlay() {
+    if (!occurrenceOverlay) return;
+    for (const point of occurrenceOverlay.points ?? []) {
+      const [x, y] = projection.point(point.coordinates).map(Number);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      const node = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      node.setAttribute('class', `occurrence-point occurrence-${point.source}`);
+      node.setAttribute('cx', x.toFixed(1));
+      node.setAttribute('cy', y.toFixed(1));
+      node.setAttribute('r', '4');
+      node.setAttribute('aria-hidden', 'true');
+      const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      title.textContent = `${point.label ?? 'Observation'}${point.distanceToCorridorM != null ? ` · ${Math.round(point.distanceToCorridorM)} m from the corridor` : ''}`;
+      node.append(title);
+      svg.append(node);
+    }
   }
 
   // Habitat layers stay off by default: the road corridor remains the readable top layer, and the

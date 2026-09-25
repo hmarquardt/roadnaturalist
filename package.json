@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "python3 -m http.server 8000",
     "test": "node --test tests/*.test.js",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "verify:occurrence:live": "node scripts/verify-occurrence-live.mjs",
+    "verify:occurrence:browser": "RUN_OCCURRENCE_LIVE=1 playwright test tests/occurrence-live.spec.js"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"

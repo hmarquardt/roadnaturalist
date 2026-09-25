@@ -1,0 +1,713 @@
+{
+ "metadata": {
+  "note": "Real iNaturalist /v2/observations response shape, captured from the Susbauer 1 km search region and trimmed to the fields the adapter requests. Records were selected to cover precise, obscured, poor-accuracy and accuracy-missing cases.",
+  "source": "iNaturalist public observations API (v2)",
+  "endpoint": "https://api.inaturalist.org/v2/observations",
+  "region": {
+   "swlat": "45.51234",
+   "swlng": "-123.05838",
+   "nelat": "45.59146",
+   "nelng": "-123.02212"
+  },
+  "retrievedShape": {
+   "total_results": 352,
+   "page": 1,
+   "per_page": 200
+  },
+  "capturedFor": "tests/occurrence.test.js",
+  "selection": {
+   "precise": "public location with a stated accuracy at or below the 500 m limit",
+   "obscured": "iNaturalist-obscured records (taxon geoprivacy and user geoprivacy) - the published point is randomized",
+   "approximate": "public location with a stated accuracy worse than the limit",
+   "noAccuracy": "public location with no stated accuracy",
+   "extras": [
+    {
+     "id": 401690403,
+     "case": "user-level geoprivacy"
+    },
+    {
+     "id": 403353085,
+     "case": "captive/cultivated"
+    }
+   ]
+  }
+ },
+ "records": [
+  {
+   "uuid": "f544b209-bd25-4a49-88de-ddece67c78b0",
+   "id": 391574682,
+   "observed_on": "2026-08-15",
+   "time_observed_at": "2026-08-15T15:54:55-07:00",
+   "location": "45.5737583333,-123.0352388333",
+   "geojson": {
+    "coordinates": [
+     -123.0352388333,
+     45.5737583333
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 7,
+   "public_positional_accuracy": 7,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": "open",
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/391574682",
+   "place_guess": "NW Zion Church Rd, Cornelius, OR, US",
+   "license_code": null,
+   "updated_at": "2026-09-25T05:20:49-07:00",
+   "created_at": "2026-08-15T16:30:04-07:00",
+   "taxon": {
+    "id": 341001,
+    "name": "Bombus nevadensis",
+    "preferred_common_name": "Nevada Bumble Bee",
+    "iconic_taxon_name": "Insecta",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "ba9f0243-e406-441a-beef-2bfaf6bb8640",
+   "id": 386424223,
+   "observed_on": "2026-07-29",
+   "time_observed_at": "2026-07-29T17:07:09-07:00",
+   "location": "45.5204056138,-123.0454400182",
+   "geojson": {
+    "coordinates": [
+     -123.0454400182,
+     45.5204056138
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 9,
+   "public_positional_accuracy": 9,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": null,
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/386424223",
+   "place_guess": "Washington County, US-OR, US",
+   "license_code": "cc-by-nc",
+   "updated_at": "2026-07-29T17:19:11-07:00",
+   "created_at": "2026-07-29T17:08:12-07:00",
+   "taxon": {
+    "id": 51866,
+    "name": "Rosalia funebris",
+    "preferred_common_name": "Banded Alder Borer",
+    "iconic_taxon_name": "Insecta",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "6904a151-38d2-450f-8eba-2be52fc41bf0",
+   "id": 377635219,
+   "observed_on": "2026-06-30",
+   "time_observed_at": null,
+   "location": "45.5193582109,-123.0237625462",
+   "geojson": {
+    "coordinates": [
+     -123.0237625462,
+     45.5193582109
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 2,
+   "public_positional_accuracy": 2,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": "open",
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/377635219",
+   "place_guess": "Cornelius, OR, USA",
+   "license_code": "cc-by-nc",
+   "updated_at": "2026-07-03T09:07:27-07:00",
+   "created_at": "2026-07-02T20:57:54-07:00",
+   "taxon": {
+    "id": 10325,
+    "name": "Euphagus cyanocephalus",
+    "preferred_common_name": "Brewer's Blackbird",
+    "iconic_taxon_name": "Aves",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "90a519a5-c619-475c-9202-9b43df06e875",
+   "id": 378938418,
+   "observed_on": "2026-06-02",
+   "time_observed_at": "2026-06-02T12:09:46-07:00",
+   "location": "45.5747416667,-123.0363833333",
+   "geojson": {
+    "coordinates": [
+     -123.0363833333,
+     45.5747416667
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 4,
+   "public_positional_accuracy": 4,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": null,
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/378938418",
+   "place_guess": "Cornelius, OR, US",
+   "license_code": "cc-by-nc",
+   "updated_at": "2026-07-06T21:47:09-07:00",
+   "created_at": "2026-07-06T18:04:34-07:00",
+   "taxon": {
+    "id": 791928,
+    "name": "Lysimachia arvensis",
+    "preferred_common_name": "scarlet pimpernel",
+    "iconic_taxon_name": "Plantae",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "b2f3d032-1012-46af-b231-870e61172f3b",
+   "id": 378937157,
+   "observed_on": "2026-06-02",
+   "time_observed_at": "2026-06-02T11:18:06-07:00",
+   "location": "45.5757033333,-123.0368721667",
+   "geojson": {
+    "coordinates": [
+     -123.0368721667,
+     45.5757033333
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 10,
+   "public_positional_accuracy": 10,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": null,
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/378937157",
+   "place_guess": "Cornelius, OR, US",
+   "license_code": "cc-by-nc",
+   "updated_at": "2026-07-06T21:09:20-07:00",
+   "created_at": "2026-07-06T17:58:28-07:00",
+   "taxon": {
+    "id": 158632,
+    "name": "Metaphidippus manni",
+    "iconic_taxon_name": "Arachnida",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "7acf4438-9fc6-4c22-bb0f-d83cd0dbc9f5",
+   "id": 351516830,
+   "observed_on": "2026-04-16",
+   "time_observed_at": "2026-04-16T18:30:00-07:00",
+   "location": "45.5135761557,-123.0400435317",
+   "geojson": {
+    "coordinates": [
+     -123.0400435317,
+     45.5135761557
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 15,
+   "public_positional_accuracy": 15,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": "open",
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/351516830",
+   "place_guess": "Cornelius, OR, USA",
+   "license_code": null,
+   "updated_at": "2026-05-03T12:42:03-07:00",
+   "created_at": "2026-04-20T11:18:48-07:00",
+   "taxon": {
+    "id": 63890,
+    "name": "Quercus garryana garryana",
+    "preferred_common_name": "Oregon white oak",
+    "iconic_taxon_name": "Plantae",
+    "rank": "variety"
+   }
+  },
+  {
+   "uuid": "1502a11b-06d0-4726-9372-274c110e56d0",
+   "id": 384413031,
+   "observed_on": "2026-07-23",
+   "time_observed_at": "2026-07-23T13:53:40-07:00",
+   "location": "45.549629101,-123.0573167018",
+   "geojson": {
+    "coordinates": [
+     -123.0573167018,
+     45.549629101
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 4,
+   "public_positional_accuracy": 27158,
+   "obscured": true,
+   "geoprivacy": null,
+   "taxon_geoprivacy": "obscured",
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/384413031",
+   "place_guess": "Washington County, US-OR, US",
+   "license_code": null,
+   "updated_at": "2026-07-23T17:28:43-07:00",
+   "created_at": "2026-07-23T17:26:58-07:00",
+   "taxon": {
+    "id": 28362,
+    "name": "Thamnophis sirtalis",
+    "preferred_common_name": "Common Garter Snake",
+    "iconic_taxon_name": "Reptilia",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "d86c33a3-0e2c-488b-8340-7e7d0291df0d",
+   "id": 364848028,
+   "observed_on": "2026-05-24",
+   "time_observed_at": "2026-05-24T11:17:15-07:00",
+   "location": "45.5409345434,-123.0524050402",
+   "geojson": {
+    "coordinates": [
+     -123.0524050402,
+     45.5409345434
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 170,
+   "public_positional_accuracy": 27158,
+   "obscured": true,
+   "geoprivacy": "obscured",
+   "taxon_geoprivacy": "open",
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/364848028",
+   "place_guess": "Washington County, US-OR, US",
+   "license_code": "",
+   "updated_at": "2026-05-24T17:03:26-07:00",
+   "created_at": "2026-05-24T15:27:02-07:00",
+   "taxon": {
+    "id": 558434,
+    "name": "Spatula cyanoptera",
+    "preferred_common_name": "Cinnamon Teal",
+    "iconic_taxon_name": "Aves",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "d0ff9cc3-00be-4f0e-a5a9-15ed3baa9351",
+   "id": 364846541,
+   "observed_on": "2026-05-24",
+   "time_observed_at": "2026-05-24T11:04:43-07:00",
+   "location": "45.5355197461,-123.041543735",
+   "geojson": {
+    "coordinates": [
+     -123.041543735,
+     45.5355197461
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 170,
+   "public_positional_accuracy": 27158,
+   "obscured": true,
+   "geoprivacy": "obscured",
+   "taxon_geoprivacy": "open",
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/364846541",
+   "place_guess": "Washington County, US-OR, US",
+   "license_code": null,
+   "updated_at": "2026-05-24T17:00:16-07:00",
+   "created_at": "2026-05-24T15:21:33-07:00",
+   "taxon": {
+    "id": 558439,
+    "name": "Mareca strepera",
+    "preferred_common_name": "Gadwall",
+    "iconic_taxon_name": "Aves",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "9fb4afd7-e02f-4758-a4cf-078993091d17",
+   "id": 374664656,
+   "observed_on": "2026-06-23",
+   "time_observed_at": "2026-06-23T10:23:37-07:00",
+   "location": "45.5124285788,-123.0355460197",
+   "geojson": {
+    "coordinates": [
+     -123.0355460197,
+     45.5124285788
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 725,
+   "public_positional_accuracy": 725,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": null,
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/374664656",
+   "place_guess": "Cornelius, OR, USA",
+   "license_code": "cc-by-nc",
+   "updated_at": "2026-06-23T17:01:45-07:00",
+   "created_at": "2026-06-23T10:39:00-07:00",
+   "taxon": {
+    "id": 68901,
+    "name": "Salticus scenicus",
+    "preferred_common_name": "Zebra Jumping Spider",
+    "iconic_taxon_name": "Arachnida",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "e2236e8b-b6ea-4f79-9d75-7f51120c44bf",
+   "id": 320495300,
+   "observed_on": "2025-10-06",
+   "time_observed_at": "2025-10-06T10:50:03-07:00",
+   "location": "45.5216914851,-123.0427015165",
+   "geojson": {
+    "coordinates": [
+     -123.0427015165,
+     45.5216914851
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 12555,
+   "public_positional_accuracy": 12555,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": "open",
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/320495300",
+   "place_guess": "Cornelius, OR, US",
+   "license_code": "cc-by-nc",
+   "updated_at": "2026-03-09T12:08:55-07:00",
+   "created_at": "2025-10-12T13:33:31-07:00",
+   "taxon": {
+    "id": 46017,
+    "name": "Sciurus carolinensis",
+    "preferred_common_name": "Eastern Gray Squirrel",
+    "iconic_taxon_name": "Mammalia",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "f014bcab-22bc-45c9-b187-1d43b0f2fc60",
+   "id": 360510504,
+   "observed_on": "2026-05-10",
+   "time_observed_at": "2026-05-10T17:40:17-07:00",
+   "location": "45.5864527778,-123.0350111111",
+   "geojson": {
+    "coordinates": [
+     -123.0350111111,
+     45.5864527778
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": null,
+   "public_positional_accuracy": null,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": "open",
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/360510504",
+   "place_guess": "Cornelius, OR 97113, USA",
+   "license_code": null,
+   "updated_at": "2026-05-11T08:46:22-07:00",
+   "created_at": "2026-05-10T22:36:30-07:00",
+   "taxon": {
+    "id": 9135,
+    "name": "Spizella passerina",
+    "preferred_common_name": "Chipping Sparrow",
+    "iconic_taxon_name": "Aves",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "fe7dcd48-f3d4-426f-a959-9e117ea593e3",
+   "id": 337148194,
+   "observed_on": "2026-02-02",
+   "time_observed_at": "2026-02-02T14:10:17-08:00",
+   "location": "45.5875611111,-123.0429611111",
+   "geojson": {
+    "coordinates": [
+     -123.0429611111,
+     45.5875611111
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": null,
+   "public_positional_accuracy": null,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": "open",
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/337148194",
+   "place_guess": "Cornelius, OR 97113, USA",
+   "license_code": null,
+   "updated_at": "2026-02-09T18:20:44-08:00",
+   "created_at": "2026-02-02T15:51:01-08:00",
+   "taxon": {
+    "id": 18209,
+    "name": "Melanerpes formicivorus",
+    "preferred_common_name": "Acorn Woodpecker",
+    "iconic_taxon_name": "Aves",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "60f8a961-7638-4051-bbe4-129ca781c45c",
+   "id": 310572480,
+   "observed_on": "2025-08-30",
+   "time_observed_at": "2025-08-30T13:25:46-07:00",
+   "location": "45.5738138889,-123.0353611111",
+   "geojson": {
+    "coordinates": [
+     -123.0353611111,
+     45.5738138889
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": null,
+   "public_positional_accuracy": null,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": null,
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/310572480",
+   "place_guess": "Cornelius, OR 97113, USA",
+   "license_code": "cc-by-nc",
+   "updated_at": "2025-08-31T12:59:29-07:00",
+   "created_at": "2025-08-31T12:44:44-07:00",
+   "taxon": {
+    "id": 50931,
+    "name": "Strymon melinus",
+    "preferred_common_name": "Gray Hairstreak",
+    "iconic_taxon_name": "Insecta",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "30c20c60-abfc-4255-840b-8be8677cdb0b",
+   "id": 401690403,
+   "observed_on": "2026-09-19",
+   "time_observed_at": "2026-09-19T13:59:49-07:00",
+   "location": "45.5196989546,-122.9003017733",
+   "geojson": {
+    "coordinates": [
+     -122.9003017733,
+     45.5196989546
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": 7839,
+   "public_positional_accuracy": 27158,
+   "obscured": true,
+   "geoprivacy": "obscured",
+   "taxon_geoprivacy": null,
+   "quality_grade": "research",
+   "captive": false,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/401690403",
+   "place_guess": "Oregon, US",
+   "license_code": "",
+   "updated_at": "2026-09-19T19:30:59-07:00",
+   "created_at": "2026-09-19T15:58:18-07:00",
+   "taxon": {
+    "id": 127133,
+    "name": "Hyphantria cunea",
+    "preferred_common_name": "Fall Webworm Moth",
+    "iconic_taxon_name": "Insecta",
+    "rank": "species"
+   }
+  },
+  {
+   "uuid": "63caa456-ba32-4455-9931-7cb80c918ad2",
+   "id": 403353085,
+   "observed_on": "2026-09-25",
+   "time_observed_at": "2026-09-25T12:39:39-07:00",
+   "location": "45.5273421,-122.8897754",
+   "geojson": {
+    "coordinates": [
+     -122.8897754,
+     45.5273421
+    ],
+    "type": "Point"
+   },
+   "positional_accuracy": null,
+   "public_positional_accuracy": null,
+   "obscured": false,
+   "geoprivacy": null,
+   "taxon_geoprivacy": null,
+   "quality_grade": "casual",
+   "captive": true,
+   "mappable": true,
+   "uri": "https://www.inaturalist.org/observations/403353085",
+   "place_guess": "Beaverton, OR 97006, USA",
+   "license_code": "cc-by-nc",
+   "updated_at": "2026-09-25T12:40:41-07:00",
+   "created_at": "2026-09-25T12:40:13-07:00",
+   "taxon": null
+  }
+ ],
+ "constructedCases": {
+  "note": "Constructed from the captured response shape to cover boundary cases the live capture did not contain. Values are marked here as constructed; no source record is misrepresented.",
+  "records": [
+   {
+    "uuid": "constructed-no-public-location",
+    "id": 900000001,
+    "observed_on": "2026-08-15",
+    "time_observed_at": "2026-08-15T15:54:55-07:00",
+    "location": null,
+    "geojson": null,
+    "positional_accuracy": 7,
+    "public_positional_accuracy": 7,
+    "obscured": false,
+    "geoprivacy": null,
+    "taxon_geoprivacy": null,
+    "quality_grade": "research",
+    "captive": false,
+    "mappable": true,
+    "uri": "https://www.inaturalist.org/observations/391574682",
+    "place_guess": "Washington County, US-OR, US",
+    "license_code": null,
+    "updated_at": "2026-09-25T05:20:49-07:00",
+    "created_at": "2026-08-15T16:30:04-07:00",
+    "taxon": {
+     "id": 341001,
+     "name": "Bombus nevadensis",
+     "preferred_common_name": "Nevada Bumble Bee",
+     "iconic_taxon_name": "Insecta",
+     "rank": "species"
+    },
+    "_case": "open record with no public coordinates at all"
+   },
+   {
+    "uuid": "constructed-accuracy-at-limit",
+    "id": 900000002,
+    "observed_on": "2026-08-15",
+    "time_observed_at": "2026-08-15T15:54:55-07:00",
+    "location": "45.5737583333,-123.0352388333",
+    "geojson": {
+     "coordinates": [
+      -123.0352388333,
+      45.5737583333
+     ],
+     "type": "Point"
+    },
+    "positional_accuracy": 500,
+    "public_positional_accuracy": 500,
+    "obscured": false,
+    "geoprivacy": null,
+    "taxon_geoprivacy": "open",
+    "quality_grade": "research",
+    "captive": false,
+    "mappable": true,
+    "uri": "https://www.inaturalist.org/observations/391574682",
+    "place_guess": "NW Zion Church Rd, Cornelius, OR, US",
+    "license_code": null,
+    "updated_at": "2026-09-25T05:20:49-07:00",
+    "created_at": "2026-08-15T16:30:04-07:00",
+    "taxon": {
+     "id": 341001,
+     "name": "Bombus nevadensis",
+     "preferred_common_name": "Nevada Bumble Bee",
+     "iconic_taxon_name": "Insecta",
+     "rank": "species"
+    },
+    "_case": "stated accuracy exactly at the 500 m corridor-distance limit"
+   },
+   {
+    "uuid": "constructed-accuracy-over-limit",
+    "id": 900000003,
+    "observed_on": "2026-08-15",
+    "time_observed_at": "2026-08-15T15:54:55-07:00",
+    "location": "45.5737583333,-123.0352388333",
+    "geojson": {
+     "coordinates": [
+      -123.0352388333,
+      45.5737583333
+     ],
+     "type": "Point"
+    },
+    "positional_accuracy": 501,
+    "public_positional_accuracy": 501,
+    "obscured": false,
+    "geoprivacy": null,
+    "taxon_geoprivacy": "open",
+    "quality_grade": "research",
+    "captive": false,
+    "mappable": true,
+    "uri": "https://www.inaturalist.org/observations/391574682",
+    "place_guess": "NW Zion Church Rd, Cornelius, OR, US",
+    "license_code": null,
+    "updated_at": "2026-09-25T05:20:49-07:00",
+    "created_at": "2026-08-15T16:30:04-07:00",
+    "taxon": {
+     "id": 341001,
+     "name": "Bombus nevadensis",
+     "preferred_common_name": "Nevada Bumble Bee",
+     "iconic_taxon_name": "Insecta",
+     "rank": "species"
+    },
+    "_case": "stated accuracy just above the limit"
+   },
+   {
+    "uuid": "constructed-private-geoprivacy",
+    "id": 900000004,
+    "observed_on": "2026-08-15",
+    "time_observed_at": "2026-08-15T15:54:55-07:00",
+    "location": "45.5737583333,-123.0352388333",
+    "geojson": {
+     "coordinates": [
+      -123.0352388333,
+      45.5737583333
+     ],
+     "type": "Point"
+    },
+    "positional_accuracy": 8,
+    "public_positional_accuracy": 27158,
+    "obscured": true,
+    "geoprivacy": "private",
+    "taxon_geoprivacy": "open",
+    "quality_grade": "research",
+    "captive": false,
+    "mappable": true,
+    "uri": "https://www.inaturalist.org/observations/391574682",
+    "place_guess": "NW Zion Church Rd, Cornelius, OR, US",
+    "license_code": null,
+    "updated_at": "2026-09-25T05:20:49-07:00",
+    "created_at": "2026-08-15T16:30:04-07:00",
+    "taxon": {
+     "id": 341001,
+     "name": "Bombus nevadensis",
+     "preferred_common_name": "Nevada Bumble Bee",
+     "iconic_taxon_name": "Insecta",
+     "rank": "species"
+    },
+    "_case": "private geoprivacy: coordinates withheld by the source policy"
+   }
+  ]
+ }
+}

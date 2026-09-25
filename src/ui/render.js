@@ -2,6 +2,7 @@ import { CANDIDATE_STATUS, COVERAGE, COVERAGE_DATASET } from '../domain/corridor
 import { ATTRIBUTE_STATE } from '../domain/attributes.js';
 import { roadEvidenceSummary } from '../roads/road.js';
 import { roadSourceLabel } from '../roads/pilot.js';
+import { taxaForLens } from '../occurrence/summary.js';
 
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 
@@ -12,6 +13,8 @@ export const COVERAGE_LABELS = Object.freeze({
   [COVERAGE_DATASET.WETLANDS]: 'Wetlands',
   [COVERAGE_DATASET.HYDROGRAPHY]: 'Hydrography',
   [COVERAGE_DATASET.OCCURRENCE]: 'Occurrence',
+  [COVERAGE_DATASET.OCCURRENCE_INATURALIST]: 'Occurrence — iNaturalist',
+  [COVERAGE_DATASET.OCCURRENCE_EBIRD]: 'Occurrence — eBird',
   [COVERAGE_DATASET.ACCESS_VERIFICATION]: 'Access verification',
 });
 
@@ -38,13 +41,14 @@ export function renderCandidates(container, state, onSelect) {
   }
 }
 
-export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null } = {}) {
+export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null, occurrence = null, onQueryOccurrence = null } = {}) {
   container.replaceChildren();
   if (!candidate) { container.append(empty('Investigation starts with a road', 'Open the pilot and select a corridor to inspect its geometry source, evidence, missing data, and research questions.')); return; }
   container.append(el('h3', 'detail-title', candidate.name), el('p', 'detail-lede', candidate.summary ?? ''), el('span', `tag ${candidate.status === 'rejected' ? 'warn' : ''}`, candidate.status));
   if (roads.length) container.append(roadSection(candidate, roads));
   container.append(ecologySection(ecology));
   container.append(habitatSection(habitat));
+  container.append(occurrenceSection(occurrence, onQueryOccurrence));
   const evidenceSection = section('Evidence trail');
   const list = el('ul', 'evidence-list');
   for (const item of candidate.evidence) {
@@ -326,4 +330,139 @@ export function formatLength(meters) {
   if (meters == null || !Number.isFinite(Number(meters))) return 'Not measured';
   const value = Number(meters);
   return value >= 1000 ? `${(value / 1000).toFixed(1)} km` : `${Math.round(value)} m`;
+}
+
+// SPECIES OCCURRENCE EVIDENCE stays visually and lexically separate from PHYSICAL HABITAT EVIDENCE.
+// Every number here is a count of documented public observations, never an abundance, a probability,
+// or a prediction that a species is on the road.
+function occurrenceSection(occurrence, onQuery) {
+  const node = section('Species occurrence evidence');
+  node.classList.add('occurrence-section');
+  node.append(el('span', 'tag unknown', 'SPECIES OCCURRENCE EVIDENCE'));
+  if (!occurrence) {
+    node.append(el('p', 'small', 'Query the public occurrence sources (iNaturalist and eBird) for documented observations near this corridor at 1 km, 5 km, and 10 km. Road Naturalist only asks when you do, so the road, ecology, and habitat panels never wait on an external service.'));
+    node.append(queryButton(onQuery, 'Query public occurrence sources'));
+    return node;
+  }
+  if (occurrence.diagnostics?.status === 'loading') {
+    node.append(el('p', 'small muted', occurrence.diagnostics.reason ?? 'Querying public occurrence sources…'));
+    return node;
+  }
+  node.append(queryButton(onQuery, 'Query again'));
+  const lenses = occurrence.lenses ?? [];
+  for (const summary of Object.values(occurrence.sources ?? {})) node.append(occurrenceSourceBlock(summary, lenses));
+  node.append(el('p', 'small muted', occurrence.interpretation ?? ''));
+  node.append(el('p', 'small muted', 'Public observation counts record where observers reported and identified organisms. Observer effort is uneven, so these numbers describe the public record near this road, not the wildlife present on it.'));
+  node.append(occurrenceProvenance(occurrence));
+  return node;
+}
+
+function occurrenceSourceBlock(summary, lenses) {
+  const block = el('div', 'habitat-block occurrence-block');
+  block.append(el('span', 'eyebrow', summary.label ?? summary.source));
+  if (!summary.available) {
+    block.append(el('p', 'small muted', summary.reason ?? 'This source is unavailable.'));
+    block.append(el('p', 'small muted', `Coverage ${summary.coverage}. An unavailable source is not evidence that no species were reported.`));
+    return block;
+  }
+  const rows = [];
+  const regions = summary.searchRegions ?? [];
+  const outer = regions.length ? regions[regions.length - 1] : null;
+  if (outer) rows.push(['Search region', `corridor ± ${formatDistance(outer.radiusM)} · bbox ${regionBounds(outer.region)}`]);
+  if (outer?.sourceReportedTotal != null) rows.push(['Reported in region', `${count(outer.sourceReportedTotal)} observations (source-reported, exact for this query)`]);
+  if (summary.retrieval) rows.push(['Retrieved in detail', `${count(summary.retrieval.retrieved)} records${summary.retrieval.truncated ? ` — capped at ${count(summary.retrieval.capPerRegion ?? 0)} per search region, most recent first` : ' — complete for the requested query'}`]);
+  const buckets = Object.entries(summary.buckets ?? {});
+  for (const [radius, bucket] of buckets) {
+    if (!bucket.observations) continue;
+    rows.push([`Precise within ${formatDistance(Number(radius))}`, `${count(bucket.observations)} observations · ${count(bucket.uniqueTaxa)} taxa · nearest ${formatDistance(bucket.nearestM)} (at least, from retrieved records)`]);
+  }
+  rows.push(['Located precisely', `${count(summary.preciseObservations ?? 0)} of the retrieved records carry a public location precise enough to measure against the corridor`]);
+  rows.push(['Regional/obscured', `${count(summary.regionalOnlyObservations ?? 0)} retrieved records — public location not usable for corridor distance`]);
+  rows.push(['Unique taxa', `${count(summary.uniqueTaxa ?? 0)} from the retrieved records`]);
+  for (const window of summary.temporalCounts ?? []) {
+    if (window.sourceReportedTotal == null) continue;
+    rows.push([window.label, `${count(window.sourceReportedTotal)} observations in the search region (source-reported)`]);
+  }
+  if (summary.localRecent?.sourceReportedTotal != null) rows.push(['Most local recency', `${count(summary.localRecent.sourceReportedTotal)} reported within ${formatDistance(summary.localRecent.regionRadiusM)} in the last ${summary.localRecent.days} days`]);
+  const bucketsSummary = Object.values(summary.recency ?? {}).filter(entry => entry.observations).map(entry => `${entry.label}: ${count(entry.observations)}`);
+  if (bucketsSummary.length) rows.push(['Retrieved recency', bucketsSummary.join(' · ')]);
+  if (summary.latestObservedAt) rows.push(['Most recent retrieved', String(summary.latestObservedAt).slice(0, 10)]);
+  if (summary.groups?.length) rows.push(['Groups', summary.groups.slice(0, 6).map(entry => `${entry.label} ${count(entry.observations)}`).join(' · ')]);
+  rows.push(['Coverage', `${summary.coverage}${summary.note ? ` — ${summary.note}` : ''}`]);
+  if (summary.reason) rows.push(['Unavailable', summary.reason]);
+  block.append(factList(rows));
+  if (summary.taxa?.length) block.append(occurrenceTaxaList(summary, lenses));
+  return block;
+}
+
+function occurrenceTaxaList(summary, lenses) {
+  const details = el('details', 'provenance-details occurrence-taxa');
+  details.append(el('summary', '', `Taxa in the retrieved records (${(summary.taxa ?? []).length})`));
+  const lensRow = el('div', 'lens-row');
+  const list = el('ul', 'taxa-list');
+  const render = lensId => {
+    list.replaceChildren();
+    const rows = taxaForLens(summary.taxa ?? [], lensId).slice(0, 40);
+    if (!rows.length) list.append(el('li', 'small muted', 'No taxa in this lens for the retrieved records.'));
+    for (const taxon of rows) list.append(occurrenceTaxonRow(taxon));
+    if ((summary.taxa ?? []).length > rows.length) list.append(el('li', 'small muted', `Showing ${rows.length} of ${(summary.taxa ?? []).length} taxa.`));
+  };
+  for (const lens of lenses ?? []) {
+    const button = el('button', 'lens-button', lens.label); button.type = 'button';
+    button.setAttribute('aria-pressed', lens.id === 'all' ? 'true' : 'false');
+    button.addEventListener('click', () => {
+      for (const other of lensRow.querySelectorAll('button')) other.setAttribute('aria-pressed', other === button ? 'true' : 'false');
+      render(lens.id);
+    });
+    lensRow.append(button);
+  }
+  details.append(lensRow, list);
+  render('all');
+  return details;
+}
+
+function occurrenceTaxonRow(taxon) {
+  const row = el('li', 'taxon-row');
+  const head = el('p', 'taxon-head');
+  head.append(el('strong', '', taxon.commonName ? `${taxon.commonName} (${taxon.scientificName ?? 'no scientific name'})` : taxon.scientificName ?? 'Unidentified taxon'));
+  head.append(el('span', 'tag unknown', taxon.groupLabel ?? taxon.taxonomicGroup ?? 'other'));
+  for (const kind of taxon.evidence ?? []) head.append(el('span', 'tag unknown', kind));
+  row.append(head);
+  const parts = [`${count(taxon.observations)} observation${taxon.observations === 1 ? '' : 's'}`, `source ${taxon.sourceLabels?.join(' + ') ?? 'unknown'}`];
+  if (taxon.latestObservedAt) parts.push(`most recent ${String(taxon.latestObservedAt).slice(0, 10)}`);
+  if (taxon.regionalOnly && taxon.nearestM == null) parts.push('distance not used — regional or obscured location');
+  else if (taxon.nearestM != null) parts.push(`nearest eligible ${formatDistance(taxon.nearestM)}`);
+  row.append(el('p', 'small muted', parts.join(' · ')));
+  return row;
+}
+
+function occurrenceProvenance(occurrence) {
+  const details = el('details', 'provenance-details');
+  details.append(el('summary', '', 'Occurrence source & method'));
+  details.append(el('p', 'small', occurrence.provenance?.method ?? 'Method unrecorded.'));
+  details.append(el('p', 'small', occurrence.provenance?.privacyRule ?? ''));
+  for (const summary of Object.values(occurrence.sources ?? {})) {
+    details.append(el('p', 'small', `${summary.label} · ${summary.provenance?.product ?? 'product unrecorded'} · ${summary.provenance?.endpoint ?? 'endpoint unrecorded'} · retrieved ${summary.provenance?.retrievedAt ?? 'unknown'} · authentication ${summary.provenance?.authentication ?? 'unknown'}`));
+    for (const query of (summary.provenance?.canonicalQueries ?? (summary.provenance?.canonicalQuery ? [summary.provenance.canonicalQuery] : [])).slice(0, 6)) details.append(el('p', 'small muted mono', query));
+    if (summary.provenance?.privacyFilter) details.append(el('p', 'small muted', summary.provenance.privacyFilter));
+    if (summary.provenance?.productScope) details.append(el('p', 'small muted', summary.provenance.productScope));
+  }
+  return details;
+}
+
+function queryButton(onQuery, label) {
+  const button = el('button', 'quiet-button occurrence-query', label);
+  button.type = 'button';
+  button.addEventListener('click', () => { if (typeof onQuery === 'function') onQuery(); });
+  return button;
+}
+
+function regionBounds(region) {
+  if (!region) return 'bounds unrecorded';
+  return `${region.swlat}, ${region.swlng} → ${region.nelat}, ${region.nelng}`;
+}
+
+function count(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toLocaleString('en-US') : 'unknown';
 }

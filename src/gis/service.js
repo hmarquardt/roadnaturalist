@@ -3,6 +3,7 @@ import { corridorGeometry, corridorWkt } from '../domain/geometry.js';
 import { loadManifest } from '../services/manifest.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
 import { createHabitatQueries } from './habitat-query.js';
+import { createOccurrenceQueries } from './occurrence-query.js';
 import { summarizeRoadQuery } from './road-result.js';
 
 const DUCKDB_VERSION = '1.30.0';
@@ -167,9 +168,14 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
     },
   });
 
+  // Occurrence distance measurement reuses the same DuckDB engine and EPSG:5070 measurement path;
+  // the occurrence layer owns the source adapters and the privacy rules.
+  const occurrenceQueries = createOccurrenceQueries({ initialize });
+
   return {
     initialize, openDataset, getEcoregions, queryRoads, getRoad,
     ...habitat,
+    measureOccurrenceDistances: occurrenceQueries.measureCorridorDistances,
     async getCoverage(datasetId, target) {
       if (datasetId === ROAD_DATASET_ID) {
         const roadIds = target?.roadIds ?? (target?.roadId ? [target.roadId] : null);
