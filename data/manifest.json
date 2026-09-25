@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "project": "roadnaturalist",
+  "datasets": [
+    {
+      "id": "epa-ecoregions-or-l3",
+      "version": "epa-or-2012-v1",
+      "level": 3,
+      "format": "GeoParquet",
+      "url": "gis/epa-or-l3-2012.parquet",
+      "bytes": 475469,
+      "sha256": "d73b3e9f4b89812c952f0ddafcff55f4ca38446c4daca3734c36dba969878d26",
+      "featureCount": 9,
+      "uniqueCodes": 9,
+      "crs": "EPSG:4326",
+      "scope": {
+        "kind": "Oregon state extract",
+        "bbox": [
+          -124.56670909116501,
+          41.99179090642629,
+          -116.4632636359562,
+          46.23952727260143
+        ]
+      },
+      "source": {
+        "agency": "U.S. Environmental Protection Agency",
+        "url": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/or/or_eco_l3.zip",
+        "sha256": "b6690dd28974bbc0615225b0e96070bd32a3779d949c47b6666158e074098cdf",
+        "publicationDate": "2012-05-08"
+      },
+      "schemaVersion": 1
+    },
+    {
+      "id": "epa-ecoregions-or-l4",
+      "version": "epa-or-2012-v1",
+      "level": 4,
+      "format": "GeoParquet",
+      "url": "gis/epa-or-l4-2012.parquet",
+      "bytes": 2253981,
+      "sha256": "c59d46f566801c6e47e4cd8706581a4ad1690c3c2780268c2ce8c2ddf66a7847",
+      "featureCount": 241,
+      "uniqueCodes": 67,
+      "crs": "EPSG:4326",
+      "scope": {
+        "kind": "Oregon state extract",
+        "bbox": [
+          -124.56670909116501,
+          41.99179090642629,
+          -116.4632636359562,
+          46.23952727260143
+        ]
+      },
+      "source": {
+        "agency": "U.S. Environmental Protection Agency",
+        "url": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/or/or_eco_l4.zip",
+        "sha256": "0ed948418c655e3dd735a550debfe5ceddff54a74a3fb7c02d5b7e1c9f5f29ab",
+        "publicationDate": "2012-05-08"
+      },
+      "schemaVersion": 1
+    }
+  ]
+}

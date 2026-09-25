@@ -1,0 +1,18 @@
+{
+  "fixture": true,
+  "description": "Synthetic development geometry and evidence. Not a real road, observation, or access finding.",
+  "candidates": [
+    {
+      "id": "sample-corridor-1",
+      "name": "Sample wetland-edge corridor",
+      "status": "discovered",
+      "summary": "A fictional road used to demonstrate corridor selection and an evidence trail.",
+      "geometry": { "type": "LineString", "coordinates": [[-122.876, 45.602], [-122.868, 45.606], [-122.857, 45.603], [-122.848, 45.611], [-122.836, 45.608]] },
+      "evidence": [
+        { "kind": "INFERRED", "statement": "A wetland-edge hypothesis would merit habitat and crossing checks.", "coverage": "UNKNOWN", "provenance": { "source": "Synthetic UI fixture", "method": "Hand-authored example" } }
+      ],
+      "questions": ["Does an authoritative wetland layer cover this corridor?", "Is public vehicle access documented?", "Are recent, precise occurrence records available?"],
+      "access": { "status": "UNKNOWN", "note": "No access verification has been performed." }
+    }
+  ]
+}
