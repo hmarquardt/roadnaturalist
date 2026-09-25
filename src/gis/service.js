@@ -1,7 +1,8 @@
-import { COVERAGE } from '../domain/corridor.js';
+import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
 import { corridorGeometry, corridorWkt } from '../domain/geometry.js';
 import { loadManifest } from '../services/manifest.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
+import { createHabitatQueries } from './habitat-query.js';
 import { summarizeRoadQuery } from './road-result.js';
 
 const DUCKDB_VERSION = '1.30.0';
@@ -25,7 +26,7 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
   let catalog = manifest;
   let enginePromise = null;
   const files = new Map();
-  const diagnostics = { status: 'idle', duckdbVersion: DUCKDB_VERSION, spatial: 'not-loaded', datasets: [], initMs: null, firstQueryMs: null, lastQueryMs: null, firstRoadQueryMs: null, lastRoadQueryMs: null, roadDatasetBytes: null, error: null };
+  const diagnostics = { status: 'idle', duckdbVersion: DUCKDB_VERSION, spatial: 'not-loaded', datasets: [], initMs: null, firstQueryMs: null, lastQueryMs: null, firstRoadQueryMs: null, lastRoadQueryMs: null, roadDatasetBytes: null, firstHabitatQueryMs: null, lastHabitatQueryMs: null, habitatDatasetBytes: {}, error: null };
 
   async function getManifest() { if (!catalog) catalog = await loadManifest(); return catalog; }
 
@@ -154,8 +155,21 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
     }
   }
 
+  // Habitat analysis lives in src/gis/habitat-query.js; this service owns only the DuckDB
+  // lifecycle, dataset registry, and diagnostics.
+  const habitat = createHabitatQueries({
+    openDataset, initialize,
+    record: (datasetId, entry, queryMs, error) => {
+      if (error) { diagnostics.error = error; return; }
+      diagnostics.firstHabitatQueryMs ??= queryMs;
+      diagnostics.lastHabitatQueryMs = queryMs;
+      if (entry) diagnostics.habitatDatasetBytes = { ...diagnostics.habitatDatasetBytes, [datasetId]: entry.transferredBytes };
+    },
+  });
+
   return {
     initialize, openDataset, getEcoregions, queryRoads, getRoad,
+    ...habitat,
     async getCoverage(datasetId, target) {
       if (datasetId === ROAD_DATASET_ID) {
         const roadIds = target?.roadIds ?? (target?.roadId ? [target.roadId] : null);
@@ -163,13 +177,17 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
         const result = await queryRoads({ roadIds });
         return { status: result.coverage, provenance: result.provenance, reason: result.reason ?? result.note ?? null, missingRoadIds: result.missingRoadIds };
       }
+      if (datasetId === COVERAGE_DATASET.WETLANDS || datasetId === COVERAGE_DATASET.HYDROGRAPHY) {
+        const result = datasetId === COVERAGE_DATASET.WETLANDS ? await habitat.queryWetlands(target) : await habitat.queryHydrography(target);
+        return { status: result.coverage, provenance: result.provenance, reason: result.reason ?? result.note ?? null, coverageByDistance: result.coverageByDistance ?? {} };
+      }
       if (!datasetId.startsWith('epa-ecoregions')) return { status: COVERAGE.UNKNOWN, reason: 'Dataset not connected', provenance: null };
       const result = await getEcoregions(target);
       const level = datasetId.endsWith('-l3') ? result.level3 : datasetId.endsWith('-l4') ? result.level4 : null;
       return { status: level?.coverage ?? result.coverage, provenance: result.provenance, reason: result.diagnostics?.reason ?? null };
     },
     async queryCorridor(_corridor, _options = {}) { return { coverage: COVERAGE.UNKNOWN, features: [], reason: 'General corridor layers are not connected' }; },
-    diagnostics: () => ({ ...diagnostics })
+    diagnostics: () => ({ ...diagnostics, habitatDatasetBytes: { ...diagnostics.habitatDatasetBytes } })
   };
 }
 

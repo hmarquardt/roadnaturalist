@@ -10,6 +10,7 @@ export const COVERAGE_LABELS = Object.freeze({
   [COVERAGE_DATASET.EPA_LEVEL3]: 'EPA Level III',
   [COVERAGE_DATASET.EPA_LEVEL4]: 'EPA Level IV',
   [COVERAGE_DATASET.WETLANDS]: 'Wetlands',
+  [COVERAGE_DATASET.HYDROGRAPHY]: 'Hydrography',
   [COVERAGE_DATASET.OCCURRENCE]: 'Occurrence',
   [COVERAGE_DATASET.ACCESS_VERIFICATION]: 'Access verification',
 });
@@ -37,12 +38,13 @@ export function renderCandidates(container, state, onSelect) {
   }
 }
 
-export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [] } = {}) {
+export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null } = {}) {
   container.replaceChildren();
   if (!candidate) { container.append(empty('Investigation starts with a road', 'Open the pilot and select a corridor to inspect its geometry source, evidence, missing data, and research questions.')); return; }
   container.append(el('h3', 'detail-title', candidate.name), el('p', 'detail-lede', candidate.summary ?? ''), el('span', `tag ${candidate.status === 'rejected' ? 'warn' : ''}`, candidate.status));
   if (roads.length) container.append(roadSection(candidate, roads));
   container.append(ecologySection(ecology));
+  container.append(habitatSection(habitat));
   const evidenceSection = section('Evidence trail');
   const list = el('ul', 'evidence-list');
   for (const item of candidate.evidence) {
@@ -214,3 +216,114 @@ function ecologySection(ecology) {
 function section(title) { const node = el('section', 'detail-section'); node.append(el('h3', '', title)); return node; }
 function empty(title, description) { const node = el('div', 'empty'); node.append(el('strong', '', title), el('p', '', description)); return node; }
 
+
+function habitatSection(habitat) {
+  const node = section('Habitat context');
+  node.classList.add('habitat-section');
+  node.append(el('span', 'tag unknown', 'PHYSICAL HABITAT EVIDENCE'));
+  if (!habitat || habitat.diagnostics?.status === 'loading') {
+    node.append(el('p', 'small muted', habitat?.diagnostics?.reason ?? 'Habitat analysis has not run.'));
+    return node;
+  }
+  node.append(wetlandBlock(habitat.wetlands), hydrographyBlock(habitat.hydrography));
+  node.append(el('p', 'small muted', habitat.interpretation ?? ''));
+  node.append(habitatProvenance(habitat));
+  return node;
+}
+
+function wetlandBlock(wetlands) {
+  const block = el('div', 'habitat-block');
+  block.append(el('span', 'eyebrow', 'Wetlands (NWI)'));
+  if (!wetlands?.available) {
+    block.append(el('p', 'small muted', wetlands?.reason ?? 'Wetland analysis unavailable.'));
+    return block;
+  }
+  const rows = [['Nearest mapped wetland', wetlands.intersectsCorridor ? 'Corridor intersects a mapped wetland' : formatDistance(wetlands.nearestDistanceM)]];
+  for (const [distance, entry] of Object.entries(wetlands.buffers)) {
+    rows.push([`Within ${formatDistance(entry.distanceM)}`, `${formatArea(entry.areaM2)} mapped wetland · ${entry.featureCount} feature${entry.featureCount === 1 ? '' : 's'}${entry.coverage === 'FULL' ? '' : ` (coverage ${entry.coverage})`}`]);
+  }
+  const classScope = wetlands.classDistanceM ?? Math.max(...Object.values(wetlands.buffers).map(entry => entry.distanceM));
+  rows.push([`Types within ${formatDistance(classScope)}`, wetlands.classes.length
+    ? wetlands.classes.map(item => `${item.label}${item.areaM2 > 0 ? ` ${formatArea(item.areaM2)}` : ''}`).join(' · ')
+    : 'None mapped within the analysis region']);
+  rows.push(['Coverage', wetlands.coverage]);
+  block.append(factList(rows));
+  if (wetlands.note) block.append(el('p', 'small muted', wetlands.note));
+  if (wetlands.reason) block.append(el('p', 'small muted', `Wetlands unavailable: ${wetlands.reason}`));
+  block.append(el('p', 'small muted', 'NWI maps wetlands from imagery of varying dates; it is not a current-condition or jurisdictional determination.'));
+  return block;
+}
+
+function hydrographyBlock(hydrography) {
+  const block = el('div', 'habitat-block');
+  block.append(el('span', 'eyebrow', 'Surface water (NHD)'));
+  if (!hydrography?.available) {
+    block.append(el('p', 'small muted', hydrography?.reason ?? 'Hydrography analysis unavailable.'));
+    return block;
+  }
+  const rows = [
+    ['Mapped crossings', `${hydrography.crossingCount} documented geometric crossing${hydrography.crossingCount === 1 ? '' : 's'}`],
+    ['Nearest flowing water', formatDistance(hydrography.nearestFlowingWaterM, { zero: 'Corridor intersects mapped flowing water' })],
+    ['Nearest standing water', formatDistance(hydrography.nearestStandingWaterM)],
+  ];
+  for (const [distance, entry] of Object.entries(hydrography.buffers)) {
+    rows.push([`Within ${formatDistance(entry.distanceM)}`, `${formatLength(entry.flowlineLengthM)} flowline · ${formatArea(entry.waterbodyAreaM2)} waterbody`]);
+  }
+  if (hydrography.names.length) rows.push(['Named waters nearby', hydrography.names.slice(0, 5).join(' · ')]);
+  rows.push(['Coverage', hydrography.coverage]);
+  block.append(factList(rows));
+  if (hydrography.crossings.length) {
+    const details = el('details', 'provenance-details');
+    details.append(el('summary', '', `Crossing features (${hydrography.crossingCount})`));
+    for (const crossing of hydrography.crossings.slice(0, 12)) {
+      details.append(el('p', 'small', `${crossing.name ?? 'Unnamed'} · ${crossing.featureTypeLabel} · ${crossing.waterClass} · ${formatLength(crossing.overlapM)} overlap · feature ${crossing.sourceFeatureId}`));
+    }
+    block.append(details);
+  }
+  block.append(el('p', 'small muted', hydrography.caveat ?? ''));
+  if (hydrography.note) block.append(el('p', 'small muted', hydrography.note));
+  if (hydrography.reason) block.append(el('p', 'small muted', `Hydrography unavailable: ${hydrography.reason}`));
+  return block;
+}
+
+function habitatProvenance(habitat) {
+  const sources = [habitat.provenance?.wetlands, habitat.provenance?.hydrography].filter(Boolean);
+  const details = el('details', 'provenance-details');
+  details.append(el('summary', '', 'Habitat source & method'));
+  details.append(el('p', 'small', habitat.provenance?.method ?? 'Method unrecorded.'));
+  for (const source of sources) {
+    details.append(el('p', 'small', `${source.agency} · ${source.dataset} · ${source.datasetVersion} · published ${source.publicationDate ?? 'date unrecorded'} · geometry ${source.geometryCrs} (measured in ${source.measureCrs}) · simplified at ${source.simplifyToleranceM} m`));
+    if (source.productStatus) details.append(el('p', 'small muted', source.productStatus));
+    const row = el('p', 'small', `Digest ${String(source.datasetDigest).slice(0, 16)} · coverage extent ${(source.coverageExtent ?? []).map(value => value.toFixed(3)).join(', ')} · `);
+    if (String(source.referenceUrl ?? '').startsWith('https://')) { const link = el('a', '', 'source archive'); link.href = source.referenceUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; row.append(link); }
+    details.append(row);
+  }
+  return details;
+}
+
+function factList(rows) {
+  const list = el('dl', 'coverage-list road-facts');
+  for (const [label, value] of rows) { const row = el('div'); row.append(el('dt', '', label), el('dd', '', value)); list.append(row); }
+  return list;
+}
+
+export function formatDistance(meters, { zero = null } = {}) {
+  if (meters == null || !Number.isFinite(Number(meters))) return 'Not measured';
+  const value = Number(meters);
+  if (zero && value < 1) return zero;
+  if (value >= 1000) return `${(value / 1000).toFixed(2)} km`;
+  return `${Math.round(value)} m`;
+}
+
+export function formatArea(squareMeters) {
+  if (squareMeters == null || !Number.isFinite(Number(squareMeters))) return 'Not measured';
+  const value = Number(squareMeters);
+  if (value < 10000) return `${Math.round(value).toLocaleString('en-US')} m²`;
+  return `${(value / 10000).toFixed(2)} ha`;
+}
+
+export function formatLength(meters) {
+  if (meters == null || !Number.isFinite(Number(meters))) return 'Not measured';
+  const value = Number(meters);
+  return value >= 1000 ? `${(value / 1000).toFixed(1)} km` : `${Math.round(value)} m`;
+}

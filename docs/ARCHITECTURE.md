@@ -10,12 +10,13 @@ Road Naturalist finds **road corridors** worth researching for wildlife explorat
 | `src/map` | Corridor geometry display and map interaction | Dependency-free schematic map; replaceable adapter |
 | `src/domain` | Candidate, coverage dimensions, attribute states, evidence contracts | Validated model and status transitions |
 | `src/roads` | Source road features → normalized roads → road provenance | TIGER/Line composition with reported gaps |
-| `src/gis` | Dataset open, corridor and road queries, coverage, ecoregion intersection | Lazy DuckDB-WASM/Spatial provider for EPA Oregon Level III/IV and the road pilot |
+| `src/gis` | Dataset open, corridor and road queries, coverage, ecoregion intersection, buffered habitat queries | Lazy DuckDB-WASM/Spatial provider for EPA Oregon Level III/IV, the road pilot, and bounded wetland/hydrography extracts |
 | `src/ecology` | Ecoregion context and later ecological priors | Coverage-aware GIS-to-domain context boundary |
+| `src/habitat` | Physical habitat evidence (wetlands, hydrography) independent of SQL and DuckDB rows | Wetland, surface-water, crossing, and per-distance coverage summary |
 | `src/occurrence` | Source adapters and normalized occurrence records | Adapter contract and privacy normalization |
 | `src/investigator` | Staged research, review, questions, guide assembly | Stage vocabulary and pending plan only |
 | `src/services` | Manifest and later backend client | Local manifest loader |
-| `data`, `scripts` | Manifests/fixtures and offline preparation | Two EPA Oregon GeoParquet layers, a real Oregon road pilot, and a deterministic road snapshot fixture |
+| `data`, `scripts` | Manifests/fixtures and offline preparation | Two EPA Oregon GeoParquet layers, a real Oregon road pilot, a bounded NWI wetland extract, a bounded NHD hydrography extract, and deterministic snapshot/expectation fixtures |
 | `worker` | Future Cloudflare API boundary | Documented, no deployed service |
 
 The browser remains a static ES-module application. No runtime framework or build step is required. Source-specific records do not reach UI components. DuckDB-WASM and Spatial initialize only after corridor geometry or ecology is requested; the engine and SQL stay inside `src/gis`, and every road-data path comes from the manifest. The UI receives canonical GeoJSON roads/corridors, never DuckDB rows. AI remains outside the running app.
@@ -34,7 +35,7 @@ The Investigator may discover candidates, research sources, identify contradicti
 
 ## Data plane and Cloudflare
 
-Current path: source GIS (EPA ecoregions, census road centerlines) → offline Python preparation in `scripts/` → versioned GeoParquet and manifest → local static files → verified browser fetch and in-session buffer reuse → lazy DuckDB-WASM + Spatial corridor, road, and ecoregion queries. The same manifest URL can later point to immutable R2 objects. Data may be geographically partitioned for byte-range efficiency. Manifests should describe bytes, SHA-256, schema, source vintage, coverage, and verified-empty results; they are validated per dataset type, and road datasets add source archives, road records, and the normalization method. R2 CORS must allow the app origin and `Range` requests, and expose `Content-Range`/`Accept-Ranges`; validate this before release. Fruiting Forecast currently verifies full downloaded asset bytes; Road Naturalist should test actual range behavior before depending on partial reads. A bounded persistent cache is future work when datasets grow. User-owned research artifacts, if added, need an explicit retention/export policy separate from cache.
+Current path: source GIS (EPA ecoregions, census road centerlines, USFWS wetlands, USGS hydrography) → offline Python preparation in `scripts/` → versioned GeoParquet and manifest → local static files → verified browser fetch and in-session buffer reuse → lazy DuckDB-WASM + Spatial corridor, road, ecoregion, wetland, and hydrography queries. The same manifest URL can later point to immutable R2 objects. Data may be geographically partitioned for byte-range efficiency. Manifests should describe bytes, SHA-256, schema, source vintage, coverage, and verified-empty results; they are validated per dataset type, and road datasets add source archives, road records, and the normalization method. Buffered habitat datasets additionally declare their recorded coverage extent, analysis-window margin, measurement CRS, and geometry treatment, because a coverage claim depends on knowing exactly which analysis region an extract covers. R2 CORS must allow the app origin and `Range` requests, and expose `Content-Range`/`Accept-Ranges`; validate this before release. Fruiting Forecast currently verifies full downloaded asset bytes; Road Naturalist should test actual range behavior before depending on partial reads. A bounded persistent cache is future work when datasets grow — the bounded habitat extracts already reach ~8.6 MB, which is the first dataset pair that would benefit from it. User-owned research artifacts, if added, need an explicit retention/export policy separate from cache.
 
 Cloudflare Pages can serve the static application at `roadnaturalist.com`. A Worker belongs in `worker/` only when required for API secrets, CORS/proxying, external-data caching, or Investigator calls. Offline ingestion is a build process, not a browser or Worker request. No D1 or account database is justified now; this is not a field-observation recorder. Keep secrets off the client and do not move deterministic corridor analysis to a Worker without a measured reason.
 
@@ -47,9 +48,10 @@ From the **Wildlife Road Cruise Investigator**: keep the sequence of geography �
 ## Next extension points
 
 1. Activate the Investigator's geometry/access verification stage on the pilot corridors (Overpass way IDs, agency access research, adversarial review) and record findings as qualified evidence rather than inferred facts.
-2. Add one habitat layer in the versioned manifest, using the existing lazy GIS provider and explicit coverage contract.
-3. Add deterministic corridor metrics and score traces with coverage before connecting occurrence APIs or AI.
-4. Add source-specific occurrence adapters and privacy tests, then staged Investigator research and a versioned portable guide schema.
+2. Add source-specific occurrence adapters and privacy tests, then staged Investigator research and a versioned portable guide schema.
+3. Add the next habitat datasets by following the documented pattern in [docs/HABITAT.md](HABITAT.md) (pin, bound, normalize, coverage per requested region, provenance, fixtures, measured size).
+4. Add deterministic corridor metrics and score traces with coverage before connecting occurrence APIs or AI.
 5. Replace the county+name road key with a road-level source ID when a state roadway inventory is adopted; the candidate layer already composes multiple roads.
+6. Replace the pinned retired NHD HU8 extract with 3DHP once USGS offers a bounded, pinnable product or a responsive bounded service query; the habitat normalizer and queries already read canonical columns.
 
-The pilot corridor is real: geometry comes from pinned U.S. Census Bureau TIGER/Line 2025 road centerlines and its EPA context from the real Oregon extract. It still makes no access, habitat, or wildlife recommendation. See [docs/ROADS.md](ROADS.md).
+The pilot corridor is real: geometry comes from pinned U.S. Census Bureau TIGER/Line 2025 road centerlines, EPA context from the real Oregon ecoregion extract, and physical habitat context from pinned USFWS National Wetlands Inventory wetlands and USGS hydrography. It still makes no access, habitat-quality, or wildlife recommendation. See [docs/ROADS.md](ROADS.md), [docs/ECOREGIONS.md](ECOREGIONS.md), and [docs/HABITAT.md](HABITAT.md).

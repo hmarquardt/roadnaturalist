@@ -14,6 +14,7 @@ export function createCorridorMap(container, { onSelect } = {}) {
   container.append(key);
   let corridors = [];
   let selected = null;
+  let overlay = null;
   let zoom = 1;
   let pan = { x: 0, y: 0 };
   let dragging = null;
@@ -26,9 +27,10 @@ export function createCorridorMap(container, { onSelect } = {}) {
   }
   function fit() { zoom = 1; pan = { x: 0, y: 0 }; viewBox(); }
 
-  function draw({ corridors: next = [], selectedId = null } = {}) {
+  function draw({ corridors: next = [], selectedId = null, overlay: nextOverlay = null } = {}) {
     corridors = Array.isArray(next) ? next : [];
     selected = corridors.find(corridor => corridor.id === selectedId) ?? null;
+    overlay = nextOverlay ?? null;
     fit();
     render();
   }
@@ -57,9 +59,23 @@ export function createCorridorMap(container, { onSelect } = {}) {
       const faint = line('road-faint', pathData(corridor.geometry));
       faint.setAttribute('aria-hidden', 'true');
     }
+    drawOverlay();
     if (selected) drawSelected(selected);
     svg.append(text('map-label', 20, 35, projection.readout()));
     svg.append(text('map-badge', 20, 660, selected?.badge ?? 'OREGON ROAD PILOT · REAL ROAD GEOMETRY · ACCESS UNVERIFIED'));
+  }
+
+  // Habitat layers stay off by default: the road corridor remains the readable top layer, and the
+  // overlay is requested only when the user asks for it.
+  function drawOverlay() {
+    if (!overlay) return;
+    if (overlay.bufferGeometry) line('habitat-buffer', pathData(overlay.bufferGeometry));
+    for (const feature of overlay.features ?? []) {
+      const className = feature.layer === 'wetland' ? 'habitat-wetland' : 'habitat-flowline';
+      const node = line(className, pathData(feature.geometry));
+      node.setAttribute('aria-hidden', 'true');
+      if (feature.label) node.setAttribute('data-label', `${feature.label}${feature.code ? ` (${feature.code})` : ''}`);
+    }
   }
 
   function drawSelected(corridor) {

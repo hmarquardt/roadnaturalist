@@ -10,6 +10,7 @@ export const COVERAGE_DATASET = Object.freeze({
   EPA_LEVEL3: 'epa-ecoregions-or-l3',
   EPA_LEVEL4: 'epa-ecoregions-or-l4',
   WETLANDS: 'wetlands',
+  HYDROGRAPHY: 'hydrography',
   OCCURRENCE: 'occurrence',
   ACCESS_VERIFICATION: 'access-verification',
 });

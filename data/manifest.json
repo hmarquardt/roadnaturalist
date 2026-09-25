@@ -157,6 +157,203 @@
         "crs": "EPSG:4326"
       },
       "schemaVersion": 1
+    },
+    {
+      "id": "nwi-wetlands-or-pilot",
+      "type": "wetlands",
+      "version": "nwi-or-2026-05-v1",
+      "format": "GeoParquet",
+      "url": "gis/nwi-wetlands-pilot.parquet",
+      "bytes": 3385175,
+      "sha256": "b8f9c05f2e34891ee3f096bc33689d961ae3a86f5752c8b167fec8c2dc8efdd8",
+      "featureCount": 5248,
+      "crs": "EPSG:4326",
+      "scope": {
+        "kind": "Bounded NWI wetland extract around the Oregon road pilot",
+        "bbox": [
+          -123.07,
+          45.505,
+          -122.75,
+          45.67
+        ],
+        "windowMarginM": 1500,
+        "statewideFeatureCount": 674153,
+        "windowFeatureCount": 5249,
+        "totalWetlandAreaM2": 61404718.7,
+        "sourceImageYears": [
+          1975,
+          1981,
+          1982,
+          2009
+        ],
+        "wetlandTypes": [
+          "Freshwater Emergent Wetland",
+          "Freshwater Forested/Shrub Wetland",
+          "Freshwater Pond",
+          "Lake",
+          "Riverine"
+        ],
+        "geometryTreatment": {
+          "clipped": "analytical window",
+          "simplifiedToleranceM": 1.0,
+          "roundDigits": 6,
+          "measuredCrs": "EPSG:5070"
+        }
+      },
+      "source": {
+        "agency": "U.S. Fish and Wildlife Service",
+        "dataset": "National Wetlands Inventory \u2014 Oregon state extract (GeoPackage)",
+        "vintage": "May 2026 NWI release (state download published 2026-05-04)",
+        "url": "https://documentst.ecosphere.fws.gov/wetlands/data/State-Downloads/OR_geopackage_wetlands.zip",
+        "bytes": 1934005929,
+        "sha256": "ae6a75e7945943ce517350f8165ec6dd936c75fea7118a9cdabf765d816954a5",
+        "publicationDate": "2026-05-04",
+        "documentationUrl": "https://www.fws.gov/program/national-wetlands-inventory/data-download",
+        "license": "Public domain (U.S. Government work)",
+        "layer": "OR_Wetlands",
+        "sourceCrs": "EPSG:5070",
+        "sourceCrsDefinition": "PROJCRS[\"NAD_1983_Albers\",BASEGEOGCRS[\"NAD83\",DATUM[\"North American Datum 1983\",ELLIPSOID[\"GRS 1980\",6378137,298.257222101,LENGTHUNIT[\"metre\",1]],ID[\"EPSG\",6269]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"Degree\",0.0174532925199433]]],CONVERSION[\"unnamed\",METHOD[\"Albers Equal Area\",ID[\"EPSG\",9822]],PARAMETER[\"Latitude of false origin\",23,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8821]],PARAMETER[\"Longitude of false origin\",-96,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8822]],PARAMETER[\"Latitude of 1st standard parallel\",29.5,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8823]],PARAMETER[\"Latitude of 2nd standard parallel\",45.5,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8824]],PARAMETER[\"Easting at false origin\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8826]],PARAMETER[\"Northing at false origin\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8827]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]",
+        "fields": [
+          "ATTRIBUTE",
+          "WETLAND_TYPE",
+          "QAQC_CODE",
+          "ACRES",
+          "NWI_ID"
+        ]
+      },
+      "normalization": {
+        "pipelineVersion": "habitat-ingest-v1",
+        "method": "GeoPackage R-tree window selection; clip to the analytical window; simplify preserving topology; round to 1e-6 degrees; transform the NWI Albers source CRS to EPSG:4326; areas measured in EPSG:5070",
+        "sourceCrs": "EPSG:5070",
+        "crs": "EPSG:4326",
+        "measureCrs": "EPSG:5070",
+        "simplifyToleranceM": 1.0
+      },
+      "schemaVersion": 1
+    },
+    {
+      "id": "nhd-hydrography-or-pilot",
+      "type": "hydrography",
+      "version": "nhd-hr-hu8-2023-12-v1",
+      "format": "GeoParquet",
+      "url": "gis/nhd-hydrography-pilot.parquet",
+      "bytes": 5187442,
+      "sha256": "a4a08b19b42fbad45bdc92842f93a3ecd41a101d506c17e8717fb030340acf48",
+      "featureCount": 5292,
+      "crs": "EPSG:4326",
+      "layers": {
+        "flowline": {
+          "featureCount": 4963,
+          "lengthM": 1208737.8
+        },
+        "waterbody": {
+          "featureCount": 329,
+          "areaM2": 2738417.7
+        }
+      },
+      "scope": {
+        "kind": "Bounded NHD High Resolution extraction around the Oregon road pilot",
+        "bbox": [
+          -123.07,
+          45.505,
+          -122.75,
+          45.67
+        ],
+        "windowMarginM": 1500,
+        "flowlineCount": 4963,
+        "waterbodyCount": 329,
+        "flowlineLengthM": 1208737.8,
+        "waterbodyAreaM2": 2738417.7,
+        "sourceFeatureDates": [
+          "2005-11-04",
+          "2007-12-27",
+          "2011-03-24",
+          "2012-02-23",
+          "2012-07-20",
+          "2012-12-13",
+          "2013-04-23",
+          "2013-11-09",
+          "2013-11-11",
+          "2013-11-12",
+          "2014-02-13",
+          "2014-06-28",
+          "2014-07-25",
+          "2014-07-31",
+          "2015-03-12",
+          "2015-04-28",
+          "2017-02-23",
+          "2017-11-28",
+          "2017-12-04",
+          "2017-12-15",
+          "2017-12-20",
+          "2019-01-31",
+          "2019-02-12",
+          "2019-03-19",
+          "2019-10-29",
+          "2022-02-15",
+          "2022-02-22"
+        ],
+        "flowingFeatureTypes": [
+          334,
+          336,
+          460,
+          558
+        ],
+        "standingFeatureTypes": [
+          361,
+          378,
+          390,
+          436,
+          466
+        ],
+        "geometryTreatment": {
+          "clipped": "analytical window",
+          "simplifiedToleranceM": 1.0,
+          "roundDigits": 6,
+          "measuredCrs": "EPSG:5070"
+        }
+      },
+      "source": {
+        "agency": "U.S. Geological Survey",
+        "dataset": "National Hydrography Dataset (NHD) High Resolution \u2014 HU8 staged extract",
+        "vintage": "NHD HR HU8 extracts published 2023-12-13..2023-12-27",
+        "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090010_HU8_GDB.zip",
+        "urls": {
+          "17090010": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090010_HU8_GDB.zip",
+          "17090012": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090012_HU8_GDB.zip"
+        },
+        "bytes": {
+          "17090010": 21056661,
+          "17090012": 12173295
+        },
+        "sha256": {
+          "17090010": "9f65000fa8ccdee7b8eaa8e68e9f5feb6b68daa69c79452590ec2ac64d6c90c4",
+          "17090012": "9b24d7dc5fab0ab3b3c5a482c2cb8ad32cf3e111b17a7b6e81f7bb3ac99cc813"
+        },
+        "hu8Names": {
+          "17090010": "Tualatin",
+          "17090012": "Lower Willamette"
+        },
+        "publicationDate": "2023-12-27",
+        "documentationUrl": "https://www.usgs.gov/national-hydrography/access-national-hydrography-products",
+        "license": "Public domain (U.S. Government work)",
+        "layers": [
+          "NHDFlowline",
+          "NHDWaterbody"
+        ],
+        "sourceCrs": "EPSG:4269",
+        "productStatus": "Legacy: NHD was retired on 2023-10-01 and is no longer maintained; the 3D Hydrography Program (3DHP) is the current USGS hydrography program.",
+        "successorProduct": "3D Hydrography Program (3DHP) \u2014 https://hydro.nationalmap.gov/arcgis/rest/services/3DHP_all/MapServer"
+      },
+      "normalization": {
+        "pipelineVersion": "habitat-ingest-v1",
+        "method": "DuckDB Spatial read of the pinned HU8 File Geodatabases; clip to the analytical window; simplify preserving topology; round to 1e-6 degrees; transform EPSG:4269 to EPSG:4326; lengths and areas measured in EPSG:5070",
+        "sourceCrs": "EPSG:4269",
+        "crs": "EPSG:4326",
+        "measureCrs": "EPSG:5070",
+        "simplifyToleranceM": 1.0
+      },
+      "schemaVersion": 1
     }
   ]
 }
