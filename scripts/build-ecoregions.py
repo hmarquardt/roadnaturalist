@@ -102,7 +102,7 @@ def main():
         path = ROOT / "data" / "gis" / f"epa-or-l{level}-2012.parquet"
         unique_codes = write_geoparquet(rows, path)
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        datasets.append({"id": f"epa-ecoregions-or-l{level}", "version": "epa-or-2012-v1", "level": level,
+        datasets.append({"id": f"epa-ecoregions-or-l{level}", "type": "ecoregions", "version": "epa-or-2012-v1", "level": level,
                          "format": "GeoParquet", "url": f"gis/{path.name}", "bytes": path.stat().st_size, "sha256": digest,
                          "featureCount": len(rows), "uniqueCodes": unique_codes, "crs": "EPSG:4326",
                          "scope": {"kind": "Oregon state extract", "bbox": [min(r["min_lon"] for r in rows), min(r["min_lat"] for r in rows), max(r["max_lon"] for r in rows), max(r["max_lat"] for r in rows)]},
@@ -110,7 +110,13 @@ def main():
                          "schemaVersion": 1})
         print(f"Level {level}: {len(rows)} features, {unique_codes} codes, {path.stat().st_size:,} bytes, SHA-256 {digest}")
     manifest = {"schemaVersion": 1, "project": "roadnaturalist", "datasets": datasets}
-    (ROOT / "data" / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    manifest_path = ROOT / "data" / "manifest.json"
+    if manifest_path.exists():
+        # Preserve datasets this script does not build (for example the road centerline pilot).
+        existing = json.loads(manifest_path.read_text())
+        built = {dataset["id"] for dataset in datasets}
+        manifest["datasets"] += [dataset for dataset in existing.get("datasets", []) if dataset.get("id") not in built]
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
 
 
 if __name__ == "__main__":

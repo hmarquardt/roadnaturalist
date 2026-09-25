@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCandidate, setCandidateStatus, COVERAGE } from '../src/domain/corridor.js';
+import { createCandidate, setCandidateStatus, setCandidateCoverage, createCoverage, setDatasetCoverage, COVERAGE, COVERAGE_DATASET } from '../src/domain/corridor.js';
 import { createStore } from '../src/state/store.js';
 import { createGisService } from '../src/gis/service.js';
 import { normalizeOccurrence, createOccurrenceService } from '../src/occurrence/service.js';
@@ -24,15 +24,31 @@ test('candidate requires geometry and provenance; decisions retain evidence', ()
   assert.throws(() => createCandidate({ ...raw, evidence: [{ kind: 'LOCAL', statement: 'Unattributed', coverage: 'FULL' }] }));
 });
 
-test('store publishes candidate selection and decision changes', () => {
+test('store publishes candidate selection, coverage, and decision changes', () => {
   const store = createStore(); const states = [];
   store.subscribe(state => states.push(state));
-  store.loadSample([createCandidate(raw)]);
+  store.loadPilot({ pilotId: 'pilot', candidates: [createCandidate(raw)] });
   store.decide('c1', 'rejected');
-  assert.equal(states.length, 3);
+  store.setCoverage('c1', COVERAGE_DATASET.ROAD_GEOMETRY, { coverage: COVERAGE.FULL, reason: null });
+  assert.equal(states.length, 4);
   assert.equal(store.getState().selectedId, 'c1');
+  assert.equal(store.getState().pilotLoaded, true);
   assert.equal(store.getState().candidates[0].status, 'rejected');
+  assert.equal(store.getState().candidates[0].coverage[COVERAGE_DATASET.ROAD_GEOMETRY].coverage, COVERAGE.FULL);
   assert.throws(() => store.select('missing'));
+});
+
+test('candidate coverage keeps datasets separate and unknown by default', () => {
+  const candidate = createCandidate(raw);
+  assert.deepEqual(Object.keys(candidate.coverage).sort(), Object.values(COVERAGE_DATASET).sort());
+  assert.equal(candidate.coverage[COVERAGE_DATASET.WETLANDS].coverage, COVERAGE.UNKNOWN);
+  assert.equal(candidate.coverage[COVERAGE_DATASET.ACCESS_VERIFICATION].coverage, COVERAGE.UNKNOWN);
+  const updated = setCandidateCoverage(candidate, COVERAGE_DATASET.EPA_LEVEL3, { coverage: COVERAGE.FULL, reason: null });
+  assert.equal(updated.coverage[COVERAGE_DATASET.EPA_LEVEL3].coverage, COVERAGE.FULL);
+  assert.equal(updated.coverage[COVERAGE_DATASET.ROAD_GEOMETRY].coverage, COVERAGE.UNKNOWN);
+  assert.equal(candidate.coverage[COVERAGE_DATASET.EPA_LEVEL3].coverage, COVERAGE.UNKNOWN);
+  assert.throws(() => setDatasetCoverage(createCoverage(), 'unknown-dataset', { coverage: COVERAGE.FULL }));
+  assert.throws(() => setDatasetCoverage(createCoverage(), COVERAGE_DATASET.WETLANDS, { coverage: 'MAYBE' }));
 });
 
 test('unconnected GIS and occurrence are unknown, not zero', async () => {
@@ -100,8 +116,9 @@ test('coverage separates outside scope, partial overlap, and failure', async () 
 
 test('manifest declares real GeoParquet data, provenance, and matching digests', () => {
   const manifest = validateManifest(JSON.parse(readFileSync(new URL('../data/manifest.json', import.meta.url))));
-  assert.deepEqual(manifest.datasets.map(item => item.level), [3, 4]);
-  for (const dataset of manifest.datasets) {
+  const ecoregions = manifest.datasets.filter(dataset => dataset.type === 'ecoregions');
+  assert.deepEqual(ecoregions.map(item => item.level), [3, 4]);
+  for (const dataset of ecoregions) {
     const bytes = readFileSync(new URL(`../data/${dataset.url}`, import.meta.url));
     assert.equal(bytes.byteLength, dataset.bytes);
     assert.equal(createHash('sha256').update(bytes).digest('hex'), dataset.sha256);
@@ -110,6 +127,7 @@ test('manifest declares real GeoParquet data, provenance, and matching digests',
     assert.ok(dataset.featureCount > 0);
   }
   assert.throws(() => validateManifest({ schemaVersion: 1, datasets: [{ id: 'bad' }] }));
+  assert.throws(() => validateManifest({ schemaVersion: 1, datasets: [] }));
 });
 
 test('one failed EPA level preserves the other as partial evidence', async () => {

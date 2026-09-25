@@ -6,22 +6,27 @@ Road Naturalist finds **road corridors** worth researching for wildlife explorat
 
 | Layer | Owns | Current state |
 | --- | --- | --- |
-| `src/app`, `src/state`, `src/ui` | Bootstrap, selection/decisions, DOM rendering | Working sample slice |
+| `src/app`, `src/state`, `src/ui` | Bootstrap, selection/decisions, coverage tracking, DOM rendering | Real-road pilot slice |
 | `src/map` | Corridor geometry display and map interaction | Dependency-free schematic map; replaceable adapter |
-| `src/domain` | Candidate, coverage, evidence contracts | Validated model and status transitions |
-| `src/gis` | Dataset open, corridor spatial query, coverage, ecoregion intersection | Lazy DuckDB-WASM/Spatial provider for EPA Oregon Level III/IV |
+| `src/domain` | Candidate, coverage dimensions, attribute states, evidence contracts | Validated model and status transitions |
+| `src/roads` | Source road features → normalized roads → road provenance | TIGER/Line composition with reported gaps |
+| `src/gis` | Dataset open, corridor and road queries, coverage, ecoregion intersection | Lazy DuckDB-WASM/Spatial provider for EPA Oregon Level III/IV and the road pilot |
 | `src/ecology` | Ecoregion context and later ecological priors | Coverage-aware GIS-to-domain context boundary |
 | `src/occurrence` | Source adapters and normalized occurrence records | Adapter contract and privacy normalization |
 | `src/investigator` | Staged research, review, questions, guide assembly | Stage vocabulary and pending plan only |
 | `src/services` | Manifest and later backend client | Local manifest loader |
-| `data`, `scripts` | Manifests/fixtures and offline preparation | Two small EPA Oregon GeoParquet layers; synthetic corridor fixture |
+| `data`, `scripts` | Manifests/fixtures and offline preparation | Two EPA Oregon GeoParquet layers, a real Oregon road pilot, and a deterministic road snapshot fixture |
 | `worker` | Future Cloudflare API boundary | Documented, no deployed service |
 
-The browser remains a static ES-module application. No runtime framework or build step is required. Source-specific records do not reach UI components. DuckDB-WASM and Spatial initialize only after corridor ecology is requested; the engine and SQL stay inside `src/gis`. AI remains outside the running app.
+The browser remains a static ES-module application. No runtime framework or build step is required. Source-specific records do not reach UI components. DuckDB-WASM and Spatial initialize only after corridor geometry or ecology is requested; the engine and SQL stay inside `src/gis`, and every road-data path comes from the manifest. The UI receives canonical GeoJSON roads/corridors, never DuckDB rows. AI remains outside the running app.
+
+Three road concepts stay separate: a **source road feature** (one agency record), a **normalized road** (composed, deduplicated geometry with reported gaps), and a **candidate corridor** (one or more roads plus evidence, questions, and coverage). See [docs/ROADS.md](ROADS.md).
 
 ## Evidence and authority
 
-Deterministic GIS/data results are authoritative for spatial relationships, dataset coverage, occurrence facts, and scores. Every future analytical result should include dataset ID/version, source URL or citation, build method, query parameters, timestamp where relevant, and the calculation used. Results distinguish `FULL`, `PARTIAL`, `NONE`, and `UNKNOWN` coverage. For the EPA pilot, `FULL` means both levels cover at least 99.5% of the requested line; `PARTIAL` means some but not all, including one resolved level when the other fails; `NONE` means a successful query found no line overlap with either Oregon layer; `UNKNOWN` means analysis could not produce a reliable conclusion. A successful query with zero features differs from a failed or absent dataset. The sample's habitat, occurrence, and access coverage remain `UNKNOWN`.
+Deterministic GIS/data results are authoritative for spatial relationships, dataset coverage, occurrence facts, and scores. Every future analytical result should include dataset ID/version, source URL or citation, build method, query parameters, timestamp where relevant, and the calculation used. Results distinguish `FULL`, `PARTIAL`, `NONE`, and `UNKNOWN` coverage. For the EPA pilot, `FULL` means both levels cover at least 99.5% of the requested line; `PARTIAL` means some but not all, including one resolved level when the other fails; `NONE` means a successful query found no line overlap with either Oregon layer; `UNKNOWN` means analysis could not produce a reliable conclusion. A successful query with zero features differs from a failed or absent dataset. Coverage is tracked per dataset dimension (`road-geometry`, `epa-ecoregions-or-l3`, `epa-ecoregions-or-l4`, `wetlands`, `occurrence`, `access-verification`), so a road-source failure can never appear as an ecological or access answer. The pilot's habitat and occurrence coverage remain `UNKNOWN`.
+
+Geometry evidence and access evidence are different claims. `GEOMETRY VERIFIED` means road geometry comes from identified source data; `ACCESS UNVERIFIED` means Road Naturalist has not established public, legal, or practical access. A named road in a government centerline dataset is not an access finding, and the UI says so. Unknown source attributes stay `not provided` or `unknown` rather than being inferred.
 
 Evidence kinds include `EXPECTED` (ecological prior), `HISTORICAL`, `RECENT`, `LOCAL` (precision supports a corridor), `MODELED` (deterministic output), and `INFERRED` (analyst interpretation). These are claim classes, not interchangeable strength grades. EPA Level III/IV ecoregions will be intersected with corridor geometry and used as context/prior, never proof of a local species record. iNaturalist and eBird adapters should return normalized records with source ID, taxon, observation time, quality, precision, provenance, ecoregion, and distance only where defensible. Obscured coordinates are stripped from normalized location and cannot produce a road-distance claim.
 
@@ -29,7 +34,7 @@ The Investigator may discover candidates, research sources, identify contradicti
 
 ## Data plane and Cloudflare
 
-Current path: EPA GIS → offline Python preparation in `scripts/` → versioned GeoParquet and manifest → local static files → verified browser fetch and in-session buffer reuse → lazy DuckDB-WASM + Spatial corridor queries. The same manifest URL can later point to immutable R2 objects. Data may be geographically partitioned for byte-range efficiency. Manifests should describe bytes, SHA-256, schema, source vintage, coverage, and verified-empty results. R2 CORS must allow the app origin and `Range` requests, and expose `Content-Range`/`Accept-Ranges`; validate this before release. Fruiting Forecast currently verifies full downloaded asset bytes; Road Naturalist should test actual range behavior before depending on partial reads. A bounded persistent cache is future work when datasets grow. User-owned research artifacts, if added, need an explicit retention/export policy separate from cache.
+Current path: source GIS (EPA ecoregions, census road centerlines) → offline Python preparation in `scripts/` → versioned GeoParquet and manifest → local static files → verified browser fetch and in-session buffer reuse → lazy DuckDB-WASM + Spatial corridor, road, and ecoregion queries. The same manifest URL can later point to immutable R2 objects. Data may be geographically partitioned for byte-range efficiency. Manifests should describe bytes, SHA-256, schema, source vintage, coverage, and verified-empty results; they are validated per dataset type, and road datasets add source archives, road records, and the normalization method. R2 CORS must allow the app origin and `Range` requests, and expose `Content-Range`/`Accept-Ranges`; validate this before release. Fruiting Forecast currently verifies full downloaded asset bytes; Road Naturalist should test actual range behavior before depending on partial reads. A bounded persistent cache is future work when datasets grow. User-owned research artifacts, if added, need an explicit retention/export policy separate from cache.
 
 Cloudflare Pages can serve the static application at `roadnaturalist.com`. A Worker belongs in `worker/` only when required for API secrets, CORS/proxying, external-data caching, or Investigator calls. Offline ingestion is a build process, not a browser or Worker request. No D1 or account database is justified now; this is not a field-observation recorder. Keep secrets off the client and do not move deterministic corridor analysis to a Worker without a measured reason.
 
@@ -41,9 +46,10 @@ From the **Wildlife Road Cruise Investigator**: keep the sequence of geography �
 
 ## Next extension points
 
-1. Add one authoritative road/corridor source and a small real pilot area. Store segment IDs and source geometry provenance.
+1. Activate the Investigator's geometry/access verification stage on the pilot corridors (Overpass way IDs, agency access research, adversarial review) and record findings as qualified evidence rather than inferred facts.
 2. Add one habitat layer in the versioned manifest, using the existing lazy GIS provider and explicit coverage contract.
 3. Add deterministic corridor metrics and score traces with coverage before connecting occurrence APIs or AI.
 4. Add source-specific occurrence adapters and privacy tests, then staged Investigator research and a versioned portable guide schema.
+5. Replace the county+name road key with a road-level source ID when a state roadway inventory is adopted; the candidate layer already composes multiple roads.
 
-The sample corridor is synthetic. It demonstrates application wiring and makes no real-world recommendation.
+The pilot corridor is real: geometry comes from pinned U.S. Census Bureau TIGER/Line 2025 road centerlines and its EPA context from the real Oregon extract. It still makes no access, habitat, or wildlife recommendation. See [docs/ROADS.md](ROADS.md).

@@ -4,6 +4,7 @@
   "datasets": [
     {
       "id": "epa-ecoregions-or-l3",
+      "type": "ecoregions",
       "version": "epa-or-2012-v1",
       "level": 3,
       "format": "GeoParquet",
@@ -32,6 +33,7 @@
     },
     {
       "id": "epa-ecoregions-or-l4",
+      "type": "ecoregions",
       "version": "epa-or-2012-v1",
       "level": 4,
       "format": "GeoParquet",
@@ -55,6 +57,104 @@
         "url": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/or/or_eco_l4.zip",
         "sha256": "0ed948418c655e3dd735a550debfe5ceddff54a74a3fb7c02d5b7e1c9f5f29ab",
         "publicationDate": "2012-05-08"
+      },
+      "schemaVersion": 1
+    },
+    {
+      "id": "or-roads-pilot",
+      "type": "road-centerlines",
+      "version": "tiger-2025-v1",
+      "format": "GeoParquet",
+      "url": "gis/or-roads-pilot-2025.parquet",
+      "bytes": 28918,
+      "sha256": "34e58793f7c2b74bbc8fd356e35d5d007943b78323ee3cfaaa98139d3f2467e2",
+      "featureCount": 10,
+      "roadCount": 5,
+      "pointCount": 657,
+      "crs": "EPSG:4326",
+      "scope": {
+        "kind": "Oregon road centerline pilot (Washington and Multnomah County extract)",
+        "bbox": [
+          -123.1,
+          45.5,
+          -122.7,
+          45.7
+        ],
+        "roads": [
+          {
+            "id": "tiger-2025-or-41051-nw-cornelius-pass-rd",
+            "name": "NW Cornelius Pass Rd",
+            "roadClass": "S1400",
+            "countyFips": "41051",
+            "countyName": "Multnomah County, Oregon",
+            "sourceFeatureCount": 1,
+            "sourceLengthM": 7876.06,
+            "uniqueSourceLengthM": 7876.06
+          },
+          {
+            "id": "tiger-2025-or-41051-nw-springville-rd",
+            "name": "NW Springville Rd",
+            "roadClass": "S1400",
+            "countyFips": "41051",
+            "countyName": "Multnomah County, Oregon",
+            "sourceFeatureCount": 3,
+            "sourceLengthM": 6325.735,
+            "uniqueSourceLengthM": 6325.735
+          },
+          {
+            "id": "tiger-2025-or-41067-nw-cornelius-pass-rd",
+            "name": "NW Cornelius Pass Rd",
+            "roadClass": "S1400",
+            "countyFips": "41067",
+            "countyName": "Washington County, Oregon",
+            "sourceFeatureCount": 4,
+            "sourceLengthM": 9161.49,
+            "uniqueSourceLengthM": 9100.534
+          },
+          {
+            "id": "tiger-2025-or-41067-nw-springville-rd",
+            "name": "NW Springville Rd",
+            "roadClass": "S1400",
+            "countyFips": "41067",
+            "countyName": "Washington County, Oregon",
+            "sourceFeatureCount": 1,
+            "sourceLengthM": 3333.906,
+            "uniqueSourceLengthM": 3333.906
+          },
+          {
+            "id": "tiger-2025-or-41067-nw-susbauer-rd",
+            "name": "NW Susbauer Rd",
+            "roadClass": "S1400",
+            "countyFips": "41067",
+            "countyName": "Washington County, Oregon",
+            "sourceFeatureCount": 1,
+            "sourceLengthM": 4804.657,
+            "uniqueSourceLengthM": 4804.657
+          }
+        ]
+      },
+      "source": {
+        "agency": "U.S. Census Bureau",
+        "dataset": "TIGER/Line 2025 ROADS (county road centerlines)",
+        "vintage": "TIGER2025",
+        "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41067_roads.zip",
+        "urls": {
+          "41051": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41051_roads.zip",
+          "41067": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41067_roads.zip"
+        },
+        "sha256": {
+          "41051": "30ae0afe1a0bb6685da281b8ad97fc708876b61e9bfc7c1f0f96118d33d3cb92",
+          "41067": "fda13013515689b57a500462db9b19bdd4dc0c3a70d341eec7eb9f7d7c42eea7"
+        },
+        "publicationDate": "2025-09-22",
+        "documentationUrl": "https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html",
+        "license": "Public domain (U.S. Government work)"
+      },
+      "normalization": {
+        "pipelineVersion": "road-ingest-v1",
+        "method": "Filter TIGER/Line county ROADS features by pilot road name and pilot bounding box; split multi-part shapes into one row per part; drop consecutive duplicate vertices; transform EPSG:4269 to EPSG:4326 with always_xy; emit one WKB LineString row per source feature part.",
+        "sourceCrs": "EPSG:4269",
+        "crs": "EPSG:4326"
       },
       "schemaVersion": 1
     }

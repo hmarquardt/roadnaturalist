@@ -16,7 +16,14 @@ export function corridorGeometry(input) {
 }
 
 function validPoint(point) { return Array.isArray(point) && point.length === 2 && Number.isFinite(point[0]) && Number.isFinite(point[1]) && Math.abs(point[0]) <= 180 && Math.abs(point[1]) <= 90; }
-function haversineM(a, b) { const rad = Math.PI / 180; const dLat = (b[1] - a[1]) * rad, dLon = (b[0] - a[0]) * rad; const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * rad) * Math.cos(b[1] * rad) * Math.sin(dLon / 2) ** 2; return 12742000 * Math.asin(Math.min(1, Math.sqrt(h))); }
+export function haversineM(a, b) { const rad = Math.PI / 180; const dLat = (b[1] - a[1]) * rad, dLon = (b[0] - a[0]) * rad; const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * rad) * Math.cos(b[1] * rad) * Math.sin(dLon / 2) ** 2; return 12742000 * Math.asin(Math.min(1, Math.sqrt(h))); }
+
+export function mergeLineGeometries(geometries) {
+  const lines = geometries.flatMap(geometry => geometry?.type === 'LineString' ? [geometry.coordinates]
+    : geometry?.type === 'MultiLineString' ? geometry.coordinates : []);
+  if (!lines.length) throw new TypeError('No line geometry to merge');
+  return lines.length === 1 ? { type: 'LineString', coordinates: lines[0] } : { type: 'MultiLineString', coordinates: lines };
+}
 
 export function corridorWkt(input) {
   const { geometry } = corridorGeometry(input);

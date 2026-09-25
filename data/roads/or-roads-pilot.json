@@ -1,0 +1,84 @@
+{
+  "kind": "road-candidate-pilot",
+  "pilot": "or-roads-pilot",
+  "datasetId": "or-roads-pilot",
+  "description": "Real Oregon road corridors whose geometry comes from U.S. Census Bureau TIGER/Line 2025 county road centerlines. This pilot carries geometry evidence only: a named road in a government centerline dataset is not evidence of legal public access, of a surface, or of a practical wildlife road cruise.",
+  "candidates": [
+    {
+      "id": "or-roads-cornelius-pass-rd",
+      "name": "NW Cornelius Pass Rd",
+      "roadIds": [
+        "tiger-2025-or-41067-nw-cornelius-pass-rd",
+        "tiger-2025-or-41051-nw-cornelius-pass-rd"
+      ],
+      "status": "discovered",
+      "evidence": [
+        {
+          "kind": "MODELED",
+          "statement": "Corridor geometry is the composition of the TIGER/Line 2025 features named NW Cornelius Pass Rd in Washington and Multnomah County.",
+          "coverage": "FULL",
+          "provenance": { "source": "U.S. Census Bureau TIGER/Line 2025 ROADS", "method": "Name-filtered bounded extract, duplicate links collapsed; see docs/ROADS.md" }
+        },
+        {
+          "kind": "INFERRED",
+          "statement": "A hill road that crosses the Willamette Valley / Coast Range boundary may merit habitat and wildlife-crossing checks.",
+          "coverage": "UNKNOWN",
+          "provenance": { "source": "Road Naturalist pilot note", "method": "Analyst hypothesis, not a finding" }
+        }
+      ],
+      "questions": [
+        "Where is the road legally open to public vehicles along its whole length?",
+        "Which stretch has the highest collision or roadkill potential?",
+        "What is the surface and shoulder condition today?"
+      ]
+    },
+    {
+      "id": "or-roads-springville-rd",
+      "name": "NW Springville Rd",
+      "roadIds": [
+        "tiger-2025-or-41067-nw-springville-rd",
+        "tiger-2025-or-41051-nw-springville-rd"
+      ],
+      "status": "discovered",
+      "evidence": [
+        {
+          "kind": "MODELED",
+          "statement": "Corridor geometry is the composition of four TIGER/Line 2025 features; two source gaps remain unresolved and are reported instead of bridged.",
+          "coverage": "PARTIAL",
+          "provenance": { "source": "U.S. Census Bureau TIGER/Line 2025 ROADS", "method": "Source-feature composition with a 150 m junction tolerance; see docs/ROADS.md" }
+        },
+        {
+          "kind": "INFERRED",
+          "statement": "The corridor changes ecoregion between the valley floor and the forested foothills, which may concentrate wildlife movement.",
+          "coverage": "UNKNOWN",
+          "provenance": { "source": "Road Naturalist pilot note", "method": "Analyst hypothesis, not a finding" }
+        }
+      ],
+      "questions": [
+        "Which feature or landowner occupies the 246 m gap between source segments?",
+        "Is any part of the road gated, posted, or privately maintained?",
+        "Where does the ecoregion transition actually fall on the ground?"
+      ]
+    },
+    {
+      "id": "or-roads-susbauer-rd",
+      "name": "NW Susbauer Rd",
+      "roadIds": [
+        "tiger-2025-or-41067-nw-susbauer-rd"
+      ],
+      "status": "discovered",
+      "evidence": [
+        {
+          "kind": "MODELED",
+          "statement": "Corridor geometry is a single TIGER/Line 2025 source feature with no duplicate links and no unresolved gaps.",
+          "coverage": "FULL",
+          "provenance": { "source": "U.S. Census Bureau TIGER/Line 2025 ROADS", "method": "Name-filtered bounded extract; see docs/ROADS.md" }
+        }
+      ],
+      "questions": [
+        "Is public vehicle access documented for this road today?",
+        "Do farm crossings or drainage ditches create wildlife-attractive edges?"
+      ]
+    }
+  ]
+}
