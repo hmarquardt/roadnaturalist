@@ -227,6 +227,22 @@ Policy for operations that do not need repair:
   point-to-line distance never failed for any of the eight, and a duplicated traversal cannot change a
   minimum distance. Privacy rules are untouched.
 
+### Known limits of this boundary
+
+* **Canonical road length still counts a doubled traversal twice.** Repair removes the duplicate from the
+  *analytical* geometry only; the canonical corridor keeps the doubled leg, because changing what the
+  interface reports as road length for existing corridors is a separate, reviewable decision about source
+  truth, not a geometry-robustness fix. The difference is now explicit per corridor in
+  `removedDuplicateLengthM` and `lengthDeltaM`.
+* **Rungs 2 and 3 have no production caller yet.** They exist for self-touching and self-crossing lines and
+  are exercised by node tests, `npm run verify:geometry`, and future extracts; the eight real failures all
+  need rung 1 only.
+* **GEOS overlay operations on two nearly identical buffers can still throw** (`found non-noded
+  intersection`), which is why the repair decision is made by buffer probes and never by comparing buffer
+  polygons. Road Naturalist does not compute buffer differences anywhere in the running application.
+* **A repair is per corridor, not per radius.** If one radius is refused, the corridor is measured with the
+  repaired geometry at every requested distance, so a corridor never reports a mix of geometries.
+
 Operators can re-run the whole check offline, with no network, in about a second:
 
 ```bash
