@@ -76,6 +76,28 @@ export function pointToLineM(point, geometry) {
   return best;
 }
 
+// Exact-enough minimum distance from a point to a line, in metres. The projection uses a local frame
+// centred on the query point and the distance is then measured with the same haversine formula the
+// domain uses everywhere, so a 50-mile radius search decides corridor inclusion to well under a metre
+// rather than through the equirectangular approximation the repair metrics can afford.
+export function minDistanceToLineM(point, geometry) {
+  let best = Infinity;
+  const latScale = Math.cos(point[1] * Math.PI / 180);
+  for (const line of linesOf(geometry)) {
+    for (let index = 1; index < line.length; index++) {
+      const from = line[index - 1], to = line[index];
+      const dx = (to[0] - from[0]) * 111320 * latScale, dy = (to[1] - from[1]) * 110540;
+      const lengthSquared = dx * dx + dy * dy;
+      const px = (point[0] - from[0]) * 111320 * latScale, py = (point[1] - from[1]) * 110540;
+      const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, (px * dx + py * dy) / lengthSquared));
+      const closest = [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
+      best = Math.min(best, haversineM(point, closest));
+    }
+    for (const vertex of line) best = Math.min(best, haversineM(point, vertex));
+  }
+  return best;
+}
+
 // Symmetric discrete Hausdorff distance: the largest distance from any sampled point of either
 // geometry to the other geometry. Segment midpoints are sampled as well as vertices, so dropping a
 // segment that is not exactly duplicated is caught instead of being hidden by its surviving endpoints.

@@ -1,0 +1,40 @@
+{
+  "region": "or-sw-wa-portland-v2",
+  "cells": 130,
+  "phasesMs": {
+    "pinSourcesMs": 2013,
+    "readRoadsMs": 6454,
+    "readWetlandsMs": 80941,
+    "readHydrographyMs": 39569,
+    "partitionMs": 47687,
+    "totalMs": 176937
+  },
+  "datasets": [
+    {
+      "id": "roads",
+      "featureCount": 115907,
+      "storedRows": 120224,
+      "bytes": 43966018,
+      "files": 124,
+      "emptyCells": 6
+    },
+    {
+      "id": "wetlands",
+      "featureCount": 173704,
+      "storedRows": 179498,
+      "bytes": 174987811,
+      "files": 130,
+      "emptyCells": 0
+    },
+    {
+      "id": "hydrography",
+      "featureCount": 473671,
+      "storedRows": 481063,
+      "bytes": 647204228,
+      "files": 127,
+      "emptyCells": 3
+    }
+  ],
+  "roadNamesSpanningCells": 6050,
+  "manifest": "data/regional/manifest.json"
+}

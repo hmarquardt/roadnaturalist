@@ -40,12 +40,60 @@ SOURCE_CRS = "EPSG:4269"
 GEOMETRY_CRS = "EPSG:4326"
 MEASURE_CRS = "EPSG:5070"
 # Pinned county ROADS archives: county FIPS -> (county name, archive file name, SHA-256).
-COUNTIES = {
+# PILOT_COUNTIES is what the pilot extract and the pilot road artifact are built from; REGIONAL_COUNTIES
+# is the wider window (Oregon plus south-west Washington) the partitioned regional catalog uses. Both
+# read the same published TIGER/Line 2025 archives; a county is pinned once, and which counties a build
+# reads is a window decision, not a source decision.
+PILOT_COUNTIES = {
     "41067": ("Washington County, Oregon", "tl_2025_41067_roads.zip",
               "fda13013515689b57a500462db9b19bdd4dc0c3a70d341eec7eb9f7d7c42eea7"),
     "41051": ("Multnomah County, Oregon", "tl_2025_41051_roads.zip",
               "30ae0afe1a0bb6685da281b8ad97fc708876b61e9bfc7c1f0f96118d33d3cb92"),
 }
+REGIONAL_COUNTIES = {
+    "41005": ("Clackamas County, Oregon", "tl_2025_41005_roads.zip",
+              "65595b9ba38f4c01e5b8bec2dafd95dc409a17f3334e2f3f458a9b8b72af227a"),
+    "41007": ("Clatsop County, Oregon", "tl_2025_41007_roads.zip",
+              "1487dbc2105cf0d4311f6fe673316f3e4166ef60198b49910e659a44cf00db8f"),
+    "41009": ("Columbia County, Oregon", "tl_2025_41009_roads.zip",
+              "0da0563419cfe070c088a55de8b36c72b55e490e9dab5056dcb26d026d80b60d"),
+    "41027": ("Hood River County, Oregon", "tl_2025_41027_roads.zip",
+              "98480c6b6895daa5d46a56773ba06e6548456a4b0138bb7ad7f6aefe0094651f"),
+    "41031": ("Jefferson County, Oregon", "tl_2025_41031_roads.zip",
+              "af8748b52d2e285c77ad123ec2cee80ab25f9bb0f145ddcf38707801efc2b417"),
+    "41041": ("Lincoln County, Oregon", "tl_2025_41041_roads.zip",
+              "88dacae4cd7bcf39d1b5a908a9ed95b37dd87dc2569953dc7fbbb73e9e38eb41"),
+    "41043": ("Linn County, Oregon", "tl_2025_41043_roads.zip",
+              "05dcf30e28f1d75ff1c178a989dc5f19358b4fe561c681c5c0771bd11d66f797"),
+    "41047": ("Marion County, Oregon", "tl_2025_41047_roads.zip",
+              "9a5b3d59a044227da5d62eb97cc96f710b2b0226f770a4a46722364beea6aa85"),
+    "41053": ("Polk County, Oregon", "tl_2025_41053_roads.zip",
+              "8c3311fd09ea89c0ab01df065ff28d1a30856b672ab84727098290d10947e885"),
+    "41057": ("Tillamook County, Oregon", "tl_2025_41057_roads.zip",
+              "ebce9db1d6312723cd8e481f34e9351d73a219327f3c50272a3cce3c41a0ecd4"),
+    "41065": ("Wasco County, Oregon", "tl_2025_41065_roads.zip",
+              "eb1644b513963b870c126f23cb27e4b637852a00b428c3c891a8a2fa11b568a5"),
+    "41071": ("Yamhill County, Oregon", "tl_2025_41071_roads.zip",
+              "4488c7865601fea540475a2cb312490902df80e67e601b2ffeacff80d7b85f0b"),
+    "53011": ("Clark County, Washington", "tl_2025_53011_roads.zip",
+              "8fce6f95226f59885294820c366a7d092eecabadcca3a9ea7fa19bcba9107784"),
+    "53015": ("Cowlitz County, Washington", "tl_2025_53015_roads.zip",
+              "2e4d769390fc83ac5eb75e72484cad7ee80bfb20f247473aba13eebffc864bb7"),
+    "53041": ("Lewis County, Washington", "tl_2025_53041_roads.zip",
+              "9471518c502e31d70409284d355a2f674c1b9c949c0b6d5e9af049a7d433a7b3"),
+    "53049": ("Pacific County, Washington", "tl_2025_53049_roads.zip",
+              "9a23dc4fd1fc375408fe598c37ad250770dc7deeb1f71d0136b6afb84f027499"),
+    "53059": ("Skamania County, Washington", "tl_2025_53059_roads.zip",
+              "7c0d496e62115052b6e2412889958c2d27f488361a93daca31109060cc49417b"),
+    "53069": ("Wahkiakum County, Washington", "tl_2025_53069_roads.zip",
+              "d148dbfe1b4fc3a3a0ade5ea2c428732a69be7fdf2ddcf56c7ee8e89e09fcd0f"),
+}
+# Every archive this repository pins, in one table, so a build cannot quietly read an unpinned county.
+COUNTIES = {**PILOT_COUNTIES, **REGIONAL_COUNTIES}
+# The counties the pilot road-network extract is built from (its window). A test asserts the committed
+# pilot artifact still declares exactly these two archives.
+NETWORK_COUNTIES = tuple(sorted(PILOT_COUNTIES))
+
 # The hand-selected pilot window. Bounded extract, not a county or state road catalog.
 PILOT_BBOX = (-123.10, 45.50, -122.70, 45.70)
 # The discovery window is the bounded habitat analysis window (data/manifest.json, scope.bbox of the

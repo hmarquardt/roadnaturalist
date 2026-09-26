@@ -36,6 +36,10 @@ npm run verify:investigator:worker  # the Worker research boundary (DEPLOYED via
 npm run verify:production:browser   # the deployed app in a real browser, against the deployed Worker and real sources
 npm run validate:probes            # the investigator probe catalog: schema, semantics, Worker policy, capture/baseline
 npm run verify:geometry            # offline: the shared analytical-geometry repair boundary against the real failures
+npm run verify:regional            # offline: every published regional catalog and cell (digests, schema, empty cells)
+npm run benchmark:regional         # opt-in: the 10-, 25- and 50-mile radius scenarios, cold and warm, as JSON
+npm run publish:regional           # publish a catalog's immutable partitions to the R2 data plane (idempotent)
+npm run audit:regional:remote      # read-only audit of every published object: bytes, SHA-256, CORS, Range
 npm run investigator:refresh       # validate the catalog, retrieve declared sources, rewrite the capture + drift baseline
 npm run build:regional             # rebuild regional GeoParquet from pinned local source archives
 node scripts/audit-regional-remote.mjs # read-only public R2 SHA/CORS/Range audit

@@ -2,7 +2,6 @@ import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
 import { corridorGeometry } from '../domain/geometry.js';
 import { loadManifest } from '../services/manifest.js';
 import { selectRegionalPartitions, validateRegionalCatalog } from '../discovery/regional-catalog.js';
-import { normalizeRoadName } from '../discovery/units.js';
 import { createAnalyticalGeometryQueries } from './analytical-geometry.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
 import { createHabitatQueries, HABITAT_DATASETS } from './habitat-query.js';
@@ -41,6 +40,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
   let enginePromise = null;
   const files = new Map();
   const regionalFiles = new Map();
+  let lastRegionalScope = null;
   const diagnostics = { status: 'idle', duckdbVersion: DUCKDB_VERSION, spatial: 'not-loaded', datasets: [], initMs: null, firstQueryMs: null, lastQueryMs: null, firstRoadQueryMs: null, lastRoadQueryMs: null, roadDatasetBytes: null, firstNetworkQueryMs: null, lastNetworkQueryMs: null, networkDatasetBytes: null, firstHabitatQueryMs: null, lastHabitatQueryMs: null, habitatDatasetBytes: {}, firstDiscoveryQueryMs: null, lastDiscoveryQueryMs: null, discoveryCorridorCount: null, error: null };
 
   async function getManifest() { if (!catalog) catalog = await loadManifest(); return catalog; }
@@ -124,13 +124,29 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
     return opened;
   }
 
+  // A selected cell that the catalog declares valid-and-empty contributes no rows but is still covered
+  // data: it means the published source has nothing there, which is a measured zero, not a failure. When
+  // every selected cell is empty the dataset has no file to read, so the relation is built from the
+  // catalog's declared column schema instead of failing. A missing artifact is a different state and
+  // still throws, because that is UNKNOWN.
+  function emptyRelation(kind, dataset) {
+    if (!Array.isArray(dataset.columns) || !dataset.columns.length) {
+      throw new TypeError(`${kind}: selected partitions are empty and the catalog declares no column schema`);
+    }
+    const projection = dataset.columns.map(column => `NULL::${column.type} AS ${column.name}`).join(', ');
+    return `(SELECT ${projection} WHERE false)`;
+  }
+
   async function prepareRegionalSearch(searchArea, { onProgress = () => {} } = {}) {
     const started = performance.now();
     const catalog = await getRegionalCatalog(searchArea.catalogUrl);
     const manifestMs = performance.now() - started;
     const selection = selectRegionalPartitions(catalog, searchArea.bbox);
     const selectionMs = performance.now() - started - manifestMs;
-    if (selection.coverage !== COVERAGE.FULL) {
+    // Only a search that misses the published region entirely is unavailable. A partly covered search
+    // runs and reports PARTIAL: refusing to measure what is covered would hide corridors that the data
+    // does describe, and pretending the uncovered part is complete is what coverage states prevent.
+    if (selection.coverage === COVERAGE.NONE) {
       const error = new Error(selection.reason);
       error.coverage = selection.coverage;
       throw error;
@@ -148,15 +164,16 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
         const file = await openRegionalPartition(part, catalog, partitionMetrics);
         if (file) loaded.push(file);
       }
-      if (!loaded.length) throw new Error(`${kind}: selected partitions are explicitly empty`);
+      const emptyCells = selected.filter(part => part.state === 'empty').length;
       const names = loaded.map(file => `'${file.name}'`).join(', ');
-      const relation = `read_parquet([${names}])`;
+      const relation = loaded.length ? `read_parquet([${names}])` : emptyRelation(kind, dataset);
       const readExpression = `(SELECT * EXCLUDE rn FROM (SELECT *, row_number() OVER (PARTITION BY ${sourceKeys[kind]}) AS rn FROM ${relation}) WHERE rn = 1)`;
       const original = (await getManifest()).datasets.find(item => item.id === dataset.sourceDatasetId);
       const entry = { ...dataset, id: `${dataset.id}-${catalog.version}`, scope: { bbox: catalog.region.bounds },
         source: original?.source, normalization: original?.normalization,
         readExpression, partitioned: true, transferredBytes: loaded.reduce((sum, file) => sum + file.bytes, 0),
-        partitions: selected.map(part => ({ id: part.id, sha256: part.sha256 ?? null, bytes: part.bytes ?? 0 })) };
+        selectedCells: selected.length, presentCells: loaded.length, emptyCells,
+        partitions: selected.map(part => ({ id: part.id, sha256: part.sha256 ?? null, bytes: part.bytes ?? 0, state: part.state })) };
       opened.set(kind, entry);
       return entry;
     }
@@ -169,13 +186,27 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
       await openRegionalDataset(kind);
       loadMs[kind] = Math.round(performance.now() - loadStarted);
     }
-    return {
+    const scope = {
       selection,
       timing: Object.freeze({ manifestMs: Math.round(manifestMs), selectionMs: Math.round(selectionMs),
         loadMs: Object.freeze(loadMs), fetchMs: Math.round(partitionMetrics.fetchMs),
         verifyMs: Math.round(partitionMetrics.verifyMs), registerMs: Math.round(partitionMetrics.registerMs),
         downloadedBytes: partitionMetrics.downloadedBytes, cacheHits: partitionMetrics.cacheHits,
         totalPreparationMs: Math.round(performance.now() - started) }),
+      // Deduplicated row counts per selected dataset. This is the number the GIS layer actually works on:
+      // replicated whole features are collapsed by the source-key window, so the count answers "how many
+      // physical features does this search measure", not "how many copies were stored".
+      async datasetRowCounts() {
+        const engine = await initialize();
+        const counts = {};
+        for (const kind of opened.keys()) {
+          const entry = opened.get(kind);
+          const row = (await engine.conn.query(`SELECT count(*) AS rows FROM ${entry.readExpression}`)).toArray()[0];
+          counts[kind] = { rows: Number(row.rows), presentCells: entry.presentCells, emptyCells: entry.emptyCells,
+            bytes: entry.transferredBytes };
+        }
+        return counts;
+      },
       getHabitatContext(corridor, options = {}) {
         return habitat.getHabitatContext(corridor, { ...options, datasetOpener: id => openRegionalDataset(id === HABITAT_DATASETS[COVERAGE_DATASET.WETLANDS]
           ? 'wetlands' : 'hydrography') });
@@ -188,28 +219,78 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
         const entry = await openRegionalDataset('roads');
         const query = await queryRoads({ roadClasses, limit, datasetId: NETWORK_DATASET_ID, datasetEntry: entry });
         if (query.coverage !== COVERAGE.FULL) return query;
-        const allowed = new Set(selection.roadNameKeys);
-        return { ...query, features: query.features.filter(feature => allowed.has(normalizeRoadName(feature.name))),
-          partitionSelection: selection };
+        // No name filter here: the selected cells are complete for every name they contain (a single-cell
+        // name needs no closing step, and a name that crosses cells is closed over the catalog index), so
+        // every composed unit is whole. Which of those units is *in the search* is decided geometrically
+        // after composition, by the search box and, for a radius search, by the disk.
+        const features = query.features;
+        // A search that reaches the published source window is a different claim from a search well inside
+        // it: a named road that continues across the window edge is not published beyond it, so its corridor
+        // here is not known to be the whole road. Road coverage says PARTIAL rather than FULL for that case,
+        // and each corridor's habitat buffer is already marked when it leaves the window.
+        const published = selection.publishedBounds;
+        const bounds = selection.bounds;
+        const marginDeg = Math.min(bounds[0] - published[0], bounds[1] - published[1],
+          published[2] - bounds[2], published[3] - bounds[3]);
+        // One published grid step: inside that distance from the edge a road group can leave the window.
+        if (marginDeg > 0.2) return { ...query, features, partitionSelection: selection, sourceEdgeMarginDeg: marginDeg };
+        return { ...query, features, coverage: COVERAGE.PARTIAL, partitionSelection: selection,
+          sourceEdgeMarginDeg: marginDeg, sourceEdge: true,
+          reason: 'The search reaches the edge of the published regional source window, so a road group leaving it is '
+            + 'not assumed complete; habitat coverage for those corridors is reported separately.' };
       },
       analyzeDiscovery(corridors, options = {}) {
+        // Partitioned datasets come from the selected cells; the whole-state ecoregion layers are shared by
+        // every regional run and are read through their union entry.
+        const kindOf = id => id === HABITAT_DATASETS[COVERAGE_DATASET.WETLANDS] ? 'wetlands'
+          : id === HABITAT_DATASETS[COVERAGE_DATASET.HYDROGRAPHY] ? 'hydrography' : null;
         return discovery.analyzeDiscoveryCorridors(corridors, { ...options,
-          openDataset: id => openRegionalDataset(id === HABITAT_DATASETS[COVERAGE_DATASET.WETLANDS] ? 'wetlands'
-            : id === HABITAT_DATASETS[COVERAGE_DATASET.HYDROGRAPHY] ? 'hydrography' : id) });
+          openDataset: id => (kindOf(id) ? openRegionalDataset(kindOf(id)) : datasetForDiscovery(id)) });
       },
     };
+    // The last prepared scope, so a benchmark or a diagnostic panel can ask what was selected and how many
+    // deduplicated rows it holds without preparing the search twice.
+    lastRegionalScope = scope;
+    return scope;
+  }
+
+  // Ecoregions are published per state, so a level is answered from the union of every declared layer for
+  // that level. A corridor near a state line then finds its ecoregion instead of a state-line gap, and the
+  // discovery batch and the detailed panel read the same union.
+  async function ecoregionSources(level) {
+    const entries = (await getManifest()).datasets.filter(item => item.id.startsWith('epa-ecoregions-')
+      && item.id.endsWith(`-l${level}`));
+    if (!entries.length) throw new Error(`No EPA Level ${level} ecoregion dataset is declared`);
+    const opened = [];
+    for (const entry of entries) opened.push(await openDataset(entry.id));
+    return { entries, opened };
+  }
+
+  // The union entry a level is queried through. The discovery batch asks for a dataset id, so this is the
+  // single place that turns "EPA Level III" into every declared Level III layer.
+  async function ecoregionUnionEntry(datasetId, level) {
+    const { opened } = await ecoregionSources(level);
+    return { ...opened[0], id: `${datasetId}-union`, partitioned: false, unionedDatasets: opened.map(entry => entry.id),
+      readExpression: `(SELECT * FROM read_parquet([${opened.map(entry => `'${entry.registeredName}'`).join(', ')}]))`,
+      transferredBytes: opened.reduce((sum, entry) => sum + (entry.transferredBytes ?? 0), 0) };
+  }
+
+  async function datasetForDiscovery(id) {
+    const match = /^epa-ecoregions-.+-l(\d)$/.exec(String(id));
+    return match ? ecoregionUnionEntry(id, Number(match[1])) : openDataset(id);
   }
 
   async function queryLevel(level, wkt, bounds) {
-    const dataset = await openDataset(`epa-ecoregions-or-l${level}`);
+    const { opened } = await ecoregionSources(level);
     const engine = await initialize();
     // WKT is generated solely from validated numeric GeoJSON coordinates.
     const road = `ST_GeomFromText('${wkt}')`;
     const projected = geom => `ST_Transform(${geom}, 'EPSG:4326', 'EPSG:5070', always_xy := true)`;
     const routeLengthM = Number((await engine.conn.query(`SELECT ST_Length(${projected(road)}) AS length_m`)).toArray()[0].length_m);
+    const relation = `read_parquet([${opened.map(entry => `'${entry.registeredName}'`).join(', ')}])`;
     const sql = `WITH pieces AS (
       SELECT code, name, ST_Length(${projected(`ST_Intersection(geometry, ${road})`)}) AS overlap_m
-      FROM read_parquet('${dataset.registeredName}')
+      FROM ${relation}
       WHERE min_lon <= ${bounds[2]} AND max_lon >= ${bounds[0]}
         AND min_lat <= ${bounds[3]} AND max_lat >= ${bounds[1]}
         AND ST_Intersects(geometry, ${road})
@@ -343,7 +424,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
   // Discovery analysis is the set-oriented counterpart of the habitat queries: one batch per dataset
   // for every discovered corridor at once, using the same measurement definitions.
   const discovery = createDiscoveryQueries({
-    openDataset, initialize, provenance: habitat.provenance, analytical,
+    openDataset: datasetForDiscovery, initialize, provenance: habitat.provenance, analytical,
     record: (datasetId, entry, queryMs, error) => {
       if (error) { diagnostics.error = error; return; }
       diagnostics.firstDiscoveryQueryMs ??= queryMs;
@@ -357,6 +438,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
   const occurrenceQueries = createOccurrenceQueries({ initialize });
 
   return {
+    get lastRegionalScope() { return lastRegionalScope; },
     prepareRegionalSearch,
     initialize, openDataset, getEcoregions, queryRoads, getRoad, queryRoadNetwork,
     ...habitat,

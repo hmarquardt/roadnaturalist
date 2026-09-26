@@ -7,7 +7,12 @@
       "id": "or-pilot-window",
       "name": "Oregon pilot area",
       "datasetId": "or-roads-network-pilot",
-      "bbox": [-123.07, 45.505, -122.75, 45.67],
+      "bbox": [
+        -123.07,
+        45.505,
+        -122.75,
+        45.67
+      ],
       "requires": [
         "or-roads-network-pilot",
         "nwi-wetlands-or-pilot",
@@ -21,9 +26,91 @@
       "id": "or-portland-west-regional",
       "name": "Portland west region (partitioned)",
       "catalogUrl": "regional/manifest.json",
-      "bbox": [-123.14, 45.48, -122.70, 45.71],
-      "requires": ["epa-ecoregions-or-l3", "epa-ecoregions-or-l4"],
+      "bbox": [
+        -123.14,
+        45.48,
+        -122.7,
+        45.71
+      ],
+      "requires": [
+        "epa-ecoregions-or-l3",
+        "epa-ecoregions-or-l4",
+        "epa-ecoregions-wa-l3",
+        "epa-ecoregions-wa-l4"
+      ],
       "note": "A real larger Oregon test area within the partitioned TIGER, NWI and NHD coverage; local data files are served through the same static manifest contract as future R2 objects."
+    },
+    {
+      "id": "regional-10mi",
+      "name": "Regional benchmark: 10-mile radius",
+      "kind": "radius",
+      "catalogUrl": "regional/manifest.json",
+      "center": [
+        -122.92,
+        45.595
+      ],
+      "radiusMiles": 10,
+      "bbox": [
+        -123.12660835,
+        45.449410711,
+        -122.71339165,
+        45.740589289
+      ],
+      "requires": [
+        "epa-ecoregions-or-l3",
+        "epa-ecoregions-or-l4",
+        "epa-ecoregions-wa-l3",
+        "epa-ecoregions-wa-l4"
+      ],
+      "note": "Committed benchmark scenario on a fixed centre, so 10-, 25- and 50-mile searches differ only in radius. The bounding box selects cells; the disk decides which corridors are inside the search."
+    },
+    {
+      "id": "regional-25mi",
+      "name": "Regional benchmark: 25-mile radius",
+      "kind": "radius",
+      "catalogUrl": "regional/manifest.json",
+      "center": [
+        -122.92,
+        45.595
+      ],
+      "radiusMiles": 25,
+      "bbox": [
+        -123.436520876,
+        45.231026778,
+        -122.403479124,
+        45.958973222
+      ],
+      "requires": [
+        "epa-ecoregions-or-l3",
+        "epa-ecoregions-or-l4",
+        "epa-ecoregions-wa-l3",
+        "epa-ecoregions-wa-l4"
+      ],
+      "note": "Committed benchmark scenario: one 25-mile radius disk on the same fixed centre as the 10- and 50-mile cases."
+    },
+    {
+      "id": "regional-50mi",
+      "name": "Regional benchmark: 50-mile radius",
+      "kind": "radius",
+      "catalogUrl": "regional/manifest.json",
+      "center": [
+        -122.92,
+        45.595
+      ],
+      "radiusMiles": 50,
+      "bbox": [
+        -123.953041752,
+        44.867053555,
+        -121.886958248,
+        46.322946445
+      ],
+      "requires": [
+        "epa-ecoregions-or-l3",
+        "epa-ecoregions-or-l4",
+        "epa-ecoregions-wa-l3",
+        "epa-ecoregions-wa-l4"
+      ],
+      "note": "Committed benchmark scenario: one 50-mile radius disk on the same fixed centre, inside the published Greater Portland region with room for its 1 km habitat halo and cross-cell road continuity."
     }
   ]
 }

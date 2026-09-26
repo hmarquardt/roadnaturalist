@@ -48,7 +48,7 @@ node scripts/audit-regional-remote.mjs  # optional read-only R2 GET/SHA/CORS/Ran
 npm run stage:pages          # validates local files but excludes regional Parquet from Pages payload
 ```
 
-The builder reuses the pilot readers and does not modify pilot artifacts. New publishes must use a new version prefix (`or-portland-west-v2`, etc.) if bytes change: remote paths are treated as immutable. Validate local artifacts, upload each to the Road Naturalist bucket with `application/vnd.apache.parquet` and `Cache-Control: public, max-age=31536000, immutable`, audit all remote bytes, then update the catalog. Do not overwrite a published key with different bytes. A production browser smoke check must precede any Pages deployment that exposes a new catalog. `npm run deploy:pages` was **not** run in this task.
+The builder reuses the pilot readers and does not modify pilot artifacts. New publishes must use a new version prefix (`or-portland-west-v2`, etc.) if bytes change: remote paths are treated as immutable. Validate local artifacts, upload each to the Road Naturalist bucket with `application/vnd.apache.parquet` and `Cache-Control: public, max-age=31536000, immutable`, audit all remote bytes, then update the catalog. Do not overwrite a published key with different bytes. A production browser smoke check must precede any Pages deployment that exposes a new catalog. The wider window (`or-sw-wa-portland-v2`) went through the same path: the catalog was verified locally with `npm run verify:regional`, **381 objects / 826 MiB** were published to the existing `roadnaturalist-data` bucket under immutable versioned keys with `application/vnd.apache.parquet` and `Cache-Control: public, max-age=31536000, immutable`, and the public read-only audit (`npm run audit:regional:remote`) re-read and SHA-256 checked every object over `https://data.roadnaturalist.com/`: **381 objects, 866,158,057 bytes, every digest and CORS header valid, and a Range GET answering 206**. No other Cloudflare resource was touched and the Investigator Worker was not deployed. The wider partitions are served from R2 rather than committed to Git; `npm run build:regional` rebuilds them from the pinned sources in about three minutes, and `npm run verify:regional` reviews the committed catalog structure when the local copies are absent.
 
 The verifier found ten road `(source_feature_id, part)` collisions across the two county archives. Road deduplication therefore includes `county_fips`. It also proves all replicated NWI and NHD keys have identical geometry, so the GIS layer's `row_number() ... PARTITION BY` relation removes the exact whole-feature replicas before area, length and count queries. Cells never clip a feature at their own boundary; only the overall source window is clipped for NWI/NHD. A road crossing cell boundaries is composed after the selected road cells are unioned. The road-name closure ensures all published pieces of that name are loaded; group component and segment IDs derive from the reconstructed geometry, not tile IDs.
 
@@ -82,11 +82,230 @@ These are separate cold Chromium contexts on the development machine, measured b
 
 The instrumented 7 × 7 km run spent 7 ms fetching its manifest, 2 ms selecting cells, 2.36 s preparing partitions (including 2.30 s DuckDB/Spatial initialization), 34 ms fetching 4.60 MB of local Parquet, 3 ms hashing, and 21 ms registering buffers. The 20 × 17 km run spent 6 ms on the manifest, 3 ms on selection, 2.39 s preparing (including 2.28 s initialization), 75 ms fetching 22.15 MB locally, 11 ms hashing, and 20 ms registering. Its wetland and hydrography SQL phases dominated at 9.15 s and 7.96 s. These localhost fetch timings do not predict R2 network transfer time; the browser/R2 check separately verified fetch, CORS, bytes and digest. Render is included in the first UI test's wall-clock time but was not isolated as its own phase.
 
-| Scale | Present decision |
+| Scale | Decision after the wider-window benchmarks (see the final section) |
 | --- | --- |
-| Viewport / approximately 0–10 miles | Browser partitioned DuckDB is comfortable on the tested machine; keep in-session verified-buffer reuse. |
-| Approximately 10–20 miles | Browser mode remains usable but should show phase progress; measure lower-end devices and memory before widening the preset. |
-| Approximately 25 miles | Not yet demonstrated. An R2 partition catalog alone does not guarantee acceptable latency. |
-| 50-mile radius / county+ | Do not offer a blind browser scan yet. First benchmark a real wider source window; likely use immutable precomputed corridor metrics plus browser detail queries, not the Investigator Worker. |
+| Viewport / approximately 0–10 miles | **Superseded.** The final section shows a 10-mile *radius* search at 91 s cold once the cells are complete for a two-state window: this row was a claim about a narrow window, not about a radius. |
+| Approximately 10–20 miles | Superseded by the same measurement; the binding cost is buffered habitat analysis, not the browser's data plane. |
+| Approximately 25 miles | **Measured and not offerable raw**: 202 MB selected, stopped by the feature guard in 4.2 s. |
+| 50-mile radius / county+ | **Measured and not offerable raw**: 769 MB / ~724k features selected. Immutable derived corridor metrics are the measured next step, not the Investigator Worker. |
 
 For Fruiting Forecast, the transferable parts were lazy DuckDB-WASM/Spatial, verified buffer registration, GeoParquet, manifest-host versus asset-host separation, R2 custom domain/CORS/Range, and explicit coverage and provenance. We did not copy its single-file runtime, square biological tile domain, OPFS database tables or 64-record IndexedDB cache. Its production notes correctly warned that Range support is distinct from proving efficient DuckDB range reads; Road Naturalist keeps full verified GETs until measured evidence justifies a different integrity path.
+
+## Wider window and the real scale benchmarks
+
+The first slice was too small to say anything about 25- or 50-mile searches, so the source window was
+widened to `[-124.05, 44.75, -121.77, 46.42]` (about 180 x 180 km) around the original pilot. The window is
+published as **`or-sw-wa-portland-v2`**; the earlier slice stays published as
+`data/regional/manifest-or-portland-west-v1.json` so its measurements remain reproducible and its objects
+remain auditable. `data/regional/manifest.json` is now the wider region.
+
+What the wider window required, all from the same pinned products:
+
+| Dimension | First slice | Wider window |
+| --- | --- | --- |
+| TIGER/Line county ROADS archives | 2 (Oregon) | 20 (14 Oregon, 6 Washington) |
+| NWI state extracts | Oregon | Oregon **and Washington** |
+| NHD HR HU8 basins | 2 | 23 |
+| Working grid (0.2 degrees) | 6 cells | 130 cells |
+| Partition objects | 18 | 381 (124 road, 130 wetland, 127 hydrography) |
+| Partition bytes | 24.9 MB | 826 MiB |
+
+Washington is not optional: the pilot sits about 3 km from the Columbia River, so *any* 50-mile disk around
+it crosses into Washington, and an Oregon-only wetland extract would report a silent zero for those
+corridors. For the same reason EPA ecoregions are now built for both states
+(`epa-ecoregions-wa-l3/l4`, from the same EPA per-state source as Oregon) and *a level is answered from the
+union of its declared layers*: a corridor on either side of the river finds its ecoregion instead of a
+state-line gap. That union is used by the discovery batch and by the detailed corridor panel alike.
+
+Empty cells are first-class: `x279_y676..680` and `x291_y682` hold no road features, and three cells hold no
+hydrography, because they are almost entirely Pacific Ocean. A selected cell the catalog declares
+valid-and-empty produces a **typed empty relation** built from the catalog's declared column schema, so a
+search that only covers ocean cells returns zero measured features with the cells covered - not a SQL
+failure, not UNKNOWN, and not a missing table. A cell declared *present* whose object is missing or has the
+wrong digest is still a failure.
+
+Build (measured, one pass over each source; `data/regional/build-or-sw-wa-portland-v2.json`):
+
+| Phase | Time |
+| --- | --- |
+| verify pinned archives | 2.0 s |
+| read 20 TIGER county archives | 6.5 s |
+| read 2 NWI state GeoPackages (R-tree per state) | 81 s |
+| read 23 NHD HU8 basins | 40 s |
+| partition into 130 cells x 3 datasets | 48 s |
+| **total** | **177 s** |
+
+Cell membership is decided in one indexed pass (an STRtree over the 0.2 degree cells) instead of a
+rows x cells scan, and a logical feature that two adjacent NHD basins both carry is kept once, in basin
+code order, so the published dataset is exactly one row per logical feature.
+
+### Committed benchmark scenarios
+
+`data/regional/benchmarks.json` fixes the scenarios; `data/discovery/search-areas.json` exposes the same
+three to the interface. All three are **concentric** on one centre so that scale comparisons differ only in
+radius, and all three are inside the published window with room for the 1 km habitat halo and for a road
+group crossing a cell boundary:
+
+| Scenario | Radius | Centre | Bounds |
+| --- | --- | --- | --- |
+| `small-10mi` | 10 mi | -122.92, 45.595 | `[-123.1266, 45.4494, -122.7134, 45.7406]` |
+| `medium-25mi` | 25 mi | -122.92, 45.595 | `[-123.4365, 45.2310, -122.4035, 45.9590]` |
+| `large-50mi` | 50 mi | -122.92, 45.595 | `[-123.9530, 44.8671, -121.8870, 46.3229]` |
+
+Radius semantics are explicit: the bounding box selects cells (a cell grid can only be intersected by a
+box), and the **disk** decides which composed corridors are inside the search - a unit is kept only when
+some part of its road lies within the radius, measured with the domain's haversine distance. Habitat is
+selected by the box padded by the 1 km analysis distance, and corridor habitat coverage is marked PARTIAL
+when a corridor and its buffer leave the published window.
+
+`npm run benchmark:regional` drives the three scenarios in a real browser. Each scenario is measured twice:
+once in a fresh Chromium context (COLD: no partition registered yet) and once more in the same page (WARM:
+the same verified buffers are reused). It prints `REGIONAL_BENCHMARK` JSON lines and writes
+`/tmp/regional-benchmark.json`.
+
+### What the raw browser path measured
+
+Measured on the development machine by `npm run benchmark:regional` (one Chromium context per scenario, cold
+then warm in the same page). Localhost serves the partitions, so transfer is near-free here; the numbers are
+therefore dominated by DuckDB work, which is what a real R2 transfer would add to rather than replace.
+
+| Scenario | Selected cells (road/NWI/NHD) | Catalog bytes | Transferred | Corridors | COLD | WARM |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| 10-mile radius | 58 / 6 / 6 | 77.2 MB | 77.2 MB | 421 | **91.0 s** | **88.3 s** |
+| 25-mile radius | 70 / 28 / 28 | 202.3 MB | - | - | stopped by the feature guard at 4.2 s | 0.8 s |
+| 50-mile radius | 110 / 88 / 88 | 768.9 MB | - | - | stopped by the feature guard at 5.9 s | 0.9 s |
+
+The 10-mile cold run in phases:
+
+| Phase | Time |
+| --- | --- |
+| manifest load | 7 ms |
+| partition selection (with bounded name closure) | 6 ms |
+| fetch 77.2 MB (localhost) | 237 ms |
+| SHA-256 verification of every byte | 47 ms |
+| DuckDB/WASM registration (70 buffers) | 33 ms |
+| road query | 5,072 ms |
+| named-road composition (6,390 units from 94,554 features) | 1,235 ms |
+| segmentation (421 corridors) | 34 ms |
+| discovery batch, total | 84,657 ms |
+| - validate 3,519 · buffers 695 · prepare 4,407 · **wetlands 61,762** · hydrography 16,276 · hydroTypes 589 · level3 1,036 · level4 569 ms | |
+| result shaping | 3 ms |
+| **total** | **91,014 ms** |
+
+Warm repeats are almost as slow (88.3 s against 91.0 s) even though data preparation falls from 2.8 s to
+6 ms and 70 partitions are served from the session cache. **The cost is the analysis, not the transfer**: the
+wetland pass alone is 61.8 s of the 91 s. The 25- and 50-mile radii never reach analysis: the road reader's
+100,000-feature ceiling stops them in about 5 s with a typed empty answer rather than a crash, which is the
+correct production behaviour and also proof that neither radius is offerable as a raw browser search.
+
+Geometry work still behaves at scale: of the 421 corridors in the 10-mile run, 20 needed the shared
+analytical-geometry repair and 2 stayed unbufferable, all of which were reported per corridor.
+
+Memory: JavaScript heap after the 10-mile run was 227.9 MiB (`performance.memory.usedJSHeapSize`),
+against 168.8 MiB for the runs that stopped early. The number excludes DuckDB WASM/native allocation, and
+no reliable peak process RSS measurement was available in this harness, so no peak figure is claimed. The
+registered partition buffers are the transferred bytes (77.2 MB for the 10-mile run), each held once per
+session.
+
+### Road-name closure overfetch, measured
+
+Closure is bounded by cell adjacency: a name that repeats in unrelated places must not pull every cell that
+shares it. The bound cut the pathological case down (for the 10-mile search it now skips 1,770 name-cell
+pairs) but the remaining overfetch is still material and is caused by **common street names repeating in
+*adjacent* cells** - every town on a highway has a 3rd St, and adjacency cannot tell those apart:
+
+| Scenario | Base road cells | Closure-added | Added bytes | Share of road bytes |
+| --- | ---: | ---: | ---: | ---: |
+| 10-mile radius | 6 | 52 | 23.4 MB | +372% over the 6.3 MB the box selects |
+| 25-mile radius | 24 | 46 | 17.4 MB | +160% over 10.9 MB |
+| 50-mile radius | 88 | 22 | 1.5 MB | +6% over 25.4 MB |
+
+The largest single offenders in the 10-mile run were `3rd-st` (12 extra cells, 4.8 MB), `ne-5th-ave`
+(4 cells, 3.3 MB), `ne-11th-ave` (3 cells, 3.1 MB) and `4th-st` (6 cells, 2.8 MB). The consequence is visible
+in the run itself: 94,554 road features were composed to produce 421 corridors inside a 10-mile disk.
+
+That is the overfetch the previous slice flagged as "to be measured", and the measurement says it is **not
+acceptable**: it more than quadruples the road bytes and it multiplies composition cost. The smallest safe
+fix is to record, at build time, the **connected components of each multi-cell name** (the same 150 m
+endpoint rule the browser composes with) and close only over the component that touches the search. That
+keeps whole roads whole - which is the only reason to close at all - without loading a same-named street on
+the far side of the region. It is a build-side index change, not an analysis change, and it is a prerequisite
+for any radius search to be cheap.
+
+### Classification and the derived-metrics decision
+
+Budgets were fixed before the numbers (COMFORTABLE <= 10 s cold, USABLE >10 s and <=25 s, SLOW >25 s and
+<=45 s, UNSUITABLE RAW >45 s). Nothing below was adjusted afterwards.
+
+| Scale | Raw cold | Classification |
+| --- | ---: | --- |
+| 10-mile radius | 91.0 s | **UNSUITABLE RAW** |
+| 25-mile radius | stopped at 4.2 s by the feature guard (202 MB selected) | **UNSUITABLE RAW** |
+| 50-mile radius | stopped at 5.9 s by the feature guard (769 MB selected) | **UNSUITABLE RAW** |
+
+**Derived metrics are triggered**, by both stated conditions: the 25-mile raw path exceeds 25 s (it cannot
+even start), and the 50-mile raw path is impractical by a wide margin. Two measured causes, in order of size:
+
+1. **Per-corridor buffered analysis.** The wetland pass is 61.8 s for a 10-mile search; hydrography is
+   another 16.3 s. This is exactly the work a derived artifact would precompute, and it is the reason warm
+   repeats are no faster than cold ones.
+2. **Road-name closure overfetch**, which quadruples road bytes and multiplies composition cost for small
+   searches (above).
+
+A third, structural cause is cell granularity: at 0.2 degrees a single cell is ~15.5 x 22.2 km, so a 10-mile
+disk is already served by whole cells whose habitat content is 46 MB. Finer cells would cut transfer, but the
+partition scheme was deliberately left alone for this measurement, and derived metrics answer the same
+problem without touching it.
+
+### The derived artifact this measurement calls for (design, not yet built)
+
+Not implemented in this pass. The measurement is what was missing, and it is now in hand; the design below is
+what the numbers point at, and building it is the next feature rather than a second architecture.
+
+* **Granularity**: one compact GeoParquet per published cell, holding the *discovery result rows* for the
+  corridors whose geometry intersects that cell. No geometry is required to browse, so a row is roughly
+  300-600 bytes; a 50-mile disk would move single-digit megabytes instead of 769 MB.
+* **Columns** (per row): corridor id, name, road unit id, bounds, canonical length, road class, counties,
+  wetland `intersects`/`nearest`/`area250`/`area500`/`area1000`/feature counts/top type, hydrography
+  crossing count/nearest flowing/nearest standing/flowline length within 1 km/waterbody area, ecology primary
+  Level III and IV plus ecoregion count, and per-dimension coverage. No occurrence evidence, no Investigator
+  evidence, no access finding, no user state.
+* **Fingerprint**: the catalog declares a deterministic analysis fingerprint over the road source version,
+  composition version, segmentation profile, geometry-repair version, each habitat dataset version, the
+  ecoregion versions, the analysis buffer profile and the derived schema version. A run whose loaded versions
+  do not reproduce the fingerprint uses the raw path instead: stale metrics are never used because a corridor
+  id happens to match.
+* **Hybrid path**: derived partitions answer browsing, filtering, sorting and selection. Selecting or
+  promoting a corridor loads the raw cells it needs through the existing service boundary, so the detailed
+  deterministic analysis and the evidence trail stay the source of truth, and the derived layer can never
+  become the only representation of the underlying data.
+* **Equivalence**: a deterministic sample of corridors is compared between derived rows and a live raw run
+  (wetland intersection, area at 250 m and 1 km, crossing count, nearest flowing water, primary ecoregion,
+  coverage) within the existing tolerances; a cache that shifts discovery semantics is not acceptable.
+
+### Known limit found by this pass: regional batch and detailed wetland area disagree
+
+The regional Playwright test that compares a promoted corridor's habitat area with the area the discovery
+batch reported for the same corridor found **618.35 ha in the batch against 765.63 ha in the detailed panel**
+for the same FULL-coverage corridor (about 24%, with 236 wetland features in the detail). The pilot path is
+asserted equal to its own detailed query, so this is a regional-path difference and it is recorded here as
+technical debt with its evidence rather than papered over:
+
+* both paths read the *same* regional partitions (the batch through the discovery dataset opener, the detail
+  through the regional `getHabitatContext` opener), so the difference is not a dataset mix-up;
+* the batch is what every number in the benchmark table above measured, so the scale conclusions stand;
+* the next step is exactly the equivalence check the derived-metrics design requires anyway - run one
+  corridor through both SQL paths with the same prepared geometry and diff the intermediate relations
+  (buffer table, wetland hit rows, coverage rows) instead of only the final area.
+
+Until that is resolved, treat a promoted corridor's regional wetland area as the more complete of the two
+values and do not compare the two panels numerically.
+
+### Scale recommendation (this pass)
+
+| Scale | Recommendation |
+| --- | --- |
+| 10-mile radius | **Do not offer as a blind raw browser search.** 91 s cold on this machine, dominated by buffered habitat analysis (61.8 s in wetlands alone). Either bound the road-name closure and precompute corridor metrics, or keep the small window presets that already fit the old slice. |
+| 25-mile radius | **Not offerable raw** (202 MB selected, stopped by the feature guard). Keep it as a benchmark scenario until derived metrics exist. |
+| 50-mile radius | **Not offerable raw** (769 MB / ~724k features selected). This is the case immutable derived metrics exist for; the shipped `large-50mi` scenario is the harness that will prove it. |
+| Any radius | The partition grid, the manifest, coverage semantics and the shared geometry-repair boundary are sound at this scale and stay as they are. The blocker is analysis cost and closure overfetch, not the data plane. |

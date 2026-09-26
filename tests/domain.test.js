@@ -117,13 +117,17 @@ test('coverage separates outside scope, partial overlap, and failure', async () 
 test('manifest declares real GeoParquet data, provenance, and matching digests', () => {
   const manifest = validateManifest(JSON.parse(readFileSync(new URL('../data/manifest.json', import.meta.url))));
   const ecoregions = manifest.datasets.filter(dataset => dataset.type === 'ecoregions');
-  assert.deepEqual(ecoregions.map(item => item.level), [3, 4]);
+  // Oregon and Washington each ship Level III and IV: the regional window crosses the Columbia River, so
+  // a corridor on either side must find its ecoregion instead of a state-line gap.
+  assert.deepEqual(ecoregions.map(item => item.level), [3, 4, 3, 4]);
+  assert.deepEqual(ecoregions.map(item => item.scope.kind).sort(),
+    ['Oregon state extract', 'Oregon state extract', 'Washington state extract', 'Washington state extract']);
   for (const dataset of ecoregions) {
     const bytes = readFileSync(new URL(`../data/${dataset.url}`, import.meta.url));
     assert.equal(bytes.byteLength, dataset.bytes);
     assert.equal(createHash('sha256').update(bytes).digest('hex'), dataset.sha256);
     assert.equal(dataset.source.agency, 'U.S. Environmental Protection Agency');
-    assert.match(dataset.source.url, /or_eco_l[34]\.zip$/);
+    assert.match(dataset.source.url, /(or|wa)_eco_l[34]\.zip$/);
     assert.ok(dataset.featureCount > 0);
   }
   assert.throws(() => validateManifest({ schemaVersion: 1, datasets: [{ id: 'bad' }] }));
@@ -133,9 +137,14 @@ test('manifest declares real GeoParquet data, provenance, and matching digests',
 test('one failed EPA level preserves the other as partial evidence', async () => {
   const manifest = JSON.parse(readFileSync(new URL('../data/manifest.json', import.meta.url)));
   const l3 = readFileSync(new URL('../data/gis/epa-or-l3-2012.parquet', import.meta.url));
+  const l3wa = readFileSync(new URL('../data/gis/epa-wa-l3-2012.parquet', import.meta.url));
   const oldFetch = globalThis.fetch;
+  // Every declared Level III layer resolves; every Level IV layer fails. A level is answered from the union
+  // of its layers, so one unreadable layer makes that level UNKNOWN without touching the other level.
   globalThis.fetch = async url => {
-    if (String(url).includes('l3-2012')) return new Response(l3);
+    const target = String(url);
+    if (target.includes('epa-or-l3-2012')) return new Response(l3);
+    if (target.includes('epa-wa-l3-2012')) return new Response(l3wa);
     throw new Error('Level IV fetch failed');
   };
   try {

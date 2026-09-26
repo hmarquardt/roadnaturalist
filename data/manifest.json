@@ -61,6 +61,64 @@
       "schemaVersion": 1
     },
     {
+      "id": "epa-ecoregions-wa-l3",
+      "type": "ecoregions",
+      "version": "epa-wa-2012-v1",
+      "level": 3,
+      "format": "GeoParquet",
+      "url": "gis/epa-wa-l3-2012.parquet",
+      "bytes": 1445663,
+      "sha256": "07a828ad6e5009f996083bb5f10719c344c189192cb933adf70abed24d089360",
+      "featureCount": 9,
+      "uniqueCodes": 9,
+      "crs": "EPSG:4326",
+      "scope": {
+        "kind": "Washington state extract",
+        "bbox": [
+          -124.73317272766857,
+          45.54354545436084,
+          -116.91558181841683,
+          49.00249090935425
+        ]
+      },
+      "source": {
+        "agency": "U.S. Environmental Protection Agency",
+        "url": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/wa/wa_eco_l3.zip",
+        "sha256": "e665f5a691b006feaf0c2d0ec8394c4e6d03de127267a21e054ae5bec4e6dae3",
+        "publicationDate": "2012-05-08"
+      },
+      "schemaVersion": 1
+    },
+    {
+      "id": "epa-ecoregions-wa-l4",
+      "type": "ecoregions",
+      "version": "epa-wa-2012-v1",
+      "level": 4,
+      "format": "GeoParquet",
+      "url": "gis/epa-wa-l4-2012.parquet",
+      "bytes": 2761366,
+      "sha256": "dd90eee69046238f491d15960647a7e4ba20fd1c639b6b9172e58c66b906d95c",
+      "featureCount": 330,
+      "uniqueCodes": 57,
+      "crs": "EPSG:4326",
+      "scope": {
+        "kind": "Washington state extract",
+        "bbox": [
+          -124.73317272766855,
+          45.54354545436084,
+          -116.91558181841685,
+          49.002490909354236
+        ]
+      },
+      "source": {
+        "agency": "U.S. Environmental Protection Agency",
+        "url": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/wa/wa_eco_l4.zip",
+        "sha256": "bc5c13a56a3cdd7bc4a48251400ac9bf7624b3af5d5fb8615e8b7127daff535b",
+        "publicationDate": "2012-05-08"
+      },
+      "schemaVersion": 1
+    },
+    {
       "id": "nhd-hydrography-or-pilot",
       "type": "hydrography",
       "version": "nhd-hr-hu8-2023-12-v1",

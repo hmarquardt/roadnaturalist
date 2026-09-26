@@ -86,8 +86,23 @@ function coverageBanner(coverage, diagnostics) {
   }
   if (diagnostics?.counts) {
     const selection = diagnostics.partitionSelection;
-    if (selection) block.append(el('p', 'small muted', `Search data: ${selection.counts.roads} road, ${selection.counts.wetlands} wetland, `
-      + `${selection.counts.hydrography} hydrography partitions · ${(selection.bytes / 1048576).toFixed(1)} MiB verified · 1 km habitat halo.`));
+    if (diagnostics.searchShape?.kind === 'radius') {
+      const shape = diagnostics.searchShape;
+      block.append(el('p', 'small muted', `Search region: ${shape.radiusMiles}-mile radius around `
+        + `${shape.center[1].toFixed(3)}, ${shape.center[0].toFixed(3)} · cells are selected by the bounding box, `
+        + 'corridors are kept only where the road crosses the disk.'));
+    }
+    if (selection) {
+      block.append(el('p', 'small muted', `Search data: ${selection.counts.roads} road, ${selection.counts.wetlands} wetland, `
+        + `${selection.counts.hydrography} hydrography partitions · ${(selection.bytes / 1048576).toFixed(1)} MiB verified · 1 km habitat halo.`));
+      const empty = Object.values(selection.emptyCounts ?? {}).reduce((sum, value) => sum + value, 0);
+      const closure = selection.closure;
+      if (empty) block.append(el('p', 'small muted', `${empty} selected partition(s) are declared covered and empty: `
+        + 'the published source has nothing mapped there, which is a measured zero rather than missing data.'));
+      if (closure?.addedCells) block.append(el('p', 'small muted', `Road-name continuity added ${closure.addedCells} `
+        + `cell(s) (${(closure.addedBytes / 1048576).toFixed(1)} MiB) beyond the ${closure.baseCells} cell(s) the search box selects, `
+        + `so ${closure.selectedNames} named road group(s) are complete before composition.`));
+    }
     if (diagnostics.partitionTimingMs) {
       const timing = diagnostics.partitionTimingMs;
       block.append(el('p', 'small muted', `Data preparation ${timing.totalPreparationMs} ms · downloaded ${(timing.downloadedBytes / 1048576).toFixed(1)} MiB · `

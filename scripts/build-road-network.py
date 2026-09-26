@@ -23,7 +23,7 @@ from pathlib import Path
 from shapely import wkb as shapely_wkb
 from shapely.geometry import LineString
 
-from tiger_sources import (COUNTIES, GEOMETRY_CRS, MEASURE_CRS, NETWORK_BBOX, SOURCE_AGENCY, SOURCE_BASE, SOURCE_CRS,
+from tiger_sources import (COUNTIES, GEOMETRY_CRS, MEASURE_CRS, NETWORK_BBOX, NETWORK_COUNTIES, SOURCE_AGENCY, SOURCE_BASE, SOURCE_CRS,
                            SOURCE_DATASET, SOURCE_DOCS, SOURCE_LICENSE, SOURCE_PUBLICATION_DATE, SOURCE_VINTAGE,
                            bounds_of, feature_parts, haversine_endpoint_gap_m, haversine_is_reversed_link,
                            haversine_length_m, open_roads, probe_units, slug, source_archive, unique_lines, within,
@@ -205,8 +205,8 @@ def manifest_entry(path, digest, stats):
         },
         "source": {"agency": SOURCE_AGENCY, "dataset": SOURCE_DATASET, "vintage": SOURCE_VINTAGE,
                    "url": SOURCE_BASE + COUNTIES["41067"][1],
-                   "urls": {fips: SOURCE_BASE + COUNTIES[fips][1] for fips in sorted(COUNTIES)},
-                   "sha256": {fips: COUNTIES[fips][2] for fips in sorted(COUNTIES)},
+                   "urls": {fips: SOURCE_BASE + COUNTIES[fips][1] for fips in NETWORK_COUNTIES},
+                   "sha256": {fips: COUNTIES[fips][2] for fips in NETWORK_COUNTIES},
                    "publicationDate": SOURCE_PUBLICATION_DATE, "documentationUrl": SOURCE_DOCS, "license": SOURCE_LICENSE},
         "normalization": {"pipelineVersion": PIPELINE_VERSION, "method": NORMALIZATION,
                           "sourceCrs": SOURCE_CRS, "crs": GEOMETRY_CRS, "measureCrs": MEASURE_CRS,
@@ -224,7 +224,7 @@ def main():
 
     tally = {"excludedClasses": {}, "outsideWindow": 0, "degenerate": 0}
     rows = []
-    for county_fips in sorted(COUNTIES):
+    for county_fips in NETWORK_COUNTIES:
         supplied = args.archive if args.archive and COUNTIES[county_fips][1] == args.archive.name else None
         archive = source_archive(county_fips, supplied, args.cache, args.download)
         rows.extend(read_county(county_fips, archive, tally))

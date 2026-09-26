@@ -1,0 +1,62 @@
+{
+  "kind": "road-discovery-benchmarks",
+  "version": 1,
+  "region": "or-sw-wa-portland-v2",
+  "assetBaseUrl": "https://data.roadnaturalist.com/",
+  "catalogUrl": "regional/manifest.json",
+  "analysisHaloM": 1000,
+  "note": "Concentric fixed-radius scenarios on one fixed centre so scale comparisons are meaningful. Radii are statute miles; bounds are derived with the same constants src/discovery/search-area.js uses, and a test asserts the committed bounds still match that derivation.",
+  "scenarios": [
+    {
+      "id": "small-10mi",
+      "label": "Small: 10-mile radius",
+      "kind": "radius",
+      "center": [
+        -122.92,
+        45.595
+      ],
+      "radiusMiles": 10,
+      "bbox": [
+        -123.12660835,
+        45.449410711,
+        -122.71339165,
+        45.740589289
+      ],
+      "fullyInsidePublishedRegion": true
+    },
+    {
+      "id": "medium-25mi",
+      "label": "Medium: 25-mile radius",
+      "kind": "radius",
+      "center": [
+        -122.92,
+        45.595
+      ],
+      "radiusMiles": 25,
+      "bbox": [
+        -123.436520876,
+        45.231026778,
+        -122.403479124,
+        45.958973222
+      ],
+      "fullyInsidePublishedRegion": true
+    },
+    {
+      "id": "large-50mi",
+      "label": "Large: 50-mile radius",
+      "kind": "radius",
+      "center": [
+        -122.92,
+        45.595
+      ],
+      "radiusMiles": 50,
+      "bbox": [
+        -123.953041752,
+        44.867053555,
+        -121.886958248,
+        46.322946445
+      ],
+      "fullyInsidePublishedRegion": true
+    }
+  ]
+}

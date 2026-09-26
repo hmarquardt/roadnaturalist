@@ -11,3 +11,8 @@ __pycache__/
 *.pbf
 .wrangler/
 dist/
+
+# The wider published regional window is served from R2; its 826 MiB of partitions are rebuilt on demand
+# with `npm run build:regional` (about three minutes from the pinned sources) and audited remotely with
+# `npm run audit:regional:remote`. The catalog, its per-object digests and the build report are committed.
+data/regional/partitions/or-sw-wa-portland-v2/

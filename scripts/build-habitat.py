@@ -50,11 +50,79 @@ WETLANDS = {
     "bytes": 1934005929, "sha256": "ae6a75e7945943ce517350f8165ec6dd936c75fea7118a9cdabf765d816954a5",
     "published": "2026-05-04", "layer": "OR_Wetlands", "srs_id": 300001,
     "artifact": "nwi-wetlands-pilot.parquet",
+    "state": "OR", "project_layer": "OR_Wetlands_Project_Metadata",
     "agency": "U.S. Fish and Wildlife Service",
     "dataset": "National Wetlands Inventory — Oregon state extract (GeoPackage)",
     "vintage": "May 2026 NWI release (state download published 2026-05-04)",
     "documentation_url": "https://www.fws.gov/program/national-wetlands-inventory/data-download",
     "license": "Public domain (U.S. Government work)",
+}
+# The same published NWI product for Washington, added for the wider regional window: a corridor whose
+# 1 km buffer crosses the Columbia River needs Washington wetlands, and an Oregon-only extract would
+# report a silent zero there. Its feature ids are state-prefixed so the two states cannot collide.
+WASHINGTON_WETLANDS = {
+    "id": "nwi-wetlands-wa-regional", "type": "wetlands", "version": "nwi-wa-2026-05-v1", "state": "WA",
+    "url": "https://documentst.ecosphere.fws.gov/wetlands/data/State-Downloads/WA_geopackage_wetlands.zip",
+    "archive": "WA_geopackage_wetlands.zip", "member": "WA_geopackage_wetlands.gpkg",
+    "bytes": 1128136827, "sha256": "6852401cf6d40bacaab4b3dc97db1446f86e6a1fa3c44516f80e61badcbcaf7f",
+    "published": "2026-05-04", "layer": "WA_Wetlands", "project_layer": "WA_Wetlands_Project_Metadata", "srs_id": 300001,
+    "artifact": "nwi-wetlands-wa-regional.parquet",
+    "agency": "U.S. Fish and Wildlife Service",
+    "dataset": "National Wetlands Inventory — Washington state extract (GeoPackage)",
+    "vintage": "May 2026 NWI release (state download published 2026-05-04)",
+    "documentation_url": "https://www.fws.gov/program/national-wetlands-inventory/data-download",
+    "license": "Public domain (U.S. Government work)",
+}
+# Pinned NHD HR HU8 staged archives for the wider regional window. Codes are the authoritative
+# identifier; the pilot basins above keep their published watershed names, and the wider build uses the
+# code as the source name rather than asserting a watershed name it has not verified.
+REGIONAL_HU8 = {
+    "17070105": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17070105_HU8_GDB.zip", "bytes": 65275757,
+              "sha256": "a817da3bcadf8e3f80b32797ee972af71cc6d9fef48a466e19ae3b5175a3eed0"},
+    "17070306": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17070306_HU8_GDB.zip", "bytes": 10894637,
+              "sha256": "8b5138e4b6881d8ec83dc56d3f90f118182b24bfa37380a80e600e7ef1b9d137"},
+    "17080001": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17080001_HU8_GDB.zip", "bytes": 28866037,
+              "sha256": "ed2ea4a22da87e938c2a8ac17667c9236c6788c4f27df2780f25bbf601e64628"},
+    "17080002": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17080002_HU8_GDB.zip", "bytes": 24398706,
+              "sha256": "a7d580748de31b089ffe9841ac6c912c02a30bada227e3009f2aa5aae8daa8c8"},
+    "17080003": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17080003_HU8_GDB.zip", "bytes": 15404900,
+              "sha256": "94c0619332836f6d4b8c191e663add457143aa6765d3b2cb28932b6a39261a8a"},
+    "17080004": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17080004_HU8_GDB.zip", "bytes": 23940184,
+              "sha256": "6b6214b000f3bb31b98ff6db73868ab7147146b806f7a284c2bc53226fa1c1d1"},
+    "17080005": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17080005_HU8_GDB.zip", "bytes": 21460646,
+              "sha256": "6473145562b545d3898a044bec1d48f85fbbd0c5626f2f682cbdb4b9a46a0c0b"},
+    "17080006": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17080006_HU8_GDB.zip", "bytes": 14182037,
+              "sha256": "bfdc0753612644fe310e6f00a56953f2432f5723f80cf09720f9315546adcf3f"},
+    "17090003": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090003_HU8_GDB.zip", "bytes": 47050632,
+              "sha256": "7e0837636dfbcf4d06c370d565fd91958847261c6e0cccb725122b78e7ec2f50"},
+    "17090005": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090005_HU8_GDB.zip", "bytes": 25925167,
+              "sha256": "1e8e92fa35c2c1df7c636a271aa650465453b9e99fed5ee6f140f620ffe493b5"},
+    "17090006": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090006_HU8_GDB.zip", "bytes": 41505552,
+              "sha256": "5a13b492bf29b3ab489851939b09d47eda30b457ef9d94aa3b66b66ebe3a081a"},
+    "17090007": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090007_HU8_GDB.zip", "bytes": 8173417,
+              "sha256": "4bc787a5d8c428419354f38018be0149f4a792cbe83ed1c545a13e2ed59fec2b"},
+    "17090008": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090008_HU8_GDB.zip", "bytes": 35423068,
+              "sha256": "25d6b3a37990c47ccbe7a4759bb319310087877fde37a392ac618147a86515fd"},
+    "17090009": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090009_HU8_GDB.zip", "bytes": 23229059,
+              "sha256": "e89c0dd00b358ca394b8cd24516ffb1bdfa525cd5a59fa95113c298987767636"},
+    "17090010": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090010_HU8_GDB.zip", "bytes": 21056661,
+              "sha256": "9f65000fa8ccdee7b8eaa8e68e9f5feb6b68daa69c79452590ec2ac64d6c90c4"},
+    "17090011": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090011_HU8_GDB.zip", "bytes": 15708291,
+              "sha256": "9ee616e03511088709e966e5ef9427643b114fb84f4bdbd728ec5bf6e2d054a4"},
+    "17090012": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17090012_HU8_GDB.zip", "bytes": 12173295,
+              "sha256": "9b24d7dc5fab0ab3b3c5a482c2cb8ad32cf3e111b17a7b6e81f7bb3ac99cc813"},
+    "17100103": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17100103_HU8_GDB.zip", "bytes": 21364604,
+              "sha256": "d522875743a51f1834f2706aa216581c7b1507599d7633276318d14717dc4058"},
+    "17100106": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17100106_HU8_GDB.zip", "bytes": 26246326,
+              "sha256": "fe6d58a89202b75ae9cf2977c180aa812bb9ca6a4d6efdce5bc69972af8019d9"},
+    "17100201": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17100201_HU8_GDB.zip", "bytes": 9734011,
+              "sha256": "0cc3cbc93ec4d36789397f96544a9b6fccd4288deb2fbd4c44afeab9100f545d"},
+    "17100202": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17100202_HU8_GDB.zip", "bytes": 20492033,
+              "sha256": "a08eaafb8b831db500312bcdf4c07648062b487f9a8fb0442741fe29fc7d579f"},
+    "17100203": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17100203_HU8_GDB.zip", "bytes": 59163293,
+              "sha256": "bb563ba719649159d07259086e296c385afea659fafb6b84893a78decd681247"},
+    "17100204": {"url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_17100204_HU8_GDB.zip", "bytes": 35332172,
+              "sha256": "738a358ccadb6177d6d25faf4c6400348bdb48f62215cc7b7b6685184735e8b3"},
 }
 HYDROGRAPHY = {
     "id": "nhd-hydrography-or-pilot", "type": "hydrography", "version": "nhd-hr-hu8-2023-12-v1",
@@ -141,10 +209,11 @@ def multi(geometry, kind):
     return factory(parts) if parts else None
 
 
-def wetlands_extract_geometry():
-    """The analytical window in the NWI source CRS (NAD83 Conus Albers) plus a bounding box."""
-    connection = sqlite3.connect("file:%s?mode=ro" % WETLANDS["path"], uri=True)
-    definition = connection.execute("SELECT definition FROM gpkg_spatial_ref_sys WHERE srs_id = ?", (WETLANDS["srs_id"],)).fetchone()
+def wetlands_extract_geometry(source=None):
+    """The analytical window in one NWI source's CRS (NAD83 Conus Albers) plus a bounding box."""
+    source = source or WETLANDS
+    connection = sqlite3.connect("file:%s?mode=ro" % source["path"], uri=True)
+    definition = connection.execute("SELECT definition FROM gpkg_spatial_ref_sys WHERE srs_id = ?", (source["srs_id"],)).fetchone()
     connection.close()
     if not definition:
         raise ValueError("GeoPackage does not declare its spatial reference")
@@ -155,98 +224,133 @@ def wetlands_extract_geometry():
     return source_crs, (min(xs), min(ys), max(xs), max(ys))
 
 
-def read_wetlands():
-    """Select NWI features with the GeoPackage R-tree, then process geometry in DuckDB Spatial."""
-    source_crs, bbox = wetlands_extract_geometry()
+def nwi_prefix(source, primary):
+    """Feature-id prefix: the primary state keeps its bare OBJECTID, every later state is prefixed.
+
+    ``OBJECTID`` is only unique inside one state's layer, so a multi-state extract needs the prefix to
+    keep the GIS deduplication key honest. Keeping the primary state unprefixed preserves the exact
+    Oregon feature ids the pilot artifact and its committed expectations already use.
+    """
+    return "" if source is primary else f"{source['state']}-"
+
+
+def read_wetlands(sources=None):
+    """Select NWI features with each GeoPackage R-tree, then process geometry in DuckDB Spatial.
+
+    ``sources`` defaults to the pilot's single Oregon GeoPackage. The regional build passes Oregon and
+    Washington together: a corridor whose 1 km buffer crosses the Columbia River needs both, and one
+    state's extract cannot speak for the other.
+    """
+    sources = list(sources or [WETLANDS])
+    primary = sources[0]
+    features, source_rows, projects_by_state = [], [], {}
+    for source in sources:
+        source_crs, bbox = wetlands_extract_geometry(source)
+        connection = sqlite3.connect("file:%s?mode=ro" % source["path"], uri=True)
+        cursor = connection.cursor()
+        statewide = cursor.execute("SELECT count(*) FROM %s" % source["layer"]).fetchone()[0]
+        selected = cursor.execute(
+            f"SELECT w.OBJECTID, w.ATTRIBUTE, w.WETLAND_TYPE, w.QAQC_CODE, w.ACRES, w.NWI_ID, w.Shape FROM {source['layer']} w "
+            "JOIN rtree_%s_Shape r ON w.OBJECTID = r.id "
+            "WHERE r.maxx >= ? AND r.minx <= ? AND r.maxy >= ? AND r.miny <= ? ORDER BY w.OBJECTID" % source["layer"],
+            (bbox[0], bbox[2], bbox[1], bbox[3])).fetchall()
+        projects = cursor.execute(
+            "SELECT p.OBJECTID, p.PROJECT_NAME, p.IMAGE_YR, p.Shape FROM %s p "
+            "JOIN rtree_%s_Shape r ON p.OBJECTID = r.id "
+            "WHERE r.maxx >= ? AND r.minx <= ? AND r.maxy >= ? AND r.miny <= ?" % (source["project_layer"], source["project_layer"]),
+            (bbox[0], bbox[2], bbox[1], bbox[3])).fetchall()
+        connection.close()
+        prefix = nwi_prefix(source, primary)
+        for row in selected:
+            features.append((f"{prefix}{row[0]}", source["state"], row[0], row[1], row[2], row[3], row[4], row[5],
+                             gpkg_geometry(row[6]).wkb))
+        shapes = []
+        for row in projects:
+            geometry = gpkg_geometry(row[3])
+            if geometry.geom_type == "MultiPolygon":
+                geometry = MultiPolygon([part.simplify(25.0, preserve_topology=True) for part in geometry.geoms])
+            else:
+                geometry = geometry.simplify(25.0, preserve_topology=True)
+            shapely_prepare(geometry)
+            shapes.append((row[1], row[2], geometry))
+        projects_by_state[source["state"]] = (STRtree([entry[2] for entry in shapes]) if shapes else None, shapes)
+        authority = source_crs.to_authority()
+        source_rows.append({"state": source["state"], "statewideFeatureCount": statewide, "windowFeatureCount": len(selected),
+                            "sourceLayer": source["layer"], "bbox": list(bbox),
+                            "sourceCrs": f"{authority[0]}:{authority[1]}" if authority else source_crs.to_string(),
+                            "sourceCrsDefinition": source_crs.to_wkt()})
+
+    # Every NWI state GeoPackage this build reads must use the same source CRS, because the window
+    # polygon below is built once and reused for all of them.
+    if len({item["sourceCrs"] for item in source_rows}) != 1:
+        raise ValueError("NWI sources do not share one source CRS")
+    bbox = source_rows[0]["bbox"]
     window_5070 = (f"ST_SetCRS(ST_GeomFromText('POLYGON(({bbox[0]} {bbox[1]}, {bbox[2]} {bbox[1]}, "
-f"{bbox[2]} {bbox[3]}, {bbox[0]} {bbox[3]}, {bbox[0]} {bbox[1]}))'), 'EPSG:5070')")
-    connection = sqlite3.connect("file:%s?mode=ro" % WETLANDS["path"], uri=True)
-    cursor = connection.cursor()
-    statewide = cursor.execute("SELECT count(*) FROM %s" % WETLANDS["layer"]).fetchone()[0]
-    features = cursor.execute(
-        f"SELECT w.OBJECTID, w.ATTRIBUTE, w.WETLAND_TYPE, w.QAQC_CODE, w.ACRES, w.NWI_ID, w.Shape FROM {WETLANDS['layer']} w "
-        "JOIN rtree_%s_Shape r ON w.OBJECTID = r.id "
-        "WHERE r.maxx >= ? AND r.minx <= ? AND r.maxy >= ? AND r.miny <= ? ORDER BY w.OBJECTID" % WETLANDS["layer"],
-        (bbox[0], bbox[2], bbox[1], bbox[3])).fetchall()
-    projects = cursor.execute(
-        "SELECT p.OBJECTID, p.PROJECT_NAME, p.IMAGE_YR, p.Shape FROM OR_Wetlands_Project_Metadata p "
-        "JOIN rtree_OR_Wetlands_Project_Metadata_Shape r ON p.OBJECTID = r.id "
-        "WHERE r.maxx >= ? AND r.minx <= ? AND r.maxy >= ? AND r.miny <= ?",
-        (bbox[0], bbox[2], bbox[1], bbox[3])).fetchall()
-    connection.close()
+                   f"{bbox[2]} {bbox[3]}, {bbox[0]} {bbox[3]}, {bbox[0]} {bbox[1]}))'), 'EPSG:5070')")
 
-    project_shapes = []
-    for row in projects:
-        geometry = gpkg_geometry(row[3])
-        if geometry.geom_type == "MultiPolygon":
-            geometry = MultiPolygon([part.simplify(25.0, preserve_topology=True) for part in geometry.geoms])
-        else:
-            geometry = geometry.simplify(25.0, preserve_topology=True)
-        shapely_prepare(geometry)
-        project_shapes.append((row[1], row[2], geometry))
-    project_tree = STRtree([entry[2] for entry in project_shapes]) if project_shapes else None
-
-    def project_for(point):
-        if project_tree is None:
+    def project_for(state, point):
+        tree, shapes = projects_by_state.get(state, (None, []))
+        if tree is None:
             return None
-        for index in project_tree.query(point):
-            if project_shapes[index][2].covers(point):
-                return project_shapes[index]
+        for index in tree.query(point):
+            if shapes[index][2].covers(point):
+                return shapes[index]
         return None
 
     attributes = {row[0]: row for row in features}
     engine = duckdb.connect()
     engine.execute("INSTALL spatial; LOAD spatial;")
     engine.register("nwi", pa.table({
-        "objectid": [row[0] for row in features],
-        "wkb": [gpkg_geometry(row[6]).wkb for row in features],
+        "feature_key": [row[0] for row in features],
+        "state": [row[1] for row in features],
+        "objectid": [row[2] for row in features],
+        "wkb": [row[8] for row in features],
     }))
     processed = engine.execute(f"""
         WITH tight AS (
-          SELECT objectid, ST_SimplifyPreserveTopology(ST_Intersection(ST_SetCRS(ST_GeomFromWKB(wkb), 'EPSG:5070'), {window_5070}), {SIMPLIFY_TOLERANCE_M}) AS geometry
+          SELECT feature_key, state, ST_SimplifyPreserveTopology(ST_Intersection(ST_SetCRS(ST_GeomFromWKB(wkb), 'EPSG:5070'), {window_5070}), {SIMPLIFY_TOLERANCE_M}) AS geometry
           FROM nwi
         ), shaped AS (
-          SELECT objectid, geometry, ST_Area(geometry) AS area_m2,
+          SELECT feature_key, state, geometry, ST_Area(geometry) AS area_m2,
                  ST_X(ST_Centroid(geometry)) AS centroid_x, ST_Y(ST_Centroid(geometry)) AS centroid_y,
                  ST_ReducePrecision(ST_Transform(geometry, 'EPSG:5070', 'EPSG:4326', always_xy := true), 0.000001) AS geometry_lon_lat
           FROM tight
         )
-        SELECT objectid, ST_AsWKB(geometry_lon_lat), area_m2, centroid_x, centroid_y,
+        SELECT feature_key, state, ST_AsWKB(geometry_lon_lat), area_m2, centroid_x, centroid_y,
                ST_XMin(geometry_lon_lat), ST_YMin(geometry_lon_lat), ST_XMax(geometry_lon_lat), ST_YMax(geometry_lon_lat),
                ST_IsEmpty(geometry_lon_lat)
-        FROM shaped ORDER BY objectid""").fetchall()
+        FROM shaped ORDER BY feature_key""").fetchall()
     engine.close()
 
-    authority = source_crs.to_authority()
-    source_crs_string = f"{authority[0]}:{authority[1]}" if authority else source_crs.to_string()
-    source_crs_definition = source_crs.to_wkt()
     rows, dropped, total_area = [], 0, 0.0
     for row in processed:
-        objectid, geometry_wkb, area_m2, centroid_x, centroid_y, min_lon, min_lat, max_lon, max_lat, empty = row
+        feature_key, state, geometry_wkb, area_m2, centroid_x, centroid_y, min_lon, min_lat, max_lon, max_lat, empty = row
         if empty or area_m2 <= 0:
             dropped += 1
             continue
-        feature = attributes[objectid]
-        attribute = str(feature[1] or "")
-        match = project_for(Point(centroid_x, centroid_y))
+        feature = attributes[feature_key]
+        attribute = str(feature[3] or "")
+        match = project_for(state, Point(centroid_x, centroid_y))
         total_area += area_m2
         rows.append({
-            "source_feature_id": str(objectid), "attribute": attribute, "wetland_type": str(feature[2] or ""),
+            "source_feature_id": str(feature_key), "source_state": state,
+            "attribute": attribute, "wetland_type": str(feature[4] or ""),
             "system_code": attribute[0] if attribute else "", "system_label": COWARDIN_SYSTEMS.get(attribute[0], "") if attribute else "",
-            "qaqc_code": str(feature[3] or ""), "source_acres": float(feature[4] or 0.0), "nwi_id": str(feature[5] or ""),
+            "qaqc_code": str(feature[5] or ""), "source_acres": float(feature[6] or 0.0), "nwi_id": str(feature[7] or ""),
             "source_project_name": match[0] if match else "", "source_image_year": int(match[1]) if match and match[1] else None,
             "area_m2": round(area_m2, 3),
             "min_lon": min_lon, "min_lat": min_lat, "max_lon": max_lon, "max_lat": max_lat,
             "geometry": bytes(geometry_wkb),
         })
-    stats = {"statewideFeatureCount": statewide, "windowFeatureCount": len(features), "featureCount": len(rows),
-             "droppedFeatureCount": dropped, "areaM2": round(total_area, 1),
-             "sourceCrs": source_crs_string, "sourceCrsDefinition": source_crs_definition,
+    stats = {"statewideFeatureCount": source_rows[0]["statewideFeatureCount"],
+             "windowFeatureCount": sum(item["windowFeatureCount"] for item in source_rows),
+             "featureCount": len(rows), "droppedFeatureCount": dropped, "areaM2": round(total_area, 1),
+             "sourceCrs": source_rows[0]["sourceCrs"], "sourceCrsDefinition": source_rows[0]["sourceCrsDefinition"],
+             "states": source_rows,
              "sourceImageYears": sorted({int(row["source_image_year"]) for row in rows if row["source_image_year"]}),
              "wetlandTypes": sorted({row["wetland_type"] for row in rows if row["wetland_type"]}),
              "attributes": sorted({row["attribute"] for row in rows if row["attribute"]})}
     return rows, stats
-
 
 
 def read_hydrography():

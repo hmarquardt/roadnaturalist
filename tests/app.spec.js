@@ -17,7 +17,9 @@ for (const width of [1440, 390]) {
     await page.goto('/');
     await expect(page.locator('#candidate-list')).toContainText('No corridor loaded', { timeout: 30000 });
     await expect(page.locator('#map')).toContainText('No corridor loaded');
-    await expect(page.locator('#data-context')).toContainText('Published GIS datasets6');
+    // The declared dataset count is read from the manifest instead of typed in, so adding a dataset
+    // (Washington ecoregions, for the wider regional window) cannot make this assertion stale.
+    await expect(page.locator('#data-context')).toContainText(`Published GIS datasets${manifest.datasets.length}`);
     await expect(page.locator('#data-context')).toContainText('WetlandsUNKNOWN');
     await page.getByRole('button', { name: /Open Oregon road pilot/ }).click();
     await expect(page.locator('#candidate-list')).toContainText('Road geometry could not be loaded');

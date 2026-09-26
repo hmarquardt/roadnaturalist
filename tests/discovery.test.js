@@ -840,11 +840,24 @@ test('the three hand-selected pilot roads are inside the discovery extract', () 
 
 test('a search area must lie inside every dataset it requires', () => {
   const valid = validateSearchAreas(searchAreas, manifest);
-  assert.equal(valid.searchAreas.length, 2);
+  // The committed areas: the pilot window, the older regional extent, and the three fixed-radius
+  // benchmark scenarios (10, 25 and 50 miles on one centre).
+  assert.deepEqual(valid.searchAreas.map(area => area.id),
+    ['or-pilot-window', 'or-portland-west-regional', 'regional-10mi', 'regional-25mi', 'regional-50mi']);
   assert.deepEqual(valid.searchAreas[0].requires[0], 'or-roads-network-pilot');
+  // A radius area keeps its declared bounds only if they are the bounds its radius implies.
+  const mismatched = JSON.parse(JSON.stringify(searchAreas));
+  mismatched.searchAreas[2].bbox = [-123.2, 45.4, -122.6, 45.8];
+  assert.throws(() => validateSearchAreas(mismatched, manifest), /do not match its 10-mile radius/);
+  // Ecoregions are published per state, so coverage is the union of the declared layers: a 50-mile radius
+  // that crosses the Columbia is covered by Oregon and Washington together, and by neither alone.
+  const oregonOnly = JSON.parse(JSON.stringify(searchAreas));
+  oregonOnly.searchAreas[4].requires = ['epa-ecoregions-or-l3', 'epa-ecoregions-or-l4'];
+  assert.throws(() => validateSearchAreas(oregonOnly, manifest), /extends outside ecoregions-l[34]/);
+  assert.equal(validateSearchAreas(searchAreas, manifest).searchAreas[4].requires.length, 4);
   const outside = JSON.parse(JSON.stringify(searchAreas));
   outside.searchAreas[0].bbox = [-124.5, 45.0, -124.4, 45.1];
-  assert.throws(() => validateSearchAreas(outside, manifest), /extends outside or-roads-network-pilot/);
+  assert.throws(() => validateSearchAreas(outside, manifest), /extends outside dataset:or-roads-network-pilot/);
   const missing = JSON.parse(JSON.stringify(searchAreas));
   missing.searchAreas[0].requires = ['not-a-dataset'];
   assert.throws(() => validateSearchAreas(missing, manifest), /which is not in the data manifest/);

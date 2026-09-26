@@ -14,7 +14,7 @@ export function combineDiscoveryCoverage(values) {
 
 // Search-area coverage summary. It describes the run, not any single corridor: per-corridor coverage
 // travels with each result.
-export function summarizeDiscoveryCoverage({ roadQuery, searchArea, results = [], eligibility = [], diagnostics = null } = {}) {
+export function summarizeDiscoveryCoverage({ roadQuery, searchArea, searchCoverage = null, results = [], eligibility = [], diagnostics = null } = {}) {
   const corridorCount = results.length;
   const habitatStates = results.map(result => result.coverage?.[COVERAGE_DATASET.WETLANDS]?.coverage ?? COVERAGE.UNKNOWN);
   const hydroStates = results.map(result => result.coverage?.[COVERAGE_DATASET.HYDROGRAPHY]?.coverage ?? COVERAGE.UNKNOWN);
@@ -31,8 +31,12 @@ export function summarizeDiscoveryCoverage({ roadQuery, searchArea, results = []
     [COVERAGE_DATASET.WETLANDS]: { coverage: wetlands, reason: stateReason(results, COVERAGE_DATASET.WETLANDS) },
     [COVERAGE_DATASET.HYDROGRAPHY]: { coverage: hydrography, reason: stateReason(results, COVERAGE_DATASET.HYDROGRAPHY) },
   };
+  // A search region that only partly overlaps the published regional data is its own coverage dimension:
+  // it is not a road-read failure and it is not zero habitat, it is a bounded claim about where the data
+  // reaches. A bbox search inside the published region reports FULL here and changes nothing.
+  const search = searchCoverage ?? { coverage: COVERAGE.FULL, reason: null };
   const coverage = combineDiscoveryCoverage([dimensions[COVERAGE_DATASET.ROAD_NETWORK].coverage,
-    dimensions[COVERAGE_DATASET.WETLANDS].coverage, dimensions[COVERAGE_DATASET.HYDROGRAPHY].coverage]);
+    dimensions[COVERAGE_DATASET.WETLANDS].coverage, dimensions[COVERAGE_DATASET.HYDROGRAPHY].coverage, search.coverage]);
   const excludedFeatureCount = eligibility.reduce((total, entry) => total + entry.count, 0);
   const counts = Object.freeze({
     corridors: corridorCount,
@@ -41,10 +45,11 @@ export function summarizeDiscoveryCoverage({ roadQuery, searchArea, results = []
     excludedFeatureCount,
     droppedShortUnits: diagnostics?.droppedShortUnits ?? 0,
   });
-  const reasons = [dimensions[COVERAGE_DATASET.ROAD_NETWORK], dimensions[COVERAGE_DATASET.WETLANDS], dimensions[COVERAGE_DATASET.HYDROGRAPHY]]
+  const reasons = [dimensions[COVERAGE_DATASET.ROAD_NETWORK], dimensions[COVERAGE_DATASET.WETLANDS],
+    dimensions[COVERAGE_DATASET.HYDROGRAPHY], search]
     .filter(entry => entry.coverage !== COVERAGE.FULL && entry.reason).map(entry => entry.reason);
   return Object.freeze({
-    coverage, dimensions: Object.freeze(dimensions), counts,
+    coverage, dimensions: Object.freeze(dimensions), searchCoverage: Object.freeze(search), counts,
     reason: coverage === COVERAGE.FULL ? null : (reasons[0] ?? 'The search area is not fully covered by every required dataset.'),
     note: coverage === COVERAGE.FULL ? null
       : 'PARTIAL coverage means part of the search area is outside the loaded road or habitat datasets, so these corridors cannot be compared with fully covered ones as though the missing habitat were zero.',

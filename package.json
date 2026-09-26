@@ -17,8 +17,11 @@
     "validate:probes": "node scripts/validate-probes.mjs",
     "verify:geometry": "node scripts/verify-geometry.mjs",
     "build:regional": "uv run --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 scripts/build-regional.py",
-    "verify:regional": "uv run --with duckdb python3 scripts/verify-regional.py",
-    "investigator:refresh": "node scripts/refresh-investigator-evidence.mjs"
+    "verify:regional": "uv run --python 3.12 --with duckdb python3 scripts/verify-regional.py",
+    "investigator:refresh": "node scripts/refresh-investigator-evidence.mjs",
+    "benchmark:regional": "RUN_REGIONAL_BENCHMARK=1 playwright test tests/regional-benchmark.spec.js --reporter=line --retries=0",
+    "publish:regional": "node scripts/publish-regional.mjs",
+    "audit:regional:remote": "node scripts/audit-regional-remote.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"
