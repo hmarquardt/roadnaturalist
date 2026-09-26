@@ -28,10 +28,12 @@ import { createLiveResearchTransport, createResearchService } from '../src/inves
 import { PILOT_PROBES_BY_CORRIDOR } from '../src/investigator/sources.js';
 import { createInvestigatorService } from '../src/investigator/service.js';
 import { STAGE_STATUS } from '../src/investigator/workflow.js';
+import { buildBaselineFromRecord } from '../src/investigator/drift.js';
 
 const ROOT = new URL('..', import.meta.url);
 const readJson = path => JSON.parse(readFileSync(new URL(path, ROOT)));
 const RECORD_PATH = 'data/investigator/or-pilot-access-evidence.json';
+const BASELINE_PATH = 'src/investigator/probes/drift-baseline.js';
 const flags = new Set(process.argv.slice(2).filter(argument => argument.startsWith('--')));
 const corridorFlag = process.argv.slice(2).find(argument => argument.startsWith('--corridors='));
 const selected = corridorFlag ? corridorFlag.split('=')[1].split(',') : null;
@@ -138,6 +140,19 @@ console.log(`\nDrift findings: ${drift}`);
 if (writeRecord) {
   writeFileSync(new URL(RECORD_PATH, ROOT), `${JSON.stringify(capture, null, 1)}\n`);
   console.log(`Wrote reviewed capture: ${RECORD_PATH} (${capture.capturedAt})`);
+  // The Worker compares its own fresh reads against a compact baseline of this capture, so the two must be refreshed
+  // together: a baseline from an older capture would report drift on every probe.
+  const baseline = buildBaselineFromRecord(capture);
+  const baselineHeader = [
+    '// COMPACT SOURCE-DRIFT BASELINE (GENERATED — do not edit by hand).',
+    '//',
+    '// Normalized extracted facts from the reviewed operator capture. The Worker compares its own fresh read of a',
+    '// source against this; the browser compares a live Worker result against the recorded capture it replays.',
+    '// Regenerate together with the capture: npm run verify:investigator:live -- --write-record.',
+    '// It carries no page text, no HTML, no credential, and no corridor context.',
+  ].join('\n');
+  writeFileSync(new URL(BASELINE_PATH, ROOT), `${baselineHeader}\nexport const DRIFT_BASELINE = Object.freeze(${JSON.stringify(baseline, null, 1)});\n\nexport default DRIFT_BASELINE;\n`);
+  console.log(`Wrote drift baseline: ${BASELINE_PATH} (${baseline.probes.length} probes)`);
   console.log('Review the diff before committing: the capture is what the browser build replays offline.');
 } else {
   console.log(`Capture not written (pass --write-record to update ${RECORD_PATH}).`);

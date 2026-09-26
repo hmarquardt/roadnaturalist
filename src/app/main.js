@@ -1,7 +1,7 @@
 import { COVERAGE, COVERAGE_DATASET, setCandidateCoverage } from '../domain/corridor.js';
 import { createStore } from '../state/store.js';
 import { createCorridorMap } from '../map/corridor-map.js';
-import { renderCandidates, renderDetail, renderContext } from '../ui/render.js';
+import { ACCESS_FINDING_LABELS, renderCandidates, renderDetail, renderContext } from '../ui/render.js';
 import { loadManifest } from '../services/manifest.js';
 import { createGisService } from '../gis/service.js';
 import { summarizeEcoregions } from '../ecology/context.js';
@@ -11,6 +11,9 @@ import { roadEvidenceSummary } from '../roads/road.js';
 import { createOccurrenceService } from '../occurrence/service.js';
 import { COVERAGE_DATASETS, summarizeOccurrences } from '../occurrence/context.js';
 import { createInvestigatorService } from '../investigator/service.js';
+import { RETRIEVAL_MODE, createWorkerResearchTransport, probeAvailability, retrievalModeCounts } from '../investigator/worker-transport.js';
+import { buildProbeBaseline, baselineIndex, compareProbeEvidence, summarizeDrift } from '../investigator/drift.js';
+import { INVESTIGATOR_WORKER_URL } from './config.js';
 import { createResearchService, createRecordedTransport, createLiveResearchTransport } from '../investigator/research.js';
 import { BROWSER_MIRRORS, createOsmSource, createRecordedOsmSource } from '../investigator/osm.js';
 import { PILOT_PROBES_BY_CORRIDOR } from '../investigator/sources.js';
@@ -140,20 +143,63 @@ async function loadAccessRecord() {
   return accessRecord;
 }
 
-function investigatorFor(candidateId, { liveOsm = false } = {}) {
+// LIVE VS RECORDED. The browser cannot read a county site that sends no CORS header, so live official-source
+// research goes through the Road Naturalist Worker boundary when this build is configured with one. The choice is
+// made by asking the boundary what it declares (no source is contacted), and whichever path runs is recorded in the
+// result so nothing reads as a fresh check when it was a replay.
+async function chooseResearchPath(candidateId) {
   const probes = PILOT_PROBES_BY_CORRIDOR[candidateId] ?? [];
-  // The capture is per corridor: a recorded run for another corridor is not evidence for this one.
   const corridorRecord = accessRecord?.corridors?.[candidateId] ?? null;
   const recordedRun = corridorRecord ? { ...corridorRecord, capturedAt: accessRecord.capturedAt ?? null } : null;
-  const research = createResearchService({
-    transport: liveOsm ? createLiveResearchTransport({ fetchImpl: fetch, operatorOnlyOrigins: OPERATOR_ONLY_ORIGINS })
+  const recordedProbes = (corridorRecord?.probes ?? []).map(probe => buildProbeBaseline(probe.probeId, { capturedAt: accessRecord?.capturedAt ?? null,
+    outcome: probe.outcome ?? null, facts: probe.evidence ?? [], sourceUrl: probe.searched?.url ?? null }));
+  let availability = { available: false, reason: 'no investigator Worker is configured for this build', worker: null, probeIds: [] };
+  if (INVESTIGATOR_WORKER_URL) availability = await probeAvailability({ baseUrl: INVESTIGATOR_WORKER_URL, fetchImpl: fetch });
+  if (INVESTIGATOR_WORKER_URL) store.setWorkerStatus(Object.freeze({ url: INVESTIGATOR_WORKER_URL, available: availability.available,
+    reason: availability.reason, worker: availability.worker ?? null, probeIds: Object.freeze([...(availability.probeIds ?? [])]), checkedAt: new Date().toISOString() }));
+  const live = INVESTIGATOR_WORKER_URL && availability.available;
+  return { probes, recordedRun, recordedProbes, availability, live,
+    transport: live ? createWorkerResearchTransport({ baseUrl: INVESTIGATOR_WORKER_URL, fetchImpl: fetch, recordedProbes })
       : createRecordedTransport({ record: recordedRun, browserOrigins: OPERATOR_ONLY_ORIGINS }),
-    probes,
-  });
-  const osmSource = liveOsm ? createOsmSource({ mirrors: BROWSER_MIRRORS, requireCors: true }) : createRecordedOsmSource({ record: accessRecord, corridorId: candidateId });
-  return createInvestigatorService({ osmSource, research, probes, record: recordedRun, environment: liveOsm ? 'browser/recorded official sources + live OpenStreetMap' : 'browser/recorded operator run' });
+    environment: live ? 'browser/live Worker boundary' : 'browser/recorded operator run' };
 }
 
+function investigatorFor(candidateId, { liveOsm = false, path }) {
+  const research = createResearchService({ transport: path.transport, probes: path.probes });
+  return createInvestigatorService({ osmSource: osmSourceFor(candidateId, liveOsm), research, probes: path.probes,
+    record: path.recordedRun, environment: `${path.environment}${liveOsm ? ' + live OpenStreetMap' : ''}` });
+}
+
+// A recorded capture can still carry the source comparison when the live facts come from the Worker: the transport
+// already compares live facts against the capture, so the UI can show both kinds of drift.
+function previousRunSummary(prior, next) {
+  if (!prior?.access) return null;
+  const summary = next?.access?.coverage?.probeSummary ?? {};
+  const lost = (summary.failed ?? 0) + (summary.deferred ?? 0);
+  const changed = prior.access.finding !== next?.access?.finding;
+  if (!lost && !changed) return null;
+  return Object.freeze({ finding: prior.access.finding, ruleId: prior.access.ruleId ?? null, checkedAsOf: prior.access.checkedAsOf ?? null,
+    evidenceCheckedAt: prior.access.evidenceCheckedAt ?? null, coverage: prior.access.coverage?.coverage ?? null, transport: prior.transport ?? null,
+    reason: lost ? `${lost} source(s) in the new run did not answer` : 'the new run changed the finding',
+    humanFinding: prior.access.human?.finding ?? null });
+}
+
+function driftSummaryOf(investigation) {
+  const states = investigation.research.probes.map(probe => ({ worker: probe.drift?.worker?.state ?? null, recorded: probe.drift?.recorded?.state ?? null }));
+  const changed = states.filter(entry => [entry.worker, entry.recorded].some(state => state === 'EVIDENCE_CHANGED' || state === 'NO_LONGER_MATCHES'));
+  const unavailable = states.filter(entry => [entry.worker, entry.recorded].some(state => state === 'SOURCE_UNAVAILABLE'));
+  return Object.freeze({ changed: changed.length, unavailable: unavailable.length, states: Object.freeze(states),
+    note: changed.length ? `${changed.length} source(s) differ from the reviewed baseline; open the investigation record for the facts involved.`
+      : 'No source differs from the reviewed baseline.' });
+}
+
+function osmSourceFor(candidateId, liveOsm) {
+  return liveOsm ? createOsmSource({ mirrors: BROWSER_MIRRORS, requireCors: true }) : createRecordedOsmSource({ record: accessRecord, corridorId: candidateId });
+}
+
+// One investigation run. The path is chosen first (Worker boundary or reviewed capture), and the result records which
+// path produced each source's answer. If a live run cannot reach a single source while a reviewed capture exists, the
+// capture is replayed and the fallback is recorded rather than silently swapped in.
 async function resolveAccess(id, { refresh = false, liveOsm = false } = {}) {
   const state = store.getState();
   const candidate = state.candidates.find(item => item.id === id);
@@ -161,10 +207,28 @@ async function resolveAccess(id, { refresh = false, liveOsm = false } = {}) {
   if (state.investigationByCandidate[id] && !refresh) return;
   await loadAccessRecord();
   const roads = state.roadsByCandidate[id] ?? [];
-  const investigation = await investigatorFor(id, { liveOsm }).investigate({ candidate, roads,
-    evidence: { ecology: state.ecologyByCandidate[id] ?? null, habitat: state.habitatByCandidate[id] ?? null, occurrence: state.occurrenceByCandidate[id] ?? null } });
-  store.setInvestigationResult(id, investigation);
+  const prior = state.investigationByCandidate[id] ?? null;
+  const path = await chooseResearchPath(id);
+  const evidence = { ecology: state.ecologyByCandidate[id] ?? null, habitat: state.habitatByCandidate[id] ?? null,
+    occurrence: state.occurrenceByCandidate[id] ?? null };
+  let investigation = await investigatorFor(id, { liveOsm, path }).investigate({ candidate, roads, evidence });
+  let fallback = null;
+  if (path.live && (investigation.access?.coverage?.probeSummary?.answered ?? 0) === 0 && path.recordedRun) {
+    // The boundary is unreachable for every source, and a reviewed capture exists: replay it, and say so.
+    const recordedPath = { ...path, live: false, transport: createRecordedTransport({ record: path.recordedRun, browserOrigins: OPERATOR_ONLY_ORIGINS }),
+      environment: 'browser/recorded operator run (live Worker unreachable)' };
+    const replayed = await investigatorFor(id, { liveOsm, path: recordedPath }).investigate({ candidate, roads, evidence });
+    fallback = Object.freeze({ from: path.transport.id, to: recordedPath.transport.id,
+      reason: `no source answered through the Worker boundary (${path.availability.reason ?? 'unavailable'})`, attemptedAt: investigation.ranAt });
+    investigation = Object.freeze({ ...replayed, transportFallback: fallback });
+  }
+  const previousRun = previousRunSummary(prior, investigation);
+  const drift = driftSummaryOf(investigation);
+  const modes = retrievalModeCounts(investigation.research.probes);
+  store.setInvestigationResult(id, Object.freeze({ ...investigation,
+    access: Object.freeze({ ...investigation.access, previousRun, driftSummary: drift, retrievalModes: modes }) }));
   store.setCoverage(id, COVERAGE_DATASET.ACCESS_VERIFICATION, { coverage: investigation.access.coverage.coverage, reason: investigation.access.coverage.reason });
+  return Object.freeze({ investigation, previousRun, drift, modes, fallback });
 }
 
 function reportAccessNote(message) { const node = document.getElementById('access-note'); if (node) node.textContent = message; }
@@ -174,8 +238,22 @@ function requestAccess({ refresh = true, liveOsm = false } = {}) {
   if (!selected) return;
   reportAccessNote('Running the staged access investigation…');
   resolveAccess(selected, { refresh, liveOsm })
-    .then(() => reportAccessNote(liveOsm ? 'Access evidence: official sources replayed from the reviewed operator capture; OpenStreetMap queried live.' : 'Access evidence replayed from the reviewed operator capture. A failed source is reported as a failure, never as "no restriction found".'))
+    .then(result => { if (result) reportAccessNote(accessNoteFor(result)); })
     .catch(error => reportAccessNote(error.message));
+}
+
+// What the reader should know after a run: which path was used, what coverage that reached, whether a source changed,
+// and whether an earlier finding was kept beside this one.
+function accessNoteFor({ investigation, drift, modes, previousRun, fallback }) {
+  const access = investigation.access;
+  const parts = [`Access evidence: ${modes.summary} through ${investigation.transport}.`];
+  parts.push(`Coverage ${access.coverage.coverage}.`);
+  if (drift.changed) parts.push(drift.note);
+  if (fallback) parts.push(`The Worker boundary could not be reached, so the reviewed capture was replayed (${fallback.reason}).`);
+  if (previousRun) parts.push(`The previous finding (${ACCESS_FINDING_LABELS[previousRun.finding] ?? previousRun.finding}, ${String(previousRun.checkedAsOf ?? '').slice(0, 10)}) is kept beside this run: ${previousRun.reason}.`);
+  if (access.human?.finding) parts.push(`Your recorded human finding (${ACCESS_FINDING_LABELS[access.human.finding] ?? access.human.finding}) still stands beside the automated one.`);
+  parts.push('A failed source is reported as a failure, never as "no restriction found".');
+  return parts.join(' ');
 }
 
 // A human finding is stored beside the automated one. Neither replaces the other.
@@ -261,7 +339,8 @@ store.subscribe(state => {
     onQueryOccurrence: () => requestOccurrence({ refresh: true }),
     investigation, access: investigation && accessReview ? { ...investigation.access, human: accessReview } : investigation?.access ?? null,
     onRunAccess: options => requestAccess(options), onExportBundle: () => { exportBundle().catch(error => reportAccessNote(error.message)); },
-    onReviewAccess: review => recordAccessReview(review), recordedCaptureAt: accessRecord?.capturedAt ?? null, liveOsm: state.liveOsm });
+    onReviewAccess: review => recordAccessReview(review), recordedCaptureAt: accessRecord?.capturedAt ?? null, liveOsm: state.liveOsm,
+    workerStatus: state.workerStatus, workerUrl: INVESTIGATOR_WORKER_URL });
   renderContext(nodes.context, { manifest, pilotLoaded: state.pilotLoaded, error: manifestError, coverage: selected?.coverage, roadQuery: state.roadQuery });
   nodes.fit.disabled = !selected;
   nodes.caption.textContent = caption(state);

@@ -60,48 +60,69 @@ export function createProbe(raw) {
     appliesTo: raw.appliesTo ?? null, corridorIds: raw.corridorIds ? Object.freeze([...raw.corridorIds]) : null, facts: Object.freeze(facts) });
 }
 
-// Evaluate one retrieved document against one probe. `text` is the source's own text; HTML is reduced to text
-// content and all whitespace is collapsed before matching, so a declared phrase that spans inline markup in
-// the served page still matches, and a quote in the record is verbatim page text with normalized whitespace.
-export function extractProbeResult(probe, { corridorId, text, retrievedAt, httpStatus = 200, bytes = null, transport = null, sourceTextHash = null }) {
-  if (typeof text !== 'string') throw new TypeError('A probe result needs the retrieved text');
+// Evaluate one retrieved document against one probe's declared facts. This is the ONLY place that decides whether
+// a declared phrase counts as a fact, and it is shared by the browser transport, the operator script, the tests,
+// and the Worker — so a proxied read can never become a different kind of evidence.
+//
+// `text` is the source's own text; HTML is reduced to text content and all whitespace is collapsed before matching,
+// so a declared phrase that spans inline markup in the served page still matches, and a quote in the record is
+// verbatim page text with normalized whitespace. Matching is exact substring matching on that normalized text:
+// nothing is inferred, fuzzy-matched, or model-interpreted.
+export function extractProbeFacts(probe, text) {
+  if (typeof text !== 'string') throw new TypeError('Probe extraction needs the retrieved text');
   const haystack = normalizeWhitespace(text);
-  const matches = [];
+  const facts = [];
   for (const fact of probe.facts) {
     const needle = normalizeWhitespace(fact.find);
-    const index = haystack.indexOf(needle);
-    if (index < 0) continue;
+    if (haystack.indexOf(needle) < 0) continue;
     if (fact.windowQuote && !haystack.includes(normalizeWhitespace(fact.windowQuote))) continue;
     if (fact.recurrenceQuote && !haystack.includes(normalizeWhitespace(fact.recurrenceQuote))) continue;
-    const evidence = createAccessEvidence({
-      id: `probe-${probe.id}-${matches.length + 1}`,
-      corridorId,
-      claimType: fact.claimType,
-      claimValue: fact.claimValue,
-      sourceClass: probe.sourceClass,
-      sourceOrganization: probe.organization,
-      sourceTitle: probe.title,
-      sourceUrl: probe.url,
-      sourceType: probe.sourceType,
-      appliesTo: probe.appliesTo,
-      quote: fact.find,
-      summary: fact.summary ?? `${probe.organization}: ${probe.title}`,
-      claimStrength: fact.claimStrength,
-      publishedAt: null,
-      retrievedAt,
-      effectiveFrom: fact.effectiveFrom,
-      effectiveUntil: fact.effectiveUntil,
-      recurrence: fact.recurrence,
-      geographicScope: { scope: fact.scope, corridorPart: fact.corridorPart },
-      provenance: { method: 'Declared probe fact matched verbatim source text', retrieval: { httpStatus, bytes, sourceTextHash, transport, question: probe.question, stage: probe.stage } },
-    });
-    matches.push(Object.freeze({ claimType: fact.claimType, quote: fact.find, windowQuote: fact.windowQuote, recurrenceQuote: fact.recurrenceQuote, evidence }));
+    facts.push(Object.freeze({ claimType: fact.claimType, quote: fact.find, claimValue: fact.claimValue, summary: fact.summary,
+      claimStrength: fact.claimStrength, scope: fact.scope, corridorPart: fact.corridorPart,
+      effectiveFrom: fact.effectiveFrom, effectiveUntil: fact.effectiveUntil, windowQuote: fact.windowQuote,
+      recurrence: fact.recurrence, recurrenceQuote: fact.recurrenceQuote }));
   }
+  return Object.freeze({ facts: Object.freeze(facts), sourceTextHash: hashText(haystack) });
+}
+
+// One matched fact becomes one access-evidence item. The corridor is client-owned context, so extraction produces
+// facts and this step attaches the corridor, the source identity, and the retrieval provenance.
+export function factToAccessEvidence(probe, fact, { corridorId, retrievedAt, httpStatus = 200, bytes = null, transport = null, sourceTextHash = null, index = 1 }) {
+  return createAccessEvidence({
+    id: `probe-${probe.id}-${index}`,
+    corridorId,
+    claimType: fact.claimType,
+    claimValue: fact.claimValue,
+    sourceClass: probe.sourceClass,
+    sourceOrganization: probe.organization,
+    sourceTitle: probe.title,
+    sourceUrl: probe.url,
+    sourceType: probe.sourceType,
+    appliesTo: probe.appliesTo,
+    quote: fact.quote,
+    summary: fact.summary ?? `${probe.organization}: ${probe.title}`,
+    claimStrength: fact.claimStrength,
+    publishedAt: null,
+    retrievedAt,
+    effectiveFrom: fact.effectiveFrom,
+    effectiveUntil: fact.effectiveUntil,
+    recurrence: fact.recurrence,
+    geographicScope: { scope: fact.scope, corridorPart: fact.corridorPart },
+    provenance: { method: 'Declared probe fact matched verbatim source text',
+      retrieval: { httpStatus, bytes, sourceTextHash, transport, question: probe.question, stage: probe.stage } },
+  });
+}
+
+export function extractProbeResult(probe, { corridorId, text, retrievedAt, httpStatus = 200, bytes = null, transport = null, sourceTextHash = null }) {
+  const extracted = extractProbeFacts(probe, text);
+  const matches = extracted.facts.map((fact, position) => Object.freeze({ claimType: fact.claimType, quote: fact.quote,
+    windowQuote: fact.windowQuote, recurrenceQuote: fact.recurrenceQuote,
+    evidence: factToAccessEvidence(probe, fact, { corridorId, retrievedAt, httpStatus, bytes, transport, sourceTextHash: sourceTextHash ?? extracted.sourceTextHash, index: position + 1 }) }));
   return Object.freeze({
     probeId: probe.id, stage: probe.stage, kind: probe.kind, organization: probe.organization, sourceClass: probe.sourceClass,
     title: probe.title, url: probe.url, question: probe.question,
     outcome: matches.length ? PROBE_OUTCOME.EVIDENCE : PROBE_OUTCOME.NO_RELEVANT_EVIDENCE,
-    searched: Object.freeze({ url: probe.url, retrievedAt, httpStatus, bytes, transport, sourceTextHash }),
+    searched: Object.freeze({ url: probe.url, retrievedAt, httpStatus, bytes, transport, sourceTextHash: sourceTextHash ?? extracted.sourceTextHash }),
     matches: Object.freeze(matches),
     evidence: Object.freeze(matches.map(match => match.evidence)),
     note: matches.length ? `${matches.length} declared fact(s) matched source text.`

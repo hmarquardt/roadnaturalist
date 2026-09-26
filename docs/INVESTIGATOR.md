@@ -275,7 +275,73 @@ same script hit a rate-limited `www.washingtoncountyor.gov` request (HTTP 429) a
 query that failed on every mirror (HTTP 400/406/429). Both appear in those runs as `FAILED` sources with
 `access-verification` coverage `PARTIAL` — never as "no restriction found".
 
-## 14. Running it
+## 14. The live research boundary (Worker)
+
+A browser cannot read most county sites: they send no CORS header. So live official-source research goes through the
+Road Naturalist Worker (`worker/`), which reads **only declared sources** and answers with normalized facts.
+
+```text
+browser ──probe id──▶ Worker ──declared URL──▶ official page
+   ▲                      │
+   └── normalized facts + diagnostics + drift ──┘        (never the page)
+```
+
+The whole point is what the boundary **cannot** be asked to do:
+
+* the client sends an id, never a URL (`GET /api/investigator/probes/:probeId`). The registry
+  (`worker/investigator/registry.js`) is the only thing that can turn an id into a URL, and it is built from committed
+declarations (`src/investigator/probes/or-pilot.js`, shared with the browser) plus committed policy
+  (`worker/investigator/policies.js`: static host allow-list, byte caps, timeouts, TTLs, accepted content types);
+* `https` only, default port, canonical URL, no credentials in the URL, ASCII host, no IP literal, no
+  `localhost`/`.internal`/`.local`, no query string, no fragment — checked before the registry can serve a probe;
+* redirects are not followed off the approved destination (`redirect: 'manual'`, at most one hop, same host and same
+  path prefix), and a redirect that cannot be read is refused rather than guessed at;
+* the response body is capped while streaming, the content type must be one the probe accepts, and the body is
+  decoded safely before matching;
+* only facts, drift, diagnostics, and metadata are returned — raw HTML never leaves the Worker, and the internal
+  cache holds normalized text, not the page;
+* no client header, cookie, credential, or method is forwarded, and there is no secret in the Worker at all;
+* no model: extraction is the same exact substring rule set the browser uses (`extractProbeFacts`), and the finding is
+  still computed by the guardrails in this document.
+
+**Failure handling.** A source that fails is an HTTP 200 answer with `status: FAILED` and diagnostics (a 429 from the
+source becomes `throttled`, never "no restrictions found"). HTTP 429 from the Worker itself means the caller was rate
+limited; `SOURCE_BUDGET_EXHAUSTED` means the Worker was about to read that source too often this minute. Neither
+reaches the county server. Every failure degrades access-verification coverage to `PARTIAL` and stays visible.
+
+**Cache and freshness.** One cache entry per source URL (normalized text plus retrieval metadata) with the strictest
+TTL among the probes that read it: a closure/status page 15 minutes, a project page 6 hours, a jurisdiction or
+funding document 24 hours. `retrievedAt` is always the source read time, `cachedAt` the time the copy was stored, and
+`cacheStatus` says `MISS`/`HIT`/`EXPIRED`/`BYPASS`/`UNCACHEABLE`. Failures are never cached. Measured on the pilot: a cold
+pass reads 11 pages (496 kB) and returns 15.4 kB of facts; a repeat pass serves six probes from cache in 12 ms.
+
+**Source drift.** The Worker ships a compact baseline of the reviewed capture
+(`src/investigator/probes/drift-baseline.json`, generated with the capture) and compares its own fresh extraction
+against it: `UNCHANGED`, `EVIDENCE_CHANGED` (with the facts added and no longer present), `NO_LONGER_MATCHES`,
+`SOURCE_UNAVAILABLE`, `NO_BASELINE`. The browser compares a live result against the capture it replays (`drift.recorded`).
+Drift is a diagnostic: the facts that are present now decide the finding, and "a changed page is not a changed
+finding" is stated in the UI next to the drift.
+
+**Runtime order.** Live Worker (when this build is configured with one and it answers) → reviewed capture (replayed,
+marked as replayed and *not re-checked here*) → explicit degraded coverage. A live run in which no source answers falls
+back to the capture, and the fallback is recorded in the result (`transportFallback`) and in the note under the panel.
+With no boundary configured, `src/app/config.js` leaves the app on the recorded path, exactly as before.
+
+The retrieval mode of every source is recorded and shown: `LIVE`, `CACHE`, `RECORDED`, or `DEFERRED`, with
+`notReChecked` counting replayed sources this environment could not re-check. Coverage reaches `FULL` only when every
+declared source answered and the OpenStreetMap stage completed; a live run that loses a source is `PARTIAL` with the
+failure named.
+
+**Re-check.** The existing `Re-check access evidence` action asks the boundary what it declares (no source is
+contacted), runs the staged pipeline live, re-runs the contradiction search and adversarial review, recomputes the
+finding, and keeps:
+
+* the human review (finding, annotation, timestamp) untouched, with a notice when the automated finding has changed
+since it was recorded;
+* the previous run as a compact summary (`access.previousRun`) when the new run lost a source or changed the finding,
+so good evidence is never replaced by an unexplained blank result.
+
+## 15. Running it
 
 ```sh
 npm test                        # offline: guardrails, freshness, coverage, OSM adapter and matching, bundle, pipeline
@@ -283,6 +349,7 @@ npm run test:e2e                # offline UI: unverified state, restriction/conf
 
 # opt-in, operator/Node, no credential needed:
 npm run verify:investigator:live                     # all three corridors, live sources and live Overpass
+npm run verify:investigator:worker                   # the Worker boundary: DEPLOYED if INVESTIGATOR_WORKER_URL is set, otherwise the same handler served locally
 npm run verify:investigator:live -- --corridors=or-roads-susbauer-rd --no-osm
 npm run verify:investigator:live -- --write-record    # refresh the reviewed capture the browser replays
 ```
@@ -301,7 +368,7 @@ reviewable artifact, and re-running the script re-verifies it.
 | `tests/fixtures/investigator/overpass-cornelius-response.json` | a real Overpass response captured on 2026-09-25 local (2026-09-26 UTC), trimmed to ten ways of NW Cornelius Pass Rd |
 | `data/investigator/or-pilot-access-evidence.json` | the reviewed operator capture the browser replays, with per-source retrieval metadata |
 
-## 15. What this deliberately does not do
+## 16. What this deliberately does not do
 
 * No route ranking, no "best road", no score combining access with habitat or occurrence
 * No navigation or turn-by-turn directions

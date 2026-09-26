@@ -42,7 +42,8 @@ export function renderCandidates(container, state, onSelect) {
 }
 
 export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null, occurrence = null, onQueryOccurrence = null,
-  investigation = null, access = null, onRunAccess = null, onExportBundle = null, onReviewAccess = null, recordedCaptureAt = null, liveOsm = false } = {}) {
+  investigation = null, access = null, onRunAccess = null, onExportBundle = null, onReviewAccess = null, recordedCaptureAt = null, liveOsm = false,
+  workerStatus = null, workerUrl = '' } = {}) {
   container.replaceChildren();
   if (!candidate) { container.append(empty('Investigation starts with a road', 'Open the pilot and select a corridor to inspect its geometry source, evidence, missing data, and research questions.')); return; }
   container.append(el('h3', 'detail-title', candidate.name), el('p', 'detail-lede', candidate.summary ?? ''), el('span', `tag ${candidate.status === 'rejected' ? 'warn' : ''}`, candidate.status));
@@ -53,8 +54,8 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
   // ACCESS & ROAD STATUS is its own section and its own evidence class: geometry being verified never
   // implies access, and access never borrows habitat or occurrence language.
   const accessEvidence = access ?? investigation?.access ?? null;
-  container.append(investigation ? renderAccessSection({ ...investigation, access: accessEvidence }, { onRun: onRunAccess, onExport: onExportBundle, onReview: onReviewAccess, recordedCaptureAt, liveOsm })
-    : renderAccessSection(null, { onRun: onRunAccess, recordedCaptureAt, liveOsm }));
+  container.append(investigation ? renderAccessSection({ ...investigation, access: accessEvidence }, { onRun: onRunAccess, onExport: onExportBundle, onReview: onReviewAccess, recordedCaptureAt, liveOsm, workerStatus, workerUrl })
+    : renderAccessSection(null, { onRun: onRunAccess, recordedCaptureAt, liveOsm, workerStatus, workerUrl }));
   container.append(renderInvestigationSection(investigation ? { ...investigation, access: accessEvidence } : null, { onReview: onReviewAccess, onExport: onExportBundle, candidateId: candidate.id }));
   const evidenceSection = section('Evidence trail');
   const list = el('ul', 'evidence-list');
@@ -520,13 +521,16 @@ function evidenceBlock(title, items, { sign = '', className = '' } = {}) {
 // The main Access & road status section. Restrained by default: the finding, its guardrail, restrictions,
 // contradictions, and the unresolved list are visible; the stage log, every source check, and the adversarial
 // checklist live behind disclosure elements.
-export function renderAccessSection(investigation, { onRun = null, onExport = null, onReview = null, recordedCaptureAt = null, liveOsm = false } = {}) {
+export function renderAccessSection(investigation, { onRun = null, onExport = null, onReview = null, recordedCaptureAt = null, liveOsm = false,
+  workerStatus = null, workerUrl = '' } = {}) {
   const node = section('Access & road status');
   node.classList.add('access-section');
   node.append(el('span', 'tag unknown', 'ACCESS EVIDENCE'));
+  const boundary = researchBoundaryLine(workerStatus, workerUrl, recordedCaptureAt);
   if (!investigation) {
     node.append(el('p', 'small muted', 'No access verification has run for this corridor. The road geometry is evidence that the road is mapped, not that the public may drive it.'));
-    if (onRun) node.append(runRow(onRun, { liveOsm, recordedCaptureAt }));
+    node.append(el('p', 'small muted', boundary));
+    if (onRun) node.append(runRow(onRun, { liveOsm, recordedCaptureAt, workerUrl }));
     return node;
   }
   const access = investigation.access;
@@ -538,11 +542,14 @@ export function renderAccessSection(investigation, { onRun = null, onExport = nu
   node.append(header);
 
   if (human?.annotation) node.append(el('p', 'small', `Human annotation: ${human.annotation}`));
+  if (human?.automatedFinding && human.automatedFinding !== access.finding) {
+    node.append(el('p', 'small warn-text', `The automated finding has since changed from ${ACCESS_FINDING_LABELS[human.automatedFinding] ?? human.automatedFinding} to ${ACCESS_FINDING_LABELS[access.finding] ?? access.finding}. Your annotation is kept; review whether it still applies.`));
+  }
   const rows = [
     ['Public road evidence', access.publicRoadEvidence],
     ['Motor-vehicle access', access.motorVehicleAccess],
     ['Restrictions', access.restrictionsFound ? `${access.restrictions.filter(item => item.temporalScope === 'CURRENT' || item.temporalScope === 'RECURRING').length} in force or recurring` : 'No restriction in force'],
-    ['Evidence checked', `${formatDate(access.evidenceCheckedAt)}${recordedCaptureAt ? ` (recorded operator run ${formatDate(recordedCaptureAt)})` : ''}`],
+    ['Evidence checked', evidenceCheckedLabel(access, recordedCaptureAt)],
     ['Access verification coverage', `${access.coverage?.coverage ?? COVERAGE.UNKNOWN}`],
     ['Scope', access.scope?.wholeCorridor ? 'whole corridor' : access.scope?.note ?? 'unrecorded'],
     ['Guardrail rule', `${access.ruleId} — ${access.rule}`],
@@ -579,19 +586,68 @@ export function renderAccessSection(investigation, { onRun = null, onExport = nu
     for (const qualifier of access.qualifiers) details.append(el('p', 'small', qualifier));
     node.append(details);
   }
+  // How each source's answer was obtained, and whether a source has changed since the reviewed baseline.
+  if (access.retrievalModes) node.append(el('p', 'small muted', `Source reads: ${access.retrievalModes.summary}.`));
+  node.append(el('p', 'small muted', boundary));
+  if (investigation.access.previousRun) {
+    const block = el('div', 'access-evidence inactive');
+    block.append(el('span', 'eyebrow', 'Previous run kept'), el('p', 'small', `${ACCESS_FINDING_LABELS[investigation.access.previousRun.finding] ?? investigation.access.previousRun.finding}${investigation.access.previousRun.ruleId ? ` (${investigation.access.previousRun.ruleId})` : ''} — ${investigation.access.previousRun.reason}.`),
+      el('p', 'small muted', `Evaluated ${formatDate(investigation.access.previousRun.checkedAsOf)} · coverage ${investigation.access.previousRun.coverage ?? 'unrecorded'} · transport ${investigation.access.previousRun.transport ?? 'unrecorded'}`));
+    node.append(block);
+  }
+  if (access.driftSummary?.changed) {
+    const block = el('div', 'access-evidence attention');
+    block.append(el('span', 'eyebrow', `Source drift (${access.driftSummary.changed})`), el('p', 'small', access.driftSummary.note));
+    for (const probe of investigation.research.probes) {
+      const state = probe.drift?.worker?.state ?? probe.drift?.recorded?.state ?? null;
+      const comparedAgainst = probe.drift?.worker?.state ? 'the Worker baseline' : 'the reviewed capture';
+      if (state !== 'EVIDENCE_CHANGED' && state !== 'NO_LONGER_MATCHES') continue;
+      block.append(el('p', 'small', `${probe.organization} · ${probe.url} — ${state} against ${comparedAgainst}.`));
+      const removed = probe.drift?.worker?.removed ?? probe.drift?.recorded?.removed ?? [];
+      const added = probe.drift?.worker?.added ?? probe.drift?.recorded?.added ?? [];
+      for (const quote of removed.slice(0, 3)) block.append(el('p', 'small muted', `no longer found: “${quote.slice(0, 160)}”`));
+      for (const quote of added.slice(0, 3)) block.append(el('p', 'small muted', `newly found: “${quote.slice(0, 160)}”`));
+    }
+    block.append(el('p', 'small muted', 'A changed page is not a changed finding: the facts above are what the source says now, and the guardrail rules decide from them.'));
+    node.append(block);
+  }
+  if (investigation.transportFallback) node.append(el('p', 'small warn-text', `The live Worker boundary could not answer, so this run replayed the reviewed capture instead (${investigation.transportFallback.reason}).`));
+
   // Research may be re-requested at any time: a dated finding is a snapshot, and the reader decides when to
   // refresh it. The recorded/deferred note stays attached so a replay is never mistaken for a fresh check.
-  if (onRun) node.append(runRow(onRun, { liveOsm, recordedCaptureAt, label: 'Re-check access evidence' }));
+  if (onRun) node.append(runRow(onRun, { liveOsm, recordedCaptureAt, workerUrl, label: 'Re-check access evidence' }));
   return node;
 }
 
-function runRow(onRun, { liveOsm, recordedCaptureAt, label = 'Run access investigation' }) {
+// When the evidence was read, and how — a live read must never be labelled as a recorded run.
+function evidenceCheckedLabel(access, recordedCaptureAt) {
+  const modes = access.retrievalModes ?? {};
+  const liveReads = (modes.live ?? 0) + (modes.cache ?? 0);
+  const date = formatDate(access.evidenceCheckedAt);
+  if (liveReads) return `${date} (${liveReads} source(s) read live through the Worker boundary${modes.replayed ? `, ${modes.replayed} replayed` : ''})`;
+  return `${date}${recordedCaptureAt ? ` (recorded operator run ${formatDate(recordedCaptureAt)})` : ''}`;
+}
+
+// What the browser can and cannot read directly, stated plainly next to the finding it affects.
+function researchBoundaryLine(workerStatus, workerUrl, recordedCaptureAt) {
+  if (!workerUrl) return `Official-source research: no live boundary is configured for this build, so sources replay the reviewed operator capture${recordedCaptureAt ? ` of ${formatDate(recordedCaptureAt)}` : ''}. Those sources are reported as deferred, not freshly checked.`;
+  if (!workerStatus) return `Official-source research: a live boundary is configured at ${workerUrl} and is checked when you run the investigation.`;
+  const probeCount = (workerStatus.probeIds ?? []).length;
+  return workerStatus.available
+    ? `Official-source research: live through the Road Naturalist Worker boundary (${workerUrl}, ${workerStatus.worker ?? 'version unrecorded'}, ${probeCount} declared probe(s)); the reviewed capture stays available as the fallback.`
+    : `Official-source research: the Worker boundary at ${workerUrl} is unavailable (${workerStatus.reason}), so sources replay the reviewed capture${recordedCaptureAt ? ` of ${formatDate(recordedCaptureAt)}` : ''} and are reported as deferred.`;
+}
+
+function runRow(onRun, { liveOsm, recordedCaptureAt, workerUrl = '', label = 'Run access investigation' }) {
   const row = el('div', 'access-actions');
   const button = el('button', label === 'Run access investigation' ? 'primary-button' : 'quiet-button', label);
   button.type = 'button';
   button.addEventListener('click', () => onRun({ refresh: true, liveOsm: Boolean(liveOsm) }));
   row.append(button);
-  row.append(el('span', 'small muted', liveOsm ? 'OpenStreetMap will be queried live; official sources replay the recorded operator run.' : `OpenStreetMap and official sources replay the recorded operator run${recordedCaptureAt ? ` captured ${formatDate(recordedCaptureAt)}` : ''}.`));
+  const sourceLine = workerUrl
+    ? `Official sources will be read live through the Worker boundary at ${workerUrl}.`
+    : `Official sources replay the reviewed operator run${recordedCaptureAt ? ` captured ${formatDate(recordedCaptureAt)}` : ''}.`;
+  row.append(el('span', 'small muted', `${sourceLine} OpenStreetMap ${liveOsm ? 'will be queried live' : 'replays the same capture'}.`));
   return row;
 }
 
@@ -638,6 +694,7 @@ export function renderInvestigationSection(investigation, { onReview = null, onE
     row.append(el('span', 'tag unknown', PROBE_OUTCOME_LABELS[probe.outcome] ?? probe.outcome), el('strong', '', probe.organization));
     row.append(el('p', 'small', probe.question));
     row.append(el('p', 'small muted', `${probe.title} · retrieved ${formatDate(probe.searched?.retrievedAt)}${probe.searched?.httpStatus ? ` · HTTP ${probe.searched.httpStatus}` : ''}`));
+    row.append(el('p', 'small muted', `read ${retrievalModeOf(probe)}${probe.searched?.cacheStatus ? ` (cache ${probe.searched.cacheStatus.toLowerCase()})` : ''}${driftLabelOf(probe)}`));
     if (String(probe.url ?? '').startsWith('https://')) { const link = el('a', '', 'source'); link.href = probe.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; row.append(el('span', 'small', ' '), link); }
     if (probe.note) row.append(el('p', 'small muted', probe.note));
     probeRows.append(row);
@@ -675,11 +732,29 @@ export function renderInvestigationSection(investigation, { onReview = null, onE
   return node;
 }
 
+// How a source's answer was obtained: live through the boundary, served from the boundary's cache, replayed from the
+// reviewed capture, or deferred because this environment cannot read it at all.
+function retrievalModeOf(probe) {
+  const mode = probe.searched?.retrievalMode ?? null;
+  if (mode === 'LIVE') return 'live read (worker boundary)';
+  if (mode === 'CACHE') return 'cache read (worker boundary)';
+  return probe.deferred ? 'deferred read (not re-checked here)' : 'replayed from the reviewed capture';
+}
+
+function driftLabelOf(probe) {
+  const state = probe.drift?.worker?.state ?? probe.drift?.recorded?.state ?? null;
+  if (!state || state === 'UNCHANGED' || state === 'NO_BASELINE') return '';
+  return ` · drift ${state.toLowerCase().replace(/_/g, ' ')}`;
+}
+
 function renderHumanReview(access, { onReview, candidateId }) {
   const block = el('div', 'access-evidence human-review');
   block.append(el('span', 'eyebrow', 'Human review'));
   block.append(el('p', 'small muted', 'A human finding is recorded alongside the automated one; the automated result is never erased.'));
-  if (access.human) block.append(el('p', 'small', `Recorded ${formatDate(access.human.decidedAt)}: ${access.human.finding}${access.human.annotation ? ` — ${access.human.annotation}` : ''}`));
+  if (access.human) {
+    block.append(el('p', 'small', `Recorded ${formatDate(access.human.decidedAt)}: ${ACCESS_FINDING_LABELS[access.human.finding] ?? access.human.finding}${access.human.annotation ? ` — ${access.human.annotation}` : ''}`));
+    if (access.human.automatedFinding) block.append(el('p', 'small muted', `Recorded when the automated finding was ${ACCESS_FINDING_LABELS[access.human.automatedFinding] ?? access.human.automatedFinding}.`));
+  }
   if (!onReview) return block;
   const select = el('select', 'review-select');
   for (const finding of ['', 'VERIFIED_PUBLIC', 'PROBABLE_PUBLIC', 'UNVERIFIED', 'CONFLICTED', 'RESTRICTED_OR_CLOSED']) {

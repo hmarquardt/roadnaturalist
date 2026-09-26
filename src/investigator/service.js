@@ -20,6 +20,7 @@ import { nameVariantsOf, matchOsmWaysToCorridor } from './osm-match.js';
 import { PROBE_OUTCOME } from './research.js';
 import { deriveAuthorities } from './sources.js';
 import { STAGE_DEFS, STAGE_STATUS, finishStage, stageSummary, startStage } from './workflow.js';
+import { retrievalModeCounts } from './retrieval.js';
 
 export const ACCESS_COVERAGE_REASON = 'Access verification coverage describes whether the research completed: each source is either answered or reported as a failure or a deferred source. It says nothing about what the evidence supports.';
 export const OSM_BOUNDS_PADDING_DEG = 0.003;   // ≈330 m north/south, ≈230 m east/west at pilot latitudes
@@ -137,7 +138,13 @@ export function accessCoverage({ probeResults, osm }) {
   const answered = probeResults.filter(result => result.outcome === PROBE_OUTCOME.EVIDENCE || result.outcome === PROBE_OUTCOME.NO_RELEVANT_EVIDENCE);
   const osmFailed = Boolean(osm && osm.status === 'FAILED');
   const osmPartial = Boolean(osm && osm.status === 'PARTIAL');
-  const probeSummary = Object.freeze({ total: probeResults.length, answered: answered.length, evidence: outcomes.filter(outcome => outcome === PROBE_OUTCOME.EVIDENCE).length,
+  // How each source was read matters to a reader even when coverage is the same: a live read, a cached read, a replay
+  // of the reviewed capture, and a deferred source are different statements about how current the evidence is.
+  // Retrieval modes come from the one shared implementation, so the transport, the coverage summary, and the bundle
+  // can never disagree about how a source was read.
+  const retrievalModes = retrievalModeCounts(probeResults);
+  const probeSummary = Object.freeze({ total: probeResults.length, answered: answered.length, retrievalModes,
+    evidence: outcomes.filter(outcome => outcome === PROBE_OUTCOME.EVIDENCE).length,
     noRelevantEvidence: outcomes.filter(outcome => outcome === PROBE_OUTCOME.NO_RELEVANT_EVIDENCE).length,
     failed: failures.length, deferred: deferred.length, notRun: notRun.length,
     osmStatus: osm?.status ?? 'NOT_RUN', failures: Object.freeze([...failures, ...deferred, ...notRun].map(result => Object.freeze({ probeId: result.probeId, url: result.url, outcome: result.outcome, reason: result.searched?.reason ?? null }))),

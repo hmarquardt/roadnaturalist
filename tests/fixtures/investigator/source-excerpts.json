@@ -69,11 +69,11 @@
     "wc-springville-phase4"
    ]
   },
-  "https://www.washingtoncountyor.gov/index.php/lut/news/2026/04/02/celebrate-springville-road-improvements": {
+  "https://www.washingtoncountyor.gov/lut/news/2026/04/02/celebrate-springville-road-improvements": {
    "corridorId": "or-roads-springville-rd",
    "retrievedAt": "2026-09-25T23:54:00.000Z",
    "httpStatus": 200,
-   "url": "https://www.washingtoncountyor.gov/index.php/lut/news/2026/04/02/celebrate-springville-road-improvements",
+   "url": "https://www.washingtoncountyor.gov/lut/news/2026/04/02/celebrate-springville-road-improvements",
    "text": "Page text as served: Improvements to Springville Road were supported by the North Bethany County Service District for Roads ... Page text as served: The work improved Springville Road from 185th Avenue intersection to Kaiser Road in four phases:",
    "probeIds": [
     "wc-springville-improvements-news"

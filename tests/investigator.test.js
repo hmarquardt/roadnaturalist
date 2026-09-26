@@ -8,6 +8,12 @@ import { BUNDLE_KIND, BUNDLE_SCHEMA_VERSION, buildCorridorBundle, parseBundle, v
 import { PROBE_OUTCOME, PROBE_STAGE, applyNarration, createExcerptTransport, createProbe, createRecordedTransport, createResearchService, extractProbeResult, hashText, htmlToText, normalizeWhitespace } from '../src/investigator/research.js';
 import { PILOT_PROBES_BY_CORRIDOR, deriveAuthorities } from '../src/investigator/sources.js';
 import { accessCoverage, baselineEvidence, createInvestigatorService, osmEvidence, osmSearchNames, padBounds } from '../src/investigator/service.js';
+import { RETRIEVAL_MODE, createWorkerResearchTransport, isWorkerUnavailable, probeAvailability, retrievalModeCounts } from '../src/investigator/worker-transport.js';
+import { DRIFT_BASELINE } from '../src/investigator/probes/drift-baseline.js';
+import { DRIFT_STATE, buildProbeBaseline } from '../src/investigator/drift.js';
+import { createInvestigatorHandler } from '../worker/investigator/handler.js';
+import { createProbeRegistry, defaultProbeRegistry } from '../worker/investigator/registry.js';
+import { createProbeCache } from '../worker/investigator/cache.js';
 import { STAGES, STAGE_STATUS, createResearchPlan, finishStage, stageSummary, startStage } from '../src/investigator/workflow.js';
 
 const readJson = path => JSON.parse(readFileSync(new URL(path, import.meta.url)));
@@ -563,4 +569,168 @@ test('a corridor with no investigation still produces a valid bundle that says s
   assert.equal(validateBundle(bundle).valid, true);
   assert.equal(bundle.coverage[COVERAGE_DATASET.ACCESS_VERIFICATION].coverage, COVERAGE.UNKNOWN);
   assert.match(bundle.coverage[COVERAGE_DATASET.ACCESS_VERIFICATION].reason ?? 'Not yet analyzed', /Not yet analyzed/);
+});
+
+// ---- the Worker-backed live transport (offline: the real handler answers behind the fetch) ------------------------
+
+const CORNELIUS_ADVISORY_ID = 'wc-roads-cornelius-advisory';
+const ADVISORY_PAGE = 'Cornelius Pass Road From/To: At Rock Creek (View Detour Map) Impact: Road closure Reason: Bridge replacement ' +
+  'Schedule: From: 07/15/2026 To: 10/07/2026 Use alternate route';
+
+// A real Worker handler behind a fetch-shaped stub: the transport talks to the same code the deployed boundary runs.
+function workerHarness({ pages = {}, store = null, baseline = DRIFT_BASELINE } = {}) {
+  const handler = createInvestigatorHandler({ registry: createProbeRegistry(), cache: createProbeCache({ store }),
+    fetchImpl: async url => { const page = pages[String(url)]; if (page === undefined) throw new Error(`unexpected upstream read: ${url}`);
+      return typeof page === 'function' ? page() : new Response(page, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } }); },
+    baseline });
+  return { handler, fetchImpl: (url, init) => handler.handle(new Request(String(url), { method: init?.method ?? 'GET', headers: init?.headers ?? {} })) };
+}
+
+const ADVISORY_URL = defaultProbeRegistry.get(CORNELIUS_ADVISORY_ID).probe.url;
+
+test('the browser transport turns Worker facts into the same evidence items the other transports produce', async () => {
+  const { fetchImpl } = workerHarness({ pages: { [ADVISORY_URL]: ADVISORY_PAGE } });
+  const transport = createWorkerResearchTransport({ baseUrl: 'https://worker.test', fetchImpl });
+  assert.equal(transport.id, 'worker-live');
+  assert.equal(transport.live, true);
+  const probe = PILOT_PROBES_BY_CORRIDOR['or-roads-cornelius-pass-rd'].find(entry => entry.id === CORNELIUS_ADVISORY_ID);
+  const result = await transport.run(probe, { corridorId: 'or-roads-cornelius-pass-rd' });
+  assert.equal(result.outcome, PROBE_OUTCOME.EVIDENCE);
+  assert.equal(result.deferred, false);
+  assert.equal(result.searched.retrievalMode, RETRIEVAL_MODE.LIVE);
+  assert.equal(result.evidence.length, 1);
+  const item = result.evidence[0];
+  assert.equal(item.corridorId, 'or-roads-cornelius-pass-rd', 'the corridor is client-owned context, attached here');
+  assert.equal(item.claimType, ACCESS_CLAIM.TEMPORARY_CLOSURE);
+  assert.equal(item.sourceUrl, ADVISORY_URL);
+  assert.equal(item.effectiveFrom, '2026-07-15T00:00:00.000Z');
+  assert.equal(item.effectiveUntil, '2026-10-07T00:00:00.000Z');
+  assert.equal(item.provenance.retrieval.viaWorker, true);
+  assert.equal(item.provenance.retrieval.retrievalMode, RETRIEVAL_MODE.LIVE);
+  assert.equal(typeof item.provenance.retrieval.requestId, 'string');
+  assert.equal(deriveAccessFinding({ corridorId: 'or-roads-cornelius-pass-rd', evidence: [item], checkedAt: CHECKED_AT }).ruleId, 'R3_CURRENT_RESTRICTION');
+});
+
+test('a cached Worker answer is labelled as cached, never as a fresh read', async () => {
+  const store = new Map();
+  const cacheStore = { async match(key) { const text = store.get(String(key)); return text === undefined ? undefined : new Response(text); },
+    async put(key, response) { store.set(String(key), await response.text()); } };
+  const { fetchImpl } = workerHarness({ pages: { [ADVISORY_URL]: ADVISORY_PAGE }, store: cacheStore });
+  const transport = createWorkerResearchTransport({ baseUrl: 'https://worker.test', fetchImpl });
+  const probe = PILOT_PROBES_BY_CORRIDOR['or-roads-cornelius-pass-rd'].find(entry => entry.id === CORNELIUS_ADVISORY_ID);
+  const first = await transport.run(probe, { corridorId: 'c' });
+  const second = await transport.run(probe, { corridorId: 'c' });
+  assert.equal(first.searched.retrievalMode, RETRIEVAL_MODE.LIVE);
+  assert.equal(second.searched.retrievalMode, RETRIEVAL_MODE.CACHE);
+  assert.equal(second.searched.cacheStatus, 'HIT');
+  assert.equal(second.searched.retrievedAt, first.searched.retrievedAt, 'the retrieval time stays the source read time');
+  assert.equal(typeof second.searched.answeredAt, 'string', 'the answer time is recorded separately from the read time');
+  assert.equal(retrievalModeCounts([first, second]).summary, '1 live, 1 from the worker cache, 0 replayed from the reviewed capture, 0 not run');
+});
+
+test('Worker failures are explicit and distinguishable from a no-result search', async () => {
+  const probe = PILOT_PROBES_BY_CORRIDOR['or-roads-cornelius-pass-rd'].find(entry => entry.id === CORNELIUS_ADVISORY_ID);
+  const unreachable = createWorkerResearchTransport({ baseUrl: 'https://worker.test', fetchImpl: async () => { throw new Error('Failed to fetch'); } });
+  const down = await unreachable.run(probe, { corridorId: 'c' });
+  assert.equal(down.outcome, PROBE_OUTCOME.FAILED);
+  assert.match(down.searched.reason, /worker boundary could not be reached/);
+  assert.equal(isWorkerUnavailable(down), true);
+
+  const throttled = createWorkerResearchTransport({ baseUrl: 'https://worker.test', fetchImpl: async () => new Response(JSON.stringify({ error: { code: 'RATE_LIMITED' }, retryAfterSeconds: 12 }), { status: 429, headers: { 'Content-Type': 'application/json' } }) });
+  const limited = await throttled.run(probe, { corridorId: 'c' });
+  assert.equal(limited.outcome, PROBE_OUTCOME.FAILED);
+  assert.match(limited.searched.reason, /rate limited/);
+
+  const older = createWorkerResearchTransport({ baseUrl: 'https://worker.test', fetchImpl: async () => new Response(JSON.stringify({ error: { code: 'UNKNOWN_PROBE' } }), { status: 404, headers: { 'Content-Type': 'application/json' } }) });
+  const missing = await older.run(probe, { corridorId: 'c' });
+  assert.match(missing.searched.reason, /does not declare this probe/);
+  assert.equal(isWorkerUnavailable(missing), false, 'a missing probe is a deployment mismatch, not an unreachable boundary');
+});
+
+test('asking the boundary what it declares contacts no source and reports availability honestly', async () => {
+  assert.deepEqual({ ...(await probeAvailability({ baseUrl: '' })) }, { available: false, reason: 'no investigator Worker is configured for this build', worker: null, probeIds: [] });
+  const { fetchImpl } = workerHarness({});
+  const online = await probeAvailability({ baseUrl: 'https://worker.test', fetchImpl });
+  assert.equal(online.available, true);
+  assert.equal(online.worker, 'roadnaturalist-investigator-worker/1');
+  // The listing is the boundary's whole registry, which is why the app can tell a deployment mismatch from an
+  // unreachable boundary.
+  assert.equal(online.probeIds.length >= PILOT_PROBES_BY_CORRIDOR['or-roads-cornelius-pass-rd'].length, true);
+  assert.equal(online.probeIds.includes(CORNELIUS_ADVISORY_ID), true);
+  const offline = await probeAvailability({ baseUrl: 'https://worker.test', fetchImpl: async () => new Response('nope', { status: 503 }) });
+  assert.equal(offline.available, false);
+  assert.match(offline.reason, /HTTP 503/);
+});
+
+test('a live Worker run reaches FULL coverage, and the modes it reports are the modes it used', async () => {
+  const pages = { [ADVISORY_URL]: ADVISORY_PAGE };
+  const { candidate, roads } = pilot(CORRIDOR_INDEX['or-roads-cornelius-pass-rd']);
+  const probes = PILOT_PROBES_BY_CORRIDOR['or-roads-cornelius-pass-rd'];
+  // Only the advisory page is served; the other probes answer NO_RELEVANT_EVIDENCE from a page with no declared phrase.
+  const { fetchImpl } = workerHarness({ pages: new Proxy(pages, { get: (target, key) => (key in target ? target[key] : '<html><body>Nothing declared here.</body></html>') }) });
+  const transport = createWorkerResearchTransport({ baseUrl: 'https://worker.test', fetchImpl });
+  const research = createResearchService({ transport, probes });
+  const service = createInvestigatorService({ osmSource: stubOsmSource(), research, probes, environment: 'test/worker', now: () => new Date(CHECKED_AT) });
+  const investigation = await service.investigate({ candidate, roads, checkedAt: CHECKED_AT });
+  assert.equal(investigation.access.coverage.coverage, COVERAGE.FULL, 'a live boundary with every source answered reaches FULL');
+  assert.equal(investigation.access.coverage.probeSummary.retrievalModes.live, probes.length);
+  assert.equal(investigation.access.coverage.probeSummary.retrievalModes.notReChecked, 0);
+  assert.equal(investigation.access.coverage.probeSummary.retrievalModes.replayed, 0);
+  assert.equal(investigation.access.finding, ACCESS_FINDING.RESTRICTED_OR_CLOSED);
+  assert.ok(investigation.research.probes.every(probe => probe.searched.retrievalMode === RETRIEVAL_MODE.LIVE));
+});
+
+test('a live run that loses a source degrades coverage and keeps the failure visible', async () => {
+  const { candidate, roads } = pilot(CORRIDOR_INDEX['or-roads-cornelius-pass-rd']);
+  const probes = PILOT_PROBES_BY_CORRIDOR['or-roads-cornelius-pass-rd'];
+  const { fetchImpl } = workerHarness({ pages: { [ADVISORY_URL]: ADVISORY_PAGE } });
+  const research = createResearchService({ transport: createWorkerResearchTransport({ baseUrl: 'https://worker.test', fetchImpl }), probes });
+  const investigation = await createInvestigatorService({ osmSource: stubOsmSource(), research, probes, environment: 'test/worker',
+    now: () => new Date(CHECKED_AT) }).investigate({ candidate, roads, checkedAt: CHECKED_AT });
+  assert.equal(investigation.access.coverage.coverage, COVERAGE.PARTIAL);
+  assert.match(investigation.access.coverage.reason, /source request\(s\) failed/);
+  assert.equal(investigation.access.coverage.probeSummary.failures.length > 0, true);
+  assert.equal(investigation.access.coverage.probeSummary.failures.every(entry => typeof entry.reason === 'string' && entry.reason.length > 0), true,
+    'every reported failure must carry its reason');
+  assert.equal(investigation.access.finding, ACCESS_FINDING.RESTRICTED_OR_CLOSED, 'the surviving evidence still decides');
+  assert.deepEqual(investigation.research.failures.map(probe => probe.probeId).length > 0, true);
+});
+
+test('drift is compared against the reviewed capture the app already replays', async () => {
+  const probe = PILOT_PROBES_BY_CORRIDOR['or-roads-cornelius-pass-rd'].find(entry => entry.id === CORNELIUS_ADVISORY_ID);
+  const recordedProbes = [buildProbeBaseline(CORNELIUS_ADVISORY_ID, { capturedAt: '2026-09-26T00:02:01.389Z', outcome: 'EVIDENCE', facts: [
+    { claimType: ACCESS_CLAIM.TEMPORARY_CLOSURE, quote: probe.facts[0].find, claimValue: probe.facts[0].claimValue, effectiveFrom: '2026-07-15',
+      effectiveUntil: '2026-10-07', corridorPart: probe.facts[0].corridorPart, scope: probe.facts[0].scope }] })];
+  const same = createWorkerResearchTransport({ baseUrl: 'https://worker.test', recordedProbes,
+    fetchImpl: workerHarness({ pages: { [ADVISORY_URL]: ADVISORY_PAGE } }).fetchImpl });
+  assert.equal((await same.run(probe, { corridorId: 'c' })).drift.recorded.state, DRIFT_STATE.UNCHANGED);
+
+  const changed = createWorkerResearchTransport({ baseUrl: 'https://worker.test', recordedProbes,
+    fetchImpl: workerHarness({ pages: { [ADVISORY_URL]: '<html><body>Cornelius Pass Road: nothing declared on this page any more.</body></html>' } }).fetchImpl });
+  const changedResult = await changed.run(probe, { corridorId: 'c' });
+  assert.equal(changedResult.outcome, PROBE_OUTCOME.NO_RELEVANT_EVIDENCE);
+  assert.equal(changedResult.drift.recorded.state, DRIFT_STATE.NO_LONGER_MATCHES);
+  assert.deepEqual(changedResult.drift.recorded.removed, [probe.facts[0].find]);
+
+  const noCapture = createWorkerResearchTransport({ baseUrl: 'https://worker.test', fetchImpl: workerHarness({ pages: { [ADVISORY_URL]: ADVISORY_PAGE } }).fetchImpl });
+  assert.equal((await noCapture.run(probe, { corridorId: 'c' })).drift.recorded.state, DRIFT_STATE.NO_BASELINE);
+});
+
+test('the bundle carries how sources were read, what drifted, and which run it replaced', async () => {
+  const { candidate, roads } = pilot(CORRIDOR_INDEX['or-roads-susbauer-rd']);
+  const investigation = await investigateOffline('or-roads-susbauer-rd');
+  const withProvenance = { ...investigation,
+    access: { ...investigation.access, retrievalModes: retrievalModeCounts(investigation.research.probes),
+      driftSummary: { changed: 1, unavailable: 0, note: 'one source differs', states: [{ probeId: 'x', worker: 'EVIDENCE_CHANGED', recorded: 'UNCHANGED' }] },
+      previousRun: { finding: 'PROBABLE_PUBLIC', ruleId: 'R7_AUTHORITATIVE_PART_OF_CORRIDOR', checkedAsOf: CHECKED_AT,
+        coverage: 'PARTIAL', transport: 'recorded-operator-run', reason: '2 source(s) in the new run did not answer' } },
+    transportFallback: { from: 'worker-live', to: 'recorded-operator-run', reason: 'no source answered' } };
+  const bundle = buildCorridorBundle({ candidate, roads, investigation: withProvenance, generatedAt: '2026-09-26T12:30:00.000Z' });
+  assert.equal(bundle.access.retrievalModes.replayed, 4);
+  assert.equal(bundle.access.driftSummary.changed, 1);
+  assert.equal(bundle.access.previousRun.finding, 'PROBABLE_PUBLIC');
+  assert.equal(bundle.investigation.transportFallback.from, 'worker-live');
+  assert.equal(bundle.investigation.research.probes.every(probe => 'retrievalMode' in probe && 'drift' in probe), true);
+  assert.equal(validateBundle(bundle).valid, true);
+  assert.equal(parseBundle(JSON.stringify(bundle)).access.previousRun.coverage, 'PARTIAL');
 });

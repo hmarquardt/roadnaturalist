@@ -8,3 +8,4 @@ __pycache__/
 *.geoparquet
 *.duckdb
 *.pbf
+.wrangler/

@@ -1,0 +1,23 @@
+# Cloudflare Worker configuration for the Road Naturalist investigator source boundary.
+#
+# This file describes the Worker; it is deliberately NOT deployed by this repository, and it creates no
+# resources. Deploying it is a reviewed operator step (see worker/README.md for the exact commands and the
+# required variables). No route, no custom domain, no KV namespace, no D1 database, and no secret is declared
+# here, because the endpoint needs none: it reads public pages and holds no credential.
+
+name = "roadnaturalist-investigator"
+main = "index.js"
+compatibility_date = "2025-09-01"
+# `workers_dev` keeps an unauthenticated workers.dev URL available for a first smoke test; turn it off when a
+# custom route is added.
+workers_dev = true
+
+[vars]
+# Comma-separated browser origins allowed to call the endpoint. The committed default lives in
+# worker/investigator/handler.js and is only overridden here for a deployment that serves another domain.
+INVESTIGATOR_ALLOWED_ORIGINS = "https://roadnaturalist.com,https://www.roadnaturalist.com,http://localhost:8000,http://127.0.0.1:8000"
+# Set to "off" to bypass the source cache while reviewing a page by hand.
+INVESTIGATOR_CACHE = "on"
+
+[observability]
+enabled = true
