@@ -15,6 +15,13 @@ const EXTERNAL_HOSTS = /^https?:\/\/(?:[^/]*\.)?(?:inaturalist\.org|ebird\.org|o
 const EXTERNAL_PATTERNS = ['https://api.inaturalist.org/**', 'https://api.ebird.org/**', 'https://ebird.org/**',
   'https://overpass-api.de/**', 'https://overpass.kumi.systems/**', 'https://api.roadnaturalist.com/**'];
 
+// The eight real corridors whose geometry the buffering engine refuses. They are captured in
+// tests/fixtures/discovery-geometry-failures.json and repaired there and here by the shared
+// analytical-geometry boundary. They are named explicitly so a regression cannot hide inside a count.
+const REPAIRED_CORRIDORS = ['drv1-nw-158th-ave-c2-s1', 'drv1-nw-cornelius-pass-rd-s1', 'drv1-nw-jacobson-rd-s1',
+  'drv1-nw-oakhills-dr-s1', 'drv1-sw-brookwood-ave-s1', 'drv1-sw-butner-rd-s1', 'drv1-sw-murray-blvd-s1',
+  'drv1-sw-washington-st-c1-s1'].sort();
+
 async function watchExternal(page) {
   const seen = [];
   page.on('request', request => { if (EXTERNAL_HOSTS.test(request.url())) seen.push(request.url()); });
@@ -98,8 +105,9 @@ test('promotion produces an ordinary candidate whose detailed analysis matches t
   const external = await watchExternal(page);
   await runDiscovery(page);
   // The default display order puts the corridors with the most mapped wetland first, so the first row is
-  // a corridor whose wetland metrics were measured (a few corridors report UNKNOWN habitat coverage
-  // because the geometry engine cannot buffer that source geometry).
+  // a corridor whose wetland metrics were measured. Corridors the buffering engine refuses are repaired
+  // by the shared analytical-geometry boundary before this point, so UNKNOWN habitat coverage now only
+  // means the habitat extract itself does not reach that corridor.
   const firstRow = page.locator('.discovery-row').first();
   await expect(firstRow).toBeVisible({ timeout: 30000 });
   const corridorName = (await firstRow.innerText()).trim();
@@ -160,3 +168,65 @@ test('the discovery workspace stays usable at 390px', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
 });
 
+
+test('the survey repairs the corridors the engine refuses, and promotion measures the same geometry', async ({ page }) => {
+  test.slow();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const external = await watchExternal(page);
+  await runDiscovery(page);
+  const panel = page.locator('#discovery');
+  // No corridor is left with UNKNOWN habitat coverage because of its own geometry.
+  await expect(panel).not.toContainText('have UNKNOWN habitat coverage');
+  // The eight corridors that the engine refused are the committed regression fixture; the survey must
+  // repair all of them, and report zero unusable geometry.
+  const batch = await page.evaluate(async () => {
+    const { createGisService } = await import('/src/gis/service.js');
+    const { buildDiscoveryUnits } = await import('/src/discovery/units.js');
+    const { segmentUnit } = await import('/src/discovery/segment.js');
+    const { eligibleClasses } = await import('/src/discovery/eligibility.js');
+    const { ANALYSIS_DISTANCES_M } = await import('/src/gis/habitat-result.js');
+    const gis = createGisService();
+    const road = await gis.queryRoadNetwork({ bbox: [-123.07, 45.505, -122.75, 45.67], roadClasses: eligibleClasses(), limit: 20000 });
+    const corridors = [];
+    for (const unit of buildDiscoveryUnits(road.features).units) for (const corridor of segmentUnit(unit).corridors) corridors.push(corridor);
+    const analysis = await gis.analyzeDiscovery(corridors.map(corridor => ({ id: corridor.id, geometry: corridor.geometry })), { distancesM: ANALYSIS_DISTANCES_M });
+    const facts = Object.fromEntries(Object.entries(analysis.corridors).map(([id, block]) => [id, block.geometryForAnalysis]));
+    const coverage = {};
+    for (const block of Object.values(analysis.corridors)) {
+      const state = block.wetlands.coverage;
+      coverage[state] = (coverage[state] ?? 0) + 1;
+    }
+    return { corridors: corridors.length, unbufferable: [...analysis.diagnostics.unbufferableCorridors],
+      repaired: [...analysis.diagnostics.repairedCorridors], methods: analysis.diagnostics.analyticalGeometry.methods,
+      repairedCount: analysis.diagnostics.analyticalGeometry.repairedCount,
+      maxDisplacement: Math.max(...Object.values(facts).map(fact => fact.displacementM ?? 0)),
+      wetlandCoverage: coverage, facts };
+  });
+  expect(batch.unbufferable).toEqual([]);
+  expect(batch.repaired.sort()).toEqual(REPAIRED_CORRIDORS);
+  expect(batch.methods['remove-duplicate-segments']).toBe(8);
+  expect(batch.maxDisplacement).toBe(0);
+  expect(batch.wetlandCoverage.UNKNOWN ?? 0).toBe(0);
+  for (const id of REPAIRED_CORRIDORS) {
+    expect(batch.facts[id].repaired).toBe(true);
+    expect(batch.facts[id].note).toContain('canonical corridor geometry is unchanged');
+    expect(batch.facts[id].removedDuplicateLengthM).toBeGreaterThan(0);
+  }
+  // Selecting and promoting a repaired corridor shows the repair in the interface, and the detailed
+  // analysis of the promoted corridor measures the same geometry the survey did.
+  const row = page.locator('.discovery-row', { hasText: 'SW Washington St' }).first();
+  await row.click();
+  const selected = page.locator('#discovery-selected');
+  await expect(selected).toContainText('Analytical geometry');
+  await expect(selected).toContainText('Minor topology repair applied (remove-duplicate-segments)');
+  const discoveryArea = await selected.locator('.discovery-facts div', { hasText: 'Mapped wetland within 250 m' }).locator('dd').innerText();
+  expect(discoveryArea).not.toBe('None mapped');
+  await page.locator('#discovery-promote').click();
+  const habitat = page.locator('.habitat-section');
+  await expect(habitat).toContainText('PHYSICAL HABITAT EVIDENCE', { timeout: 60000 });
+  const habitatArea = await habitat.locator('.road-facts div', { hasText: /^Within 250 m/ }).first().locator('dd').innerText();
+  expect(habitatArea).toContain(discoveryArea);
+  await expect(habitat).toContainText('Analytical geometry: minor topology repair applied');
+  await expect(habitat).toContainText('canonical road geometry preserved');
+  expect(external).toEqual([]);
+});

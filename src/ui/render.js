@@ -307,6 +307,15 @@ function habitatProvenance(habitat) {
   const details = el('details', 'provenance-details');
   details.append(el('summary', '', 'Habitat source & method'));
   details.append(el('p', 'small', habitat.provenance?.method ?? 'Method unrecorded.'));
+  // Did Road Naturalist alter the corridor geometry before measuring? Answered explicitly, in the same
+  // restrained register as the rest of the provenance: a repair that moved nothing is not a warning.
+  const analytical = habitat.provenance?.geometryForAnalysis ?? habitat.geometryForAnalysis;
+  if (analytical) {
+    const moved = analytical.displacementM == null ? 'displacement not recorded' : `maximum displacement ${Number(analytical.displacementM).toFixed(3)} m`;
+    details.append(el('p', 'small', analytical.repaired
+      ? `Analytical geometry: minor topology repair applied (${analytical.method}); canonical road geometry preserved · ${moved}`
+      : 'Analytical geometry: canonical corridor geometry used directly · no repair needed'));
+  }
   for (const source of sources) {
     details.append(el('p', 'small', `${source.agency} · ${source.dataset} · ${source.datasetVersion} · published ${source.publicationDate ?? 'date unrecorded'} · geometry ${source.geometryCrs} (measured in ${source.measureCrs}) · simplified at ${source.simplifyToleranceM} m`));
     if (source.productStatus) details.append(el('p', 'small muted', source.productStatus));

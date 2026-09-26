@@ -128,14 +128,111 @@ batch values equal the per-corridor values for the same geometry after promotion
 
 Two real-data limitations are reported rather than hidden:
 
-* **Unbufferable geometry.** A few TIGER centerlines make GEOS fail with `TopologyException: assigned
-  depths do not match` at specific buffer radii (8 of 127 corridors in this window). `TRY()` does not
-  catch that error class, so each corridor is probed individually: an unbufferable corridor returns
-  UNKNOWN habitat coverage with that reason while its non-buffer signals (crossings, proximity,
-  ecoregions) are still measured. The run stays usable instead of failing every other corridor.
-* **No geometry repair.** Discovery does not silently simplify or repair source geometry, because the
-  detailed analysis path would then disagree with it. A shared, explicit repair step is a candidate for
-  a later task.
+* **Unbufferable geometry is repaired, or it fails closed.** Some TIGER centerlines make GEOS fail with
+  `TopologyException: assigned depths do not match` at specific buffer radii (8 of 127 corridors in this
+  window). Each corridor is probed individually, and a refused corridor goes through the shared
+  analytical-geometry repair ladder (next section). A corridor that no accepted repair rescues returns
+  UNKNOWN habitat coverage with that reason while its non-buffer signals are still measured, so the run
+  stays usable instead of failing every other corridor.
+
+
+## Analytical geometry repair
+
+Three geometry roles are kept distinct, because conflating them is how a repair becomes a silent data
+change:
+
+| Role | What it is | Who owns it |
+| --- | --- | --- |
+| source geometry | TIGER/Line vertices as published | never modified by this application |
+| **canonical corridor geometry** | the composed, deduped, segmented corridor: what the map draws and what reported road length comes from | `src/roads`, `src/discovery/units.js`, `src/discovery/segment.js` |
+| **analytical geometry** | the geometry actually handed to buffered spatial operations | `src/gis/analytical-geometry.js` |
+
+Normally `analytical == canonical`. When the engine refuses the canonical geometry, the analytical one is
+a **point-set-preserving rewriting** of it and the relationship is recorded per corridor in
+`provenance.geometryForAnalysis` (`repaired`, `method`, `canonicalLengthM`, `analyticalLengthM`,
+`lengthDeltaM`, `displacementM`, `removedDuplicateLengthM`, vertex and part counts).
+
+### Verified cause
+
+The committed fixture `tests/fixtures/discovery-geometry-failures.json` holds all eight real failures with
+their geometry, source feature ids, failing radii, the original GEOS message, and every repair variant that
+was tried. What it shows:
+
+* every one is `ST_IsValid = true` but `ST_IsSimple = false`: the line visits points of its own path twice;
+* the retraced stretches are **exact duplicates** (the same vertex pair, usually reversed) or revisits of
+  the same vertex — not the 2.5–18 m near-parallel digitizations that the retraced *shape* looks like
+  before the coordinates are inspected;
+* so the failure is not a property of the road and not a matter of precision: GEOS's offset-curve builder
+  assigns side depths per input edge and cannot resolve a depth conflict where the line overlaps itself.
+
+Repairs that were measured and **rejected**: `ST_Node` (also fixes buffering, but dissolves near-duplicate
+parallel digitizations: length −14%…−49%, and up to 5,093 m² of buffered area moved one-sided),
+`ST_SimplifyPreserveTopology(0.1 m)` (fixes only 5 of 8, and moves geometry), `ST_RemoveRepeatedPoints`,
+`ST_MakeValid`, and per-segment decomposition (worse: 35 refusals instead of 11, with its own area changes).
+The measurements for each are in the fixture's `repairTrials`.
+
+
+### Repair ladder (`src/domain/line-repair.js`)
+
+| Rung | Operation | Effect on the geometry |
+| --- | --- | --- |
+| 1 | `remove-duplicate-segments` | drops a segment whose unordered vertex pair was already traversed; the twin copy still covers exactly those points |
+| 2 | rung 1 + `split-repeated-vertices` | subdivides at any vertex the path already visits |
+| 3 | rung 1 + node self-intersections | inserts vertices where the line genuinely meets itself (crossing, touch, collinear overlap), then splits into simple runs |
+
+Every rung is **subdivision or exact-duplicate removal only**. No vertex moves, no gap closes, no part of a
+MultiLineString is joined to another, no branch disappears, no road is straightened, and no vertex is
+invented: rung 3 inserts a point that lies on an existing segment, and only where two segments truly
+coincide within 1 nm, so a 1 cm near miss is left as a near miss. In this window rung 1 is what all eight
+need, which is why a run reports `remove-duplicate-segments` for 8 corridors and `none` for the other 119.
+
+Length along the traversal does change when a doubled traversal stops being counted twice (−359 m to
+−2,671 m for these corridors). That delta is **reported**, never hidden, and it is the only reason reported
+road length and analytical length can differ: the interface keeps reporting canonical road length.
+
+### Acceptance gate (fail closed)
+
+`src/domain/analytical-geometry.js` rejects a candidate unless it passes all of:
+
+* maximum displacement ≤ **0.05 m**, sampled symmetrically over vertices *and* segment midpoints of both
+  geometries, so removing a segment that is not exactly duplicated shows up immediately;
+* extent change ≤ 1e-6 degrees (≈0.11 m);
+* at least 50% of the canonical traversal length kept.
+
+These are engineering tolerances about numerical robustness, not ecological assumptions: TIGER/Line
+centreline positional accuracy is measured in metres, so 5 cm is noise, while a repair that needed more
+would be a different road. All shipped rungs measure **0 m displacement**, so the gate can only fire on a
+repair that should not ship.
+
+A candidate is used only when the engine actually performs the requested operation on it: the probe runs
+the same `ST_Buffer` distances the analysis needs, per corridor, and reports failure per corridor. A
+candidate the metric gate likes but the engine still refuses stays UNKNOWN — a function returning a
+geometry is never treated as evidence that the requested query works.
+
+### One boundary, every caller
+
+`src/gis/analytical-geometry.js` is the single implementation. `src/gis/discovery-query.js` probes the
+canonical geometry through the corridor table it already has (so the fast path costs what it always cost)
+and rewrites only the repaired corridors' rows; `src/gis/habitat-query.js` prepares once per corridor and
+hands the same decision to wetlands and hydrography; `src/gis/service.js` uses it for ecoregion overlap
+too, so a repaired corridor's ecology agrees with its habitat metrics. Because the survey and the detailed
+analysis request the same distances, they reach the same decision for the same corridor, which Playwright
+asserts after promotion.
+
+Policy for operations that do not need repair:
+
+* **buffers, buffer coverage, buffer intersections** — prepared analytical geometry (this module);
+* **ecoregion overlap length** — prepared analytical geometry, so it matches the batch;
+* **occurrence distance to a corridor** (`src/gis/occurrence-query.js`) — canonical geometry. Measured: a
+  point-to-line distance never failed for any of the eight, and a duplicated traversal cannot change a
+  minimum distance. Privacy rules are untouched.
+
+Operators can re-run the whole check offline, with no network, in about a second:
+
+```bash
+npm run verify:geometry            # per-corridor table: rung, removed traversal, length and displacement
+npm run verify:geometry -- --json  # the same facts, machine-readable
+```
 
 
 ## Discovery signals
@@ -163,7 +260,14 @@ and one run-level summary:
 * **FULL** — the dataset covers the whole requested region for every requested distance;
 * **PARTIAL** — some buffers leave the extract, with the affected distances named;
 * **NONE** — the region is outside this bounded extract (a fact, not a zero);
-* **UNKNOWN** — the dataset failed or the geometry could not be measured, with the reason.
+* **UNKNOWN** — the dataset failed, or the corridor geometry could not be prepared for the requested query
+  and no accepted repair rescued it, with the reason.
+
+Repair never upgrades a failed measurement into a confident one: the coverage state comes from whether the
+requested query actually ran on the accepted analytical geometry, not from whether a repair function
+returned something. In the pilot window after repair there is no geometry-driven UNKNOWN left: 108 of 127
+corridors are FULL for wetlands and hydrography, 16 are PARTIAL (the extract does not reach the widest
+buffer), 3 are NONE (outside the extract), and none are UNKNOWN.
 
 The run-level coverage is the worst of its dimensions, and the panel lists how many corridors have full
 habitat coverage, how many source features were outside the eligible classes, and how many short units
@@ -188,12 +292,17 @@ Promotion does not require an Investigator probe entry. With none declared, the 
 | road-network query (5,298 features; first call includes DuckDB init) | ~3.1–3.8 s (query itself ~0.5 s) |
 | named-road composition (4,046 units) | ~80 ms |
 | segmentation (127 corridors) | ~15 ms |
-| batch GIS analysis (cold datasets) | 11.4–15.2 s (~90 ms per corridor) |
+| batch GIS analysis (cold datasets) | 13.2 s (~104 ms per corridor, geometry preparation included) |
+| geometry preparation (127 corridors: 127 canonical probes + 8 repairs) | 794 ms (probes 544 ms, repair 252 ms) |
 | repeat batch | ~11.8 s |
 | whole discovery run in the interface | ~15 s |
 
-Batch phases from one run: validate 283 ms · buffers 207 ms · prepare 589 ms · wetlands 4,962 ms ·
-hydrography 5,324 ms · hydroTypes 112 ms · level3 278 ms · level4 206 ms · routeLengths 1 ms.
+Batch phases from one repaired run: validate 1,022 ms · buffers 289 ms · prepare 1,428 ms · wetlands
+5,310 ms · hydrography 5,739 ms · hydroTypes 127 ms · level3 329 ms · level4 245 ms · routeLengths 1 ms.
+The validate phase is the per-corridor probe that already existed; repair itself measured 252 ms for the
+eight corridors, and the 119 corridors that need no repair pay no repair work at all. A repaired run
+measures *faster* end to end than the previous failing run (13.2 s against 16.7 s) because eight corridors
+stop throwing inside the batch passes.
 
 For comparison, the *detailed* per-corridor habitat analysis measures ~2.3 s per corridor on the same
 geometry, so one batch pass is roughly 25× cheaper per corridor and does not multiply external traffic.
@@ -245,7 +354,13 @@ None of this is implemented yet; it is what the measurements above point at.
 
 * `src/discovery/` — constants, eligibility, units, segment, coverage, signals, filter, lifecycle,
   persistence, search-area, run
+* `src/domain/line-repair.js`, `src/domain/analytical-geometry.js` — the point-preserving repair ladder and
+  its impact/acceptance policy
+* `src/gis/analytical-geometry.js` — the shared preparation boundary used by the survey, detailed habitat
+  analysis, and ecoregion overlap
 * `src/gis/discovery-query.js` — the set-oriented batch analysis
+* `scripts/verify-geometry.mjs`, `tests/geometry-repair.test.js`,
+  `tests/fixtures/discovery-geometry-failures.json` — the offline geometry check and its regression record
 * `data/discovery/search-areas.json` — declared search areas
 * `data/gis/or-roads-network-2025.parquet` — the bounded road-network extract
 * `scripts/build-road-network.py`, `scripts/tiger_sources.py` — the offline extraction

@@ -1,5 +1,6 @@
 import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
-import { corridorGeometry, corridorWkt } from '../domain/geometry.js';
+import { corridorGeometry } from '../domain/geometry.js';
+import { ANALYSIS_GEOMETRY_METHOD, describeGeometryForAnalysis } from '../domain/analytical-geometry.js';
 import { ANALYSIS_DISTANCES_M, MEASURE_CRS, bufferSummary, distanceOrNull, paddedBounds, summarizeBufferCoverage } from './habitat-result.js';
 
 // Buffered habitat analysis against the bounded wetland and hydrography extracts.
@@ -16,8 +17,29 @@ export const HABITAT_DATASETS = Object.freeze({
   [COVERAGE_DATASET.HYDROGRAPHY]: 'nhd-hydrography-or-pilot',
 });
 
-export function createHabitatQueries({ openDataset, initialize, record }) {
+export function createHabitatQueries({ openDataset, initialize, record, analytical = null }) {
   const round3 = value => Math.round(Number(value) * 1000) / 1000;
+
+  // The shared preparation boundary: buffered habitat analysis uses the analytical geometry, which is
+  // the canonical corridor unless the engine refused it and a point-preserving repair was accepted.
+  // `analyticalEntry` lets one caller (getHabitatContext) prepare once and hand the same decision to
+  // both datasets, so wetlands, hydrography, and the survey can never disagree about the same corridor.
+  async function prepare(target, options = {}) {
+    if (options.analyticalEntry) return options.analyticalEntry;
+    const geometry = corridorGeometry(target);
+    try {
+      if (!analytical?.prepareAnalyticalGeometry) throw new Error('the shared analytical geometry service is not connected');
+      return await analytical.prepareAnalyticalGeometry({ id: options.corridorId ?? 'corridor', geometry, distancesM: options.distancesM ?? ANALYSIS_DISTANCES_M });
+    } catch (error) {
+      // An engine that cannot answer at all is reported as UNKNOWN with the underlying reason, exactly as
+      // a failed dataset query is: an unavailable analysis is never a zero measurement.
+      return { id: options.corridorId ?? 'corridor', geometry: null, wkt: null, repaired: false,
+        repairMethod: ANALYSIS_GEOMETRY_METHOD.NONE, repairs: null, metrics: null, usable: false,
+        reason: `the corridor geometry could not be prepared for analysis: ${error.message}`,
+        geometryForAnalysis: describeGeometryForAnalysis({ repaired: false }),
+        diagnostics: { status: 'unavailable', attempts: Object.freeze([]), probeMs: null, repairMs: null } };
+    }
+  }
 
   // Both helpers project into EPSG:5070 with an explicit source CRS, because the DuckDB-WASM
   // spatial build tags geometry through ST_Transform only. The WKT itself is generated solely
@@ -89,12 +111,14 @@ export function createHabitatQueries({ openDataset, initialize, record }) {
     }
   }
 
-  async function queryWetlands(corridor, { distancesM = ANALYSIS_DISTANCES_M, includeGeometry = false } = {}) {
+  async function queryWetlands(corridor, { distancesM = ANALYSIS_DISTANCES_M, includeGeometry = false, analyticalEntry = null, corridorId = 'corridor' } = {}) {
     const datasetId = HABITAT_DATASETS[COVERAGE_DATASET.WETLANDS];
-    const geometry = corridorGeometry(corridor);
-    const wkt = corridorWkt(geometry.geometry);
     const started = performance.now();
-    return run(datasetId, started, async (entry, engine) => {
+    const prepared = await prepare(corridor, { distancesM, analyticalEntry, corridorId });
+    if (!prepared.usable) return unavailable(prepared);
+    const geometry = corridorGeometry(prepared.geometry);
+    const wkt = prepared.wkt;
+    const outcome = await run(datasetId, started, async (entry, engine) => {
       const road = roadSql(wkt);
       const table = `read_parquet('${entry.registeredName}')`;
       const projected = `ST_Transform(wetland.geometry, 'EPSG:4326', 'EPSG:5070', always_xy := true)`;
@@ -148,15 +172,18 @@ export function createHabitatQueries({ openDataset, initialize, record }) {
         corridorFeatureCount: Number(proximity?.corridor_features ?? 0), buffers: bufferSummary(buffers, distancesM),
         classes: Object.freeze(classes), classDistanceM: outer, geometryRows };
     }, { buffers: {}, classes: Object.freeze([]), coverageByDistance: {}, nearestDistanceM: null, intersectsCorridor: false, corridorFeatureCount: 0 });
+    return { ...outcome, geometryForAnalysis: prepared.geometryForAnalysis };
   }
 
-  async function queryHydrography(corridor, { distancesM = ANALYSIS_DISTANCES_M, includeGeometry = false } = {}) {
+  async function queryHydrography(corridor, { distancesM = ANALYSIS_DISTANCES_M, includeGeometry = false, analyticalEntry = null, corridorId = 'corridor' } = {}) {
     const datasetId = HABITAT_DATASETS[COVERAGE_DATASET.HYDROGRAPHY];
-    const geometry = corridorGeometry(corridor);
-    const wkt = corridorWkt(geometry.geometry);
     const started = performance.now();
+    const prepared = await prepare(corridor, { distancesM, analyticalEntry, corridorId });
+    if (!prepared.usable) return unavailable(prepared, 'hydrography');
+    const geometry = corridorGeometry(prepared.geometry);
+    const wkt = prepared.wkt;
     const outer = Math.max(...distancesM);
-    return run(datasetId, started, async (entry, engine) => {
+    const outcome = await run(datasetId, started, async (entry, engine) => {
       const road = roadSql(wkt);
       const table = `read_parquet('${entry.registeredName}')`;
       const projected = `ST_Transform(feature.geometry, 'EPSG:4326', 'EPSG:5070', always_xy := true)`;
@@ -229,21 +256,43 @@ export function createHabitatQueries({ openDataset, initialize, record }) {
         types: Object.freeze(types), names: Object.freeze(names), geometryRows };
     }, { buffers: {}, crossings: Object.freeze([]), crossingCount: 0, types: Object.freeze([]), names: Object.freeze([]),
       coverageByDistance: {}, nearestFlowingWaterM: null, nearestStandingWaterM: null, corridorFlowlineCount: 0 });
+    return { ...outcome, geometryForAnalysis: prepared.geometryForAnalysis };
+  }
+
+  // A corridor whose geometry the engine refuses and no accepted repair rescues is reported with UNKNOWN
+  // coverage and the reason, in the same shape the successful query returns. Failing closed is the point:
+  // a missing habitat measurement is never presented as an absence of habitat.
+  function unavailable(prepared, kind) {
+    const shared = { coverage: COVERAGE.UNKNOWN, reason: prepared.reason, perDistance: {}, coverageByDistance: {}, buffers: {},
+      provenance: null, geometryForAnalysis: prepared.geometryForAnalysis,
+      diagnostics: { status: 'unavailable', reason: prepared.reason, queryMs: null, datasetBytes: null } };
+    return { datasetId: HABITAT_DATASETS[kind === 'wetlands' ? COVERAGE_DATASET.WETLANDS : COVERAGE_DATASET.HYDROGRAPHY], ...shared,
+      ...(kind === 'wetlands'
+        ? { classes: Object.freeze([]), nearestDistanceM: null, intersectsCorridor: false, corridorFeatureCount: 0 }
+        : { crossings: Object.freeze([]), crossingCount: 0, nearestFlowingWaterM: null, nearestStandingWaterM: null,
+          corridorFlowlineCount: 0, types: Object.freeze([]), names: Object.freeze([]) }) };
   }
 
   async function getHabitatContext(corridor, options = {}) {
     const started = performance.now();
     const distancesM = [...(options.distancesM ?? ANALYSIS_DISTANCES_M)];
+    // One preparation decision for both datasets, and the same decision the discovery survey makes for
+    // the same corridor, so batch and detailed measurements cannot diverge on repaired geometry.
+    const analyticalEntry = options.analyticalEntry ?? await prepare(corridor, { distancesM, corridorId: options.corridorId });
     // Sequential on purpose: both queries share one DuckDB-WASM connection.
-    const wetlands = await queryWetlands(corridor, { ...options, distancesM });
-    const hydrography = await queryHydrography(corridor, { ...options, distancesM });
+    const wetlands = await queryWetlands(corridor, { ...options, distancesM, analyticalEntry });
+    const hydrography = await queryHydrography(corridor, { ...options, distancesM, analyticalEntry });
     return {
       analysisDistancesM: distancesM, measuredCrs: MEASURE_CRS, wetlands, hydrography,
-      provenance: Object.freeze({ wetlands: wetlands.provenance ?? null, hydrography: hydrography.provenance ?? null, method: HABITAT_METHOD }),
+      geometryForAnalysis: analyticalEntry.geometryForAnalysis,
+      provenance: Object.freeze({ wetlands: wetlands.provenance ?? null, hydrography: hydrography.provenance ?? null,
+        geometryForAnalysis: analyticalEntry.geometryForAnalysis, method: HABITAT_METHOD }),
       diagnostics: {
         status: wetlands.diagnostics.status === 'ready' && hydrography.diagnostics.status === 'ready' ? 'ready' : 'partial',
         reason: [wetlands.reason, hydrography.reason].filter(Boolean).join('; ') || null,
         queryMs: Math.round(performance.now() - started),
+        geometryRepairMs: analyticalEntry.diagnostics.repairMs ?? null,
+        geometryRepairMethod: analyticalEntry.repairMethod,
         wetlandsMs: wetlands.diagnostics.queryMs, hydrographyMs: hydrography.diagnostics.queryMs,
       },
     };
@@ -252,15 +301,23 @@ export function createHabitatQueries({ openDataset, initialize, record }) {
   async function getHabitatOverlay(corridor, { distanceM = 1000 } = {}) {
     const started = performance.now();
     try {
-      const geometry = corridorGeometry(corridor);
+      // The overlay draws the same analytical geometry the measurements used, so the picture and the
+      // numbers describe one corridor.
+      const prepared = await prepare(corridor, { corridorId: 'corridor' });
+      if (!prepared.usable) {
+        return { distanceM, bufferGeometry: null, features: [], geometryForAnalysis: prepared.geometryForAnalysis,
+          diagnostics: { status: 'unavailable', reason: prepared.reason, queryMs: Math.round(performance.now() - started) } };
+      }
+      const geometry = corridorGeometry(prepared.geometry);
       const engine = await initialize();
       const outline = (await engine.conn.query(
-        `SELECT ST_AsGeoJSON(ST_Transform(ST_Buffer(${roadSql(corridorWkt(geometry.geometry))}, ${Number(distanceM)}), 'EPSG:5070', 'EPSG:4326', always_xy := true)) AS geometry_json`))
+        `SELECT ST_AsGeoJSON(ST_Transform(ST_Buffer(${roadSql(prepared.wkt)}, ${Number(distanceM)}), 'EPSG:5070', 'EPSG:4326', always_xy := true)) AS geometry_json`))
         .toArray()[0];
-      const wetlands = await queryWetlands(geometry.geometry, { includeGeometry: true });
-      const hydrography = await queryHydrography(geometry.geometry, { includeGeometry: true });
+      const wetlands = await queryWetlands(geometry.geometry, { includeGeometry: true, analyticalEntry: prepared });
+      const hydrography = await queryHydrography(geometry.geometry, { includeGeometry: true, analyticalEntry: prepared });
       return { distanceM, bufferGeometry: outline?.geometry_json ? JSON.parse(outline.geometry_json) : null,
         features: [...(wetlands.geometryRows ?? []), ...(hydrography.geometryRows ?? [])],
+        geometryForAnalysis: prepared.geometryForAnalysis,
         diagnostics: { status: 'ready', reason: null, queryMs: Math.round(performance.now() - started) } };
     } catch (error) {
       return { distanceM, bufferGeometry: null, features: [], diagnostics: { status: 'unavailable', reason: error.message } };

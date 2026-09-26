@@ -38,3 +38,61 @@ export function corridorWkt(input) {
   const lineText = line => `(${line.map(point => point.join(' ')).join(',')})`;
   return geometry.type === 'LineString' ? `LINESTRING${lineText(geometry.coordinates)}` : `MULTILINESTRING(${geometry.coordinates.map(lineText).join(',')})`;
 }
+
+// Explicit metric accessors for analytical geometry preparation, so repair impact can be measured
+// without another geometry engine and without trusting a derived value.
+export function lineLengthM(geometry) {
+  let total = 0;
+  for (const line of linesOf(geometry)) for (let index = 1; index < line.length; index++) total += haversineM(line[index - 1], line[index]);
+  return total;
+}
+
+export function vertexCount(geometry) {
+  return linesOf(geometry).reduce((total, line) => total + line.length, 0);
+}
+
+export function boundsOf(geometry) {
+  const points = linesOf(geometry).flat();
+  if (!points.length) return null;
+  return [Math.min(...points.map(point => point[0])), Math.min(...points.map(point => point[1])),
+    Math.max(...points.map(point => point[0])), Math.max(...points.map(point => point[1]))];
+}
+
+// Metres from a point to the closest position on any line, in a local equirectangular frame. This is
+// the displacement measure repair has to stay inside; it is deliberately independent of the engine.
+export function pointToLineM(point, geometry) {
+  let best = Infinity;
+  for (const line of linesOf(geometry)) {
+    for (let index = 1; index < line.length; index++) {
+      const from = line[index - 1], to = line[index];
+      const latScale = Math.cos(point[1] * Math.PI / 180);
+      const dx = (to[0] - from[0]) * 111320 * latScale, dy = (to[1] - from[1]) * 110540;
+      const lengthSquared = dx * dx + dy * dy;
+      const px = (point[0] - from[0]) * 111320 * latScale, py = (point[1] - from[1]) * 110540;
+      const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, (px * dx + py * dy) / lengthSquared));
+      best = Math.min(best, Math.hypot(px - t * dx, py - t * dy));
+    }
+  }
+  return best;
+}
+
+// Symmetric discrete Hausdorff distance: the largest distance from any sampled point of either
+// geometry to the other geometry. Segment midpoints are sampled as well as vertices, so dropping a
+// segment that is not exactly duplicated is caught instead of being hidden by its surviving endpoints.
+export function sampledPoints(geometry) {
+  const points = [];
+  for (const line of linesOf(geometry)) {
+    for (let index = 0; index < line.length; index++) {
+      points.push(line[index]);
+      if (index > 0) points.push([(line[index - 1][0] + line[index][0]) / 2, (line[index - 1][1] + line[index][1]) / 2]);
+    }
+  }
+  return points;
+}
+
+export function symmetricDisplacementM(first, second) {
+  let worst = 0;
+  for (const point of sampledPoints(first)) worst = Math.max(worst, pointToLineM(point, second));
+  for (const point of sampledPoints(second)) worst = Math.max(worst, pointToLineM(point, first));
+  return worst;
+}

@@ -16,6 +16,7 @@ import { PILOT_PROBES_BY_CORRIDOR, PROBE_CATALOG } from '../src/investigator/sou
 import { runDiscovery } from '../src/discovery/run.js';
 import { corridorGeometry } from '../src/domain/geometry.js';
 import { createDiscoveryQueries } from '../src/gis/discovery-query.js';
+import { createAnalyticalGeometryQueries } from '../src/gis/analytical-geometry.js';
 import { validateManifest } from '../src/services/manifest.js';
 import { COVERAGE, COVERAGE_DATASET } from '../src/domain/corridor.js';
 
@@ -499,11 +500,15 @@ test('discovery marks persist in one small versioned entry and never trust broke
 
 // A fake DuckDB engine that records every statement and answers with synthetic rows. This is how the
 // batch layer is verified offline: the SQL shape (one temp table, one pad per corridor, one pass per
-// dataset) and the row -> block mapping are both asserted without a browser.
+// dataset) and the row -> block mapping are both asserted without a browser. The analytical geometry
+// service is the real one: it is pure JavaScript plus probes, so a fake engine can exercise the shared
+// repair boundary exactly as production does.
 function fakeGisEngine({ rowsFor, failDatasets = [] }) {
   const statements = [];
   const engine = { db: { registerFileBuffer: async () => {} },
-    conn: { query: async sql => { statements.push(sql); return { toArray: () => rowsFor(sql) }; } } };
+    // Rows are produced when the statement runs, the way DuckDB behaves: a probe that throws must throw
+    // from `query`, not when a caller later reads rows from it.
+    conn: { query: async sql => { statements.push(sql); const rows = rowsFor(sql); return { toArray: () => rows }; } } };
   const queries = createDiscoveryQueries({
     openDataset: async datasetId => {
       if (failDatasets.includes(datasetId)) throw new Error(`${datasetId} byte count mismatch`);
@@ -514,8 +519,9 @@ function fakeGisEngine({ rowsFor, failDatasets = [] }) {
     initialize: async () => engine,
     record: () => {},
     provenance: entry => ({ datasetId: entry.id }),
+    analytical: createAnalyticalGeometryQueries({ initialize: async () => engine }),
   });
-  return { queries, statements };
+  return { queries, statements, engine };
 }
 
 const WETLAND_ROWS = [
@@ -847,3 +853,94 @@ test('a search area must lie inside every dataset it requires', () => {
   assert.throws(() => validateSearchAreas(unordered, manifest), /ordered min\/max/);
 });
 
+
+// ------------------------------------------- analytical geometry repair inside the batch survey
+
+// A retraced corridor: the last leg is digitized back over the previous one, which is the shape real
+// TIGER composition produces and the shape GEOS refuses to buffer.
+function retracedLine() {
+  const points = line(3000);
+  return { type: 'LineString', coordinates: [...points, points.at(-2)] };
+}
+const GEOS_REFUSAL = 'Invalid Error: TopologyException: assigned depths do not match at -2069591.5 2798637.7';
+
+// The batch probes each corridor against its own analysis-table row, so the canonical probe is the one
+// statement that carries both ST_Buffer(geom, ...) and the corridor id.
+const isCanonicalProbe = sql => /SELECT ST_Buffer\(geom, 250\)/.test(sql) && /id = '/.test(sql);
+const isCandidateProbe = sql => /AS candidate/.test(sql);
+
+test('a corridor the engine refuses is repaired in the batch, and the repair travels in provenance', async () => {
+  const { queries, statements } = fakeGisEngine({ rowsFor: sql => {
+    if (isCanonicalProbe(sql) && /id = 'drv1-b'/.test(sql)) throw new Error(GEOS_REFUSAL);
+    return batchRows(sql);
+  } });
+  const result = await queries.analyzeDiscoveryCorridors([
+    { id: 'drv1-a', geometry: { type: 'LineString', coordinates: line(3000) } },
+    { id: 'drv1-b', geometry: retracedLine() },
+  ]);
+  assert.deepEqual([...result.diagnostics.unbufferableCorridors], [], 'no corridor is left unbufferable');
+  assert.deepEqual([...result.diagnostics.repairedCorridors], ['drv1-b'], 'the refused corridor was repaired');
+  assert.equal(result.diagnostics.analyticalGeometry.repairedCount, 1);
+  assert.deepEqual(result.diagnostics.analyticalGeometry.methods, { none: 1, 'remove-duplicate-segments': 1 });
+  const repaired = result.corridors['drv1-b'].geometryForAnalysis;
+  assert.equal(repaired.repaired, true);
+  assert.equal(repaired.method, 'remove-duplicate-segments');
+  assert.equal(repaired.displacementM, 0, 'the repair moved nothing');
+  assert.ok(repaired.removedDuplicateLengthM > 0);
+  assert.ok(repaired.lengthDeltaM < 0, 'the removed doubled traversal is reported');
+  const untouched = result.corridors['drv1-a'].geometryForAnalysis;
+  assert.equal(untouched.repaired, false);
+  assert.equal(untouched.method, 'none');
+  // The analysis table is rewritten for that corridor only, pads included, and the canonical corridor
+  // geometry the map draws is never touched.
+  const update = statements.find(sql => /^UPDATE rn_discovery_analysis SET geom = ST_Transform\(ST_GeomFromText/.test(sql));
+  assert.ok(update, 'the repaired analytical geometry replaces the analysed geometry for that corridor');
+  assert.match(update, /WHERE id = 'drv1-b'/);
+  assert.match(update, /pad1000_min_lon = /);
+  assert.ok(!/drv1-a/.test(update), 'corridors that needed no repair are not rewritten');
+  // And the corridor is measured normally instead of being reported as UNKNOWN.
+  assert.notEqual(result.corridors['drv1-b'].wetlands.coverage, COVERAGE.UNKNOWN);
+  assert.equal(result.corridors['drv1-b'].wetlands.buffers[250].areaM2, 400);
+  assert.equal(result.diagnostics.status, 'ready');
+});
+
+test('a corridor no repair rescues stays UNKNOWN while the rest of the survey is measured', async () => {
+  const { queries } = fakeGisEngine({ rowsFor: sql => {
+    if (isCandidateProbe(sql)) throw new Error(GEOS_REFUSAL);
+    if (isCanonicalProbe(sql) && /id = 'drv1-b'/.test(sql)) throw new Error(GEOS_REFUSAL);
+    return batchRows(sql);
+  } });
+  const result = await queries.analyzeDiscoveryCorridors([
+    { id: 'drv1-a', geometry: { type: 'LineString', coordinates: line(3000) } },
+    { id: 'drv1-b', geometry: retracedLine() },
+  ]);
+  assert.deepEqual([...result.diagnostics.unbufferableCorridors], ['drv1-b']);
+  assert.deepEqual([...result.diagnostics.repairedCorridors], [], 'nothing is claimed as repaired');
+  const failed = result.corridors['drv1-b'];
+  assert.equal(failed.geometryForAnalysis.repaired, false);
+  assert.equal(failed.wetlands.coverage, COVERAGE.UNKNOWN);
+  assert.equal(failed.hydrography.coverage, COVERAGE.UNKNOWN);
+  assert.match(failed.wetlands.reason, /no point-preserving repair was accepted/);
+  // The buffer summary is present but every distance is UNKNOWN, so a missing measurement can never be
+  // read as "no wetlands here".
+  assert.equal(failed.wetlands.coverageByDistance[250].coverage, COVERAGE.UNKNOWN);
+  assert.equal(failed.wetlands.coverageByDistance[1000].coverage, COVERAGE.UNKNOWN);
+  assert.equal(result.diagnostics.status, 'partial');
+  // The unrelated corridor is still measured: one bad geometry never aborts the survey.
+  assert.equal(result.corridors['drv1-a'].wetlands.buffers[250].areaM2, 12000);
+  assert.equal(result.corridors['drv1-a'].hydrography.crossingCount, 1);
+  assert.notEqual(result.corridors['drv1-a'].wetlands.coverage, COVERAGE.UNKNOWN);
+});
+
+test('a survey reports the repair decision for every corridor, repaired or not', async () => {
+  const { queries } = fakeGisEngine({ rowsFor: batchRows });
+  const result = await queries.analyzeDiscoveryCorridors([{ id: 'drv1-a', geometry: { type: 'LineString', coordinates: line(3000) } }]);
+  const facts = result.corridors['drv1-a'].geometryForAnalysis;
+  assert.equal(facts.repaired, false);
+  assert.equal(facts.method, 'none');
+  assert.match(facts.note, /used directly/);
+  assert.ok(facts.canonicalLengthM > 0);
+  assert.equal(facts.displacementM, 0);
+  assert.equal(result.diagnostics.repairedCorridors.length, 0);
+  assert.equal(result.diagnostics.analyticalGeometry.unusableCount, 0);
+});

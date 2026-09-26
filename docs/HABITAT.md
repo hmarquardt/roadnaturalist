@@ -252,6 +252,35 @@ per feature.
   the 314.16 ha of a perfect circle, a 0.64% difference caused by polygon approximation, not by the
   projection).
 
+### Which geometry is buffered (analytical geometry)
+
+Buffered analysis never accepts a corridor geometry blindly. Before any habitat query runs, the corridor
+goes through the shared preparation boundary (`src/gis/analytical-geometry.js`), which:
+
+1. probes the canonical corridor geometry with exactly the requested `ST_Buffer` distances;
+2. if the engine refuses it, walks the point-preserving repair ladder (`src/domain/line-repair.js`) and
+   probes each accepted candidate;
+3. uses the first candidate the engine accepts, or reports the corridor's habitat metrics UNKNOWN with the
+   reason — never zero, never a measured value from a geometry that did not run.
+
+The geometry actually measured is reported as `geometryForAnalysis` in the provenance of each block and in
+`getHabitatContext(...)`, with `repaired`, `method`, canonical and analytical length, the length delta, and
+maximum displacement. The canonical corridor geometry is never mutated: reported road length stays the
+canonical length, and the map draws the canonical line. See
+[docs/DISCOVERY.md](DISCOVERY.md#analytical-geometry-repair) for the measured cause and the acceptance
+tolerances.
+
+Per-operation policy:
+
+| Operation | Geometry used | Why |
+| --- | --- | --- |
+| buffers, buffer area/length, buffer coverage, crossings, nearest mapped feature | prepared analytical geometry | the operation is the one that fails on self-overlapping lines |
+| ecoregion overlap length | prepared analytical geometry | so the detailed ecology agrees with the discovery batch |
+| occurrence distance to the corridor (`src/gis/occurrence-query.js`) | canonical geometry | measured: `ST_Distance(point, line)` never failed, and a duplicated traversal cannot change a minimum distance; privacy rules unchanged |
+
+In the pilot window this repairs 8 of 127 corridors (all `remove-duplicate-segments`, 0 m displacement);
+the rest are measured on their canonical geometry with no extra work.
+
 ### What "crossing" means
 
 A **mapped crossing** is a mapped NHD flowline that intersects the canonical road corridor in two

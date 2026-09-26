@@ -1,6 +1,7 @@
 import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
-import { corridorGeometry, corridorWkt } from '../domain/geometry.js';
+import { corridorGeometry } from '../domain/geometry.js';
 import { loadManifest } from '../services/manifest.js';
+import { createAnalyticalGeometryQueries } from './analytical-geometry.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
 import { createHabitatQueries } from './habitat-query.js';
 import { createDiscoveryQueries } from './discovery-query.js';
@@ -158,11 +159,23 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
     return queryRoads({ bbox, roadClasses, limit, datasetId: NETWORK_DATASET_ID, insideOnly: true });
   }
 
+  // One shared instance of the analytical geometry boundary for the whole service: discovery, detailed
+  // habitat analysis, and ecoregion overlap all ask the same object, so they cannot disagree about
+  // whether a corridor needed repair. See src/gis/analytical-geometry.js.
+  const analytical = createAnalyticalGeometryQueries({ initialize });
+
   async function getEcoregions(corridor) {
     let datasets = [];
     try {
-      const geometry = corridorGeometry(corridor);
-      const wkt = corridorWkt(geometry.geometry);
+      // Ecoregion overlap is a line/polygon intersection, but it is measured against the same analytical
+      // geometry the buffered analysis used, so a repaired corridor reports consistent ecology too.
+      const prepared = await analytical.prepareAnalyticalGeometry({ id: 'corridor',
+        geometry: corridorGeometry(corridor).geometry });
+      if (!prepared.usable) {
+        return unknown(prepared.reason, []);
+      }
+      const geometry = corridorGeometry(prepared.geometry);
+      const wkt = prepared.wkt;
       datasets = (await getManifest()).datasets.filter(item => item.id.startsWith('epa-ecoregions-or-l'));
       const started = performance.now();
       const errors = [];
@@ -177,8 +190,10 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
       diagnostics.firstQueryMs ??= diagnostics.lastQueryMs;
       diagnostics.error = errors.length ? errors.join('; ') : null;
       return { coverage, level3, level4, spansMultiple: level3.spansMultiple || level4.spansMultiple,
-        provenance: { dataset: 'EPA Level III/IV ecoregions', sources: datasets.map(dataset => ({ ...dataset.source, id: dataset.id, version: dataset.version, sha256: dataset.sha256 })), method: 'GeoJSON corridor intersected with EPA polygons in DuckDB Spatial; overlap length measured in EPSG:5070', coverage },
-        diagnostics: { status: errors.length ? (coverage === COVERAGE.UNKNOWN ? 'unavailable' : 'partial') : 'ready', reason: errors.join('; ') || null, queryMs: diagnostics.lastQueryMs, engineInitMs: diagnostics.initMs } };
+        geometryForAnalysis: prepared.geometryForAnalysis,
+        provenance: { dataset: 'EPA Level III/IV ecoregions', sources: datasets.map(dataset => ({ ...dataset.source, id: dataset.id, version: dataset.version, sha256: dataset.sha256 })), method: 'GeoJSON corridor intersected with EPA polygons in DuckDB Spatial; overlap length measured in EPSG:5070', geometryForAnalysis: prepared.geometryForAnalysis, coverage },
+        diagnostics: { status: errors.length ? (coverage === COVERAGE.UNKNOWN ? 'unavailable' : 'partial') : 'ready', reason: errors.join('; ') || null, queryMs: diagnostics.lastQueryMs, engineInitMs: diagnostics.initMs,
+          geometryRepairMethod: prepared.repairMethod, geometryRepairMs: prepared.diagnostics.repairMs ?? null } };
     } catch (error) {
       diagnostics.error = error.message;
       return unknown(error.message, datasets);
@@ -188,7 +203,7 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
   // Habitat analysis lives in src/gis/habitat-query.js; this service owns only the DuckDB
   // lifecycle, dataset registry, and diagnostics.
   const habitat = createHabitatQueries({
-    openDataset, initialize,
+    openDataset, initialize, analytical,
     record: (datasetId, entry, queryMs, error) => {
       if (error) { diagnostics.error = error; return; }
       diagnostics.firstHabitatQueryMs ??= queryMs;
@@ -200,7 +215,7 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
   // Discovery analysis is the set-oriented counterpart of the habitat queries: one batch per dataset
   // for every discovered corridor at once, using the same measurement definitions.
   const discovery = createDiscoveryQueries({
-    openDataset, initialize, provenance: habitat.provenance,
+    openDataset, initialize, provenance: habitat.provenance, analytical,
     record: (datasetId, entry, queryMs, error) => {
       if (error) { diagnostics.error = error; return; }
       diagnostics.firstDiscoveryQueryMs ??= queryMs;
@@ -216,6 +231,10 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
   return {
     initialize, openDataset, getEcoregions, queryRoads, getRoad, queryRoadNetwork,
     ...habitat,
+    // Exposed so the browser regression test can ask the same shared boundary what geometry it would use
+    // for a corridor, without duplicating the ladder.
+    prepareAnalyticalGeometry: analytical.prepareAnalyticalGeometry,
+    prepareAnalyticalGeometries: analytical.prepareAnalyticalGeometries,
     async analyzeDiscovery(corridors, options = {}) {
       const result = await discovery.analyzeDiscoveryCorridors(corridors, options);
       diagnostics.discoveryCorridorCount = Object.keys(result.corridors).length;

@@ -1,5 +1,6 @@
 import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
 import { corridorGeometry } from '../domain/geometry.js';
+import { UNREPAIRABLE_GEOMETRY_REASON, describeGeometryForAnalysis } from '../domain/analytical-geometry.js';
 import { ANALYSIS_DISTANCES_M, MEASURE_CRS, bufferSummary, distanceOrNull, paddedBounds, summarizeBufferCoverage } from './habitat-result.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
 import { HABITAT_DATASETS } from './habitat-query.js';
@@ -17,10 +18,10 @@ export const DISCOVERY_METHOD = 'All discovery corridors inserted into one DuckD
 export const ECO_L3_DATASET = 'epa-ecoregions-or-l3';
 export const ECO_L4_DATASET = 'epa-ecoregions-or-l4';
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
-// Reported for a corridor whose source geometry the analysis engine cannot buffer: its habitat metrics
-// are unknown, not zero, and the reason travels with the corridor.
-export const BUFFER_FAILURE_REASON = 'the analysis engine could not buffer this corridor geometry (GEOS topology error), '
-  + 'so buffered habitat metrics were not measured for it.';
+// Reported for a corridor whose geometry the analysis engine cannot buffer and that no accepted
+// point-preserving repair rescues: its habitat metrics are unknown, not zero, and the reason travels
+// with the corridor. See src/gis/analytical-geometry.js and docs/DISCOVERY.md.
+export const BUFFER_FAILURE_REASON = UNREPAIRABLE_GEOMETRY_REASON;
 const CORRIDOR_TABLE = 'rn_discovery_corridor';
 const ANALYSIS_TABLE = 'rn_discovery_analysis';
 // Buffered corridor geometry per requested distance, materialised once for every corridor.
@@ -29,7 +30,7 @@ const BUFFER_TABLE = 'rn_discovery_buffer';
 const WETLAND_TABLE = 'rn_discovery_wetland';
 const HYDRO_TABLE = 'rn_discovery_hydro';
 
-export function createDiscoveryQueries({ openDataset, initialize, record, provenance = () => null }) {
+export function createDiscoveryQueries({ openDataset, initialize, record, provenance = () => null, analytical = null }) {
   const project = source => `ST_Transform(${source}, 'EPSG:4326', 'EPSG:5070', always_xy := true)`;
   const distanceValues = distancesM => distancesM.map(distance => `(${Number(distance)})`).join(', ');
 
@@ -69,21 +70,31 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
   }
 
   // A handful of real TIGER centerlines defeat GEOS buffering ("assigned depths do not match") even
-  // though ST_IsValid accepts them. TRY() does not catch that class of error, so each corridor is
-  // probed individually: an unbufferable corridor is reported with UNKNOWN habitat coverage and a
-  // reason instead of failing every other corridor in the batch.
-  async function validateBuffers(engine, corridors, distancesM) {
-    const unbufferable = [];
-    const buffers = distancesM.map(distance => `ST_Buffer(geom, ${Number(distance)})`).join(', ');
+  // though ST_IsValid accepts them. The shared analytical-geometry boundary prepares each corridor:
+  // canonical geometry first (the fast path, costing exactly what it cost before repair existed), then
+  // the point-preserving repair ladder for corridors the engine refuses. Corridors that remain
+  // unbufferable are reported with UNKNOWN habitat coverage and a reason instead of failing the batch.
+  async function prepareCorridorGeometries(engine, corridors, distancesM) {
+    if (!analytical?.prepareAnalyticalGeometries) throw new Error('Discovery requires the shared analytical geometry service');
+    const prepared = await analytical.prepareAnalyticalGeometries({ engine, corridors, distancesM,
+      probeCanonical: (corridor, id) => analytical.probeStoredGeometry(engine, { table: ANALYSIS_TABLE, id, distancesM }) });
+    const outer = Math.max(...distancesM);
     for (const corridor of corridors) {
-      try {
-        // Every requested distance is attempted: a geometry can buffer at 250 m and fail at 1 km.
-        await engine.conn.query(`SELECT ${buffers} FROM ${ANALYSIS_TABLE} WHERE id = '${corridor.id}'`);
-      } catch {
-        unbufferable.push(corridor.id);
+      const entry = prepared.geometries.get(corridor.id);
+      if (!entry?.repaired || !entry.usable) continue;
+      // Only the *analytical* representation moves; the canonical corridor the map draws and the road
+      // length reported to the user are untouched, and this fact travels in the result provenance.
+      const bounds = corridorGeometry(entry.geometry).bounds;
+      const assignments = [['min_lon', bounds[0]], ['min_lat', bounds[1]], ['max_lon', bounds[2]], ['max_lat', bounds[3]]];
+      for (const distance of [outer, 250]) {
+        const pad = padColumns(bounds, distance);
+        ['min_lon', 'min_lat', 'max_lon', 'max_lat'].forEach((name, index) => assignments.push([`pad${distance}_${name}`, pad[index]]));
       }
+      await engine.conn.query(`UPDATE ${ANALYSIS_TABLE} SET geom = ${project(`ST_GeomFromText('${entry.wkt}')`)}, `
+        + `geom_4326 = ST_GeomFromText('${entry.wkt}'), ${assignments.map(([column, value]) => `${column} = ${Number(value)}`).join(', ')} `
+        + `WHERE id = '${corridor.id}'`);
     }
-    return unbufferable;
+    return prepared;
   }
 
   async function prepareBuffers(engine, distancesM, unbufferable = []) {
@@ -110,12 +121,12 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
       + [outer, 250].flatMap(distance => ['min_lon', 'min_lat', 'max_lon', 'max_lat'].map(name => `pad${distance}_${name}`)).join(', ')
       + ` FROM ${CORRIDOR_TABLE}`);
     const validateStarted = performance.now();
-    const unbufferable = await validateBuffers(engine, corridors, distancesM);
+    const prepared = await prepareCorridorGeometries(engine, corridors, distancesM);
     phase.validate = Math.round(performance.now() - validateStarted);
     const bufferStarted = performance.now();
-    await prepareBuffers(engine, distancesM, unbufferable);
+    await prepareBuffers(engine, distancesM, prepared.unusableIds);
     phase.buffers = Math.round(performance.now() - bufferStarted);
-    return { outer, unbufferable };
+    return { outer, unbufferable: [...prepared.unusableIds], prepared };
   }
 
   function wktOf(geometry) {
@@ -356,11 +367,12 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
     const distances = [...distancesM];
     let engine;
     let unbufferable = [];
+    let prepared = null;
     const phase = {};
     try {
       const prepareStarted = performance.now();
       engine = await initialize();
-      ({ unbufferable } = await createCorridorTable(engine, requested, distances, phase));
+      ({ unbufferable, prepared } = await createCorridorTable(engine, requested, distances, phase));
       phase.prepare = Math.round(performance.now() - prepareStarted);
     } catch (error) {
       const blocks = {};
@@ -399,7 +411,11 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
     const blocks = {};
     for (const corridor of requested) {
       const id = corridor.id;
+      const analyticalEntry = prepared?.geometries?.get(id) ?? null;
       blocks[id] = {
+        // Whether the analysis engine needed a repaired analytical geometry, and if so which repair and
+        // how far it moved anything. Explicit even when nothing was repaired.
+        geometryForAnalysis: analyticalEntry?.geometryForAnalysis ?? describeGeometryForAnalysis({ repaired: false }),
         wetlands: wetlands.result ? wetlandBlock(wetlands.entry, distances, { buffers: wetlands.result.buffers.get(id) ?? [],
           coverageRows: wetlands.result.coverageRows.get(id) ?? [], proximity: wetlands.result.proximity.get(id) }, provenance,
           unbufferable.includes(id))
@@ -417,10 +433,13 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
     }
     const diagnostics = { status: errors.length || unbufferable.length ? 'partial' : 'ready',
       reason: [errors.join('; '), unbufferable.length
-        ? `${unbufferable.length} corridor(s) could not be buffered: ${unbufferable.slice(0, 3).join(', ')}` : null]
+        ? `${unbufferable.length} corridor(s) could not be prepared for buffering: ${unbufferable.slice(0, 3).join(', ')}` : null]
         .filter(Boolean).join('; ') || null,
       corridorCount: requested.length, queryMs: Math.round(performance.now() - started), phaseMs: Object.freeze(phase),
-      unbufferableCorridors: Object.freeze([...unbufferable]), datasetErrors: Object.freeze([...errors]) };
+      unbufferableCorridors: Object.freeze([...unbufferable]),
+      repairedCorridors: Object.freeze([...(prepared?.repairedIds ?? [])]),
+      analyticalGeometry: prepared?.diagnostics ?? null,
+      datasetErrors: Object.freeze([...errors]) };
     return { corridors: Object.freeze(blocks), diagnostics };
   }
 

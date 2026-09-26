@@ -31,6 +31,7 @@ npm run verify:investigator:live    # live official sources + live OpenStreetMap
 npm run verify:investigator:worker  # the Worker research boundary (DEPLOYED via INVESTIGATOR_WORKER_URL, else the same handler served locally)
 npm run verify:production:browser   # the deployed app in a real browser, against the deployed Worker and real sources
 npm run validate:probes            # the investigator probe catalog: schema, semantics, Worker policy, capture/baseline
+npm run verify:geometry            # offline: the shared analytical-geometry repair boundary against the real failures
 npm run investigator:refresh       # validate the catalog, retrieve declared sources, rewrite the capture + drift baseline
 ```
 

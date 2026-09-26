@@ -62,6 +62,9 @@ export function buildDiscoveryResult({ unit, corridor, metrics, roadState = COVE
     analysisDistancesM: Object.freeze([...analysisDistancesM]),
     provenance: Object.freeze({
       road: provenance ? Object.freeze({ ...provenance, kind: 'road-network-extract' }) : null,
+      // Did Road Naturalist alter this corridor's geometry before spatial analysis? Answered explicitly,
+      // because a repair is allowed to be invisible in the interface but never unrecorded.
+      geometryForAnalysis: metrics?.geometryForAnalysis ?? Object.freeze({ repaired: false, method: 'none' }),
       method: 'Deterministic discovery analysis: road eligibility, named-road composition, contiguous segmentation, '
         + 'then one set-oriented DuckDB Spatial pass over the wetlands, hydrography, and EPA ecoregion layers in EPSG:5070.',
       occurrence: 'Not queried during discovery: occurrence evidence is an explicit, separate deeper-analysis step.',

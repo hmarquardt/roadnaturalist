@@ -125,6 +125,9 @@ function habitatEngine({ coverage, fail = null, wetlands = null, hydrography = n
     db: { registerFileBuffer: async () => {} },
     conn: { query: async sql => { queries.push(sql);
       if (fail) throw new Error(fail);
+      // The shared analytical-geometry boundary probes the corridor before any habitat query runs; a
+      // fake engine that cannot answer that probe would look like an unbufferable corridor.
+      if (/AS candidate/.test(sql)) return [{ a: 0 }];
       const rows = sql.includes('AS covered') ? coverage
         : sql.includes('corridor_features') ? (wetlands?.proximity ?? [{ corridor_features: 0, nearest_m: 1000 }])
           : sql.includes('corridor_flowlines') ? (hydrography?.proximity ?? [{ nearest_flowing_m: 1000, nearest_standing_m: 1000, corridor_flowlines: 0 }])

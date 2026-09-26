@@ -225,6 +225,16 @@ function resultTable(results, discovery, onSelect) {
 }
 
 
+// One honest sentence about the geometry the spatial engine was given. A benign repair states what it
+// did without a warning banner; a corridor whose analysis is unavailable already carries that reason in
+// its coverage rows, so this line never contradicts them.
+function analyticalGeometryLine(facts) {
+  if (!facts) return 'Not recorded';
+  if (facts.method === 'none') return 'Canonical corridor geometry used directly (no repair needed)';
+  const removed = facts.removedDuplicateLengthM ? ` · ${Math.round(facts.removedDuplicateLengthM).toLocaleString('en-US')} m of doubled centerline traversal not counted twice` : '';
+  return `Minor topology repair applied (${facts.method}): canonical road geometry preserved, nothing moved${removed}`;
+}
+
 function selectedResult(result, { onPromote, onDismiss, onSelect }) {
   const block = el('div', 'discovery-selected');
   block.id = 'discovery-selected';
@@ -246,6 +256,7 @@ function selectedResult(result, { onPromote, onDismiss, onSelect }) {
     ['Flowline length within 1 km', result.signals.hydrography.flowlineLength1000M ? formatLength(result.signals.hydrography.flowlineLength1000M) : 'None mapped'],
     ['Primary ecoregion', result.ecology.level3?.primary ? `${result.ecology.level3.primary.name} (${result.ecology.level3.primary.code})` : 'Unknown'],
     ['Ecoregions crossed', `${result.ecology.ecoregionCount}`],
+    ['Analytical geometry', analyticalGeometryLine(result.provenance.geometryForAnalysis)],
   ];
   for (const [label, value] of rows) {
     const row = el('div');
