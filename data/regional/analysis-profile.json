@@ -1,0 +1,95 @@
+{
+ "kind": "road-discovery-analysis-profile",
+ "profileVersion": 1,
+ "derivedSchemaVersion": 1,
+ "region": {
+  "version": "or-sw-wa-portland-v2",
+  "bounds": [
+   -124.05,
+   44.75,
+   -121.77,
+   46.42
+  ]
+ },
+ "roadSource": {
+  "id": "roads",
+  "version": "or-sw-wa-portland-v2",
+  "digest": "4faab5a1971c15bcd37082865f1a06e79446a044c00c76d13360849098e53388"
+ },
+ "roadComponents": {
+  "digest": "11cb4b5076f9e0d58ae4288f530204d7126c6fc7580924c3b43399783c826c13",
+  "joinToleranceM": 150,
+  "multiCellComponents": 2601
+ },
+ "composition": {
+  "toleranceM": 150,
+  "reversedLinkLengthRatio": 0.25
+ },
+ "segmentation": {
+  "idPrefix": "drv1",
+  "minCorridorM": 1609.344,
+  "targetCorridorM": 6437.376,
+  "maxCorridorM": 12874.752
+ },
+ "analyticalGeometry": {
+  "methods": [
+   "none",
+   "remove-duplicate-segments",
+   "remove-duplicate-segments+split-repeated-vertices",
+   "remove-duplicate-segments+node-self-intersections"
+  ],
+  "tolerance": {
+   "maxDisplacementM": 0.05,
+   "maxBoundsDeltaDeg": 0.000001,
+   "minLengthRatio": 0.5
+  }
+ },
+ "habitat": {
+  "wetlands": {
+   "id": "wetlands",
+   "version": "or-sw-wa-portland-v2",
+   "digest": "c005ebe111a25d220e58659dea891e6a7fa238c5cc9bf595edc411d3a0e880f4"
+  },
+  "hydrography": {
+   "id": "hydrography",
+   "version": "or-sw-wa-portland-v2",
+   "digest": "4428497358f62c28a8d654190ccf00eba98dd4e76e01d9f2f63a57a328bab377"
+  }
+ },
+ "ecology": [
+  {
+   "id": "epa-ecoregions-or-l3",
+   "version": "epa-or-2012-v1",
+   "digest": "d73b3e9f4b89812c952f0ddafcff55f4ca38446c4daca3734c36dba969878d26"
+  },
+  {
+   "id": "epa-ecoregions-or-l4",
+   "version": "epa-or-2012-v1",
+   "digest": "c59d46f566801c6e47e4cd8706581a4ad1690c3c2780268c2ce8c2ddf66a7847"
+  },
+  {
+   "id": "epa-ecoregions-wa-l3",
+   "version": "epa-wa-2012-v1",
+   "digest": "07a828ad6e5009f996083bb5f10719c344c189192cb933adf70abed24d089360"
+  },
+  {
+   "id": "epa-ecoregions-wa-l4",
+   "version": "epa-wa-2012-v1",
+   "digest": "dd90eee69046238f491d15960647a7e4ba20fd1c639b6b9172e58c66b906d95c"
+  }
+ ],
+ "maxAnalysisDistanceM": 1000,
+ "analysisDistancesM": [
+  250,
+  500,
+  1000
+ ],
+ "metrics": {
+  "wetlandArea": "feature-area-sum-v1",
+  "hydrographyLength": "clipped-length-sum-v1",
+  "habitatCounts": "distinct-contributing-features-v1",
+  "coverage": "extent-per-distance-v1",
+  "wetlandDefinition": "sum of each mapped feature's own geometry clipped to the requested buffer (feature-area sum, not a spatial union)"
+ },
+ "fingerprint": "6d0c5a126ce65b21218afccdd2ee4b63858e473fe1488f77a13f9528afa088e2"
+}

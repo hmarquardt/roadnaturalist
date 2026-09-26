@@ -376,6 +376,89 @@ would silently assume the mapped inventory is complete and non-overlapping, whic
 change every committed pilot expectation. The double count across a state line is the one place where this
 definition is visibly generous, and it is recorded rather than smoothed over.
 
+## Road closure by connected component, not by name
+
+Name-only closure was the measured overfetch: every town on a highway has a 3rd St, so a 10-mile search
+selected 58 road cells where 6 were needed. The window is now indexed by **road connected component** - one
+named road in one place, built from the same normalization the browser composes with (exact and reversed
+duplicates collapse, endpoint proximity at the runtime's own 150 m, connected components, stable
+`drv1-<name-key>[-c<n>]` ids). `scripts/road_components.py` mirrors `src/discovery/units.js`;
+`tests/road-components.test.js` recomposes real published source features with the real browser modules and
+asserts the same components, ids, membership and determinism under shuffled input.
+
+| Scenario | Base road cells | Closure cells (names) | Closure cells (components) | Closure bytes (names) | Closure bytes (components) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 10-mile radius | 6 | 52 (58 total) | **26** (32 total) | 23.4 MB | **13.5 MB** |
+| 25-mile radius | 24 | 46 (70 total) | **27** (51 total) | 17.4 MB | **11.6 MB** |
+| 50-mile radius | 88 | 22 (110 total) | **6** (94 total) | 1.5 MB | **0.5 MB** |
+
+The window holds **61,447 components**; **2,601** span more than one cell and are published (949,748 bytes at
+`regional/components-or-sw-wa-portland-v2.json`, declared in the catalog with its byte count and SHA-256 and
+verified on load). The main catalog shrank from 1.24 MB to **177 KB**, because the name index it used to carry
+is gone. The components that still add cells are long roads that genuinely continue (`US Hwy 26`, `US Hwy 30`,
+`State Hwy 6`, `US Hwy 101`), not common street names: the test asserts no numbered street name appears among
+a scenario's largest closure contributors. A catalog without the component index (the first published slice)
+keeps name closure bounded by cell adjacency, so its measurements stay reproducible.
+
+Measured on real data while building the index: `US Hwy 26` publishes 41 pieces, 18 of which are
+divided-carriageway duplicates that collapse into **one** component, while `3rd St` is **50** unrelated
+components. The same check also showed that the composed geometry of that highway measures about 447 km from
+about 231 km of source line, because composition follows every published piece including ramps and stubs; the
+component index therefore records the sum of a component's own source lines as a diagnostic and never as
+corridor identity or as a metric.
+
+## Analysis profile and fingerprint
+
+`data/regional/analysis-profile.json` freezes the semantics a derived artifact would bake in, and
+`src/discovery/analysis-fingerprint.js` builds it from the values the runtime actually uses (the constants are
+imported, never restated) and reduces it to canonical JSON, then SHA-256. Current fingerprint:
+`6d0c5a126ce65b21218afccdd2ee4b63858e473fe1488f77a13f9528afa088e2`.
+
+It covers the region version and bounds, the road dataset version plus a digest over every published road
+partition, the component-index digest and join tolerance, the composition tolerance and reversed-link ratio,
+the segmentation constants and id prefix, the repair methods and acceptance tolerances, the wetland and
+hydrography dataset versions and partition digests, every declared ecoregion dataset version and digest, the
+analysis distances, the catalog's halo distance, and the metric-semantic versions (wetland area, clipped
+length, feature counts, coverage). It deliberately excludes timestamps, deployment ids, asset origins and user
+state, and `tests/analysis-fingerprint.test.js` proves both directions: every material change above invalidates
+the fingerprint, while reordering partitions, moving the asset origin, or passing deployment metadata does not.
+`node scripts/write-analysis-profile.mjs --check` fails if the committed profile is not current, and the test
+suite asserts the same thing.
+
+A derived manifest would carry the fingerprint it was built with; a browser whose own fingerprint differs
+reports derived discovery as unavailable (`analysis version mismatch`) rather than showing numbers computed
+under different rules. That machinery is in place; the derived artifact itself is not built yet - see below.
+
+## Derived corridor metrics: what remains
+
+The measurement above is why this layer exists, and the correctness work before it is why it is now safe to
+build: batch and detailed habitat agree on a real capture, the wetland semantics is a documented feature-area
+sum, coverage is compared before metrics, pool closure is component-based, and the analysis profile pins the
+semantics a derived build must freeze. What is **not** built in this pass, and what the next pass must do:
+
+1. **Corridor rows.** One compact GeoParquet partition per 0.2-degree derived cell, holding whole derived
+   corridor rows replicated into every cell they intersect (deduplicated at runtime by `corridor_id`): corridor
+   and unit ids, name, geometry, bounds, length, TIGER class, counties, source feature ids, segment index and
+   count, repair provenance, ecology (primary L3/L4 with percentages, counts, transitions), wetlands
+   (intersects, nearest, area and feature counts at 250/500/1000 m, type summary), hydrography (crossings,
+   nearest flowing and standing, flowline length and waterbody area at 1 km, named/type summary), per-dimension
+   coverage, and the analysis fingerprint. No occurrence, Investigator, access, annotation or user state.
+2. **Build.** `regional road source -> component index -> units -> segmentation -> analytical geometry ->
+   shared metric definitions -> derived rows -> spatial replication -> GeoParquet -> manifest -> digest`. The
+   corridor set must be composed with the same modules the browser uses; the metrics must come from
+   `src/gis/habitat-metrics.js`, so the offline build cannot quietly become a third definition.
+3. **Runtime.** Select derived cells by the search box, verify digests, register buffers, deduplicate by
+   corridor id, apply the exact disk test, then filter, sort and map from the loaded rows. Derived metric
+   partitions need no 1 km halo (each row already carries complete metrics), while raw promotion keeps the
+   normal halo rules.
+4. **Promotion.** Reconstruct the corridor from raw partitions, verify id and geometry against the derived
+   row, and fail closed (`promotion verification failed`) rather than trusting the cache; then load raw habitat
+   partitions for the detailed analysis, which stays the source of truth.
+5. **Publication.** `derived/corridor-metrics/<analysis-fingerprint>/cells/<cell>.parquet` plus a manifest, on
+   the existing `roadnaturalist-data` plane, immutable and digest-audited like the raw partitions.
+6. **Verification.** `npm run verify:derived-equivalence` comparing derived rows against raw batch and detailed
+   metrics on a deterministic real sample, alongside the existing `verify:regional-equivalence`.
+
 ### Scale recommendation (this pass)
 
 | Scale | Recommendation |

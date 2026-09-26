@@ -123,6 +123,21 @@ corridor:
 | ecoregions | Level III and IV overlap length per corridor, summarized with the same function the detailed analysis uses |
 | coverage | `ST_Contains(extent, buffer)` per corridor per distance |
 
+Raw regional road-cell selection closes over the published **road component index** rather than over names. A
+component is one named road in one place, built from the same normalization and 150 m endpoint rule this layer
+composes with, so a common street name in an unrelated town can no longer pull its cells into the search. The
+index is declared in the catalog with its byte count and SHA-256 and verified on load; a catalog without one
+(the first published slice) keeps its name index, bounded by cell adjacency. Measured effect on the committed
+scenarios: 10-mile closure 52 cells / 23.4 MB -> 26 cells / 13.5 MB, 25-mile 46 / 17.4 MB -> 27 / 11.6 MB,
+50-mile 22 / 1.5 MB -> 6 / 0.5 MB, with long continuing highways - not street names - as the remaining
+contributors. See [regional data](REGIONAL-DATA.md).
+
+The semantics a derived corridor-metrics artifact would freeze are pinned in
+`data/regional/analysis-profile.json` and hashed into an analysis fingerprint by
+`src/discovery/analysis-fingerprint.js`. Nothing derived is served yet; when it is, a manifest whose
+fingerprint does not match the current rules must report derived discovery as unavailable rather than show
+stale numbers.
+
 The measurement definitions are the ones detailed corridor analysis already uses
 (`src/gis/habitat-result.js`, `src/gis/ecoregion-result.js`): the same measurement CRS, the same
 neighbourhood pads (`paddedBounds`), and the same per-distance coverage rule. The metric *expressions*

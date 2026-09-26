@@ -2,6 +2,7 @@ import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
 import { corridorGeometry } from '../domain/geometry.js';
 import { loadManifest } from '../services/manifest.js';
 import { selectRegionalPartitions, validateRegionalCatalog } from '../discovery/regional-catalog.js';
+import { validateRoadComponents } from '../discovery/components.js';
 import { createAnalyticalGeometryQueries } from './analytical-geometry.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
 import { createHabitatQueries, HABITAT_DATASETS } from './habitat-query.js';
@@ -37,6 +38,7 @@ function unknown(reason, datasets = []) {
 export function createGisService({ manifest = null, regionalCatalog = null, engineFactory = defaultEngineFactory } = {}) {
   let catalog = manifest;
   const regionalCatalogCache = new Map();
+  const roadComponentCache = new Map();
   let enginePromise = null;
   const files = new Map();
   const regionalFiles = new Map();
@@ -96,6 +98,30 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
     return loaded;
   }
 
+  // The road component index closes raw road-cell selection over connected components instead of names. It is
+  // part of the published catalog (bytes and SHA-256 declared there), so a tampered or stale index is a
+  // failure rather than a quietly different selection. Catalogs without one (the first slice) fall back to
+  // the name index they were published with.
+  async function getRoadComponents(catalog) {
+    if (!catalog.roadComponentsUrl) return null;
+    if (roadComponentCache.has(catalog.version)) return roadComponentCache.get(catalog.version);
+    const base = catalog.assetBaseUrl ? new URL(catalog.assetBaseUrl) : DATA_BASE;
+    const response = await fetch(new URL(catalog.roadComponentsUrl, base));
+    if (!response.ok) throw new Error(`Road component index unavailable: HTTP ${response.status}`);
+    const bytes = await response.arrayBuffer();
+    if (catalog.roadComponentsBytes != null && bytes.byteLength !== catalog.roadComponentsBytes) {
+      throw new Error(`Road component index byte count mismatch (${bytes.byteLength} vs ${catalog.roadComponentsBytes})`);
+    }
+    if (catalog.roadComponentsSha256) {
+      const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+        .map(byte => byte.toString(16).padStart(2, '0')).join('');
+      if (digest !== catalog.roadComponentsSha256) throw new Error('Road component index SHA-256 mismatch');
+    }
+    const loaded = validateRoadComponents(JSON.parse(new TextDecoder().decode(bytes)));
+    roadComponentCache.set(catalog.version, loaded);
+    return loaded;
+  }
+
   async function openRegionalPartition(part, catalog, metrics) {
     if (part.state === 'empty') return null;
     const key = `${catalog.version}/${part.url}/${part.sha256}`;
@@ -141,7 +167,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
     const started = performance.now();
     const catalog = await getRegionalCatalog(searchArea.catalogUrl);
     const manifestMs = performance.now() - started;
-    const selection = selectRegionalPartitions(catalog, searchArea.bbox);
+    const selection = selectRegionalPartitions(catalog, searchArea.bbox, { components: await getRoadComponents(catalog) });
     const selectionMs = performance.now() - started - manifestMs;
     // Only a search that misses the published region entirely is unavailable. A partly covered search
     // runs and reports PARTIAL: refusing to measure what is covered would hide corridors that the data

@@ -13,7 +13,14 @@ export function validateRegionalCatalog(catalog) {
   if (catalog?.schemaVersion !== 2 || catalog.project !== 'roadnaturalist' || !catalog.version
     || !Array.isArray(catalog.region?.bounds) || catalog.region.bounds.length !== 4
     || catalog.grid?.kind !== 'lonlat-grid' || catalog.maxAnalysisDistanceM < 1000
-    || !Array.isArray(catalog.datasets) || !catalog.roadNameCells || !catalog.roadNameBounds) throw new TypeError('Invalid regional catalog');
+    || !Array.isArray(catalog.datasets)) throw new TypeError('Invalid regional catalog');
+  // A catalog closes road names over either the published component index (current) or the older
+  // name-to-cells index (the first slice, which stays published and must keep working).
+  const hasComponents = typeof catalog.roadComponentsUrl === 'string' && Number.isSafeInteger(catalog.roadComponentsBytes)
+    && /^[a-f0-9]{64}$/.test(catalog.roadComponentsSha256 ?? '');
+  const hasNames = Boolean(catalog.roadNameCells && catalog.roadNameBounds);
+  if (!hasComponents && !hasNames) throw new TypeError('Invalid regional catalog');
+  if (hasComponents && !/^regional\/[a-z0-9.-]+\.json$/.test(catalog.roadComponentsUrl)) throw new TypeError('Invalid road component index path');
   const region = catalog.region.bounds;
   const { origin, stepLon, stepLat } = catalog.grid;
   if (!region.every(Number.isFinite) || region[0] >= region[2] || region[1] >= region[3]
@@ -46,7 +53,7 @@ export function validateRegionalCatalog(catalog) {
   return catalog;
 }
 
-export function selectRegionalPartitions(catalog, bounds) {
+export function selectRegionalPartitions(catalog, bounds, { components = null } = {}) {
   validateRegionalCatalog(catalog);
   if (!Array.isArray(bounds) || bounds.length !== 4 || !bounds.every(Number.isFinite) || bounds[0] >= bounds[2] || bounds[1] >= bounds[3]) {
     throw new TypeError('Regional search needs ordered finite bounds');
@@ -57,39 +64,63 @@ export function selectRegionalPartitions(catalog, bounds) {
   const byId = new Map(catalog.datasets.map(dataset => [dataset.id, dataset]));
   const initialRoads = byId.get('roads').partitions.filter(part => intersects(part.bounds, bounds));
   const initialIds = new Set(initialRoads.map(part => part.id));
-  const selectedNames = Object.entries(catalog.roadNameCells).filter(([key, cells]) => cells.some(id => initialIds.has(id))
-    && intersects(catalog.roadNameBounds[key], bounds));
-  // Road-name closure is bounded by cell adjacency. A name that repeats in unrelated places across a wide
-  // window (every town has a Main St) must not pull every cell that shares the name: only cells that touch
-  // the already selected ones can hold a piece of the *same* connected road group, because two features
-  // closer than the composition tolerance cannot be more than one cell apart. Closing through adjacency
-  // therefore loads exactly the cells that can contribute to a unit intersecting the search, and no more.
-  const cellPosition = id => {
-    const match = /^x(-?\d+)_y(-?\d+)$/.exec(id);
-    return match ? [Number(match[1]), Number(match[2])] : null;
-  };
-  const touching = (first, second) => {
-    const a = cellPosition(first), b = cellPosition(second);
-    return Boolean(a && b && Math.abs(a[0] - b[0]) <= 1 && Math.abs(a[1] - b[1]) <= 1);
-  };
+  // Closure over the published road components. A component is one named road in one place, so a common
+  // street name in an unrelated town can no longer pull its cells: only components that touch the base
+  // selection are followed. Catalogs without a component index (the first published slice) keep the name
+  // index they were published with, so their measurements stay reproducible.
   const roadIds = new Set(initialIds);
   const closureNames = [];
   let skippedCells = 0;
-  for (const [key, cells] of selectedNames) {
-    const reachable = new Set();
-    const stack = cells.filter(id => initialIds.has(id));
-    while (stack.length) {
-      const id = stack.pop();
-      if (reachable.has(id)) continue;
-      reachable.add(id);
-      for (const other of cells) if (!reachable.has(other) && touching(id, other)) stack.push(other);
-    }
+  const addComponent = (key, component) => {
     const added = [];
-    for (const id of reachable) {
-      if (!roadIds.has(id)) { roadIds.add(id); added.push(id); }
+    for (const id of component.cells) {
+      if (roadIds.has(id)) continue;
+      roadIds.add(id);
+      added.push(id);
     }
-    skippedCells += cells.length - reachable.size;
-    if (added.length) closureNames.push({ key, cells: added });
+    skippedCells += component.cells.length - added.length;
+    if (added.length) closureNames.push({ key, cells: added,
+      componentId: component.id ?? null, lengthM: component.lengthM ?? null });
+  };
+  if (components) {
+    for (const component of components.components) {
+      if (!intersects(component.bounds, bounds)) continue;
+      if (!component.cells.some(id => initialIds.has(id))) continue;
+      addComponent(component.nameKey, component);
+    }
+  } else {
+    // Legacy catalog: names, bounded by cell adjacency. A name that repeats in unrelated places must not pull
+    // every cell that shares it, and only cells touching the already selected ones can hold a piece of the
+    // same connected road group (two features closer than the composition tolerance are at most one cell
+    // apart). Superseded by the published component index, kept so the first published slice keeps working.
+    const selectedNames = Object.entries(catalog.roadNameCells ?? {}).filter(([key, cells]) => cells.some(id => initialIds.has(id))
+      && intersects(catalog.roadNameBounds[key], bounds));
+    const cellPosition = id => {
+      const match = /^x(-?\d+)_y(-?\d+)$/.exec(id);
+      return match ? [Number(match[1]), Number(match[2])] : null;
+    };
+    const touching = (first, second) => {
+      const left = cellPosition(first), right = cellPosition(second);
+      return Boolean(left && right && Math.abs(left[0] - right[0]) <= 1 && Math.abs(left[1] - right[1]) <= 1);
+    };
+    for (const [key, cells] of selectedNames) {
+      const reachable = new Set();
+      const stack = cells.filter(id => initialIds.has(id));
+      while (stack.length) {
+        const id = stack.pop();
+        if (reachable.has(id)) continue;
+        reachable.add(id);
+        for (const other of cells) if (!reachable.has(other) && touching(id, other)) stack.push(other);
+      }
+      skippedCells += cells.length - reachable.size;
+      const added = [];
+      for (const id of reachable) {
+        if (roadIds.has(id)) continue;
+        roadIds.add(id);
+        added.push(id);
+      }
+      if (added.length) closureNames.push({ key, cells: added, componentId: null, lengthM: null });
+    }
   }
   const selected = {
     roads: byId.get('roads').partitions.filter(part => roadIds.has(part.id)),
@@ -97,8 +128,6 @@ export function selectRegionalPartitions(catalog, bounds) {
     hydrography: byId.get('hydrography').partitions.filter(part => intersects(part.bounds, haloBounds)),
   };
   const bytes = Object.values(selected).flat().reduce((sum, part) => sum + (part.bytes ?? 0), 0);
-  // Road-name closure overfetch: cells that only exist in the selection because a selected name continues
-  // into them. Reported per search so the cost of never truncating a road is visible, not assumed.
   const bytesOf = parts => parts.reduce((sum, part) => sum + (part.bytes ?? 0), 0);
   const closureAdded = byId.get('roads').partitions.filter(part => roadIds.has(part.id) && !initialIds.has(part.id));
   const closure = Object.freeze({
@@ -108,7 +137,7 @@ export function selectRegionalPartitions(catalog, bounds) {
     // Name-cell pairs the adjacency bound left alone: cells that share a name with the search but cannot
     // hold part of the same connected road group. This is the overfetch the bound avoids.
     skippedCells,
-    byAdjacency: true,
+    byComponentIndex: Boolean(components),
     largest: Object.freeze(closureNames.map(entry => ({ key: entry.key, cells: Object.freeze([...entry.cells]),
       bytes: bytesOf(byId.get('roads').partitions.filter(part => entry.cells.includes(part.id))) }))
       .sort((a, b) => b.bytes - a.bytes).slice(0, 8)),
@@ -116,7 +145,7 @@ export function selectRegionalPartitions(catalog, bounds) {
   return Object.freeze({ coverage, reason: coverage === COVERAGE.FULL ? null : coverage === COVERAGE.NONE
     ? 'Search is outside the published regional dataset.' : 'Search or 1 km habitat halo leaves published regional coverage.',
   bounds, haloBounds, publishedBounds: region, maxAnalysisDistanceM: catalog.maxAnalysisDistanceM,
-  partitions: selected, roadNameKeys: selectedNames.map(([key]) => key), bytes, closure,
+  partitions: selected, roadNameKeys: closureNames.map(entry => entry.key), bytes, closure,
   counts: Object.fromEntries(Object.entries(selected).map(([kind, parts]) => [kind, parts.filter(part => part.state === 'present').length])),
   emptyCounts: Object.fromEntries(Object.entries(selected).map(([kind, parts]) => [kind, parts.filter(part => part.state === 'empty').length])) });
 }

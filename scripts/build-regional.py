@@ -25,6 +25,7 @@ from shapely.strtree import STRtree
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import tiger_sources as tiger  # noqa: E402
+import road_components  # noqa: E402
 
 SCHEME = {"kind": "lonlat-grid", "stepLon": 0.2, "stepLat": 0.2, "origin": [-180, -90], "crs": "EPSG:4326"}
 OUT = ROOT / "data" / "regional"
@@ -163,28 +164,46 @@ def partition(rows, dataset, writer, geometry_types, region_version, cell_list):
     return output, unique, schema, kept, membership
 
 
-def road_name_index(road_cells, membership, kept):
-    """Which published cells hold each road name, for names that span more than one cell.
+def road_component_index(road_rows, membership):
+    """The published road connected-component index.
 
-    A name whose features all sit in one cell needs no closing step: selecting that cell already brings
-    every published piece of it. The index therefore records only names that cross a cell boundary, which
-    is both smaller and exactly the set the browser closure has to consider.
+    A component is what the browser composes for one named road in one place: features are deduplicated,
+    joined by endpoint proximity (the runtime's own 150 m tolerance) and split into connected components, so
+    two unrelated roads that share a name never become one discovery unit. The index is keyed by component,
+    not by name, which is what stops a common street name from pulling every cell that shares it.
+
+    Only components that span more than one cell are published: a component whose features all sit in one
+    cell is already complete when that cell is selected, so listing it would be pure overfetch.
     """
-    per_name, bounds = {}, {}
+    cells_by_feature = {}
     for cell_id, indices in membership.items():
         for index in indices:
-            row = kept[index]
-            if not row["name"]:
+            cells_by_feature.setdefault(str(road_rows[index]["source_feature_id"]), set()).add(cell_id)
+    by_name = {}
+    for row in road_rows:
+        if not row["name"]:
+            continue
+        by_name.setdefault(tiger.slug(row["name"]), []).append({
+            "name": row["name"], "source_feature_id": str(row["source_feature_id"]), "county_fips": row["county_fips"],
+            "coordinates": list(wkb.loads(row["geometry"]).coords),
+        })
+    total, published, spanning = 0, [], {}
+    for key in sorted(by_name):
+        components = road_components.component_index(by_name[key], key, key.replace("-", " "))
+        total += len(components)
+        for component in components:
+            cells = sorted({cell for feature in component["sourceFeatureIds"] for cell in cells_by_feature.get(feature, ())})
+            if len(cells) < 2:
                 continue
-            key = tiger.slug(row["name"])
-            per_name.setdefault(key, set()).add(cell_id)
-            current = bounds.setdefault(key, [row["min_lon"], row["min_lat"], row["max_lon"], row["max_lat"]])
-            current[0] = min(current[0], row["min_lon"])
-            current[1] = min(current[1], row["min_lat"])
-            current[2] = max(current[2], row["max_lon"])
-            current[3] = max(current[3], row["max_lat"])
-    spanning = {key: sorted(ids) for key, ids in per_name.items() if len(ids) > 1}
-    return spanning, {key: bounds[key] for key in spanning}
+            entry = {"id": component["id"], "name": component["name"], "nameKey": key,
+                     "componentIndex": component["componentIndex"], "componentCount": component["componentCount"],
+                     "featureCount": component["featureCount"], "lengthM": component["lengthM"],
+                     "counties": component["counties"], "bounds": [round(value, 9) for value in component["bounds"]],
+                     "cells": cells}
+            published.append(entry)
+            spanning[component["id"]] = entry
+    publishable = sorted(published, key=lambda item: (-item["lengthM"], item["id"]))
+    return {"total": total, "published": publishable, "spanning": spanning}
 
 
 def benchmark_declaration(region_version):
@@ -312,14 +331,28 @@ def main():
         print(f"{dataset_id}: {unique_count} unique rows, {sum(p['featureCount'] for p in parts)} stored rows, "
               f"{sum(p.get('bytes', 0) for p in parts):,} bytes, {len(present)}/{len(parts)} files", flush=True)
     phases["partitionMs"] = round((time.time() - partition_started) * 1000)
-    name_cells, name_bounds = road_name_index(kept_rows["roads"], memberships["roads"], kept_rows["roads"])
+    components = road_component_index(kept_rows["roads"], memberships["roads"]) if kept_rows.get("roads") else {"total": 0, "published": [], "spanning": {}}
+    components_path = OUT / f"components-{version}.json"
+    components_path.write_text(json.dumps({"schemaVersion": 1, "kind": "road-components", "version": version,
+        "joinToleranceM": road_components.JOIN_TOLERANCE_M,
+        "note": "One entry per road connected component that spans more than one delivery cell. A component is the "
+                "unit the browser composes for one named road in one place, so closure over components cannot pull "
+                "a cell that merely shares a street name.",
+        "componentCount": components["total"], "components": components["published"]}, indent=1) + "\n")
+    print(f"road components: {components['total']} total, {len(components['published'])} span more than one cell, "
+          f"{components_path.stat().st_size:,} bytes", flush=True)
     catalog = {"schemaVersion": 2, "project": "roadnaturalist", "version": version,
                "region": {"id": declaration["id"], "name": declaration["name"], "bounds": declaration["bounds"],
                           "sourceCoverage": declaration["sourceCoverage"]},
                "grid": SCHEME, "maxAnalysisDistanceM": BENCHMARK_HALO_M, "assetBaseUrl": "https://data.roadnaturalist.com/",
-               "datasets": datasets, "roadNameCells": name_cells, "roadNameBounds": name_bounds,
-               "roadNameIndexPolicy": "only names whose published features span more than one cell need closing; "
-                                     "a single-cell name is already complete when its cell is selected",
+               "datasets": datasets,
+               "roadComponentsUrl": f"regional/components-{version}.json",
+               "roadComponentsBytes": components_path.stat().st_size,
+               "roadComponentsSha256": tiger.sha256_of(components_path),
+               "roadComponents": {"count": components["total"], "multiCell": len(components["published"]),
+                                  "joinToleranceM": road_components.JOIN_TOLERANCE_M},
+               "roadComponentIndexPolicy": "closure runs over road connected components, not names: only cells "
+                                           "belonging to a component that touches the search are selected",
                "benchmarks": [scenario["id"] for scenario in BENCHMARKS],
                "build": {"pipelineVersion": "regional-grid-v2", "replication": "whole features intersecting cell",
                          "deduplication": {"roads": ["county_fips", "source_feature_id", "part"], "wetlands": ["source_feature_id"],
@@ -339,7 +372,8 @@ def main():
                             "bytes": sum(part.get("bytes", 0) for part in entry["partitions"]),
                             "files": sum(1 for part in entry["partitions"] if part["state"] == "present"),
                             "emptyCells": sum(1 for part in entry["partitions"] if part["state"] == "empty")} for entry in datasets],
-              "roadNamesSpanningCells": len(name_cells), "manifest": str(manifest_path.relative_to(ROOT))}
+              "roadComponents": components["total"], "roadComponentsMultiCell": len(components["published"]),
+              "componentsFile": str(components_path.relative_to(ROOT)), "manifest": str(manifest_path.relative_to(ROOT))}
     if args.report:
         args.report.write_text(json.dumps(report, indent=2) + "\n")
     (OUT / f"build-{version}.json").write_text(json.dumps(report, indent=2) + "\n")

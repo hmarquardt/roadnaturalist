@@ -2,12 +2,12 @@
   "region": "or-sw-wa-portland-v2",
   "cells": 130,
   "phasesMs": {
-    "pinSourcesMs": 2013,
-    "readRoadsMs": 6454,
-    "readWetlandsMs": 80941,
-    "readHydrographyMs": 39569,
-    "partitionMs": 47687,
-    "totalMs": 176937
+    "pinSourcesMs": 2077,
+    "readRoadsMs": 6450,
+    "readWetlandsMs": 77128,
+    "readHydrographyMs": 39634,
+    "partitionMs": 46631,
+    "totalMs": 180327
   },
   "datasets": [
     {
@@ -35,6 +35,8 @@
       "emptyCells": 3
     }
   ],
-  "roadNamesSpanningCells": 6050,
+  "roadComponents": 61447,
+  "roadComponentsMultiCell": 2601,
+  "componentsFile": "data/regional/components-or-sw-wa-portland-v2.json",
   "manifest": "data/regional/manifest.json"
 }

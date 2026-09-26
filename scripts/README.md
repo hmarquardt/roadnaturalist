@@ -23,6 +23,10 @@ The preparation scripts verify source digests, keep raw source caches out of Git
 
 `publish-regional.mjs` (`npm run publish:regional`) uploads a catalog's objects to the `roadnaturalist-data` bucket under their versioned keys with Parquet content type and an immutable cache header, skipping objects whose remote length already matches, and never deletes anything. `audit-regional-remote.mjs` (`npm run audit:regional:remote`) is the read-only counterpart: it re-reads every published object over `https://data.roadnaturalist.com/`, checks bytes and SHA-256, requires the Pages origin to be allowed and the response to be immutable, and exercises a Range GET.
 
+`road_components.py` is the build-time mirror of the browser's road composition rules (exact and reversed duplicate handling, 150 m endpoint adjacency, connected components, stable `drv1-<name-key>[-c<n>]` ids). `build-regional.py` uses it to publish a road connected-component index beside the catalog, which is what replaced name-only cell closure; `tests/road-components.test.js` cross-checks the mirror against the real modules on real published source features.
+
+`write-analysis-profile.mjs` regenerates `data/regional/analysis-profile.json` (or checks it with `--check`): the frozen semantics of derived discovery, reduced to canonical JSON and SHA-256 by `src/discovery/analysis-fingerprint.js`.
+
 `verify-regional-equivalence.mjs` (`npm run verify:regional-equivalence`) judges one of the project's core
 invariants offline: for a deterministic sample of real regional corridors, the set-oriented discovery batch and
 the detailed corridor panel must compute the same habitat metrics from the same analytical geometry, the same
