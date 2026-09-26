@@ -23,7 +23,9 @@
     "publish:regional": "node scripts/publish-regional.mjs",
     "audit:regional:remote": "node scripts/audit-regional-remote.mjs",
     "verify:regional-equivalence": "node scripts/verify-regional-equivalence.mjs",
-    "capture:regional-equivalence": "RUN_REGIONAL_EQUIVALENCE_CAPTURE=1 playwright test tests/regional-equivalence.capture.spec.js --reporter=line --retries=0"
+    "capture:regional-equivalence": "RUN_REGIONAL_EQUIVALENCE_CAPTURE=1 playwright test tests/regional-equivalence.capture.spec.js --reporter=line --retries=0",
+    "verify:regional:production": "RUN_REGIONAL_PRODUCTION=1 playwright test tests/regional-production.spec.js --reporter=line --retries=0",
+    "verify:regional:remote": "RUN_REGIONAL_REMOTE=1 playwright test tests/regional-remote.spec.js --reporter=line --retries=0"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"
