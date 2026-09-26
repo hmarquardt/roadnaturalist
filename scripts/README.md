@@ -23,6 +23,15 @@ The preparation scripts verify source digests, keep raw source caches out of Git
 
 `publish-regional.mjs` (`npm run publish:regional`) uploads a catalog's objects to the `roadnaturalist-data` bucket under their versioned keys with Parquet content type and an immutable cache header, skipping objects whose remote length already matches, and never deletes anything. `audit-regional-remote.mjs` (`npm run audit:regional:remote`) is the read-only counterpart: it re-reads every published object over `https://data.roadnaturalist.com/`, checks bytes and SHA-256, requires the Pages origin to be allowed and the response to be immutable, and exercises a Range GET.
 
+`verify-regional-equivalence.mjs` (`npm run verify:regional-equivalence`) judges one of the project's core
+invariants offline: for a deterministic sample of real regional corridors, the set-oriented discovery batch and
+the detailed corridor panel must compute the same habitat metrics from the same analytical geometry, the same
+partition selection and the same dataset versions. It reads the committed capture
+`tests/fixtures/regional-equivalence.json`, compares coverage before metrics, checks geometry provenance, the
+promotion identity, and the per-feature stage, prints a summary (or `--json`), and exits non-zero on any
+unexplained divergence. `npm run capture:regional-equivalence` regenerates the capture in a real browser with
+`tests/regional-equivalence.capture.spec.js`.
+
 `npm run benchmark:regional` runs the committed 10-, 25- and 50-mile scenarios in a real browser, cold and warm, and prints `REGIONAL_BENCHMARK` JSON lines plus `/tmp/regional-benchmark.json`. It is opt-in (`RUN_REGIONAL_BENCHMARK=1`) because it takes minutes; ordinary `npm run test:e2e` never runs it.
 
 `verify-geometry.mjs` (`npm run verify:geometry`) is the offline check of the shared analytical-geometry boundary. It replays `tests/fixtures/discovery-geometry-failures.json` (the eight real corridors the buffering engine refused, with their geometry, failing radii, GEOS messages, and every repair variant that was tried) and eleven adversarial geometries through the same repair ladder the browser runs, then prints per corridor which rung was accepted, how much doubled centerline traversal it removed, the length delta, and the maximum displacement. It reads no dataset, contacts no network, writes nothing, and exits non-zero when a recorded failure is not repaired, when a repair exceeds the acceptance tolerances, or when some adversarial case is over-repaired. Use it after any change to road composition, segmentation, or geometry preparation.

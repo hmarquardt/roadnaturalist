@@ -103,7 +103,10 @@ function promoteDiscoveryCorridor(id) {
   const state = store.getState();
   const result = state.discovery.results.find(entry => entry.id === id);
   if (!result) return;
-  const candidate = promoteDiscoveryResult(result, { features: state.discovery.raw?.features ?? [],
+  // The corridor object carries the canonical geometry of the row the person selected; the candidate is
+  // built from it so the detailed panel measures the corridor that was promoted, not the whole road group.
+  const corridor = state.discovery.raw?.corridors?.find(entry => entry.corridor?.id === id)?.corridor ?? null;
+  const candidate = promoteDiscoveryResult(result, { features: state.discovery.raw?.features ?? [], corridor,
     provenance: state.discovery.raw?.provenance ?? null, dataCatalogUrl: state.discovery.searchArea?.catalogUrl ?? null });
   store.promoteDiscoveryCandidate(candidate, id);
   writeDiscoveryMarks(store.getState().discovery.marks);

@@ -2,6 +2,7 @@ import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
 import { corridorGeometry } from '../domain/geometry.js';
 import { UNREPAIRABLE_GEOMETRY_REASON, describeGeometryForAnalysis } from '../domain/analytical-geometry.js';
 import { ANALYSIS_DISTANCES_M, MEASURE_CRS, bufferSummary, distanceOrNull, paddedBounds, summarizeBufferCoverage } from './habitat-result.js';
+import { clippedAreaExpression, clippedLengthExpression, coverageExpressions, featureCountExpression } from './habitat-metrics.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
 import { HABITAT_DATASETS } from './habitat-query.js';
 
@@ -146,11 +147,15 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
     return grouped;
   }
 
+  // Set-oriented coverage: the shared coverage statement, run once for every corridor and distance. The
+  // corridor is compared in its projected form (`c.geom`), the same form the detailed path uses.
   function coverageSql(entry, distancesM) {
+    const { covered, corridorInside } = coverageExpressions({ extentExpr: '(SELECT w FROM extent)',
+      corridorExpr: 'c.geom', distanceExpr: 'b.distance_m' });
     return `
       WITH extent AS (SELECT ${extentPolygon(entry)} AS w)
-      SELECT b.id AS id, b.distance_m AS distance_m, ST_Contains((SELECT w FROM extent), b.geom) AS covered,
-             ST_Intersects((SELECT w FROM extent), c.geom_4326) AS corridor_inside
+      SELECT b.id AS id, b.distance_m AS distance_m, ${covered} AS covered,
+             ${corridorInside} AS corridor_inside
       FROM ${BUFFER_TABLE} AS b JOIN ${ANALYSIS_TABLE} AS c ON c.id = b.id ORDER BY b.id, b.distance_m`;
   }
 
@@ -169,11 +174,11 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
       WITH hit AS (
         SELECT b.id AS id, b.distance_m AS distance_m, w.wetland_type AS label, w.attribute AS code,
                w.source_feature_id AS source_feature_id,
-               ST_Area(ST_Intersection(${projected}, b.geom)) AS area_m2
+               ${clippedAreaExpression(projected, 'b.geom')} AS area_m2
         FROM ${BUFFER_TABLE} AS b JOIN ${ANALYSIS_TABLE} AS c ON c.id = b.id, ${table} AS w
         WHERE ${padClause(outer)} AND ST_Intersects(${projected}, b.geom)
       )
-      SELECT id, distance_m, label, code, count(DISTINCT source_feature_id) AS feature_count, sum(area_m2) AS area_m2
+      SELECT id, distance_m, label, code, ${featureCountExpression()} AS feature_count, sum(area_m2) AS area_m2
       FROM hit WHERE area_m2 > 0 GROUP BY id, distance_m, label, code ORDER BY id, distance_m, sum(area_m2) DESC`))
       .toArray().map(row => ({ id: String(row.id), distanceM: Number(row.distance_m), label: row.label ?? 'Unclassified',
         code: row.code ?? null, featureCount: Number(row.feature_count), areaM2: Number(row.area_m2) }));
@@ -210,19 +215,19 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
     const bufferRows = (await engine.conn.query(`
       WITH hit AS (
         SELECT b.id AS id, b.distance_m AS distance_m, f.layer AS layer, f.source_feature_id AS source_feature_id,
-               ST_Length(ST_Intersection(${projected}, b.geom)) AS length_m,
-               ST_Area(ST_Intersection(${projected}, b.geom)) AS area_m2
+               ${clippedLengthExpression(projected, 'b.geom')} AS length_m,
+               ${clippedAreaExpression(projected, 'b.geom')} AS area_m2
         FROM ${BUFFER_TABLE} AS b JOIN ${ANALYSIS_TABLE} AS c ON c.id = b.id, ${table} AS f
         WHERE ${padClause(outer, 'f')} AND ST_Intersects(${projected}, b.geom)
       )
-      SELECT id, distance_m, layer, count(DISTINCT source_feature_id) AS feature_count,
+      SELECT id, distance_m, layer, ${featureCountExpression()} AS feature_count,
              sum(area_m2) AS area_m2, sum(length_m) AS length_m
       FROM hit WHERE length_m > 0 OR area_m2 > 0 GROUP BY id, distance_m, layer ORDER BY id, distance_m, layer`))
       .toArray().map(row => ({ id: String(row.id), distanceM: Number(row.distance_m), label: row.layer, code: row.layer,
         featureCount: Number(row.feature_count), areaM2: Number(row.area_m2 ?? 0), lengthM: Number(row.length_m ?? 0) }));
     const crossings = (await engine.conn.query(`
       SELECT c.id AS id, f.source_feature_id AS source_feature_id, f.name AS name, f.feature_type_label AS feature_type_label,
-             ST_Length(ST_Intersection(${projected}, c.geom)) AS overlap_m
+             ${clippedLengthExpression(projected, 'c.geom')} AS overlap_m
       FROM ${table} AS f, ${ANALYSIS_TABLE} AS c
       WHERE f.layer = 'flowline' AND ${padClause(outer, 'f')} AND ST_Intersects(${projected}, c.geom)
       ORDER BY c.id, overlap_m DESC, f.source_feature_id`))
@@ -280,7 +285,7 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
     const projected = project('e.geometry');
     const rows = (await engine.conn.query(`
       WITH pieces AS (
-        SELECT c.id AS id, e.code AS code, e.name AS name, ST_Length(ST_Intersection(${projected}, c.geom)) AS overlap_m
+        SELECT c.id AS id, e.code AS code, e.name AS name, ${clippedLengthExpression(projected, 'c.geom')} AS overlap_m
         FROM ${table} AS e, ${ANALYSIS_TABLE} AS c
         WHERE c.min_lon <= e.max_lon AND c.max_lon >= e.min_lon
           AND c.min_lat <= e.max_lat AND c.max_lat >= e.min_lat AND ST_Intersects(e.geometry, c.geom_4326)

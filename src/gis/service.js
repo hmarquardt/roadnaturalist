@@ -203,7 +203,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
           const entry = opened.get(kind);
           const row = (await engine.conn.query(`SELECT count(*) AS rows FROM ${entry.readExpression}`)).toArray()[0];
           counts[kind] = { rows: Number(row.rows), presentCells: entry.presentCells, emptyCells: entry.emptyCells,
-            bytes: entry.transferredBytes };
+            bytes: entry.transferredBytes, readExpression: entry.readExpression };
         }
         return counts;
       },
@@ -385,7 +385,9 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
       }
       const geometry = corridorGeometry(prepared.geometry);
       const wkt = prepared.wkt;
-      datasets = (await getManifest()).datasets.filter(item => item.id.startsWith('epa-ecoregions-or-l'));
+      // Every declared layer of the level is part of the answer (a level is answered from their union), so
+      // provenance lists them all rather than only the Oregon files.
+      datasets = (await getManifest()).datasets.filter(item => item.id.startsWith('epa-ecoregions-'));
       const started = performance.now();
       const errors = [];
       const attempt = async level => {

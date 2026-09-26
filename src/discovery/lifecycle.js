@@ -1,5 +1,5 @@
 import { COVERAGE, COVERAGE_DATASET, createCandidate, createCoverage, setDatasetCoverage } from '../domain/corridor.js';
-import { createRoad, groupRoadFeatures } from '../roads/road.js';
+import { corridorRoad, createRoad, groupRoadFeatures } from '../roads/road.js';
 import { DEFAULT_TOLERANCE_M } from '../roads/normalize.js';
 import { coverageFlag } from './filter.js';
 
@@ -36,11 +36,19 @@ export function markDiscovery(marks, id, status) {
   return next;
 }
 
-export function promoteDiscoveryResult(result, { features = [], provenance = null, toleranceM = DEFAULT_TOLERANCE_M, dataCatalogUrl = null } = {}) {
+export function promoteDiscoveryResult(result, { features = [], provenance = null, toleranceM = DEFAULT_TOLERANCE_M,
+  dataCatalogUrl = null, corridor = null } = {}) {
   const members = features.filter(feature => result.road.sourceFeatureIds.includes(String(feature.sourceFeatureId)));
   if (!members.length) throw new TypeError(`Promotion needs the source features of ${result.id}`);
   const groups = groupRoadFeatures(members);
-  const roads = groups.map(group => createRoad(group, { provenance, toleranceM }));
+  // The candidate is the corridor, not the road group it belongs to. A discovery row describes one
+  // contiguous segment, so its road record takes the corridor's canonical geometry while keeping the
+  // composed group's provenance; the batch survey and the detailed panel then prepare and measure the same
+  // geometry. When no corridor is supplied (a caller promoting a whole hand-declared road) the composed
+  // group is used exactly as before.
+  const roads = corridor
+    ? [corridorRoad(dominantGroup(groups), corridor, { provenance, toleranceM })]
+    : groups.map(group => createRoad(group, { provenance, toleranceM }));
   const flag = coverageFlag(result);
   let coverage = createCoverage();
   const entries = [
@@ -80,6 +88,13 @@ function signalNote(result) {
     `mapped water crossings ${hydro.crossingCount}`,
     `ecoregion transitions ${result.ecology.transitions}`,
   ].join(', ');
+}
+
+// The composed group that best describes the corridor: most source features first, road id as a stable
+// tie-break. A name that spans a county boundary has one group per county-scoped road id.
+function dominantGroup(groups) {
+  if (!groups.length) throw new TypeError('Promotion needs at least one road group');
+  return [...groups].sort((a, b) => b.features.length - a.features.length || a.roadId.localeCompare(b.roadId))[0];
 }
 
 function promotionSummary(result, roads) {

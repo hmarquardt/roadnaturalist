@@ -125,7 +125,10 @@ corridor:
 
 The measurement definitions are the ones detailed corridor analysis already uses
 (`src/gis/habitat-result.js`, `src/gis/ecoregion-result.js`): the same measurement CRS, the same
-neighbourhood pads (`paddedBounds`), and the same per-distance coverage rule. Playwright asserts that the
+neighbourhood pads (`paddedBounds`), and the same per-distance coverage rule. The metric *expressions*
+(clipped area, clipped length, distinct feature count, and the coverage predicates) live in one shared
+module, `src/gis/habitat-metrics.js`; `tests/habitat-metrics.test.js` asserts that the statements both paths
+issue actually contain them, so the batch and the detailed panel cannot drift apart. Playwright asserts that the
 batch values equal the per-corridor values for the same geometry after promotion.
 
 Two real-data limitations are reported rather than hidden:
@@ -299,6 +302,15 @@ device-local, discarded when unreadable or blocked). Promotion rebuilds the corr
 `createRoad` / `createCandidate` builders, so a promoted corridor is a **normal candidate**: the same
 ecology, habitat, occurrence, access, and evidence-bundle behaviour, and no second kind of detailed
 candidate.
+
+A promoted corridor is the **corridor**, not the road group it belongs to. A long named road becomes several
+contiguous analysis corridors, so promotion hands `promoteDiscoveryResult` the corridor that was selected and
+the candidate's road record takes that corridor's canonical geometry (`corridorRoad` in `src/roads/road.js`)
+while keeping the composed group's provenance: source feature ids, road ids, class, county, and the segment
+index and count in its geometry evidence. Without that, promoting corridor 2 of 3 would measure all three and
+the detailed panel would disagree with the survey row that produced it. See
+[regional data](REGIONAL-DATA.md) for the measured divergence this fixed and
+`npm run verify:regional-equivalence` for the offline check.
 
 Promotion does not require an Investigator probe entry. With none declared, the access panel states
 `No reviewed research sources are declared for this corridor` and the finding stays `UNVERIFIED`.

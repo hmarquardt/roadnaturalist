@@ -38,6 +38,7 @@ npm run validate:probes            # the investigator probe catalog: schema, sem
 npm run verify:geometry            # offline: the shared analytical-geometry repair boundary against the real failures
 npm run verify:regional            # offline: every published regional catalog and cell (digests, schema, empty cells)
 npm run benchmark:regional         # opt-in: the 10-, 25- and 50-mile radius scenarios, cold and warm, as JSON
+npm run verify:regional-equivalence # offline: batch discovery and the detailed panel measure the same habitat metrics
 npm run publish:regional           # publish a catalog's immutable partitions to the R2 data plane (idempotent)
 npm run audit:regional:remote      # read-only audit of every published object: bytes, SHA-256, CORS, Range
 npm run investigator:refresh       # validate the catalog, retrieve declared sources, rewrite the capture + drift baseline

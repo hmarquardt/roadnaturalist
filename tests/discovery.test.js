@@ -550,7 +550,9 @@ function batchRows(sql) {
   if (/feature_type_label, count\(\*\)/.test(sql)) return TYPES;
   if (/f\.layer = 'flowline' AND/.test(sql)) return CROSSINGS;
   if (/f\.name <> ''/.test(sql)) return NAMES;
-  if (/ST_Contains\(\(SELECT w FROM extent\), b\.geom\)/.test(sql)) return [250, 500, 1000]
+  // The coverage statement is built from the shared coverage expressions (src/gis/habitat-metrics.js), so the
+  // matcher keys on the projected extent test rather than on one exact spelling of the buffer expression.
+  if (/ST_Contains\(\(SELECT w FROM extent\)/.test(sql)) return [250, 500, 1000]
     .map(distance => ({ id: 'drv1-a', distance_m: distance, covered: distance < 1000, corridor_inside: true }));
   if (/min\(ST_Distance/.test(sql)) return /AS w/.test(sql) ? WETLAND_PROXIMITY : HYDRO_PROXIMITY;
   if (/count\(DISTINCT source_feature_id\)/.test(sql)) return /AS w/.test(sql) ? WETLAND_ROWS : HYDRO_BUFFER_ROWS;

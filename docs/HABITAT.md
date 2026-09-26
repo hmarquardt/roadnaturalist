@@ -237,6 +237,22 @@ per feature.
   `ST_Area(ST_Intersection(wetland, buffer))`; flowline length is
   `ST_Length(ST_Intersection(flowline, buffer))`; waterbody area is `ST_Area(…)`; distances are
   `ST_Distance(…, corridor)` in meters.
+* Those expressions are not written twice. `src/gis/habitat-metrics.js` is the single definition of the
+  metric expressions and of the coverage predicates, and both the set-oriented discovery batch and the
+  detailed corridor panel build their SQL from it. The semantics is a **feature-area sum**: each mapped
+  feature contributes the area of its own geometry clipped to the requested buffer, so two overlapping mapped
+  features contribute twice. That is what "mapped wetland area within 250 m / 500 m / 1 km" means here (the
+  interface says *mapped* wetland, and reports the feature count beside the area). A spatial-union metric
+  would be a different and stronger claim, because NWI is a mapped inventory rather than a complete,
+  non-overlapping coverage - so a union would silently assert completeness Road Naturalist does not have.
+  `tests/habitat-metrics.test.js` guards the shared expressions, and
+  `npm run verify:regional-equivalence` asserts the batch and the detailed panel agree on the same capture.
+  Two overlapping mapped features therefore count twice, which is visible where the regional window reads two
+  state extracts across the Columbia River; the overlap note in [regional data](REGIONAL-DATA.md) records the
+  measured size of that effect and why the feature-area sum is the chosen reading.
+* Coverage is compared before metrics: two paths may only be compared at a distance they both report as
+  covered (`FULL`), and a coverage difference is reported as a coverage difference rather than as a metric
+  difference.
 * Every metric query is prefixed with a bounding-box prefilter against the extract's stored
   `min_lon…max_lat` bounds (padded by 1.1 × the largest requested distance, computed with a
   conservative meters-per-degree factor). The pad is a proof, not a heuristic: a feature whose bounds

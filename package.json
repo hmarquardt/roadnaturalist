@@ -21,7 +21,9 @@
     "investigator:refresh": "node scripts/refresh-investigator-evidence.mjs",
     "benchmark:regional": "RUN_REGIONAL_BENCHMARK=1 playwright test tests/regional-benchmark.spec.js --reporter=line --retries=0",
     "publish:regional": "node scripts/publish-regional.mjs",
-    "audit:regional:remote": "node scripts/audit-regional-remote.mjs"
+    "audit:regional:remote": "node scripts/audit-regional-remote.mjs",
+    "verify:regional-equivalence": "node scripts/verify-regional-equivalence.mjs",
+    "capture:regional-equivalence": "RUN_REGIONAL_EQUIVALENCE_CAPTURE=1 playwright test tests/regional-equivalence.capture.spec.js --reporter=line --retries=0"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"

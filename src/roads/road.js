@@ -53,6 +53,28 @@ export function groupRoadFeatures(features) {
   return [...groups.values()];
 }
 
+// A promoted discovery corridor is one contiguous segment of a composed road group, not the whole group.
+// Its road record keeps the composed group's provenance (which source features and road ids the road is
+// made of) but takes the corridor's own canonical geometry, so the candidate measures exactly the corridor
+// a person selected. Canonical means unchanged: the shared analytical-geometry boundary prepares the
+// geometry for analysis afterwards, exactly as it did for the survey row the corridor came from. Without
+// this, promoting corridor 2 of 3 would silently measure all three.
+export function corridorRoad(group, corridor, { provenance = null, toleranceM = DEFAULT_TOLERANCE_M } = {}) {
+  if (!corridor?.geometry) throw new TypeError('Corridor road needs the promoted corridor geometry');
+  const measured = corridorGeometry(corridor.geometry);
+  if (!measured.geometry || !Number.isFinite(measured.lengthM) || measured.lengthM <= 0) {
+    throw new TypeError('Corridor road needs a usable corridor geometry');
+  }
+  const road = createRoad(group, { provenance, toleranceM });
+  return Object.freeze({
+    ...road, geometry: measured.geometry, bounds: measured.bounds, lengthM: measured.lengthM,
+    evidence: Object.freeze({ ...road.evidence,
+      geometry: Object.freeze({ ...road.evidence.geometry,
+        corridorSegment: Object.freeze({ index: corridor.segmentIndex ?? 1, count: corridor.segmentCount ?? 1,
+          method: 'contiguous vertices along the composed unit' }) }) }),
+  });
+}
+
 export function createRoad(group, { provenance = null, toleranceM = DEFAULT_TOLERANCE_M } = {}) {
   if (!group?.roadId || !group?.name) throw new TypeError('Road requires a road id and a name');
   if (!Array.isArray(group.features) || !group.features.length) throw new TypeError('Road requires at least one source feature');

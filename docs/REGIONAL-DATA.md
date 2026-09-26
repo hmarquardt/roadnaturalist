@@ -286,23 +286,95 @@ what the numbers point at, and building it is the next feature rather than a sec
   (wetland intersection, area at 250 m and 1 km, crossing count, nearest flowing water, primary ecoregion,
   coverage) within the existing tolerances; a cache that shifts discovery semantics is not acceptable.
 
-### Known limit found by this pass: regional batch and detailed wetland area disagree
+### Batch and detailed habitat equivalence (found broken, now fixed)
 
-The regional Playwright test that compares a promoted corridor's habitat area with the area the discovery
-batch reported for the same corridor found **618.35 ha in the batch against 765.63 ha in the detailed panel**
-for the same FULL-coverage corridor (about 24%, with 236 wetland features in the detail). The pilot path is
-asserted equal to its own detailed query, so this is a regional-path difference and it is recorded here as
-technical debt with its evidence rather than papered over:
+The first wider-window pass recorded a real divergence: **618.35 ha** in the discovery batch against
+**765.63 ha** in the detailed panel for the same corridor, about 24%, with 236 wetland features in the
+detail. It is fixed. The cause was not a metric definition, and the diagnosis is worth recording because it
+is exactly the failure mode the equivalence harness now guards against.
 
-* both paths read the *same* regional partitions (the batch through the discovery dataset opener, the detail
-  through the regional `getHabitatContext` opener), so the difference is not a dataset mix-up;
-* the batch is what every number in the benchmark table above measured, so the scale conclusions stand;
-* the next step is exactly the equivalence check the derived-metrics design requires anyway - run one
-  corridor through both SQL paths with the same prepared geometry and diff the intermediate relations
-  (buffer table, wetland hit rows, coverage rows) instead of only the final area.
+Stage by stage, in the order the checklist asks:
 
-Until that is resolved, treat a promoted corridor's regional wetland area as the more complete of the two
-values and do not compare the two panels numerically.
+* **Partition selection did not contribute.** Both paths measured `wetlands-or-sw-wa-portland-v2`, the same
+  six selected cells and the same number of partitions (verified in the capture's provenance block).
+* **Replicated-feature dedupe did not contribute.** Both paths read the same deduplicated relation, and the
+  per-feature stage records unique source feature ids whose sums equal the aggregates.
+* **Buffer construction did not differ.** With the corridor's own geometry, a controlled single-corridor
+  experiment returned the same wetland areas at every distance from the batch and from the detailed panel
+  (for a 1,742 m corridor: 7,999.491 / 18,747.911 / 199,546.320 m2), the same feature counts (2 / 3 / 14),
+  the same nearest mapped wetland (152.453 m), the same coverage, and the same dataset provenance.
+* **The first divergent stage was promotion.** `promoteDiscoveryResult` rebuilt the candidate from the
+  *whole composed road group* of the surveyed row, while the row itself describes one contiguous **segment**
+  of that group. Promoting corridor 2 of 3 therefore measured a longer road: the classic "one path rebuilds
+  the corridor from a different feature set" failure. The pilot path had the same latent behaviour; its test
+  happened to promote a single-segment road, which is why the pilot's equality assertion never caught it.
+
+Two smaller defects of the same "one definition" class were fixed at the same time:
+
+* the batch's coverage statement compared a **projected** extent with a **geographic** corridor
+  (`c.geom_4326`), so its per-corridor `corridorInside` flag was wrong. Coverage is now built from one pair of
+  expressions for both paths.
+* the metric expressions (clipped area, clipped length, distinct feature count, coverage predicates) now live
+  in `src/gis/habitat-metrics.js` and are used by the set-oriented batch, the detailed panel, and - next - an
+  offline derived build. `tests/habitat-metrics.test.js` asserts that the statements each path issues really
+  contain those shared expressions.
+
+The fix: a promoted corridor's road record keeps the composed group's provenance (source feature ids, road
+ids, class, county) but takes the **corridor's canonical geometry** (`corridorRoad` in `src/roads/road.js`),
+and `src/app/main.js` passes the corridor it was asked to promote. The shared analytical-geometry boundary
+prepares exactly the geometry the survey row was measured with, so batch and detail agree by construction.
+
+The equivalence command's own output on the committed capture:
+
+```text
+Regional GIS equivalence
+
+Corridors checked      8 of 550 surveyed
+FULL                   8
+Repaired corridors     25
+Overlapping NWI pairs  872 within the sampled 1 km buffers
+
+Wetland metrics        PASS
+Hydrography metrics    PASS
+Ecology metrics        PASS
+Geometry provenance    PASS
+Batch composition      PASS
+Promotion identity     PASS
+Per-feature stage      PASS
+
+0 unexplained divergences
+```
+
+Evidence, all committed:
+
+* `npm run verify:regional-equivalence` re-checks a real capture offline (no browser, no network, no 826 MiB
+  of partitions): every sampled corridor's batch metrics against its detailed metrics, coverage first,
+  geometry provenance, dataset/version/partition identity, promotion identity, and the per-feature stage.
+  It exits non-zero on any unexplained divergence.
+* `npm run capture:regional-equivalence` regenerates that fixture in a real browser
+  (`tests/regional-equivalence.json` records the corridor, its composed unit - the geometry that used to be
+  measured - and both paths' metrics, so the original failure stays reproducible).
+* the regional Playwright test asserts the promoted panel equals the survey row again: it now prints
+  `618.35 ha` in both places where it used to print `618.35 ha` and `765.63 ha`.
+
+One observation from the capture that is not yet explained and is recorded rather than hidden: the
+*survey-level* coverage summary of the published-edge strip (`[-124.05, 44.75, -123.90, 44.88]`, a
+capture-only area) reports `UNKNOWN`, while the corridor sampled from it is measured consistently from both
+paths and reports `PARTIAL` at the same distances. Corridor-level coverage, which is what any metric is
+gated on, agrees; the summary's own combination at the window edge deserves a follow-up look.
+
+### Overlapping mapped wetlands: the chosen definition
+
+NWI polygons do overlap, and the wider window makes that visible: the capture found **872 overlapping mapped
+wetland feature pairs** inside the sampled corridors' 1 km buffers, mostly because the window now reads the
+Oregon *and* Washington state extracts, which both cover the Columbia River corridor. Road Naturalist keeps
+the **feature-area sum** - each mapped feature contributes the area of its own geometry clipped to the buffer -
+and therefore counts an overlapping pair twice. The reading is the interface's own: "Mapped wetland within
+250 m / 1 km" plus the feature count beside it answers "how much mapped wetland is recorded around this
+corridor", not "how much ground is wetland". A spatial-union area would be a different and stronger claim: it
+would silently assume the mapped inventory is complete and non-overlapping, which NWI is not, and it would
+change every committed pilot expectation. The double count across a state line is the one place where this
+definition is visibly generous, and it is recorded rather than smoothed over.
 
 ### Scale recommendation (this pass)
 

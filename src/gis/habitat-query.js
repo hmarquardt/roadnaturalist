@@ -2,6 +2,7 @@ import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
 import { corridorGeometry } from '../domain/geometry.js';
 import { ANALYSIS_GEOMETRY_METHOD, describeGeometryForAnalysis } from '../domain/analytical-geometry.js';
 import { ANALYSIS_DISTANCES_M, MEASURE_CRS, bufferSummary, distanceOrNull, paddedBounds, summarizeBufferCoverage } from './habitat-result.js';
+import { bufferCoverageSql, clippedAreaExpression, clippedLengthExpression, distanceValuesSql, featureCountExpression } from './habitat-metrics.js';
 
 // Buffered habitat analysis against the bounded wetland and hydrography extracts.
 //
@@ -57,9 +58,7 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
     return project(`ST_GeomFromText('POLYGON((${minLon} ${minLat}, ${maxLon} ${minLat}, ${maxLon} ${maxLat}, ${minLon} ${maxLat}, ${minLon} ${minLat}))')`);
   }
 
-  function distanceValues(distancesM) {
-    return distancesM.map(distance => `(${Number(distance)})`).join(', ');
-  }
+  const distanceValues = distanceValuesSql;
 
   // Bounding-box prefilter against the extract's stored bounds: only features that could possibly
   // reach the buffered corridor are transformed and measured, which keeps the browser queries
@@ -71,11 +70,9 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
   }
 
   async function coverageRows(entry, wkt, distancesM, engine) {
-    const sql = `WITH road AS (SELECT ${roadSql(wkt)} AS g), extent AS (SELECT ${windowSql(entry)} AS w),
-      d(distance_m) AS (VALUES ${distanceValues(distancesM)})
-      SELECT d.distance_m, ST_Contains((SELECT w FROM extent), ST_Buffer((SELECT g FROM road), d.distance_m)) AS covered,
-             ST_Intersects((SELECT w FROM extent), (SELECT g FROM road)) AS corridor_inside
-      FROM d ORDER BY d.distance_m`;
+    // The shared coverage statement: identical text to the set-oriented path, so coverage cannot depend on
+    // which query asked for it.
+    const sql = bufferCoverageSql({ extent: windowSql(entry), corridor: roadSql(wkt), distancesM });
     return (await engine.conn.query(sql)).toArray().map(row => ({
       distanceM: Number(row.distance_m), covered: Boolean(row.covered), corridorInside: Boolean(row.corridor_inside),
     }));
@@ -130,11 +127,11 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
         WITH road AS (SELECT ${road} AS g), d(distance_m) AS (VALUES ${distanceValues(distancesM)}),
         hit AS (
           SELECT d.distance_m, wetland.wetland_type AS label, wetland.attribute AS code, wetland.source_feature_id,
-                 ST_Area(ST_Intersection(${projected}, ST_Buffer((SELECT g FROM road), d.distance_m))) AS area_m2
+                 ${clippedAreaExpression(projected, 'ST_Buffer((SELECT g FROM road), d.distance_m)')} AS area_m2
           FROM ${table} AS wetland, d
           WHERE ${prefilter} AND ST_Intersects(${projected}, ST_Buffer((SELECT g FROM road), d.distance_m))
         )
-        SELECT distance_m, label, code, count(DISTINCT source_feature_id) AS feature_count, sum(area_m2) AS area_m2
+        SELECT distance_m, label, code, ${featureCountExpression()} AS feature_count, sum(area_m2) AS area_m2
         FROM hit WHERE area_m2 > 0 GROUP BY distance_m, label, code ORDER BY distance_m, sum(area_m2) DESC`))
         .toArray().map(row => ({ distanceM: Number(row.distance_m), label: row.label ?? 'Unclassified', code: row.code ?? null,
           featureCount: Number(row.feature_count), areaM2: Number(row.area_m2) }));
@@ -195,11 +192,11 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
         hit AS (
           SELECT d.distance_m, feature.layer, feature.source_feature_id,
                  ST_Length(ST_Intersection(${projected}, ST_Buffer((SELECT g FROM road), d.distance_m))) AS length_m,
-                 ST_Area(ST_Intersection(${projected}, ST_Buffer((SELECT g FROM road), d.distance_m))) AS area_m2
+                 ${clippedAreaExpression(projected, 'ST_Buffer((SELECT g FROM road), d.distance_m)')} AS area_m2
           FROM ${table} AS feature, d
           WHERE ${prefilter} AND ST_Intersects(${projected}, ST_Buffer((SELECT g FROM road), d.distance_m))
         )
-        SELECT distance_m, layer AS label, layer AS code, count(DISTINCT source_feature_id) AS feature_count,
+        SELECT distance_m, layer AS label, layer AS code, ${featureCountExpression()} AS feature_count,
                sum(area_m2) AS area_m2, sum(length_m) AS length_m
         FROM hit WHERE length_m > 0 OR area_m2 > 0 GROUP BY distance_m, layer ORDER BY distance_m, layer`))
         .toArray().map(row => ({ distanceM: Number(row.distance_m), label: row.label, code: row.code,
@@ -207,7 +204,7 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
       const crossings = (await engine.conn.query(`
         WITH road AS (SELECT ${road} AS g)
         SELECT feature.source_feature_id, feature.name, feature.feature_type_code, feature.feature_type_label, feature.water_class,
-               ST_Length(ST_Intersection(${projected}, (SELECT g FROM road))) AS overlap_m
+               ${clippedLengthExpression(projected, '(SELECT g FROM road)')} AS overlap_m
         FROM ${table} AS feature
         WHERE feature.layer = 'flowline' AND ${prefilter} AND ST_Intersects(${projected}, (SELECT g FROM road))
         ORDER BY overlap_m DESC, feature.source_feature_id`))

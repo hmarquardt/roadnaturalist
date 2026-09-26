@@ -57,14 +57,12 @@ test('partitioned Oregon search loads real cells, composes roads and uses no ext
     const wetlandFacts = habitat.locator('.habitat-block').first();
     await expect(wetlandFacts).toContainText('Within 250 m', { timeout: 60000 });
     const detailArea = await wetlandFacts.locator('dl div', { hasText: /^Within 250 m/ }).first().locator('dd').innerText();
-    // Promotion measures habitat for the promoted corridor, not for the survey row it came from. On the pilot
-    // path those are asserted equal; on the regional path they are known to disagree today (618.35 ha in the
-    // batch against 765.63 ha in the detail for the same FULL corridor, ~24%), which is recorded with its
-    // evidence under "Known limit" in docs/REGIONAL-DATA.md. This test therefore reports both numbers and
-    // asserts what the interface must still guarantee: the panel is present, positive, and not a silent zero.
+    // Promotion measures the corridor that was promoted, so the panel must show the same number the survey
+    // row did. The 618.35 ha against 765.63 ha divergence this test used to record came from promoting the
+    // whole composed road group instead of the corridor; the fix is in src/roads/road.js (corridorRoad) and
+    // the diagnosis is recorded in docs/REGIONAL-DATA.md.
     console.log('REGIONAL_PROMOTION Area', JSON.stringify({ discoveryArea, detailArea }));
-    const detailValue = Number.parseFloat(detailArea);
-    if (discoveryArea !== 'None mapped' && Number.isFinite(detailValue)) expect(detailValue).toBeGreaterThan(0);
+    if (discoveryArea !== 'None mapped') expect(detailArea).toContain(discoveryArea);
   }
   await expect(page.locator('#candidate-detail')).toContainText('discovered');
 });

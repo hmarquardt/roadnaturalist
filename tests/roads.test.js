@@ -321,7 +321,11 @@ test('real pilot geometry flows into the EPA ecoregion query unchanged', async (
     assert.equal(result.level3.primary.percent, 67.6);
     assert.equal(result.level4.primary.name, 'Prairie Terraces');
     assert.equal(result.spansMultiple, true);
-    assert.equal(result.provenance.sources.length, 2);
+    // A level is answered from the union of its declared layers, so provenance names all four: the Oregon
+    // and Washington Level III and IV extracts (the regional window crosses the Columbia River).
+    assert.equal(result.provenance.sources.length, 4);
+    assert.deepEqual(result.provenance.sources.map(source => source.id).sort(),
+      ['epa-ecoregions-or-l3', 'epa-ecoregions-or-l4', 'epa-ecoregions-wa-l3', 'epa-ecoregions-wa-l4']);
     assert.equal(result.provenance.sources[0].agency, 'U.S. Environmental Protection Agency');
     // The geometry the GIS layer received is the composed real corridor, not a synthetic line.
     assert.match(queries[0], /ST_GeomFromText\('MULTILINESTRING\(\(/);
