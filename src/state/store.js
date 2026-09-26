@@ -19,7 +19,8 @@ export function createStore() {
     },
     // DISCOVERY. A discovery run is its own state: its results are lightweight summaries with explicit
     // coverage, and they stay separate from the candidates until a person promotes one.
-    startDiscovery(searchArea, marks) { publishDiscovery({ status: 'running', searchArea, results: Object.freeze([]), coverage: null, diagnostics: null, eligibility: Object.freeze([]), raw: null, selectedId: null, error: null, marks: Object.freeze({ ...marks }) }); },
+    startDiscovery(searchArea, marks) { publishDiscovery({ status: 'running', phase: 'Preparing search…', searchArea, results: Object.freeze([]), coverage: null, diagnostics: null, eligibility: Object.freeze([]), raw: null, selectedId: null, error: null, marks: Object.freeze({ ...marks }) }); },
+    setDiscoveryPhase(phase) { publishDiscovery({ phase }); },
     finishDiscovery({ results, coverage, diagnostics, eligibility, raw, searchArea, marks, status = 'ready' }) {
       publishDiscovery({ status, results: Object.freeze([...results]), coverage, diagnostics, eligibility: Object.freeze([...eligibility]),
         raw, searchArea, marks: Object.freeze({ ...marks }), selectedId: null, error: null });
@@ -65,4 +66,3 @@ export function createStore() {
     setCoverage(id, datasetId, entry) { if (!state.candidates.some(candidate => candidate.id === id)) return; publish({ ...state, candidates: state.candidates.map(candidate => candidate.id === id ? setCandidateCoverage(candidate, datasetId, entry) : candidate) }); },
   };
 }
-

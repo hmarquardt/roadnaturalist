@@ -32,8 +32,13 @@ for (const width of [1440, 390]) {
 }
 
 test('real Oregon road pilot resolves through DuckDB Spatial into EPA ecology', async ({ page }) => {
+  const bootFailures = [];
+  page.on('requestfailed', request => bootFailures.push(`${request.url()}: ${request.failure()?.errorText}`));
+  page.on('pageerror', error => bootFailures.push(`pageerror: ${error.message}`));
   await page.setViewportSize({ width: 1440, height: 950 });
   await page.goto('/');
+  try { await expect(page.locator('#load-pilot')).toBeEnabled({ timeout: 15000 }); }
+  catch { throw new Error(`Pilot bootstrap did not enable its button: ${bootFailures.join('; ') || 'no request failure or page error'}`); }
   await page.getByRole('button', { name: /Open Oregon road pilot/ }).click();
   const list = page.locator('#candidate-list');
   const detail = page.locator('#candidate-detail');

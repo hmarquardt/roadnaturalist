@@ -1,9 +1,11 @@
 import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
 import { corridorGeometry } from '../domain/geometry.js';
 import { loadManifest } from '../services/manifest.js';
+import { selectRegionalPartitions, validateRegionalCatalog } from '../discovery/regional-catalog.js';
+import { normalizeRoadName } from '../discovery/units.js';
 import { createAnalyticalGeometryQueries } from './analytical-geometry.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
-import { createHabitatQueries } from './habitat-query.js';
+import { createHabitatQueries, HABITAT_DATASETS } from './habitat-query.js';
 import { createDiscoveryQueries } from './discovery-query.js';
 import { createOccurrenceQueries } from './occurrence-query.js';
 import { summarizeRoadQuery } from './road-result.js';
@@ -22,6 +24,9 @@ const IDENTIFIER = /^[A-Za-z0-9._:-]+$/;
 const ROAD_CLASS = /^[A-Z][0-9]{4}$/;
 const MAX_ROAD_ROWS = 2000;
 const MAX_NETWORK_ROWS = 20000;
+const MAX_REGIONAL_ROWS = 100000;
+
+function parquetSource(entry) { return entry.readExpression ?? `read_parquet('${entry.registeredName}')`; }
 
 function unknown(reason, datasets = []) {
   return { coverage: COVERAGE.UNKNOWN, level3: null, level4: null, spansMultiple: false,
@@ -30,10 +35,12 @@ function unknown(reason, datasets = []) {
 }
 
 
-export function createGisService({ manifest = null, engineFactory = defaultEngineFactory } = {}) {
+export function createGisService({ manifest = null, regionalCatalog = null, engineFactory = defaultEngineFactory } = {}) {
   let catalog = manifest;
+  const regionalCatalogCache = new Map();
   let enginePromise = null;
   const files = new Map();
+  const regionalFiles = new Map();
   const diagnostics = { status: 'idle', duckdbVersion: DUCKDB_VERSION, spatial: 'not-loaded', datasets: [], initMs: null, firstQueryMs: null, lastQueryMs: null, firstRoadQueryMs: null, lastRoadQueryMs: null, roadDatasetBytes: null, firstNetworkQueryMs: null, lastNetworkQueryMs: null, networkDatasetBytes: null, firstHabitatQueryMs: null, lastHabitatQueryMs: null, habitatDatasetBytes: {}, firstDiscoveryQueryMs: null, lastDiscoveryQueryMs: null, discoveryCorridorCount: null, error: null };
 
   async function getManifest() { if (!catalog) catalog = await loadManifest(); return catalog; }
@@ -74,6 +81,125 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
     return opened;
   }
 
+  async function getRegionalCatalog(url) {
+    if (regionalCatalog) return validateRegionalCatalog(regionalCatalog);
+    if (regionalCatalogCache.has(url)) return regionalCatalogCache.get(url);
+    const response = await fetch(new URL(url, DATA_BASE));
+    if (!response.ok) throw new Error(`Regional manifest unavailable: HTTP ${response.status}`);
+    let loaded = validateRegionalCatalog(await response.json());
+    // Local development reads the same immutable paths from ./data; production changes only
+    // the asset origin, not partition selection, verification, or GIS analysis.
+    if (['localhost', '127.0.0.1'].includes(globalThis.location?.hostname)) {
+      loaded = { ...loaded, assetBaseUrl: null };
+    }
+    regionalCatalogCache.set(url, loaded);
+    return loaded;
+  }
+
+  async function openRegionalPartition(part, catalog, metrics) {
+    if (part.state === 'empty') return null;
+    const key = `${catalog.version}/${part.url}/${part.sha256}`;
+    if (regionalFiles.has(key)) { metrics.cacheHits++; return regionalFiles.get(key); }
+    const base = catalog.assetBaseUrl ? new URL(catalog.assetBaseUrl) : DATA_BASE;
+    const url = new URL(part.url, base);
+    const fetchStarted = performance.now();
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`${part.id} HTTP ${response.status}`);
+    const bytes = await response.arrayBuffer();
+    metrics.fetchMs += performance.now() - fetchStarted;
+    const verifyStarted = performance.now();
+    if (bytes.byteLength !== part.bytes) throw new Error(`${part.id} byte count mismatch`);
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+      .map(byte => byte.toString(16).padStart(2, '0')).join('');
+    if (digest !== part.sha256) throw new Error(`${part.id} SHA-256 mismatch`);
+    metrics.verifyMs += performance.now() - verifyStarted;
+    const engine = await initialize();
+    const registerStarted = performance.now();
+    const name = `regional_${part.sha256.slice(0, 20)}.parquet`;
+    await engine.db.registerFileBuffer(name, new Uint8Array(bytes));
+    metrics.registerMs += performance.now() - registerStarted;
+    metrics.downloadedBytes += part.bytes;
+    const opened = { name, bytes: part.bytes };
+    regionalFiles.set(key, opened);
+    return opened;
+  }
+
+  async function prepareRegionalSearch(searchArea, { onProgress = () => {} } = {}) {
+    const started = performance.now();
+    const catalog = await getRegionalCatalog(searchArea.catalogUrl);
+    const manifestMs = performance.now() - started;
+    const selection = selectRegionalPartitions(catalog, searchArea.bbox);
+    const selectionMs = performance.now() - started - manifestMs;
+    if (selection.coverage !== COVERAGE.FULL) {
+      const error = new Error(selection.reason);
+      error.coverage = selection.coverage;
+      throw error;
+    }
+    const opened = new Map();
+    const partitionMetrics = { fetchMs: 0, verifyMs: 0, registerMs: 0, downloadedBytes: 0, cacheHits: 0 };
+    const loadMs = {};
+    const sourceKeys = { roads: 'county_fips, source_feature_id, part', wetlands: 'source_feature_id', hydrography: 'layer, source_feature_id' };
+    async function openRegionalDataset(kind) {
+      if (opened.has(kind)) return opened.get(kind);
+      const dataset = catalog.datasets.find(item => item.id === kind);
+      const selected = selection.partitions[kind];
+      const loaded = [];
+      for (const part of selected) {
+        const file = await openRegionalPartition(part, catalog, partitionMetrics);
+        if (file) loaded.push(file);
+      }
+      if (!loaded.length) throw new Error(`${kind}: selected partitions are explicitly empty`);
+      const names = loaded.map(file => `'${file.name}'`).join(', ');
+      const relation = `read_parquet([${names}])`;
+      const readExpression = `(SELECT * EXCLUDE rn FROM (SELECT *, row_number() OVER (PARTITION BY ${sourceKeys[kind]}) AS rn FROM ${relation}) WHERE rn = 1)`;
+      const original = (await getManifest()).datasets.find(item => item.id === dataset.sourceDatasetId);
+      const entry = { ...dataset, id: `${dataset.id}-${catalog.version}`, scope: { bbox: catalog.region.bounds },
+        source: original?.source, normalization: original?.normalization,
+        readExpression, partitioned: true, transferredBytes: loaded.reduce((sum, file) => sum + file.bytes, 0),
+        partitions: selected.map(part => ({ id: part.id, sha256: part.sha256 ?? null, bytes: part.bytes ?? 0 })) };
+      opened.set(kind, entry);
+      return entry;
+    }
+    // A regional result is published only after every required partition verifies. Failure in one
+    // habitat cell aborts the run instead of producing misleading zero metrics elsewhere.
+    for (const [kind, label] of [['roads', 'Loading road data…'], ['wetlands', 'Loading wetlands…'],
+      ['hydrography', 'Loading hydrography…']]) {
+      onProgress(label);
+      const loadStarted = performance.now();
+      await openRegionalDataset(kind);
+      loadMs[kind] = Math.round(performance.now() - loadStarted);
+    }
+    return {
+      selection,
+      timing: Object.freeze({ manifestMs: Math.round(manifestMs), selectionMs: Math.round(selectionMs),
+        loadMs: Object.freeze(loadMs), fetchMs: Math.round(partitionMetrics.fetchMs),
+        verifyMs: Math.round(partitionMetrics.verifyMs), registerMs: Math.round(partitionMetrics.registerMs),
+        downloadedBytes: partitionMetrics.downloadedBytes, cacheHits: partitionMetrics.cacheHits,
+        totalPreparationMs: Math.round(performance.now() - started) }),
+      getHabitatContext(corridor, options = {}) {
+        return habitat.getHabitatContext(corridor, { ...options, datasetOpener: id => openRegionalDataset(id === HABITAT_DATASETS[COVERAGE_DATASET.WETLANDS]
+          ? 'wetlands' : 'hydrography') });
+      },
+      getHabitatOverlay(corridor, options = {}) {
+        return habitat.getHabitatOverlay(corridor, { ...options, datasetOpener: id => openRegionalDataset(id === HABITAT_DATASETS[COVERAGE_DATASET.WETLANDS]
+          ? 'wetlands' : 'hydrography') });
+      },
+      async queryRoadNetwork({ roadClasses = null, limit = MAX_REGIONAL_ROWS } = {}) {
+        const entry = await openRegionalDataset('roads');
+        const query = await queryRoads({ roadClasses, limit, datasetId: NETWORK_DATASET_ID, datasetEntry: entry });
+        if (query.coverage !== COVERAGE.FULL) return query;
+        const allowed = new Set(selection.roadNameKeys);
+        return { ...query, features: query.features.filter(feature => allowed.has(normalizeRoadName(feature.name))),
+          partitionSelection: selection };
+      },
+      analyzeDiscovery(corridors, options = {}) {
+        return discovery.analyzeDiscoveryCorridors(corridors, { ...options,
+          openDataset: id => openRegionalDataset(id === HABITAT_DATASETS[COVERAGE_DATASET.WETLANDS] ? 'wetlands'
+            : id === HABITAT_DATASETS[COVERAGE_DATASET.HYDROGRAPHY] ? 'hydrography' : id) });
+      },
+    };
+  }
+
   async function queryLevel(level, wkt, bounds) {
     const dataset = await openDataset(`epa-ecoregions-or-l${level}`);
     const engine = await initialize();
@@ -96,17 +222,17 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
   // Road source features are returned as plain data rows plus dataset provenance. Turning them
   // into normalized roads/corridors happens in src/roads; DuckDB and SQL stay in this layer.
   async function queryRoads({ roadIds = null, bbox = null, limit = MAX_ROAD_ROWS, datasetId = ROAD_DATASET_ID, roadClasses = null,
-    insideOnly = false } = {}) {
+    insideOnly = false, datasetEntry = null } = {}) {
     const requested = roadIds ? [...new Set(roadIds.map(String))] : [];
     for (const roadId of requested) if (!IDENTIFIER.test(roadId)) throw new TypeError(`Invalid road id: ${roadId}`);
     const classes = roadClasses ? [...new Set(roadClasses.map(String))] : null;
     for (const roadClass of classes ?? []) if (!ROAD_CLASS.test(roadClass)) throw new TypeError(`Invalid road class: ${roadClass}`);
     if (bbox) validateBounds(bbox);
-    const limitCap = datasetId === NETWORK_DATASET_ID ? MAX_NETWORK_ROWS : MAX_ROAD_ROWS;
+    const limitCap = datasetEntry ? MAX_REGIONAL_ROWS : datasetId === NETWORK_DATASET_ID ? MAX_NETWORK_ROWS : MAX_ROAD_ROWS;
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > limitCap) throw new TypeError('Road query limit must be a small positive integer');
     let entry = null;
     try {
-      entry = await openDataset(datasetId);
+      entry = datasetEntry ?? await openDataset(datasetId);
       const engine = await initialize();
       const conditions = [];
       if (requested.length) conditions.push(`road_id IN (${requested.map(roadId => `'${roadId}'`).join(', ')})`);
@@ -117,10 +243,12 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
       if (bbox && insideOnly) conditions.push(`min_lon >= ${bbox[0]} AND max_lon <= ${bbox[2]} AND min_lat >= ${bbox[1]} AND max_lat <= ${bbox[3]}`);
       else if (bbox) conditions.push(`min_lon <= ${bbox[2]} AND max_lon >= ${bbox[0]} AND min_lat <= ${bbox[3]} AND max_lat >= ${bbox[1]}`);
       const sql = `SELECT ${ROAD_COLUMNS}, ST_AsGeoJSON(geometry) AS geometry_json\n` +
-        `FROM read_parquet('${entry.registeredName}')${conditions.length ? `\nWHERE ${conditions.join(' AND ')}` : ''}\n` +
-        `ORDER BY road_id, source_feature_id, part LIMIT ${limit}`;
+        `FROM ${parquetSource(entry)}${conditions.length ? `\nWHERE ${conditions.join(' AND ')}` : ''}\n` +
+        `ORDER BY road_id, source_feature_id, part LIMIT ${datasetEntry ? limit + 1 : limit}`;
       const started = performance.now();
-      const rows = (await engine.conn.query(sql)).toArray().map(mapRoadRow);
+      const rawRows = (await engine.conn.query(sql)).toArray();
+      if (datasetEntry && rawRows.length > limit) throw new Error(`Regional road result exceeds the ${limit} feature limit; narrow the search area.`);
+      const rows = rawRows.map(mapRoadRow);
       const queryMs = Math.round(performance.now() - started);
       if (datasetId === NETWORK_DATASET_ID) {
         diagnostics.lastNetworkQueryMs = queryMs;
@@ -229,6 +357,7 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
   const occurrenceQueries = createOccurrenceQueries({ initialize });
 
   return {
+    prepareRegionalSearch,
     initialize, openDataset, getEcoregions, queryRoads, getRoad, queryRoadNetwork,
     ...habitat,
     // Exposed so the browser regression test can ask the same shared boundary what geometry it would use
@@ -285,7 +414,8 @@ function roadDatasetProvenance(entry, rows) {
     fips, url, sha256: entry.source?.sha256?.[fips] ?? null, countyName: entry.scope?.roads?.find(road => road.countyFips === fips)?.countyName ?? null,
   }));
   return Object.freeze({
-    datasetId: entry.id, dataset: entry.source?.dataset ?? entry.id, datasetVersion: entry.version, datasetDigest: entry.sha256,
+    datasetId: entry.id, dataset: entry.source?.dataset ?? entry.id, datasetVersion: entry.version, datasetDigest: entry.sha256 ?? null,
+    partitions: entry.partitions ?? null,
     agency: entry.source?.agency ?? rows[0]?.source?.agency ?? null,
     vintage: entry.source?.vintage ?? null, publicationDate: entry.source?.publicationDate ?? null,
     referenceUrl: entry.source?.url ?? rows[0]?.source?.url ?? null, documentationUrl: entry.source?.documentationUrl ?? null,

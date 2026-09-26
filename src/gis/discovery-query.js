@@ -29,6 +29,7 @@ const BUFFER_TABLE = 'rn_discovery_buffer';
 // Projected copies of the bounded habitat extracts, created once per batch run.
 const WETLAND_TABLE = 'rn_discovery_wetland';
 const HYDRO_TABLE = 'rn_discovery_hydro';
+const sourceSql = entry => entry.readExpression ?? `read_parquet('${entry.registeredName}')`;
 
 export function createDiscoveryQueries({ openDataset, initialize, record, provenance = () => null, analytical = null }) {
   const project = source => `ST_Transform(${source}, 'EPSG:4326', 'EPSG:5070', always_xy := true)`;
@@ -55,13 +56,13 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
   async function prepareWetlands(engine, entry) {
     await engine.conn.query(`CREATE OR REPLACE TEMP TABLE ${WETLAND_TABLE} AS SELECT source_feature_id, attribute, `
       + `wetland_type, min_lon, min_lat, max_lon, max_lat, ${project('geometry')} AS geom `
-      + `FROM read_parquet('${entry.registeredName}')`);
+      + `FROM ${sourceSql(entry)}`);
   }
 
   async function prepareHydro(engine, entry) {
     await engine.conn.query(`CREATE OR REPLACE TEMP TABLE ${HYDRO_TABLE} AS SELECT layer, source_feature_id, name, `
       + `feature_type_code, feature_type_label, water_class, min_lon, min_lat, max_lon, max_lat, ${project('geometry')} AS geom `
-      + `FROM read_parquet('${entry.registeredName}')`);
+      + `FROM ${sourceSql(entry)}`);
   }
 
   function padClause(distance, alias = 'w') {
@@ -187,13 +188,14 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
     // corridors, and only corridors whose nearest feature is farther than the widest requested
     // distance fall back to a full-extract scan for those ids.
     const unresolved = near.filter(row => row.nearestM == null || row.nearestM > outer).map(row => row.id);
-    const scanned = unresolved.length
+    const scanned = unresolved.length && !entry.partitioned
       ? mapProximity((await engine.conn.query(proximitySql(`c.id IN (${unresolved.map(id => `'${id}'`).join(', ')})`))).toArray())
       : [];
     const coverageRows = (await engine.conn.query(coverageSql(entry, distancesM))).toArray()
       .map(row => ({ id: String(row.id), distanceM: Number(row.distance_m), covered: Boolean(row.covered), corridorInside: Boolean(row.corridor_inside) }));
     return { buffers: groupByCorridor(bufferRows), coverageRows: groupByCorridor(coverageRows),
-      proximity: new Map([...near, ...scanned].map(row => [row.id, row])) };
+      proximity: new Map([...near, ...scanned].map(row => [row.id, entry.partitioned && row.nearestM > outer
+        ? { ...row, nearestM: null } : row])) };
   }
 
 
@@ -239,7 +241,7 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
     const near = mapProximity((await engine.conn.query(proximitySql(padClause(outer, 'f')))).toArray());
     const unresolved = near.filter(row => [row.nearestFlowingM, row.nearestStandingM]
       .some(value => value == null || value > outer)).map(row => row.id);
-    const scanned = unresolved.length
+    const scanned = unresolved.length && !entry.partitioned
       ? mapProximity((await engine.conn.query(proximitySql(`c.id IN (${unresolved.map(id => `'${id}'`).join(', ')})`))).toArray())
       : [];
     const names = (await engine.conn.query(`
@@ -250,7 +252,9 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
       .map(row => ({ id: String(row.id), distanceM: Number(row.distance_m), covered: Boolean(row.covered), corridorInside: Boolean(row.corridor_inside) }));
     return { buffers: groupByCorridor(bufferRows), coverageRows: groupByCorridor(coverageRows),
       crossings: groupByCorridor(crossings), names: groupByCorridor(names),
-      proximity: new Map([...near, ...scanned].map(row => [row.id, row])) };
+      proximity: new Map([...near, ...scanned].map(row => [row.id, entry.partitioned ? {
+        ...row, nearestFlowingM: row.nearestFlowingM > outer ? null : row.nearestFlowingM,
+        nearestStandingM: row.nearestStandingM > outer ? null : row.nearestStandingM } : row])) };
   }
 
   // Water-feature type inventory at the widest requested distance, grouped the same way the detailed
@@ -272,7 +276,7 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
   // Ecoregion overlap per corridor: the same intersection and the same summary function the detailed
   // corridor analysis uses, so the primary ecoregion and the percent split are identical.
   async function levelMetrics(engine, entry) {
-    const table = `read_parquet('${entry.registeredName}')`;
+    const table = sourceSql(entry);
     const projected = project('e.geometry');
     const rows = (await engine.conn.query(`
       WITH pieces AS (
@@ -356,7 +360,7 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
         corridorFlowlineCount: 0, types: Object.freeze([]), names: Object.freeze([]) }) };
   }
 
-  async function analyzeDiscoveryCorridors(corridors, { distancesM = ANALYSIS_DISTANCES_M } = {}) {
+  async function analyzeDiscoveryCorridors(corridors, { distancesM = ANALYSIS_DISTANCES_M, openDataset: datasetOpener = openDataset } = {}) {
     const started = performance.now();
     const requested = [...(corridors ?? [])].map(corridor => {
       if (!corridor?.id || !ID_PATTERN.test(corridor.id)) throw new TypeError(`Invalid discovery corridor id: ${corridor?.id}`);
@@ -391,7 +395,7 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
       const queryStarted = performance.now();
       let entry = null;
       try {
-        entry = await openDataset(datasetId);
+        entry = await datasetOpener(datasetId);
         const result = await run(entry);
         record(datasetId, entry, Math.round(performance.now() - queryStarted));
         return { entry, result };
@@ -445,4 +449,3 @@ export function createDiscoveryQueries({ openDataset, initialize, record, proven
 
   return { analyzeDiscoveryCorridors };
 }
-

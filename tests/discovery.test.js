@@ -840,7 +840,7 @@ test('the three hand-selected pilot roads are inside the discovery extract', () 
 
 test('a search area must lie inside every dataset it requires', () => {
   const valid = validateSearchAreas(searchAreas, manifest);
-  assert.equal(valid.searchAreas.length, 1);
+  assert.equal(valid.searchAreas.length, 2);
   assert.deepEqual(valid.searchAreas[0].requires[0], 'or-roads-network-pilot');
   const outside = JSON.parse(JSON.stringify(searchAreas));
   outside.searchAreas[0].bbox = [-124.5, 45.0, -124.4, 45.1];

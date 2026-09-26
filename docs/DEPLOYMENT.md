@@ -14,6 +14,10 @@ api.roadnaturalist.com
       Cloudflare Worker: roadnaturalist-investigator           <- npm run deploy:worker
       GET /api/investigator/probes
       GET /api/investigator/probes/:probeId
+
+data.roadnaturalist.com
+      R2 bucket: roadnaturalist-data                            <- immutable regional GeoParquet
+      manifest remains on Pages; the browser reads selected objects directly
 ```
 
 The browser loads the app from `roadnaturalist.com` and asks the Worker at `api.roadnaturalist.com`. They are separate
@@ -37,9 +41,13 @@ verifiable. CORS is the price, and it is already the project's model.
 | Pages project | `roadnaturalist` | direct upload from `dist/`; production branch `main`; live at `https://roadnaturalist.pages.dev` |
 | Pages custom domains | `roadnaturalist.com`, `www.roadnaturalist.com` | attached to the Pages project; **pending a DNS record** — see §8 |
 | Zone | `roadnaturalist.com` | already in the account that owns the domain |
+| R2 bucket | `roadnaturalist-data` | Standard class; immutable regional analytical GeoParquet only |
+| R2 custom domain | `data.roadnaturalist.com` | direct object delivery, CORS policy at `config/regional-r2-cors.json` |
 
-Nothing else is used or needed: no KV, no D1, no R2, no queue, no Durable Object, no cron trigger, no secret. Fruiting
+No other Cloudflare primitive is used or needed: no KV, no D1, no queue, no Durable Object, no cron trigger, no secret. Fruiting
 Forecast and the CFLab workers are separate and are not touched by anything here.
+
+The first regional release has 18 versioned R2 objects (24,887,577 bytes). Their public GET bytes, SHA-256, Pages-origin CORS and Range response were audited with `node scripts/audit-regional-remote.mjs`. `npm run stage:pages` validates the local object bytes against the catalog and excludes those Parquet files from the Pages payload. On localhost only the asset base changes to `./data/`; all selection, digest and GIS code remains the same. Publish any changed object under a new catalog version and audit it before a Pages release. The Investigator Worker does not proxy R2 or run DuckDB.
 
 ## 3. Configuration
 

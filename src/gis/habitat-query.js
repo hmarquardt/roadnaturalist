@@ -89,15 +89,16 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
       datasetDigest: entry.sha256, geometryCrs: entry.crs ?? null, sourceCrs: entry.normalization?.sourceCrs ?? null,
       measureCrs: entry.normalization?.measureCrs ?? MEASURE_CRS, pipelineVersion: entry.normalization?.pipelineVersion ?? null,
       method: entry.normalization?.method ?? null, coverageExtent: entry.scope?.bbox ?? null,
+      partitions: entry.partitions ?? null,
       simplifyToleranceM: entry.normalization?.simplifyToleranceM ?? null, productStatus: entry.source?.productStatus ?? null,
       retrievedAt: new Date().toISOString(),
     });
   }
 
-  async function run(datasetId, started, work, unavailable) {
+  async function run(datasetId, started, work, unavailable, datasetOpener = openDataset) {
     let entry = null;
     try {
-      entry = await openDataset(datasetId);
+      entry = await datasetOpener(datasetId);
       const engine = await initialize();
       const result = await work(entry, engine);
       const queryMs = Math.round(performance.now() - started);
@@ -111,7 +112,7 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
     }
   }
 
-  async function queryWetlands(corridor, { distancesM = ANALYSIS_DISTANCES_M, includeGeometry = false, analyticalEntry = null, corridorId = 'corridor' } = {}) {
+  async function queryWetlands(corridor, { distancesM = ANALYSIS_DISTANCES_M, includeGeometry = false, analyticalEntry = null, corridorId = 'corridor', datasetOpener = openDataset } = {}) {
     const datasetId = HABITAT_DATASETS[COVERAGE_DATASET.WETLANDS];
     const started = performance.now();
     const prepared = await prepare(corridor, { distancesM, analyticalEntry, corridorId });
@@ -120,7 +121,7 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
     const wkt = prepared.wkt;
     const outcome = await run(datasetId, started, async (entry, engine) => {
       const road = roadSql(wkt);
-      const table = `read_parquet('${entry.registeredName}')`;
+      const table = entry.readExpression ?? `read_parquet('${entry.registeredName}')`;
       const projected = `ST_Transform(wetland.geometry, 'EPSG:4326', 'EPSG:5070', always_xy := true)`;
       const outer = Math.max(...distancesM);
       const prefilter = boundsClause(geometry.bounds, outer);
@@ -146,7 +147,7 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
                min(ST_Distance(${projected}, (SELECT g FROM road))) AS nearest_m
         FROM ${table} AS wetland WHERE ${filter}`;
       const near = (await engine.conn.query(proximitySql(prefilter))).toArray()[0];
-      const proximity = near?.nearest_m != null && Number(near.nearest_m) <= outer
+      const proximity = entry.partitioned ? near : near?.nearest_m != null && Number(near.nearest_m) <= outer
         ? near : (await engine.conn.query(proximitySql('TRUE'))).toArray()[0];
       const coverage = await coverageRows(entry, wkt, distancesM, engine);
       const geometryRows = includeGeometry ? (await engine.conn.query(`
@@ -168,14 +169,14 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
         featureCount: widest.filter(row => row.label === label).reduce((total, row) => total + row.featureCount, 0),
       })).sort((a, b) => b.areaM2 - a.areaM2 || a.label.localeCompare(b.label));
       return { ...coverageSummary, coverageByDistance: coverageSummary.perDistance,
-        nearestDistanceM: distanceOrNull(proximity?.nearest_m), intersectsCorridor: Number(proximity?.corridor_features ?? 0) > 0,
+        nearestDistanceM: entry.partitioned && Number(proximity?.nearest_m) > outer ? null : distanceOrNull(proximity?.nearest_m), intersectsCorridor: Number(proximity?.corridor_features ?? 0) > 0,
         corridorFeatureCount: Number(proximity?.corridor_features ?? 0), buffers: bufferSummary(buffers, distancesM),
         classes: Object.freeze(classes), classDistanceM: outer, geometryRows };
-    }, { buffers: {}, classes: Object.freeze([]), coverageByDistance: {}, nearestDistanceM: null, intersectsCorridor: false, corridorFeatureCount: 0 });
+    }, { buffers: {}, classes: Object.freeze([]), coverageByDistance: {}, nearestDistanceM: null, intersectsCorridor: false, corridorFeatureCount: 0 }, datasetOpener);
     return { ...outcome, geometryForAnalysis: prepared.geometryForAnalysis };
   }
 
-  async function queryHydrography(corridor, { distancesM = ANALYSIS_DISTANCES_M, includeGeometry = false, analyticalEntry = null, corridorId = 'corridor' } = {}) {
+  async function queryHydrography(corridor, { distancesM = ANALYSIS_DISTANCES_M, includeGeometry = false, analyticalEntry = null, corridorId = 'corridor', datasetOpener = openDataset } = {}) {
     const datasetId = HABITAT_DATASETS[COVERAGE_DATASET.HYDROGRAPHY];
     const started = performance.now();
     const prepared = await prepare(corridor, { distancesM, analyticalEntry, corridorId });
@@ -185,7 +186,7 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
     const outer = Math.max(...distancesM);
     const outcome = await run(datasetId, started, async (entry, engine) => {
       const road = roadSql(wkt);
-      const table = `read_parquet('${entry.registeredName}')`;
+      const table = entry.readExpression ?? `read_parquet('${entry.registeredName}')`;
       const projected = `ST_Transform(feature.geometry, 'EPSG:4326', 'EPSG:5070', always_xy := true)`;
       const prefilter = boundsClause(geometry.bounds, outer);
       const prefilter250 = boundsClause(geometry.bounds, 250);
@@ -224,7 +225,7 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
       const near = (await engine.conn.query(proximitySql(prefilter))).toArray()[0];
       const nearestKnown = [near?.nearest_flowing_m, near?.nearest_standing_m]
         .every(value => value != null && Number(value) <= outer);
-      const proximity = nearestKnown ? near : (await engine.conn.query(proximitySql('TRUE'))).toArray()[0];
+      const proximity = entry.partitioned || nearestKnown ? near : (await engine.conn.query(proximitySql('TRUE'))).toArray()[0];
       const types = (await engine.conn.query(`
         WITH road AS (SELECT ${road} AS g)
         SELECT feature.layer, feature.water_class, feature.feature_type_code, feature.feature_type_label, count(*) AS feature_count
@@ -251,11 +252,12 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
       const coverageSummary = summarizeBufferCoverage({ distancesM, coverageRows: coverage });
       return { ...coverageSummary, coverageByDistance: coverageSummary.perDistance,
         crossings: Object.freeze(crossings), crossingCount: crossings.length,
-        nearestFlowingWaterM: distanceOrNull(proximity?.nearest_flowing_m), nearestStandingWaterM: distanceOrNull(proximity?.nearest_standing_m),
+        nearestFlowingWaterM: entry.partitioned && Number(proximity?.nearest_flowing_m) > outer ? null : distanceOrNull(proximity?.nearest_flowing_m),
+        nearestStandingWaterM: entry.partitioned && Number(proximity?.nearest_standing_m) > outer ? null : distanceOrNull(proximity?.nearest_standing_m),
         corridorFlowlineCount: Number(proximity?.corridor_flowlines ?? 0), buffers: bufferSummary(buffers, distancesM),
         types: Object.freeze(types), names: Object.freeze(names), geometryRows };
     }, { buffers: {}, crossings: Object.freeze([]), crossingCount: 0, types: Object.freeze([]), names: Object.freeze([]),
-      coverageByDistance: {}, nearestFlowingWaterM: null, nearestStandingWaterM: null, corridorFlowlineCount: 0 });
+      coverageByDistance: {}, nearestFlowingWaterM: null, nearestStandingWaterM: null, corridorFlowlineCount: 0 }, datasetOpener);
     return { ...outcome, geometryForAnalysis: prepared.geometryForAnalysis };
   }
 
@@ -298,7 +300,7 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
     };
   }
 
-  async function getHabitatOverlay(corridor, { distanceM = 1000 } = {}) {
+  async function getHabitatOverlay(corridor, { distanceM = 1000, datasetOpener = openDataset } = {}) {
     const started = performance.now();
     try {
       // The overlay draws the same analytical geometry the measurements used, so the picture and the
@@ -313,8 +315,8 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
       const outline = (await engine.conn.query(
         `SELECT ST_AsGeoJSON(ST_Transform(ST_Buffer(${roadSql(prepared.wkt)}, ${Number(distanceM)}), 'EPSG:5070', 'EPSG:4326', always_xy := true)) AS geometry_json`))
         .toArray()[0];
-      const wetlands = await queryWetlands(geometry.geometry, { includeGeometry: true, analyticalEntry: prepared });
-      const hydrography = await queryHydrography(geometry.geometry, { includeGeometry: true, analyticalEntry: prepared });
+      const wetlands = await queryWetlands(geometry.geometry, { includeGeometry: true, analyticalEntry: prepared, datasetOpener });
+      const hydrography = await queryHydrography(geometry.geometry, { includeGeometry: true, analyticalEntry: prepared, datasetOpener });
       return { distanceM, bufferGeometry: outline?.geometry_json ? JSON.parse(outline.geometry_json) : null,
         features: [...(wetlands.geometryRows ?? []), ...(hydrography.geometryRows ?? [])],
         geometryForAnalysis: prepared.geometryForAnalysis,

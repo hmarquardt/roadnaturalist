@@ -83,7 +83,7 @@ async function discoverRoads() {
   const marks = state.discovery.marks ?? readDiscoveryMarks();
   store.startDiscovery(searchArea, marks);
   try {
-    const run = await runDiscovery({ gis, searchArea, marks });
+    const run = await runDiscovery({ gis, searchArea, marks, onProgress: phase => store.setDiscoveryPhase(phase) });
     if (run.status !== 'ready') {
       store.failDiscovery({ coverage: run.coverage, searchArea, marks,
         error: `${run.roadQuery.reason ?? run.roadQuery.note ?? 'The road-network extract could not be read.'} A failed query is not an empty search area.` });
@@ -92,7 +92,8 @@ async function discoverRoads() {
     store.finishDiscovery({ results: run.results, coverage: run.coverage, diagnostics: run.diagnostics,
       eligibility: run.eligibility, raw: { ...run.raw, provenance: run.roadQuery.provenance }, searchArea, marks });
   } catch (error) {
-    store.failDiscovery({ searchArea, marks, error: error.message });
+    store.failDiscovery({ searchArea, marks, error: error.message,
+      coverage: { coverage: error.coverage ?? COVERAGE.UNKNOWN, reason: error.message, counts: {} } });
   }
 }
 
@@ -103,7 +104,7 @@ function promoteDiscoveryCorridor(id) {
   const result = state.discovery.results.find(entry => entry.id === id);
   if (!result) return;
   const candidate = promoteDiscoveryResult(result, { features: state.discovery.raw?.features ?? [],
-    provenance: state.discovery.raw?.provenance ?? null });
+    provenance: state.discovery.raw?.provenance ?? null, dataCatalogUrl: state.discovery.searchArea?.catalogUrl ?? null });
   store.promoteDiscoveryCandidate(candidate, id);
   writeDiscoveryMarks(store.getState().discovery.marks);
   nodes.list.scrollIntoView({ block: 'nearest' });
@@ -136,7 +137,16 @@ async function resolveHabitat(id) {
   const candidate = state.candidates.find(item => item.id === id);
   if (!candidate) return;
   store.setHabitatResult(id, { diagnostics: { status: 'loading', reason: 'Analyzing wetlands and hydrography…' } });
-  const habitat = summarizeHabitat(await gis.getHabitatContext(candidate.geometry));
+  let habitat;
+  try {
+    const habitatService = candidate.dataCatalogUrl
+      ? await gis.prepareRegionalSearch({ bbox: candidate.corridor.bounds, catalogUrl: candidate.dataCatalogUrl }) : gis;
+    habitat = summarizeHabitat(await habitatService.getHabitatContext(candidate.geometry));
+  } catch (error) {
+    habitat = summarizeHabitat({ wetlands: { coverage: error.coverage ?? COVERAGE.UNKNOWN, reason: error.message },
+      hydrography: { coverage: error.coverage ?? COVERAGE.UNKNOWN, reason: error.message },
+      diagnostics: { status: 'unavailable', reason: error.message } });
+  }
   store.setHabitatResult(id, habitat);
   for (const [datasetId, coverage] of Object.entries(habitat.coverage)) {
     store.setCoverage(id, datasetId, { coverage, reason: habitatReason(habitat, datasetId) });
@@ -152,7 +162,14 @@ async function toggleHabitatOverlay(enabled) {
   const state = store.getState();
   const candidate = state.candidates.find(item => item.id === state.selectedId);
   if (!enabled || !candidate) { store.setHabitatOverlay(null); return; }
-  const overlay = await gis.getHabitatOverlay(candidate.geometry);
+  let overlay;
+  try {
+    const habitatService = candidate.dataCatalogUrl
+      ? await gis.prepareRegionalSearch({ bbox: candidate.corridor.bounds, catalogUrl: candidate.dataCatalogUrl }) : gis;
+    overlay = await habitatService.getHabitatOverlay(candidate.geometry);
+  } catch (error) {
+    overlay = { bufferGeometry: null, features: [], diagnostics: { status: 'unavailable', reason: error.message } };
+  }
   store.setHabitatOverlay({ ...overlay, candidateId: candidate.id });
 }
 
@@ -555,4 +572,3 @@ loadManifest().then(async value => {
   manifestError = error.message;
   renderContext(nodes.context, { error: manifestError });
 });
-

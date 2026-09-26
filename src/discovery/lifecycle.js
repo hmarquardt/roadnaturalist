@@ -36,7 +36,7 @@ export function markDiscovery(marks, id, status) {
   return next;
 }
 
-export function promoteDiscoveryResult(result, { features = [], provenance = null, toleranceM = DEFAULT_TOLERANCE_M } = {}) {
+export function promoteDiscoveryResult(result, { features = [], provenance = null, toleranceM = DEFAULT_TOLERANCE_M, dataCatalogUrl = null } = {}) {
   const members = features.filter(feature => result.road.sourceFeatureIds.includes(String(feature.sourceFeatureId)));
   if (!members.length) throw new TypeError(`Promotion needs the source features of ${result.id}`);
   const groups = groupRoadFeatures(members);
@@ -54,7 +54,7 @@ export function promoteDiscoveryResult(result, { features = [], provenance = nul
   ];
   for (const [datasetId, entry] of entries) coverage = setDatasetCoverage(coverage, datasetId, entry);
   return createCandidate({
-    id: result.id, name: result.name, status: 'discovered', roads, coverage,
+    id: result.id, name: result.name, status: 'discovered', roads, coverage, dataCatalogUrl,
     summary: promotionSummary(result, roads),
     evidence: [
       { kind: 'MODELED', coverage: flag,

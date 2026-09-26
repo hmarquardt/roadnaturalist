@@ -5,6 +5,7 @@ playwright-report/
 __pycache__/
 *.parquet
 !data/gis/*.parquet
+!data/regional/partitions/**/*.parquet
 *.geoparquet
 *.duckdb
 *.pbf

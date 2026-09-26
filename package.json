@@ -15,7 +15,9 @@
     "deploy:worker": "cd worker && npx --yes wrangler@4.135.0 deploy",
     "verify:production:browser": "RUN_PRODUCTION_LIVE=1 playwright test tests/production-live.spec.js",
     "validate:probes": "node scripts/validate-probes.mjs",
- "verify:geometry": "node scripts/verify-geometry.mjs",
+    "verify:geometry": "node scripts/verify-geometry.mjs",
+    "build:regional": "uv run --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 scripts/build-regional.py",
+    "verify:regional": "uv run --with duckdb python3 scripts/verify-regional.py",
     "investigator:refresh": "node scripts/refresh-investigator-evidence.mjs"
   },
   "devDependencies": {

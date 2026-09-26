@@ -13,6 +13,7 @@ export function validateSearchAreas(declaration, manifest) {
     if (!Array.isArray(area.bbox) || area.bbox.length !== 4 || !area.bbox.every(Number.isFinite)) throw new TypeError(`Search area ${area.id} needs finite bounds`);
     if (area.bbox[0] >= area.bbox[2] || area.bbox[1] >= area.bbox[3]) throw new TypeError(`Search area ${area.id} bounds must be ordered min/max`);
     if (!Array.isArray(area.requires) || !area.requires.length) throw new TypeError(`Search area ${area.id} declares no required datasets`);
+    if (area.catalogUrl && !/^regional\/[a-z0-9.-]+\.json$/.test(area.catalogUrl)) throw new TypeError(`Search area ${area.id} has an invalid regional catalog path`);
     for (const datasetId of area.requires) {
       const dataset = datasets.get(datasetId);
       if (!dataset) throw new TypeError(`Search area ${area.id} requires ${datasetId}, which is not in the data manifest`);

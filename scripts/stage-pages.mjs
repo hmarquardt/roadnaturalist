@@ -50,12 +50,28 @@ function stage() {
     mkdirSync(dirname(target), { recursive: true });
     cpSync(source, target, { recursive: statSync(source).isDirectory() });
   }
+  // Regional GeoParquet belongs to R2. Keep its small catalog on Pages, validate every local
+  // source artifact, and remove the bulky files from the staged site before inventorying it.
+  const regionalPath = join(DIST, 'data/regional/manifest.json');
+  const regionalProblems = [];
+  if (existsSync(regionalPath)) {
+    const regional = readJson(regionalPath);
+    if (regional.assetBaseUrl !== 'https://data.roadnaturalist.com/') regionalProblems.push('regional catalog needs the Road Naturalist R2 asset base');
+    for (const dataset of regional.datasets ?? []) for (const part of dataset.partitions ?? []) {
+      if (part.state === 'empty') continue;
+      const file = join(ROOT, 'data', part.url);
+      if (!existsSync(file)) { regionalProblems.push(`regional artifact missing: ${part.url}`); continue; }
+      const bytes = readFileSync(file);
+      if (bytes.length !== part.bytes || sha256(bytes) !== part.sha256) regionalProblems.push(`regional artifact digest mismatch: ${part.url}`);
+    }
+    rmSync(join(DIST, 'data/regional/partitions'), { recursive: true, force: true });
+  }
 
   // A tiny 404 page: Pages serves it for unknown paths instead of a blank response.
   writeFileSync(join(DIST, '404.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Not found — Road Naturalist</title><h1>Not found</h1><p><a href="/">Road Naturalist</a></p></html>\n');
 
   const staged = new Set(listFiles(DIST).map(file => relative(DIST, file)));
-  const problems = [];
+  const problems = [...regionalProblems];
 
   // 1. index.html references
   const html = readFileSync(join(DIST, 'index.html'), 'utf8');

@@ -1,5 +1,7 @@
 # Candidate discovery
 
+The discovery workspace also offers the partitioned Portland west region. It uses the same road-unit, segmentation, batch GIS, coverage and promotion modules as the original pilot; only the data resolution step differs. The spatial catalog selects required road-group cells and 1 km halo habitat cells from versioned GeoParquet on R2 (or local static files). Source features are deduplicated before analysis, and any missing required partition aborts the survey with `UNKNOWN` coverage. See [regional data](REGIONAL-DATA.md) for the exact layout, build and performance decision.
+
 Road Naturalist used to begin with three hand-selected roads. Discovery is the step before that: it
 surveys a **bounded area**, proposes **road corridors** that carry physical and ecological
 characteristics worth a closer look, and lets a person promote one into the ordinary candidate
@@ -341,30 +343,15 @@ of the 1-mile boundary fall on either side. Duplicate collapsing also breaks equ
 source feature id in the browser. Both implementations are deterministic; neither is "the" answer to a
 boundary case.
 
-## Scaling: what would have to change
+## Scaling status
 
-Measured limits first: the browser reads a 1.2 MiB network extract, holds ~5,298 features and 127
-corridors in memory, and completes one bounded regional query in ~15 s. To move from this window to a
-county, a 50-mile radius, or regional use:
-
-1. **Partition the road extract** — one Parquet file per county or per analysis window with a small
-   spatial manifest, so a run reads only the overlapping partitions.
-2. **Partition habitat the same way**, keyed to the same windows, so buffers never cross a partition
-   boundary silently; coverage semantics already assume the extract's recorded extent.
-3. **Prune earlier** — query by the requested area *and* the eligible classes (already done) and stop at
-   a bounded feature budget instead of transferring a whole window.
-4. **Parquet row-group strategy** — sort rows by a coarse grid cell and keep row-group statistics so
-   DuckDB's zone maps skip most of the file for a small area.
-5. **Cache derived metrics** — discovery metrics are a pure function of (geometry, dataset versions), so
-   a content-addressed cache (browser-side for hot areas, or object storage behind the Worker) would make
-   repeat runs cheap.
-6. **Consider Worker-side analysis** — if a run must cover a whole county, remote DuckDB behind the
-   existing Worker boundary is the natural home (it already owns bounded upstream reads), but that needs
-   a measured reason first and moves analysis off the deterministic browser path.
-7. **Persistent browser storage** — an OPFS-backed DuckDB with the extract registered once would remove
-   repeated transfers on repeat visits.
-
-None of this is implemented yet; it is what the measurements above point at.
+The original pilot still reads a 1.2 MiB network extract, holds about 5,298 source features and
+proposes 127 corridors. Regional discovery now selects spatial road, wetland and hydrography
+GeoParquet partitions from a catalog, includes a 1 km habitat halo, deduplicates replicated features,
+and composes road names across cell seams. A 34 × 26 km browser run measured 375 corridors in about
+38 seconds. See [regional data](REGIONAL-DATA.md) for the build, measured smaller extents, R2 layout,
+coverage semantics and the decision to defer 50-mile searches until a wider benchmark. Persistent
+browser storage, derived metrics and Worker-side GIS remain unimplemented and require measurement.
 
 ## Files
 
@@ -386,4 +373,3 @@ None of this is implemented yet; it is what the measurements above point at.
 See also [docs/ROADS.md](ROADS.md) for the road sources, [docs/HABITAT.md](HABITAT.md) for the habitat
 extracts and buffered definitions, [docs/ECOREGIONS.md](ECOREGIONS.md) for the ecoregion layers, and
 [docs/INVESTIGATOR.md](INVESTIGATOR.md) for the access workflow a promoted corridor enters.
-

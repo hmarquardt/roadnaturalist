@@ -1,0 +1,19 @@
+{
+  "rules": [
+    {
+      "allowed": {
+        "origins": [
+          "https://roadnaturalist.com",
+          "https://www.roadnaturalist.com",
+          "https://roadnaturalist.pages.dev",
+          "http://localhost:8000",
+          "http://127.0.0.1:8000"
+        ],
+        "methods": ["GET", "HEAD"],
+        "headers": ["Range"]
+      },
+      "exposeHeaders": ["Accept-Ranges", "Content-Range"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+}

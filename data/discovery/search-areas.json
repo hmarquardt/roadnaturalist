@@ -16,6 +16,14 @@
         "epa-ecoregions-or-l4"
       ],
       "note": "The same bounded window the road, wetland, hydrography, and ecoregion extracts were built for: about 25 km by 18 km west of Portland, Oregon, in Washington and Multnomah counties."
+    },
+    {
+      "id": "or-portland-west-regional",
+      "name": "Portland west region (partitioned)",
+      "catalogUrl": "regional/manifest.json",
+      "bbox": [-123.14, 45.48, -122.70, 45.71],
+      "requires": ["epa-ecoregions-or-l3", "epa-ecoregions-or-l4"],
+      "note": "A real larger Oregon test area within the partitioned TIGER, NWI and NHD coverage; local data files are served through the same static manifest contract as future R2 objects."
     }
   ]
 }

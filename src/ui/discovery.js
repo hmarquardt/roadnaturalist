@@ -61,7 +61,7 @@ function controls({ discovery, searchAreas, searchAreaId, onDiscover, onSearchAr
   block.append(button);
   if (!searchAreas.length) block.append(el('p', 'discovery-status', 'Loading the discovery search-area declaration…'));
   if (discovery.status === 'running') {
-    block.append(el('p', 'discovery-status', 'Surveying the bounded road network and measuring wetland, hydrography, and ecoregion context…'));
+    block.append(el('p', 'discovery-status', discovery.phase || 'Preparing search…'));
   } else if (discovery.status === 'unavailable' && !discovery.error) {
     block.append(el('p', 'discovery-status', 'The road-network extract could not be read.'));
   }
@@ -85,6 +85,14 @@ function coverageBanner(coverage, diagnostics) {
       + 'the geometry engine could not buffer that source geometry, so no habitat was measured there (unknown, not zero).'));
   }
   if (diagnostics?.counts) {
+    const selection = diagnostics.partitionSelection;
+    if (selection) block.append(el('p', 'small muted', `Search data: ${selection.counts.roads} road, ${selection.counts.wetlands} wetland, `
+      + `${selection.counts.hydrography} hydrography partitions · ${(selection.bytes / 1048576).toFixed(1)} MiB verified · 1 km habitat halo.`));
+    if (diagnostics.partitionTimingMs) {
+      const timing = diagnostics.partitionTimingMs;
+      block.append(el('p', 'small muted', `Data preparation ${timing.totalPreparationMs} ms · downloaded ${(timing.downloadedBytes / 1048576).toFixed(1)} MiB · `
+        + `${timing.cacheHits} verified partition cache hit(s).`));
+    }
     block.append(el('p', 'small muted', `Measured in ${diagnostics.totalMs} ms: ${diagnostics.counts.features} road features read, `
       + `${diagnostics.counts.eligibleUnits} named road units composed, ${diagnostics.counts.corridors} corridors analysed in one GIS batch `
       + `(${diagnostics.analysisMs} ms), ${diagnostics.roadQueryMs} ms for the road-network query.`));
