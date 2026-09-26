@@ -88,7 +88,10 @@ function stage() {
     const bytes = statSync(join(DIST, path)).size;
     if (bytes !== dataset.bytes) problems.push(`manifest dataset ${dataset.id} declares ${dataset.bytes} bytes but the staged file is ${bytes}`);
   }
-  for (const extra of ['data/roads/or-roads-pilot.json', 'data/investigator/or-pilot-access-evidence.json']) {
+  // The probe catalog and its schema are loaded by the browser itself (src/investigator/probes/catalog.js imports
+  // them), so a missing catalog would be a blank Investigator rather than a caught error at deploy time.
+  for (const extra of ['data/roads/or-roads-pilot.json', 'data/investigator/or-pilot-access-evidence.json',
+    'data/investigator/probe-catalog.json', 'data/investigator/probe-catalog.schema.json']) {
     if (!staged.has(extra)) problems.push(`${extra} is loaded by the app but was not staged`);
   }
 

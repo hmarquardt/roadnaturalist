@@ -7,6 +7,9 @@ import { readFileSync } from 'node:fs';
 // so a regenerated capture cannot silently invalidate them: the assertions compare the UI with the data, and the
 // vocabulary, provenance, and honesty rules are asserted directly.
 const capture = JSON.parse(readFileSync(new URL('../data/investigator/or-pilot-access-evidence.json', import.meta.url)));
+// The declared sources are data now: the browser must render exactly the probes this catalog declares for a
+// corridor, which also proves the catalog module really loads in a browser.
+const catalog = JSON.parse(readFileSync(new URL('../data/investigator/probe-catalog.json', import.meta.url)));
 const FINDING_LABEL = { RESTRICTED_OR_CLOSED: 'RESTRICTED OR CLOSED', PROBABLE_PUBLIC: 'PROBABLE PUBLIC', UNVERIFIED: 'UNVERIFIED', CONFLICTED: 'CONFLICTED', VERIFIED_PUBLIC: 'VERIFIED PUBLIC' };
 const READY = 'No corridor loaded';
 
@@ -61,6 +64,17 @@ test('access stays unverified and untouched until the reader asks for the invest
 test('a corridor with an active closure shows it as the finding, with provenance, contradictions, and an export', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const section = await runAccess(page, 'NW Cornelius Pass Rd');
+  // The declared sources are data now: the investigation record must show exactly the probes this corridor's catalog
+  // entry declares — one row each, matched by the declared title — which also proves the catalog module really loads
+  // in a browser. Rows are grouped by pipeline stage, so this asserts membership and count, not catalog order.
+  const declared = catalog.probes.filter(probe => !probe.corridorIds || probe.corridorIds.includes('or-roads-cornelius-pass-rd'));
+  const record = page.locator('.investigation-section');
+  await expect(record.locator('.source-list > li')).toHaveCount(declared.length);
+  const sourceListText = await record.locator('.source-list').innerText();
+  for (const probe of declared) {
+    const rows = sourceListText.split(probe.title).length - 1;
+    expect(rows, `${probe.id} should appear exactly once in the source list`).toBe(1);
+  }
   const expected = capture.corridors['or-roads-cornelius-pass-rd'].finding;
   await expect(section.locator('.access-finding-label')).toHaveText(FINDING_LABEL[expected.finding]);
   await expect(section).toContainText(expected.ruleId);
@@ -88,7 +102,6 @@ test('a corridor with an active closure shows it as the finding, with provenance
   await expect(section).toContainText('Unresolved');
   await expect(section).toContainText('Public road evidence');
   // The export carries the finding, its guardrail, and no credential or observation record.
-  const record = page.locator('.investigation-section');
   const [download] = await Promise.all([page.waitForEvent('download'), record.getByRole('button', { name: /Export evidence bundle/ }).click()]);
   const bundle = JSON.parse(readFileSync(await download.path(), 'utf8'));
   expect(download.suggestedFilename()).toBe('or-roads-cornelius-pass-rd-evidence-bundle.json');

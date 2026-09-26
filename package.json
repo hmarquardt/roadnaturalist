@@ -13,7 +13,9 @@
     "stage:pages": "node scripts/stage-pages.mjs",
     "deploy:pages": "node scripts/deploy-pages.mjs",
     "deploy:worker": "cd worker && npx --yes wrangler@4.135.0 deploy",
-    "verify:production:browser": "RUN_PRODUCTION_LIVE=1 playwright test tests/production-live.spec.js"
+    "verify:production:browser": "RUN_PRODUCTION_LIVE=1 playwright test tests/production-live.spec.js",
+    "validate:probes": "node scripts/validate-probes.mjs",
+    "investigator:refresh": "node scripts/refresh-investigator-evidence.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"

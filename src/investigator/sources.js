@@ -6,15 +6,18 @@
 //      deterministic facts (county, road class, route type). This is a starting point for research, recorded
 //      as a derived fact with its basis. Road Naturalist never assumes an authority from geography alone, and
 //      it never turns "we did not find a source" into a statement about the road.
-//   2. PILOT_PROBES — the declared sources and the verbatim phrases each probe looks for. A probe's fact is
-//      only evidence when the phrase is present in what the source actually served, so every quote in the
-//      Investigator is a substring of a retrieved document, never typed from memory.
+//   2. The declared sources themselves, loaded from the reviewed probe catalog.
 //
-// The declarations themselves live in src/investigator/probes/or-pilot.js, which is shared with the Worker so
-// the two sides can never disagree about what a probe says. That module holds the reviewable public URLs and
-// phrases; this module turns them into validated probes and adds authority derivation.
-import { createProbe } from './research.js';
-import { CORNELIUS_PROBE_DECLARATIONS, SPRINGVILLE_PROBE_DECLARATIONS, SUSBAUER_PROBE_DECLARATIONS } from './probes/or-pilot.js';
+// The declarations are data, not code: data/investigator/probe-catalog.json holds the public source URLs, the
+// questions, and the verbatim phrases that count as facts, described by data/investigator/probe-catalog.schema.json.
+// src/investigator/probes/catalog.js validates and normalizes that file, and the Worker loads the very same file, so
+// the two sides cannot disagree about what a probe says. This module only adds authority derivation and the
+// corridor → probe lookup the pipeline asks for.
+//
+// Adding or updating a corridor's sources is a reviewed change to the catalog, not to this module.
+import { PROBE_CATALOG } from './probes/catalog.js';
+
+export { PROBE_CATALOG };
 
 export const AUTHORITY_ROLE = Object.freeze({
   COUNTY_ROAD_AUTHORITY: 'county-road-authority',
@@ -48,16 +51,12 @@ export function deriveAuthorities(roads = []) {
 
 export const slug = text => String(text).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-// The pilot corridors this catalog covers. A probe limited to `corridorIds` runs only for those corridors.
-export const PILOT_CORRIDOR_IDS = Object.freeze(['or-roads-cornelius-pass-rd', 'or-roads-springville-rd', 'or-roads-susbauer-rd']);
+// The corridors the catalog covers. A probe limited to `corridorIds` runs only for those corridors; a probe without
+// them applies to every corridor here.
+export const PILOT_CORRIDOR_IDS = PROBE_CATALOG.corridorIds;
 
-// Probe catalog: built from the shared declarations in src/investigator/probes/or-pilot.js so the browser and the
-// Worker can never disagree about what a probe says. `authority` ties each probe to a derived authority (or to a
-// county service of one), so the authority-discovery stage is auditable.
-export const PILOT_PROBES = Object.freeze(CORNELIUS_PROBE_DECLARATIONS.map(createProbe));
-export const SPRINGVILLE_PROBES = Object.freeze(SPRINGVILLE_PROBE_DECLARATIONS.map(createProbe));
-export const SUSBAUER_PROBES = Object.freeze(SUSBAUER_PROBE_DECLARATIONS.map(createProbe));
+// The probes for one corridor, in catalog order. A corridor the catalog does not cover has no declared sources, and
+// that is reported as no research rather than as an empty result.
+export const getProbesForCorridor = corridorId => PROBE_CATALOG.probesForCorridor(corridorId);
 
-// One catalog for the pilot, plus a lookup by corridor.
-export const PILOT_PROBES_BY_CORRIDOR = Object.freeze(Object.fromEntries(PILOT_CORRIDOR_IDS.map(id => [id,
-  Object.freeze([...PILOT_PROBES, ...(id === 'or-roads-springville-rd' ? SPRINGVILLE_PROBES : id === 'or-roads-susbauer-rd' ? SUSBAUER_PROBES : [])].filter(probe => !probe.corridorIds || probe.corridorIds.includes(id)))])));
+export const PILOT_PROBES_BY_CORRIDOR = Object.freeze(Object.fromEntries(PILOT_CORRIDOR_IDS.map(corridorId => [corridorId, getProbesForCorridor(corridorId)])));

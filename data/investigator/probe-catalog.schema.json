@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roadnaturalist.com/schema/investigator-probe-catalog/1",
+  "title": "Road Naturalist investigator probe catalog",
+  "description": "Public, reviewable declarations of the official sources the Investigator asks and the verbatim phrases that count as facts. This file describes WHAT is asked. It deliberately cannot describe HOW the Worker fetches: hosts, byte caps, timeouts, redirect policy, accepted content types, and rate limits are server policy in worker/investigator/policies.js, and the host allow-list there is what decides whether a declared URL may ever be requested.",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "corridors", "probes"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "const": "roadnaturalist-investigator-probes/1", "description": "Catalog format version. A loader must reject a version it does not implement rather than guessing." },
+    "kind": { "const": "investigator-probe-catalog" },
+    "corridorNote": { "type": "string" },
+    "policyNote": { "type": "string" },
+    "corridors": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The corridors this catalog covers. Every probe's corridorIds must name one of these ids; a probe without corridorIds applies to every corridor here.",
+      "items": { "$ref": "#/$defs/corridor" }
+    },
+    "probes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Declared probes. Order is the order the Investigator runs them in, so it is meaningful and stable.",
+      "items": { "$ref": "#/$defs/probe" }
+    }
+  },
+  "$defs": {
+    "corridor": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,63}$", "description": "Corridor id, matching the corridor ids the application loads from the road pilot." },
+        "name": { "type": "string", "minLength": 1 }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "required": ["id", "stage", "kind", "organization", "sourceClass", "title", "url", "question", "policyProfile", "facts"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,63}$", "description": "Opaque probe id. The only thing a client may send to the Worker; it never contains a URL or a path." },
+        "stage": { "enum": ["access-research", "contradiction-search"] },
+        "kind": { "enum": ["road-status", "authority", "closure", "private-access", "permit", "surface"] },
+        "organization": { "type": "string", "minLength": 1, "description": "Who is being asked. Shown to the reader and recorded as evidence provenance." },
+        "authority": { "type": ["string", "null"], "description": "The derived authority this probe is attached to (for example state:odot), so authority discovery stays auditable." },
+        "sourceClass": { "enum": ["TIER_1_AUTHORITATIVE", "TIER_2_INTERMEDIATE", "TIER_3_COMMUNITY", "TIER_4_ANECDOTAL"], "description": "Source reliability class. The tier is derived from this by access.js, never declared twice." },
+        "sourceType": { "type": "string", "minLength": 1, "description": "Free-text source kind for the reader (for example county news release)." },
+        "title": { "type": "string", "minLength": 1 },
+        "url": {
+          "type": "string",
+          "pattern": "^https://[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?:/[^?#]*)?$",
+          "description": "The declared public source URL. https only, no credentials, no query string, no fragment. Whether this host may actually be fetched is decided by the Worker's allow-list, not here."
+        },
+        "question": { "type": "string", "minLength": 1, "description": "The question this probe asks, in the reader's words. Recorded with every retrieved result." },
+        "appliesTo": { "type": ["string", "null"], "description": "The road or section name the source itself uses, quoted from the source." },
+        "corridorIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,63}$" },
+          "description": "Corridors this probe applies to. Omit it for a probe that applies to every corridor in the catalog; declare several ids when one source declaration genuinely serves several corridors."
+        },
+        "policyProfile": {
+          "enum": ["closure-status", "project-page", "jurisdiction-document"],
+          "description": "Logical freshness profile. The Worker maps this name to a cache lifetime (worker/investigator/policies.js); the catalog cannot supply a lifetime, a byte cap, a timeout, a host, or a header."
+        },
+        "facts": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Declared facts. A fact is evidence only when its exact phrase is present in what the source served.",
+          "items": { "$ref": "#/$defs/fact" }
+        }
+      }
+    },
+    "fact": {
+      "type": "object",
+      "required": ["find", "claimType"],
+      "additionalProperties": false,
+      "properties": {
+        "find": { "type": "string", "minLength": 1, "description": "Verbatim text that must appear in the retrieved document. This string becomes the quote shown to the reader, so it must be copied from the source, never paraphrased." },
+        "claimType": { "enum": ["PUBLIC_ROAD", "PRIVATE_ROAD", "MOTOR_VEHICLES_ALLOWED", "MOTOR_VEHICLES_RESTRICTED", "SEASONAL_CLOSURE", "TEMPORARY_CLOSURE", "PERMIT_REQUIRED", "GATE_REPORTED", "ROAD_MAINTAINED", "ROAD_UNMAINTAINED", "SURFACE", "ROAD_CLASS", "LAND_MANAGER", "ACCESS_TAG_ABSENT", "ROAD_NAME_VARIANT", "UNKNOWN"], "description": "What this phrase supports. Its effect on the public-access question (affirmative, restrictive, attention, neutral) is derived from this by access.js." },
+        "claimValue": { "type": ["string", "null"], "description": "The detail the source states (for example state highway OR 127)." },
+        "claimStrength": { "enum": ["stated", "described", "unclear"], "description": "How strong the source's own statement is. Defaults to described when omitted, as createProbe does." },
+        "scope": { "enum": ["CORRIDOR", "CORRIDOR_PART", "COUNTY_SEGMENT", "NOT_APPLICABLE"], "description": "What part of the corridor the source speaks about. Defaults to NOT_APPLICABLE when omitted." },
+        "corridorPart": { "type": ["string", "null"], "description": "The source's own words for the part it speaks about. A CORRIDOR_PART fact without it is weaker evidence and is reported as a catalog warning." },
+        "summary": { "type": ["string", "null"], "description": "Plain-language restatement shown beside the quote. The quote, not this, is the evidence." },
+        "effectiveFrom": { "type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "format": "date", "description": "First day the condition applies, read from the source's own window text." },
+        "effectiveUntil": { "type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "format": "date", "description": "Last day the condition applies, read from the source's own window text." },
+        "windowQuote": { "type": ["string", "null"], "description": "The verbatim window text the dates were read from. Required when effectiveFrom or effectiveUntil is declared, and checked against the retrieved document before the fact counts." },
+        "recurrence": { "type": ["string", "null"], "enum": ["seasonal", "high-water", "snow", "fire", "construction", "other", null], "description": "Source-stated recurrence. Only written when the source itself says the condition repeats." },
+        "recurrenceQuote": { "type": ["string", "null"], "description": "The verbatim text that states the recurrence. Checked against the retrieved document like windowQuote." }
+      }
+    }
+  }
+}

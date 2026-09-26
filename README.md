@@ -30,9 +30,17 @@ npm run verify:occurrence:browser   # full browser pipeline with real requests a
 npm run verify:investigator:live    # live official sources + live OpenStreetMap for the access findings
 npm run verify:investigator:worker  # the Worker research boundary (DEPLOYED via INVESTIGATOR_WORKER_URL, else the same handler served locally)
 npm run verify:production:browser   # the deployed app in a real browser, against the deployed Worker and real sources
+npm run validate:probes            # the investigator probe catalog: schema, semantics, Worker policy, capture/baseline
+npm run investigator:refresh       # validate the catalog, retrieve declared sources, rewrite the capture + drift baseline
 ```
 
 ## Structure and deployment
+
+The Investigator's declared official sources are a reviewed data catalog
+(`data/investigator/probe-catalog.json`, with a committed JSON Schema) that both the browser Investigator and the
+deployed Worker load through one loader, so adding a corridor's sources is a data review: `npm run validate:probes`
+checks the catalog, the Worker's host allow-list, and the recorded evidence offline. Worker fetch policy — allowed
+hosts, byte caps, timeouts, redirects, and cache lifetimes — stays server-side and cannot be set from the catalog.
 
 Both halves deploy from this repository with no build step: `npm run deploy:pages` (Cloudflare Pages project `roadnaturalist`, for `roadnaturalist.com`) and `npm run deploy:worker` (Worker `roadnaturalist-investigator`, for `api.roadnaturalist.com`). [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) has the topology, configuration, commands, verification, and local-development story.
 

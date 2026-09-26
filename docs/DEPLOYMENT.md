@@ -79,6 +79,11 @@ npm run stage:pages              # validates and stages dist/ (no upload)
 npm run deploy:pages             # stages, then uploads to the Pages project
 ```
 
+The staged payload includes the investigator probe catalog and its schema
+(`data/investigator/probe-catalog.json`, `probe-catalog.schema.json`), because the browser Investigator loads them as
+modules; `stage:pages` refuses to stage a payload without them. Catalog validation is a separate, offline step:
+`npm run validate:probes`.
+
 `stage:pages` fails the deployment rather than shipping a broken payload: every stylesheet/icon/script referenced by
 `index.html`, every relative `import` in the `src/` module graph, and every dataset in `data/manifest.json` must be
 present, and a staged dataset whose byte length disagrees with the manifest is a failure. `dist/` is gitignored and is

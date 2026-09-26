@@ -10,7 +10,11 @@ import { FAILURE_CODE, fetchProbePage } from '../worker/investigator/fetch-probe
 import { DRIFT_STATE, buildBaselineFromRecord, buildProbeBaseline } from '../src/investigator/drift.js';
 import { readFileSync } from 'node:fs';
 import { DRIFT_BASELINE } from '../src/investigator/probes/drift-baseline.js';
-import { ALL_PROBE_DECLARATIONS } from '../src/investigator/probes/or-pilot.js';
+import { PROBE_CATALOG } from '../src/investigator/probes/catalog.js';
+
+// The declared probes now live in the reviewed catalog; these tests read the same declarations the browser and
+// the Worker read, through the same loader.
+const ALL_PROBE_DECLARATIONS = PROBE_CATALOG.declarations;
 import { extractProbeFacts, htmlToText, normalizeWhitespace } from '../src/investigator/research.js';
 
 // ---------------------------------------------------------------------------------------------------------------

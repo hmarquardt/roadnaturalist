@@ -80,21 +80,43 @@ different statement — the diagnostics say which.
 
 ## 3. The probe registry
 
-Declarations (public URLs and the verbatim phrases that count as a fact) live in
-`src/investigator/probes/or-pilot.js`, shared with the browser so the two sides cannot disagree. This Worker adds
-*policy* — never URLs — in `worker/investigator/policies.js`:
+The declared sources live in the reviewed probe catalog — `data/investigator/probe-catalog.json`, described by
+`data/investigator/probe-catalog.schema.json` and loaded by `src/investigator/probes/catalog.js`, the same load the
+browser Investigator uses, so the two sides cannot disagree about what a probe says. The catalog holds public
+declarations only: organization, source class, URL, question, corridor associations, the verbatim phrases that count as
+facts, and a logical freshness profile name.
 
-| Host | Byte cap | Timeout | Default TTL | Accepted content types |
-| --- | --- | --- | --- | --- |
-| `www.washingtoncountyor.gov` | 512 kB | 15 s | 6 h | `text/html`, `application/xhtml+xml`, `text/plain` |
-| `www.wc-roads.com` | 512 kB | 15 s | 15 min | `text/html`, `application/xhtml+xml` |
-| `multco.us` | 512 kB | 15 s | 24 h | `text/html`, `application/xhtml+xml`, `text/plain` |
-| `content.govdelivery.com` | 512 kB | 15 s | 24 h | `text/html`, `application/xhtml+xml`, `text/plain` |
+This Worker adds *policy* — never URLs, never caps from data — in `worker/investigator/policies.js`:
 
-Per-probe TTLs come from the probe's kind (a closure notice 15 minutes, a project page 6 hours, a jurisdiction or
-funding document 24 hours) and can be overridden per probe. Declaring a new source is a reviewed code change:
-pin the URL the source actually serves (a path that 301-redirects elsewhere will be refused by the redirect guard),
-pin the verbatim phrases, and add the probe id to the drift baseline by regenerating the capture (section 7).
+| Host | Byte cap | Timeout | Accepted content types |
+| --- | --- | --- | --- |
+| `www.washingtoncountyor.gov` | 512 kB | 15 s | `text/html`, `application/xhtml+xml`, `text/plain` |
+| `www.wc-roads.com` | 512 kB | 15 s | `text/html`, `application/xhtml+xml` |
+| `multco.us` | 512 kB | 15 s | `text/html`, `application/xhtml+xml`, `text/plain` |
+| `content.govdelivery.com` | 512 kB | 15 s | `text/html`, `application/xhtml+xml`, `text/plain` |
+
+Cache lifetime is decided by the profile the catalog names, not by anything numeric in the catalog:
+
+| Profile | TTL | Used for |
+| --- | --- | --- |
+| `closure-status` | 15 min | closure notices and the county's live advisory list |
+| `project-page` | 6 h | project and programme pages |
+| `jurisdiction-document` | 24 h | jurisdiction, ownership, and funding documents |
+
+A catalog entry **cannot** widen this: an unknown profile fails closed (no default lifetime), a URL on a host that is not
+allow-listed makes the registry throw rather than fetch it, and the schema refuses a declaration that tries to carry
+`maxBytes`, `timeoutMs`, `method`, `headers`, `host`, `contentTypes`, or a redirect rule as its own field. Adding a
+genuinely new source host is a deliberate change to `HOST_POLICY` in this directory, reviewed as server policy.
+
+`checkCatalogAgainstPolicy` (same file) is the check the review CLI runs and a test asserts:
+`npm run validate:probes` reports, offline, every declared host, every profile used, and any entry this Worker would
+refuse to serve.
+
+Declaring a new source is a reviewed **data** change in the catalog (`data/investigator/probe-catalog.json`), plus a
+policy change here only when the host is genuinely new: pin the URL the source actually serves (a path that
+301-redirects elsewhere will be refused by the redirect guard), pin the verbatim phrases, choose a profile, and record
+its evidence with `npm run investigator:refresh`. `npm run validate:probes` refuses the catalog if the host is not
+allow-listed or the profile is not implemented. See docs/INVESTIGATOR.md section 14 for the workflow.
 
 ## 4. Cache and freshness
 
@@ -148,6 +170,7 @@ Page content, credentials, and user data are never logged.
 
 ```sh
 npm test                                # includes tests/worker.test.js: the endpoint's security and behaviour
+npm run validate:probes                 # the catalog this Worker serves: schema, semantics, host allow-list, profiles
 npm run verify:investigator:worker      # live sources through the boundary
 npm run verify:investigator:live        # the operator path: sources + Overpass + drift, and the capture refresh
 ```

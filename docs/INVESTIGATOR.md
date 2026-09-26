@@ -275,7 +275,88 @@ same script hit a rate-limited `www.washingtoncountyor.gov` request (HTTP 429) a
 query that failed on every mirror (HTTP 400/406/429). Both appear in those runs as `FAILED` sources with
 `access-verification` coverage `PARTIAL` — never as "no restriction found".
 
-## 14. The live research boundary (Worker)
+## 14. The probe catalog: declared sources as data
+
+The sources the Investigator asks are **data**, not code. One committed file holds every public declaration:
+
+```text
+data/investigator/probe-catalog.json          what is declared (reviewable data)
+data/investigator/probe-catalog.schema.json   the formal shape of that file
+src/investigator/probes/catalog.js            the one loader both sides use
+src/investigator/probes/schema-check.js       the small, fail-closed schema checker
+```
+
+The catalog declares corridors and probes. A probe names the organization, the source class (tier), the declared
+public URL, the question, the corridors it applies to, a logical freshness profile, and the facts:
+
+```json
+{ "id": "wc-cornelius-bridge-project", "corridorIds": ["or-roads-cornelius-pass-rd"], "policyProfile": "closure-status",
+  "url": "https://www.washingtoncountyor.gov/lut/projects/cornelius-pass-road-bridge-rock-creek",
+  "facts": [ { "find": "Road closure has been extended to October 7, 2026", "claimType": "TEMPORARY_CLOSURE",
+               "effectiveFrom": "2026-07-15", "effectiveUntil": "2026-10-07", "windowQuote": "Road closure has been extended to October 7, 2026" } ] }
+```
+
+**Corridor associations are declarative.** `corridorIds` lists the corridors a probe applies to; a probe that omits it
+applies to every corridor in the catalog. One source that genuinely serves several corridors is declared **once** with
+two ids (and the validator warns when two probes are byte-identical declarations that should be merged), while a source
+read for two corridors with *different* facts stays two probes — that is what the two RCIP and two MSTIP entries are,
+and why they are not duplicates.
+
+**Facts stay deterministic.** A fact declares the exact phrase to look for (`find`), the claim it supports, the effect
+comes from `claimType` through `access.js` (never declared twice), and the source's own words for a window or a
+recurrence must be quoted (`windowQuote`, `recurrenceQuote`) because the extraction checks them against the retrieved
+document before the fact counts. There are no prompts, no models, and no instructions in the catalog: the matching
+authority remains `extractProbeFacts` in `src/investigator/research.js`.
+
+**What the catalog cannot say.** It cannot name a host that may be fetched, raise a byte cap, change a timeout, allow a
+redirect, add a header, choose a method, or set a cache lifetime. `policyProfile` is a *name*
+(`closure-status`, `project-page`, `jurisdiction-document`) which `worker/investigator/policies.js` maps to a lifetime
+server-side; an unknown name fails closed, and a declared URL on a host that is not in the Worker's allow-list makes the
+Worker refuse to build that probe. Declaring a source therefore has two halves: the catalog entry, and — only if the
+host is genuinely new — a deliberate allow-list entry in server policy.
+
+**Versioning.** `schemaVersion` is `roadnaturalist-investigator-probes/1`. The loader refuses a version it does not
+implement rather than guessing; a future version means teaching the loader the new shape and migrating the file in one
+reviewed commit.
+
+### Reviewer workflow: adding or updating a corridor's sources
+
+```sh
+# 1. edit data/investigator/probe-catalog.json (source URL, question, verbatim phrases, corridorIds, policy profile)
+npm run validate:probes          # schema + semantics + Worker policy + capture/baseline references, offline
+npm run test                     # the catalog has its own suite (tests/probe-catalog.test.js)
+npm run verify:investigator:worker   # read the sources live: DEPLOYED via INVESTIGATOR_WORKER_URL, else locally
+npm run investigator:refresh     # if the evidence should be recorded: rewrite the capture + baseline, report changes
+git diff -- data/investigator src/investigator/probes/drift-baseline.js   # read the evidence diff before committing
+```
+
+`npm run validate:probes` leads with the probe and the fact that is wrong:
+
+```text
+Probe "wc-cornelius-pass-closure":
+  fact 2 (TEMPORARY_CLOSURE), field "claimType" must be one of "PUBLIC_ROAD", … ; found "CLOSED_ROADZ"
+    /probes/3/facts/2/claimType
+```
+
+Warnings (a `CORRIDOR_PART` fact without the source's own words, a probe with no reviewed capture yet, a probe the
+catalog dropped while the capture still holds it) are printed but do not fail: they are for a reviewer, not a gate.
+`npm run investigator:refresh` validates the catalog first, retrieves the declared probes through the same operator
+path, rewrites `data/investigator/or-pilot-access-evidence.json` and `src/investigator/probes/drift-baseline.js`
+together, re-validates them, prints what changed per probe, and commits nothing — the diff is the review.
+
+### Capture and drift baseline remain separate artifacts
+
+```text
+probe catalog   what is expected (reviewed declarations; drives the refresh)
+capture         what was retrieved (historical evidence the browser replays offline)
+baseline        the normalized signature of that evidence (what a live read is compared with)
+```
+
+The catalog never contains retrieved text and the capture never defines a probe. `checkReviewedArtifacts` cross-checks
+the three and reports a missing or stale entry in either direction, so a catalog edit that is not followed by a refresh
+is visible immediately.
+
+## 15. The live research boundary (Worker)
 
 A browser cannot read most county sites: they send no CORS header. So live official-source research goes through the
 Road Naturalist Worker (`worker/`), which reads **only declared sources** and answers with normalized facts.
@@ -289,9 +370,10 @@ browser ──probe id──▶ Worker ──declared URL──▶ official page
 The whole point is what the boundary **cannot** be asked to do:
 
 * the client sends an id, never a URL (`GET /api/investigator/probes/:probeId`). The registry
-  (`worker/investigator/registry.js`) is the only thing that can turn an id into a URL, and it is built from committed
-declarations (`src/investigator/probes/or-pilot.js`, shared with the browser) plus committed policy
-  (`worker/investigator/policies.js`: static host allow-list, byte caps, timeouts, TTLs, accepted content types);
+  (`worker/investigator/registry.js`) is the only thing that can turn an id into a URL, and it is built from the
+  reviewed probe catalog (section 14, loaded by `src/investigator/probes/catalog.js`) plus committed policy
+  (`worker/investigator/policies.js`: static host allow-list, byte caps, timeouts, TTLs, accepted content types, and the
+  profile → lifetime map);
 * `https` only, default port, canonical URL, no credentials in the URL, ASCII host, no IP literal, no
   `localhost`/`.internal`/`.local`, no query string, no fragment — checked before the registry can serve a probe;
 * redirects are not followed off the approved destination (`redirect: 'manual'`, at most one hop, same host and same
@@ -316,7 +398,7 @@ funding document 24 hours. `retrievedAt` is always the source read time, `cached
 pass reads 11 pages (496 kB) and returns 15.4 kB of facts; a repeat pass serves six probes from cache in 12 ms.
 
 **Source drift.** The Worker ships a compact baseline of the reviewed capture
-(`src/investigator/probes/drift-baseline.json`, generated with the capture) and compares its own fresh extraction
+(`src/investigator/probes/drift-baseline.js`, generated with the capture) and compares its own fresh extraction
 against it: `UNCHANGED`, `EVIDENCE_CHANGED` (with the facts added and no longer present), `NO_LONGER_MATCHES`,
 `SOURCE_UNAVAILABLE`, `NO_BASELINE`. The browser compares a live result against the capture it replays (`drift.recorded`).
 Drift is a diagnostic: the facts that are present now decide the finding, and "a changed page is not a changed
@@ -344,7 +426,7 @@ since it was recorded;
 * the previous run as a compact summary (`access.previousRun`) when the new run lost a source or changed the finding,
 so good evidence is never replaced by an unexplained blank result.
 
-## 15. Running it
+## 16. Running it
 
 ```sh
 npm test                        # offline: guardrails, freshness, coverage, OSM adapter and matching, bundle, pipeline
@@ -353,6 +435,8 @@ npm run test:e2e                # offline UI: unverified state, restriction/conf
 # opt-in, operator/Node, no credential needed:
 npm run verify:investigator:live                     # all three corridors, live sources and live Overpass
 npm run verify:investigator:worker                   # the Worker boundary: DEPLOYED if INVESTIGATOR_WORKER_URL is set, otherwise the same handler served locally
+npm run validate:probes                            # catalog + schema + Worker policy + capture/baseline, offline
+npm run investigator:refresh                       # validate, retrieve, rewrite the capture + baseline, report changes
 npm run verify:investigator:live -- --corridors=or-roads-susbauer-rd --no-osm
 npm run verify:investigator:live -- --write-record    # refresh the reviewed capture the browser replays
 ```
@@ -371,7 +455,7 @@ reviewable artifact, and re-running the script re-verifies it.
 | `tests/fixtures/investigator/overpass-cornelius-response.json` | a real Overpass response captured on 2026-09-25 local (2026-09-26 UTC), trimmed to ten ways of NW Cornelius Pass Rd |
 | `data/investigator/or-pilot-access-evidence.json` | the reviewed operator capture the browser replays, with per-source retrieval metadata |
 
-## 16. What this deliberately does not do
+## 17. What this deliberately does not do
 
 * No route ranking, no "best road", no score combining access with habitat or occurrence
 * No navigation or turn-by-turn directions
