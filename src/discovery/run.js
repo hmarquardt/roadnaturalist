@@ -8,6 +8,7 @@ import { buildDiscoveryResult } from './signals.js';
 import { summarizeDiscoveryCoverage } from './coverage.js';
 import { applyMarks } from './lifecycle.js';
 import { contains, intersects } from './regional-catalog.js';
+import { derivedCorridor, derivedMetrics, derivedUnit } from '../gis/derived-query.js';
 import { isRadiusSearchArea, resolveSearchArea } from './search-area.js';
 import { paddedBounds } from '../gis/habitat-result.js';
 
@@ -24,6 +25,15 @@ export async function runDiscovery({ gis, searchArea: declared, marks = {}, elig
   if (!searchArea?.bbox) throw new TypeError('Discovery needs a search area with bounds');
   const started = performance.now();
   const radiusSearch = isRadiusSearchArea(searchArea);
+  // A regional search reads the precomputed corridor metrics by default: the same deterministic metrics,
+  // measured offline and verified on load, so browsing a radius no longer re-runs the buffered analysis for
+  // every corridor. `raw: true` keeps the raw partitions for tests, debugging, and equivalence work, and a
+  // derived failure is reported as itself - it never silently degrades into the slow raw path.
+  let derivedScope = null;
+  if (searchArea.catalogUrl && searchArea.raw !== true) {
+    derivedScope = await gis.prepareDerivedSearch(searchArea, { onProgress });
+    if (derivedScope) return runDerivedDiscovery({ gis, searchArea, radiusSearch, started, marks, onProgress, scope: derivedScope });
+  }
   const regional = searchArea.catalogUrl ? await gis.prepareRegionalSearch(searchArea, { onProgress }) : null;
   const dataService = regional ?? gis;
   onProgress('Composing road corridors…');
@@ -108,6 +118,65 @@ export async function runDiscovery({ gis, searchArea: declared, marks = {}, elig
     // The source features are kept so a promoted corridor can be rebuilt as an ordinary candidate
     // without re-reading the extract.
     raw: { features, units: built.units, corridors },
+  };
+}
+
+// The derived discovery path: read the verified precomputed cells for the search box, deduplicate by corridor
+// id, keep the corridors the requested disk really contains, and publish ordinary discovery results. Coverage
+// comes from the derived selection (which cells exist) and from each corridor's own per-distance states, so a
+// derived run describes exactly what a raw run describes - without reading a single raw partition.
+async function runDerivedDiscovery({ gis, searchArea, radiusSearch, started, marks, onProgress, scope, limit = MAX_SEARCH_FEATURES }) {
+  const queryStarted = performance.now();
+  onProgress('Filtering precomputed corridors…');
+  const query = await scope.queryDerivedCorridors();
+  const rows = query.rows.slice(0, limit);
+  // Bounding boxes selected the cells; the actual search disk selects the corridors.
+  const selected = rows.filter(row => {
+    const bounds = [row.min_lon, row.min_lat, row.max_lon, row.max_lat];
+    if (!intersects(bounds, searchArea.bbox)) return false;
+    if (!radiusSearch) return true;
+    return minDistanceToLineM(searchArea.center, row.geometry) <= searchArea.radiusM;
+  });
+  const selectionMs = Math.round(performance.now() - queryStarted);
+  const buildStarted = performance.now();
+  const entries = selected.map(row => {
+    const bounds = [row.min_lon, row.min_lat, row.max_lon, row.max_lat];
+    return Object.freeze({ row, unit: derivedUnit(row, row.geometry, bounds),
+      corridor: derivedCorridor(row, row.geometry, bounds), metrics: derivedMetrics(row) });
+  });
+  const roadState = scope.selection.coverage;
+  const results = applyMarks(entries.map(entry => Object.freeze({
+    ...buildDiscoveryResult({ unit: entry.unit, corridor: entry.corridor, metrics: entry.metrics, roadState,
+      provenance: scope.provenance, analysisDistancesM: ANALYSIS_DISTANCES }),
+    derived: true, derivedFingerprint: scope.fingerprint,
+  })), marks);
+  const buildMs = Math.round(performance.now() - buildStarted);
+  const coverage = summarizeDiscoveryCoverage({ roadQuery: { coverage: roadState }, searchArea, results,
+    searchCoverage: { coverage: scope.selection.coverage, reason: scope.selection.reason }, eligibility: [],
+    diagnostics: { droppedShortUnits: 0 } });
+  return {
+    searchArea,
+    roadQuery: { coverage: roadState, provenance: scope.provenance, features: [],
+      diagnostics: { reason: scope.selection.reason, derived: true } },
+    status: 'ready', results, coverage, eligibility: Object.freeze([]),
+    diagnostics: {
+      derived: true, analysisFingerprint: scope.fingerprint, roadQueryMs: 0,
+      selectionMs, buildMs, totalMs: Math.round(performance.now() - started),
+      queryMs: query.queryMs ?? null, datasetErrors: [],
+      derivedSelection: { bounds: scope.selection.bounds, coverage: scope.selection.coverage,
+        cells: scope.selection.counts, bytes: scope.selection.bytes, manifest: scope.manifest },
+      derivedTimingMs: scope.timing, partitionSelection: null, partitionClosure: null, partitionTimingMs: scope.timing,
+      searchShape: radiusSearch ? { kind: 'radius', center: searchArea.center, radiusMiles: searchArea.radiusMiles, radiusM: searchArea.radiusM }
+        : { kind: 'bbox' },
+      counts: Object.freeze({ features: 0, eligibleUnits: entries.length, corridors: entries.length,
+        droppedShortUnits: 0, displayed: Math.min(results.length, MAX_RESULT_ROWS),
+        storedRows: query.rowCount ?? entries.length, unbufferableCorridors: 0, repairedCorridors: 0 }),
+      batch: Object.freeze({ status: 'precomputed', reason: null, queryMs: query.queryMs ?? null, phaseMs: {},
+        unbufferableCorridors: Object.freeze([]), repairedCorridors: Object.freeze([]), analyticalGeometry: null }),
+      note: 'Discovery read precomputed deterministic metrics (verified on load); the detailed panel still reads the raw regional partitions.',
+    },
+    derived: true,
+    raw: { features: [], units: entries.map(entry => entry.unit), corridors: entries },
   };
 }
 

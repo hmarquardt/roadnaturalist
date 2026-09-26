@@ -1,3 +1,11 @@
+`build-derived.py` builds the derived corridor-metrics plane: the published road partitions are composed into
+corridors with the browser's own modules (`compose-derived-corridors.mjs` -> `src/discovery/units.js` and
+`src/discovery/segment.js`), measured with the shared habitat metric expressions, written as per-cell
+GeoParquet on the 0.2-degree grid, and described by a manifest that carries the analysis fingerprint. Use it
+when the published road network or the analysis semantics change; `--bbox` bounds a build to a sub-box of the
+window (rows stay whole-window corridors, and the manifest declares the box it covers), and `--refresh`
+re-exports the source features. `scripts/verify-derived-equivalence.mjs` is the offline check of the result.
+
 # Offline preparation
 
 `build-regional.py` builds the first spatially partitioned Oregon discovery catalog and 18 GeoParquet cells from the pinned TIGER, NWI and NHD sources used by the pilot. `verify-regional.py` checks cell digests, schema/CRS, geometry, bounds and replication keys; `audit-regional-remote.mjs` audits the public Road Naturalist R2 objects, CORS and Range. See `docs/REGIONAL-DATA.md`.

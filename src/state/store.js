@@ -4,7 +4,7 @@ import { DISCOVERY_STATUS, markDiscovery } from '../discovery/lifecycle.js';
 
 export function createStore() {
   const initialQuery = Object.freeze({ status: 'idle', coverage: null, reason: null, provenance: null, missingRoadIds: [], note: null });
-  const initialDiscovery = Object.freeze({ status: 'idle', results: Object.freeze([]), coverage: null, diagnostics: null,
+  const initialDiscovery = Object.freeze({ status: 'idle', results: Object.freeze([]), coverage: null, diagnostics: null, promotionError: null,
     eligibility: Object.freeze([]), searchArea: null, selectedId: null, marks: Object.freeze({}), error: null,
     filters: DEFAULT_FILTERS, sort: DEFAULT_SORT, raw: null });
   let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, discovery: initialDiscovery });
@@ -37,6 +37,10 @@ export function createStore() {
     },
     // Marks are the only persisted discovery state: promoted and dismissed stay beside the results.
     setDiscoveryMarks(marks) { publishDiscovery({ marks: Object.freeze({ ...marks }) }); },
+    // Promotion of a precomputed corridor is verified against the raw regional partitions. When that
+    // verification fails the promotion is refused, and the reason is recorded here rather than hidden.
+    noteDiscoveryPromotion(id, reason) { publishDiscovery({ promotionError: Object.freeze({ id, reason }) }); },
+    clearDiscoveryPromotion() { publishDiscovery({ promotionError: null }); },
     setDiscoveryFilters(filters) { publishDiscovery({ filters: Object.freeze({ ...DEFAULT_FILTERS, ...filters }) }); },
     setDiscoverySort(sort) { publishDiscovery({ sort }); },
     // Promotion appends the discovered corridor to the normal candidate list, exactly like the pilot

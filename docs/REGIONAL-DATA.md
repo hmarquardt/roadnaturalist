@@ -429,7 +429,91 @@ A derived manifest would carry the fingerprint it was built with; a browser whos
 reports derived discovery as unavailable (`analysis version mismatch`) rather than showing numbers computed
 under different rules. That machinery is in place; the derived artifact itself is not built yet - see below.
 
-## Derived corridor metrics: what remains
+## Derived corridor metrics: what is built
+
+The plane described below is now built, published under `derived/corridor-metrics/<analysis-fingerprint>/`, and
+used by default for regional radius discovery. The build pipeline, the schema, the fingerprint gate, the runtime
+path, promotion verification, and the verifiers are all in place; the sections under "Build and verification"
+name the commands. The list that follows the implementation notes is the original design contract, unchanged.
+
+Build: `npm run build:derived` (`scripts/build-derived.py`).
+
+```
+regional road partitions (raw, immutable)
+  -> source features              the runtime's own dedupe key: (county_fips, source_feature_id, part)
+  -> corridor composition         node scripts/compose-derived-corridors.mjs -> src/discovery/units.js,
+                                  src/discovery/segment.js: the modules the browser composes with
+  -> analytical geometry          canonical geometry, else the shared point-preserving repair ladder
+  -> habitat metrics              the shared expressions from src/gis/habitat-metrics.js
+  -> derived rows
+  -> 0.2 degree cells             whole rows replicated into every cell their geometry intersects
+  -> GeoParquet + manifest        digest per cell, analysis fingerprint in the manifest
+```
+
+Corridor identity is not re-derived: the ids are the ones `segmentUnit` mints, so a derived row is the corridor
+`runDiscovery` would have built from the same window. Only the metric statements are re-expressed, and they are
+composed from the shared expressions the runtime exports (feature-area-sum wetlands, clipped-length and
+feature-count hydrography, Level III/IV overlap with the 99.5% FULL rule, per-distance coverage against the
+published extent), which `verify:derived-equivalence` checks against a live raw batch.
+
+Metrics are measured in spatial chunks (400 corridors) with the habitat relations restricted to the chunk's
+padded box, so a 6,440-corridor window is a sequence of neighbourhood jobs rather than one cross join. The
+chunk restriction is a bounding-box prefilter of the kind the runtime already applies per corridor.
+
+### Derived schema (one row per corridor)
+
+```
+corridor_id road_component_id road_unit_id name normalized_name geometry bounds length_m
+road_length_m tiger_class counties county_names road_ids road_classes source_feature_ids
+segment_index segment_count geometry_repaired geometry_repair_method
+primary_l3_code primary_l3_name primary_l3_percent primary_l4_code primary_l4_name primary_l4_percent
+l3_count l4_count transition_count ecology_coverage
+wetland_intersects wetland_nearest_m wetland_area_250_m2 wetland_area_500_m2 wetland_area_1000_m2
+wetland_count_250 wetland_count_500 wetland_count_1000 wetland_type_summary
+hydro_crossing_count hydro_nearest_flowing_m hydro_nearest_standing_m hydro_flowline_length_1000_m
+hydro_waterbody_area_1000_m2 hydro_summary
+coverage coverage_wetlands_250 coverage_wetlands_500 coverage_wetlands_1000
+coverage_hydro_250 coverage_hydro_500 coverage_hydro_1000 analysis_fingerprint
+```
+
+`geometry` is the canonical corridor geometry (EPSG:4326), which is what the map, the exact-radius test and
+promotion compare against; `geometry_repaired`/`geometry_repair_method` record whether the offline analysis used
+a repair. No occurrence, access, Investigator, annotation, or user state is stored.
+
+### Runtime path
+
+```
+search radius -> derived manifest -> fingerprint check -> select cells by search box -> fetch + verify digest
+  -> register buffers -> query rows (dedupe by corridor_id) -> exact disk test -> results -> map
+```
+
+`src/discovery/regional-catalog.js` reads the catalog, `src/discovery/derived-catalog.js` validates the derived
+manifest and applies the fingerprint gate, `src/gis/derived-query.js` reads and shapes the rows, and
+`src/discovery/run.js` filters by the actual search disk (`minDistanceToLineM`) so a radius search never becomes
+a square search. Derived cells need no 1 km halo: each row already carries complete metrics. A fingerprint
+mismatch or a missing artifact reports why the precomputed layer is unavailable; it never falls back to the raw
+regional path automatically, because a clear error beats a 90-second freeze.
+
+### Promotion
+
+Promotion rebuilds the corridor from the raw regional partitions (closure + the same composure modules), checks
+the id and geometry (<= 1 m drift) against the row the person selected, and refuses the promotion with
+`promotion verification failed: ...` when the reconstruction disagrees. The candidate is then built from the
+reconstructed raw corridor, so the detailed panel measures raw source geometry and reads raw regional habitat
+partitions - precomputed values are never detailed evidence.
+
+### Build and verification commands
+
+```
+npm run build:derived                 # offline build (uv + duckdb + shapely + pyarrow)
+npm run verify:derived-equivalence     # offline: manifest + fingerprint + captured derived/raw comparison
+npm run verify:regional-equivalence    # unchanged: batch vs detailed
+npm run capture:derived-equivalence    # opt-in: capture a real derived-vs-raw comparison
+npm run benchmark:derived              # opt-in: 10/25/50-mile derived benchmarks
+```
+
+## Derived corridor metrics: the original design contract
+
 
 The measurement above is why this layer exists, and the correctness work before it is why it is now safe to
 build: batch and detailed habitat agree on a real capture, the wetland semantics is a documented feature-area

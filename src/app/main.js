@@ -19,6 +19,11 @@ import { BROWSER_MIRRORS, createOsmSource, createRecordedOsmSource } from '../in
 import { PILOT_PROBES_BY_CORRIDOR } from '../investigator/sources.js';
 import { buildCorridorBundle } from '../investigator/bundle.js';
 import { runDiscovery } from '../discovery/run.js';
+import { buildDiscoveryUnits } from '../discovery/units.js';
+import { segmentUnit } from '../discovery/segment.js';
+import { eligibleClasses } from '../discovery/eligibility.js';
+import { minDistanceToLineM } from '../domain/geometry.js';
+import { ANALYSIS_DISTANCES_M } from '../gis/habitat-result.js';
 import { renderDiscovery, eligibilityNote } from '../ui/discovery.js';
 import { readDiscoveryMarks, writeDiscoveryMarks } from '../discovery/persistence.js';
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDiscoveryResult } from '../discovery/lifecycle.js';
@@ -99,10 +104,69 @@ async function discoverRoads() {
 
 // Promotion reuses the ordinary road/candidate builders, so a discovered corridor becomes a normal
 // candidate: same detail pipeline, same evidence workflow, and no Investigator probe entry required.
-function promoteDiscoveryCorridor(id) {
+// A precomputed corridor is an index, not evidence. Promotion rebuilds it from the raw regional partitions and
+// checks the id and the geometry before the corridor is allowed to become a candidate; a corridor that cannot be
+// reconstructed is refused instead of being analysed from precomputed geometry.
+const PROMOTION_MAX_DRIFT_M = 1;
+
+async function reconstructDerivedCorridor(result) {
+  const state = store.getState();
+  const catalogUrl = state.discovery.searchArea?.catalogUrl ?? null;
+  const entry = state.discovery.raw?.corridors?.find(item => item.corridor?.id === result.id) ?? null;
+  if (!entry) throw new Error('the precomputed row is no longer loaded');
+  const scope = await gis.prepareRegionalSearch({ bbox: entry.corridor.bounds, catalogUrl, distancesM: ANALYSIS_DISTANCES_M }, {});
+  const road = await scope.queryRoadNetwork({ bbox: entry.corridor.bounds, roadClasses: eligibleClasses(), limit: 100000 });
+  if (road.coverage !== COVERAGE.FULL && road.coverage !== COVERAGE.PARTIAL) {
+    throw new Error('the raw regional road network could not be read back');
+  }
+  for (const unit of buildDiscoveryUnits(road.features ?? []).units) {
+    for (const corridor of segmentUnit(unit).corridors) {
+      if (corridor.id !== result.id) continue;
+      const drift = maxDriftM(entry.corridor.geometry, corridor.geometry);
+      if (drift > PROMOTION_MAX_DRIFT_M) {
+        throw new Error(`the raw corridor differs from the precomputed row by about ${Math.round(drift)} m`);
+      }
+      return { unit, corridor, features: road.features ?? [] };
+    }
+  }
+  throw new Error('the raw regional road network does not compose this corridor id');
+}
+
+function maxDriftM(from, to) {
+  let worst = 0;
+  for (const line of linesOf(from)) {
+    for (const point of line) worst = Math.max(worst, minDistanceToLineM(point, to));
+  }
+  return worst;
+}
+
+function linesOf(geometry) {
+  if (geometry.type === 'LineString') return [geometry.coordinates];
+  return geometry.type === 'MultiLineString' ? geometry.coordinates : [];
+}
+
+async function promoteDiscoveryCorridor(id) {
   const state = store.getState();
   const result = state.discovery.results.find(entry => entry.id === id);
   if (!result) return;
+  if (result.derived) {
+    store.clearDiscoveryPromotion();
+    let rebuilt;
+    try {
+      rebuilt = await reconstructDerivedCorridor(result);
+    } catch (error) {
+      store.noteDiscoveryPromotion(id, `promotion verification failed: ${error.message}`);
+      return;
+    }
+    // The raw corridor is what becomes the candidate, so the detailed panel measures reconstructed source
+    // geometry and reads raw regional habitat data - precomputed values never stand in for detailed evidence.
+    const rebuiltCandidate = promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor,
+      provenance: state.discovery.raw?.provenance ?? null, dataCatalogUrl: state.discovery.searchArea?.catalogUrl ?? null });
+    store.promoteDiscoveryCandidate(rebuiltCandidate, id);
+    writeDiscoveryMarks(store.getState().discovery.marks);
+    nodes.list.scrollIntoView({ block: 'nearest' });
+    return;
+  }
   // The corridor object carries the canonical geometry of the row the person selected; the candidate is
   // built from it so the detailed panel measures the corridor that was promoted, not the whole road group.
   const corridor = state.discovery.raw?.corridors?.find(entry => entry.corridor?.id === id)?.corridor ?? null;

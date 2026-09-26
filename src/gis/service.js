@@ -3,6 +3,9 @@ import { corridorGeometry } from '../domain/geometry.js';
 import { loadManifest } from '../services/manifest.js';
 import { selectRegionalPartitions, validateRegionalCatalog } from '../discovery/regional-catalog.js';
 import { validateRoadComponents } from '../discovery/components.js';
+import { derivedAvailability, selectDerivedCells, validateDerivedManifest } from '../discovery/derived-catalog.js';
+import { derivedMetrics, derivedUnit, derivedCorridor, queryDerivedCorridors } from './derived-query.js';
+import { analysisFingerprint } from '../discovery/analysis-fingerprint.js';
 import { createAnalyticalGeometryQueries } from './analytical-geometry.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
 import { createHabitatQueries, HABITAT_DATASETS } from './habitat-query.js';
@@ -43,6 +46,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
   const files = new Map();
   const regionalFiles = new Map();
   let lastRegionalScope = null;
+  let lastDerivedScope = null;
   const diagnostics = { status: 'idle', duckdbVersion: DUCKDB_VERSION, spatial: 'not-loaded', datasets: [], initMs: null, firstQueryMs: null, lastQueryMs: null, firstRoadQueryMs: null, lastRoadQueryMs: null, roadDatasetBytes: null, firstNetworkQueryMs: null, lastNetworkQueryMs: null, networkDatasetBytes: null, firstHabitatQueryMs: null, lastHabitatQueryMs: null, habitatDatasetBytes: {}, firstDiscoveryQueryMs: null, lastDiscoveryQueryMs: null, discoveryCorridorCount: null, error: null };
 
   async function getManifest() { if (!catalog) catalog = await loadManifest(); return catalog; }
@@ -148,6 +152,118 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
     const opened = { name, bytes: part.bytes };
     regionalFiles.set(key, opened);
     return opened;
+  }
+
+  // ---------------------------------------------------------------- derived corridor metrics
+  // The derived layer is an acceleration path for browsing a regional radius: compact precomputed
+  // deterministic metrics, verified on load, keyed by an analysis fingerprint that must match the semantics
+  // this build implements. It never replaces the raw partitions, which remain what promotion reconstructs and
+  // what the detailed analysis reads.
+  const derivedManifestCache = new Map();
+  const derivedFiles = new Map();
+
+  async function getDerivedManifest(catalog) {
+    if (!catalog.derived?.manifestUrl) return null;
+    if (derivedManifestCache.has(catalog.version)) return derivedManifestCache.get(catalog.version);
+    const base = catalog.assetBaseUrl ? new URL(catalog.assetBaseUrl) : DATA_BASE;
+    const response = await fetch(new URL(catalog.derived.manifestUrl, base));
+    if (!response.ok) throw new Error(`Derived corridor metrics are unavailable: HTTP ${response.status}`);
+    const bytes = await response.arrayBuffer();
+    if (catalog.derived.manifestSha256) {
+      const digest = await sha256Hex(bytes);
+      if (digest !== catalog.derived.manifestSha256) throw new Error('Derived manifest SHA-256 mismatch');
+    }
+    const manifest = validateDerivedManifest(JSON.parse(new TextDecoder().decode(bytes)));
+    derivedManifestCache.set(catalog.version, manifest);
+    return manifest;
+  }
+
+  async function currentAnalysisFingerprint(catalog) {
+    try {
+      const { fingerprint } = await analysisFingerprint({ regionalCatalog: catalog, manifest: await getManifest() });
+      return fingerprint;
+    } catch (error) {
+      return { error: error.message };
+    }
+  }
+
+  async function openDerivedCell(cell, catalog, metrics) {
+    const key = `${catalog.version}/${cell.url}/${cell.sha256}`;
+    if (derivedFiles.has(key)) { metrics.cacheHits += 1; return derivedFiles.get(key); }
+    const base = catalog.assetBaseUrl ? new URL(catalog.assetBaseUrl) : DATA_BASE;
+    const started = performance.now();
+    const response = await fetch(new URL(cell.url, base));
+    if (!response.ok) throw new Error(`${cell.id} HTTP ${response.status}`);
+    const bytes = await response.arrayBuffer();
+    metrics.fetchMs += performance.now() - started;
+    const verifyStarted = performance.now();
+    if (bytes.byteLength !== cell.bytes) throw new Error(`${cell.id} byte count mismatch`);
+    const digest = await sha256Hex(bytes);
+    if (digest !== cell.sha256) throw new Error(`${cell.id} SHA-256 mismatch`);
+    metrics.verifyMs += performance.now() - verifyStarted;
+    const engine = await initialize();
+    const registerStarted = performance.now();
+    const name = `derived_${cell.sha256.slice(0, 20)}.parquet`;
+    await engine.db.registerFileBuffer(name, new Uint8Array(bytes));
+    metrics.registerMs += performance.now() - registerStarted;
+    metrics.downloadedBytes += cell.bytes;
+    const opened = { name, bytes: cell.bytes };
+    derivedFiles.set(key, opened);
+    return opened;
+  }
+
+  async function prepareDerivedSearch(searchArea, { onProgress = () => {} } = {}) {
+    const started = performance.now();
+    const catalog = await getRegionalCatalog(searchArea.catalogUrl);
+    const manifestMs = performance.now() - started;
+    // A region that never published a derived plane is not a failure: it keeps the raw regional path it always
+    // had. A region that publishes one and then cannot be trusted (fingerprint, digest, missing artifact) is a
+    // failure, and is reported as itself rather than quietly costing the search 90 seconds.
+    if (!catalog.derived) return null;
+    const fingerprint = await currentAnalysisFingerprint(catalog);
+    const manifest = await getDerivedManifest(catalog);
+    const availability = derivedAvailability(manifest, fingerprint);
+    if (!availability.available) {
+      const error = new Error(availability.reason);
+      error.derivedUnavailable = true;
+      error.expected = availability.expected ?? null;
+      error.published = availability.published ?? null;
+      throw error;
+    }
+    const selection = selectDerivedCells(manifest, searchArea.bbox);
+    const selectionMs = performance.now() - started - manifestMs;
+    if (selection.coverage === COVERAGE.NONE) {
+      const error = new Error(selection.reason);
+      error.coverage = selection.coverage;
+      throw error;
+    }
+    onProgress('Loading precomputed discovery metrics…');
+    const metrics = { fetchMs: 0, verifyMs: 0, registerMs: 0, downloadedBytes: 0, cacheHits: 0 };
+    const loaded = [];
+    for (const cell of selection.present) {
+      const file = await openDerivedCell(cell, catalog, metrics);
+      if (file) loaded.push(file);
+    }
+    const scope = {
+      derived: true, selection, fingerprint: manifest.analysisFingerprint,
+      manifest: { cells: manifest.cells.length, present: selection.counts.present, empty: selection.counts.empty,
+        counts: manifest.counts ?? null, region: manifest.region, semantics: manifest.semantics ?? null },
+      timing: Object.freeze({ manifestMs: Math.round(manifestMs), selectionMs: Math.round(selectionMs),
+        totalPreparationMs: Math.round(performance.now() - started), fetchMs: Math.round(metrics.fetchMs),
+        verifyMs: Math.round(metrics.verifyMs), registerMs: Math.round(metrics.registerMs),
+        downloadedBytes: metrics.downloadedBytes, cacheHits: metrics.cacheHits,
+        registeredCells: loaded.length }),
+      provenance: Object.freeze({ source: 'Precomputed from verified regional GIS', analysisFingerprint: manifest.analysisFingerprint,
+        regionVersion: catalog.version, derivedSchemaVersion: manifest.derivedSchemaVersion,
+        method: 'Deterministic discovery metrics computed offline from the published regional partitions',
+        note: 'Promotion reconstructs this corridor from the raw regional partitions and verifies it before any detailed analysis.' }),
+      async queryDerivedCorridors() {
+        const engine = await initialize();
+        return queryDerivedCorridors(engine, loaded.map(file => file.name));
+      },
+    };
+    lastDerivedScope = scope;
+    return scope;
   }
 
   // A selected cell that the catalog declares valid-and-empty contributes no rows but is still covered
@@ -467,7 +583,9 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
 
   return {
     get lastRegionalScope() { return lastRegionalScope; },
+    get lastDerivedScope() { return lastDerivedScope; },
     prepareRegionalSearch,
+    prepareDerivedSearch,
     initialize, openDataset, getEcoregions, queryRoads, getRoad, queryRoadNetwork,
     ...habitat,
     // Exposed so the browser regression test can ask the same shared boundary what geometry it would use
@@ -504,6 +622,11 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
 function validateBounds(bbox) {
   if (!Array.isArray(bbox) || bbox.length !== 4 || !bbox.every(Number.isFinite)) throw new TypeError('Road query bounds must be four finite numbers');
   if (bbox[0] >= bbox[2] || bbox[1] >= bbox[3]) throw new TypeError('Road query bounds must be ordered min/max');
+}
+
+function sha256Hex(buffer) {
+  return crypto.subtle.digest('SHA-256', buffer).then(digest =>
+    Array.from(new Uint8Array(digest)).map(byte => byte.toString(16).padStart(2, '0')).join(''));
 }
 
 function mapRoadRow(row) {

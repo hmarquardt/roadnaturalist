@@ -25,7 +25,11 @@
     "verify:regional-equivalence": "node scripts/verify-regional-equivalence.mjs",
     "capture:regional-equivalence": "RUN_REGIONAL_EQUIVALENCE_CAPTURE=1 playwright test tests/regional-equivalence.capture.spec.js --reporter=line --retries=0",
     "verify:regional:production": "RUN_REGIONAL_PRODUCTION=1 playwright test tests/regional-production.spec.js --reporter=line --retries=0",
-    "verify:regional:remote": "RUN_REGIONAL_REMOTE=1 playwright test tests/regional-remote.spec.js --reporter=line --retries=0"
+    "verify:regional:remote": "RUN_REGIONAL_REMOTE=1 playwright test tests/regional-remote.spec.js --reporter=line --retries=0",
+    "build:derived": "uv run --python 3.12 --with duckdb --with shapely --with pyarrow python3 scripts/build-derived.py",
+    "verify:derived-equivalence": "node scripts/verify-derived-equivalence.mjs",
+    "capture:derived-equivalence": "RUN_DERIVED_EQUIVALENCE_CAPTURE=1 playwright test tests/derived-equivalence.capture.spec.js --reporter=line --retries=0",
+    "benchmark:derived": "RUN_DERIVED_BENCHMARK=1 playwright test tests/derived-benchmark.spec.js --reporter=line --retries=0"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"
