@@ -56,7 +56,16 @@ test('the search box selects cells and reports coverage against the published re
   assert.equal(outside.bytes, 0);
 });
 
-test('derived rows carry the block shapes the interface and result builder already use', () => {
+test('a region without a published derived plane is not a failure', () => {
+  // runDiscovery asks for a derived scope and only takes the derived path when it gets one; a region that never
+  // published the plane keeps the raw regional search it always had, while a published plane that cannot be
+  // trusted is reported as an error rather than quietly degrading into the 90-second raw search.
+  const catalogWithoutDerived = { version: 'or-sw-wa-portland-v2' };
+  assert.equal(catalogWithoutDerived.derived, undefined);
+  assert.equal(derivedAvailability(null, 'b'.repeat(64)).available, false);
+});
+
+test('derived rows carry the block shapes the interface and result builder already use'`, () => {
   const row = { corridor_id: 'drv1-main-st-s2', road_component_id: 'drv1-main-st', road_unit_id: 'drv1-main-st',
     name: 'Main St', normalized_name: 'main st', length_m: 1200, road_classes: ['S1100'], county_names: ['Multnomah County, Oregon'],
     counties: ['41051'], road_ids: ['tiger-2025-or-41051-main-st'], source_feature_ids: ['1', '2'], segment_index: 2, segment_count: 2,
