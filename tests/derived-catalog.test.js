@@ -65,7 +65,7 @@ test('a region without a published derived plane is not a failure', () => {
   assert.equal(derivedAvailability(null, 'b'.repeat(64)).available, false);
 });
 
-test('derived rows carry the block shapes the interface and result builder already use'`, () => {
+test('derived rows carry the block shapes the interface and result builder already use', () => {
   const row = { corridor_id: 'drv1-main-st-s2', road_component_id: 'drv1-main-st', road_unit_id: 'drv1-main-st',
     name: 'Main St', normalized_name: 'main st', length_m: 1200, road_classes: ['S1100'], county_names: ['Multnomah County, Oregon'],
     counties: ['41051'], road_ids: ['tiger-2025-or-41051-main-st'], source_feature_ids: ['1', '2'], segment_index: 2, segment_count: 2,
