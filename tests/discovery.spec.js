@@ -27,7 +27,7 @@ async function watchExternal(page) {
 async function runDiscovery(page) {
   // The workspace renders its controls as soon as the app boots; waiting for that keeps a slow module
   // load from looking like a missing button.
-  await expect(page.locator('#discover-roads')).toBeVisible({ timeout: 60000 });
+  await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   await page.click('#discover-roads');
   await expect(page.locator('#discovery')).toContainText('Discovery coverage', { timeout: 110000 });
 }
@@ -35,7 +35,8 @@ async function runDiscovery(page) {
 test.beforeEach(async ({ page }) => {
   // DuckDB-WASM and the bounded extracts are heavy: give every discovery page the same bounded boot.
   await page.goto('/');
-  await expect(page.locator('#discover-roads')).toBeVisible({ timeout: 60000 });
+  // The button stays disabled until the search-area declaration has loaded: a survey cannot run without one.
+  await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
 });
 
 test('discovery surveys the pilot area with real data, and reaches no external evidence source', async ({ page }) => {
@@ -151,7 +152,7 @@ test('a discovery run without the GIS engine reports UNKNOWN coverage, never an 
 test('the discovery workspace stays usable at 390px', async ({ page }) => {
   test.slow();
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('#discover-roads')).toBeVisible({ timeout: 30000 });
+  await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 30000 });
   await runDiscovery(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage');
   await page.locator('#discovery-results tbody tr button').first().click();

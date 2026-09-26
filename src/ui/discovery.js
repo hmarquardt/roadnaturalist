@@ -54,14 +54,16 @@ function controls({ discovery, searchAreas, searchAreaId, onDiscover, onSearchAr
   const button = el('button', 'primary-button', discovery.status === 'running' ? 'Discovering…' : 'Discover roads');
   button.type = 'button';
   button.id = 'discover-roads';
-  // The button is created together with its listener, so it never needs a pre-attach disabled state.
-  button.disabled = discovery.status === 'running';
+  // The button is created together with its listener, so it never needs a pre-attach disabled state. It
+  // does stay disabled until the search-area declaration has loaded: a survey cannot run without one.
+  button.disabled = discovery.status === 'running' || !searchAreas.length;
   button.addEventListener('click', () => onDiscover?.());
   block.append(button);
-  if (discovery.status !== 'idle' && discovery.status !== 'ready') {
-    block.append(el('p', 'discovery-status', discovery.status === 'running'
-      ? 'Surveying the bounded road network and measuring wetland, hydrography, and ecoregion context…'
-      : 'The road-network extract could not be read.'));
+  if (!searchAreas.length) block.append(el('p', 'discovery-status', 'Loading the discovery search-area declaration…'));
+  if (discovery.status === 'running') {
+    block.append(el('p', 'discovery-status', 'Surveying the bounded road network and measuring wetland, hydrography, and ecoregion context…'));
+  } else if (discovery.status === 'unavailable' && !discovery.error) {
+    block.append(el('p', 'discovery-status', 'The road-network extract could not be read.'));
   }
   return block;
 }
