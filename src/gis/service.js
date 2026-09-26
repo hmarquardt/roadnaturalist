@@ -3,6 +3,7 @@ import { corridorGeometry, corridorWkt } from '../domain/geometry.js';
 import { loadManifest } from '../services/manifest.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
 import { createHabitatQueries } from './habitat-query.js';
+import { createDiscoveryQueries } from './discovery-query.js';
 import { createOccurrenceQueries } from './occurrence-query.js';
 import { summarizeRoadQuery } from './road-result.js';
 
@@ -10,11 +11,16 @@ const DUCKDB_VERSION = '1.30.0';
 const DUCKDB_ESM = `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/+esm`;
 const DATA_BASE = new URL('../../data/', import.meta.url);
 const ROAD_DATASET_ID = 'or-roads-pilot';
+// The bounded discovery network extract: all road features of the discovery-relevant TIGER classes
+// inside the habitat analysis window. See scripts/build-road-network.py and docs/DISCOVERY.md.
+const NETWORK_DATASET_ID = 'or-roads-network-pilot';
 const ROAD_COLUMNS = 'road_id, name, road_class, route_type, county_fips, county_name, source_feature_id, part, ' +
   'length_m, source_agency, source_dataset, source_vintage, source_publication_date, source_url, ' +
   'source_archive_sha256, source_crs, crs, pipeline_version, normalization';
 const IDENTIFIER = /^[A-Za-z0-9._:-]+$/;
+const ROAD_CLASS = /^[A-Z][0-9]{4}$/;
 const MAX_ROAD_ROWS = 2000;
+const MAX_NETWORK_ROWS = 20000;
 
 function unknown(reason, datasets = []) {
   return { coverage: COVERAGE.UNKNOWN, level3: null, level4: null, spansMultiple: false,
@@ -27,7 +33,7 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
   let catalog = manifest;
   let enginePromise = null;
   const files = new Map();
-  const diagnostics = { status: 'idle', duckdbVersion: DUCKDB_VERSION, spatial: 'not-loaded', datasets: [], initMs: null, firstQueryMs: null, lastQueryMs: null, firstRoadQueryMs: null, lastRoadQueryMs: null, roadDatasetBytes: null, firstHabitatQueryMs: null, lastHabitatQueryMs: null, habitatDatasetBytes: {}, error: null };
+  const diagnostics = { status: 'idle', duckdbVersion: DUCKDB_VERSION, spatial: 'not-loaded', datasets: [], initMs: null, firstQueryMs: null, lastQueryMs: null, firstRoadQueryMs: null, lastRoadQueryMs: null, roadDatasetBytes: null, firstNetworkQueryMs: null, lastNetworkQueryMs: null, networkDatasetBytes: null, firstHabitatQueryMs: null, lastHabitatQueryMs: null, habitatDatasetBytes: {}, firstDiscoveryQueryMs: null, lastDiscoveryQueryMs: null, discoveryCorridorCount: null, error: null };
 
   async function getManifest() { if (!catalog) catalog = await loadManifest(); return catalog; }
 
@@ -88,38 +94,54 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
 
   // Road source features are returned as plain data rows plus dataset provenance. Turning them
   // into normalized roads/corridors happens in src/roads; DuckDB and SQL stay in this layer.
-  async function queryRoads({ roadIds = null, bbox = null, limit = MAX_ROAD_ROWS } = {}) {
+  async function queryRoads({ roadIds = null, bbox = null, limit = MAX_ROAD_ROWS, datasetId = ROAD_DATASET_ID, roadClasses = null,
+    insideOnly = false } = {}) {
     const requested = roadIds ? [...new Set(roadIds.map(String))] : [];
     for (const roadId of requested) if (!IDENTIFIER.test(roadId)) throw new TypeError(`Invalid road id: ${roadId}`);
+    const classes = roadClasses ? [...new Set(roadClasses.map(String))] : null;
+    for (const roadClass of classes ?? []) if (!ROAD_CLASS.test(roadClass)) throw new TypeError(`Invalid road class: ${roadClass}`);
     if (bbox) validateBounds(bbox);
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_ROAD_ROWS) throw new TypeError('Road query limit must be a small positive integer');
+    const limitCap = datasetId === NETWORK_DATASET_ID ? MAX_NETWORK_ROWS : MAX_ROAD_ROWS;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > limitCap) throw new TypeError('Road query limit must be a small positive integer');
     let entry = null;
     try {
-      entry = await openDataset(ROAD_DATASET_ID);
+      entry = await openDataset(datasetId);
       const engine = await initialize();
       const conditions = [];
       if (requested.length) conditions.push(`road_id IN (${requested.map(roadId => `'${roadId}'`).join(', ')})`);
-      if (bbox) conditions.push(`min_lon <= ${bbox[2]} AND max_lon >= ${bbox[0]} AND min_lat <= ${bbox[3]} AND max_lat >= ${bbox[1]}`);
+      if (classes?.length) conditions.push(`road_class IN (${classes.map(roadClass => `'${roadClass}'`).join(', ')})`);
+      // Discovery reads the bounded extract exactly as it was built: every vertex inside the window, so a
+      // corridor is never half outside the area its coverage claims describe. The pilot path keeps the
+      // overlap semantics it was audited with.
+      if (bbox && insideOnly) conditions.push(`min_lon >= ${bbox[0]} AND max_lon <= ${bbox[2]} AND min_lat >= ${bbox[1]} AND max_lat <= ${bbox[3]}`);
+      else if (bbox) conditions.push(`min_lon <= ${bbox[2]} AND max_lon >= ${bbox[0]} AND min_lat <= ${bbox[3]} AND max_lat >= ${bbox[1]}`);
       const sql = `SELECT ${ROAD_COLUMNS}, ST_AsGeoJSON(geometry) AS geometry_json\n` +
         `FROM read_parquet('${entry.registeredName}')${conditions.length ? `\nWHERE ${conditions.join(' AND ')}` : ''}\n` +
         `ORDER BY road_id, source_feature_id, part LIMIT ${limit}`;
       const started = performance.now();
       const rows = (await engine.conn.query(sql)).toArray().map(mapRoadRow);
-      diagnostics.lastRoadQueryMs = Math.round(performance.now() - started);
-      diagnostics.firstRoadQueryMs ??= diagnostics.lastRoadQueryMs;
-      diagnostics.roadDatasetBytes = entry.transferredBytes;
+      const queryMs = Math.round(performance.now() - started);
+      if (datasetId === NETWORK_DATASET_ID) {
+        diagnostics.lastNetworkQueryMs = queryMs;
+        diagnostics.firstNetworkQueryMs ??= queryMs;
+        diagnostics.networkDatasetBytes = entry.transferredBytes;
+      } else {
+        diagnostics.lastRoadQueryMs = queryMs;
+        diagnostics.firstRoadQueryMs ??= queryMs;
+        diagnostics.roadDatasetBytes = entry.transferredBytes;
+      }
       diagnostics.error = null;
       const foundRoadIds = [...new Set(rows.map(row => row.roadId))];
       const coverage = summarizeRoadQuery({ requestedRoadIds: requested, foundRoadIds, featureCount: rows.length, bounded: true });
       return {
-        ...coverage, features: rows, bounded: true,
+        ...coverage, features: rows, bounded: true, datasetId,
         provenance: roadDatasetProvenance(entry, rows),
-        diagnostics: { status: 'ready', reason: null, queryMs: diagnostics.lastRoadQueryMs, engineInitMs: diagnostics.initMs, datasetBytes: entry.transferredBytes },
+        diagnostics: { status: 'ready', reason: null, queryMs, engineInitMs: diagnostics.initMs, datasetBytes: entry.transferredBytes },
       };
     } catch (error) {
       diagnostics.error = error.message;
       const coverage = summarizeRoadQuery({ requestedRoadIds: requested, reason: error.message });
-      return { ...coverage, features: [], bounded: true, provenance: entry ? roadDatasetProvenance(entry, []) : null,
+      return { ...coverage, features: [], bounded: true, datasetId, provenance: entry ? roadDatasetProvenance(entry, []) : null,
         diagnostics: { status: 'unavailable', reason: error.message, queryMs: null, datasetBytes: entry?.transferredBytes ?? null } };
     }
   }
@@ -127,6 +149,13 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
   async function getRoad(roadId) {
     const result = await queryRoads({ roadIds: [String(roadId)] });
     return { ...result, roadId: String(roadId), roadFeatures: result.features.filter(feature => feature.roadId === String(roadId)) };
+  }
+
+  // Candidate discovery reads the bounded network extract through the same road reader, filtered to
+  // the TIGER classes the discovery eligibility rules allow. The whole artifact is never transferred
+  // into JavaScript when a narrower question is being asked.
+  async function queryRoadNetwork({ bbox = null, roadClasses = null, limit = MAX_NETWORK_ROWS } = {}) {
+    return queryRoads({ bbox, roadClasses, limit, datasetId: NETWORK_DATASET_ID, insideOnly: true });
   }
 
   async function getEcoregions(corridor) {
@@ -168,13 +197,30 @@ export function createGisService({ manifest = null, engineFactory = defaultEngin
     },
   });
 
+  // Discovery analysis is the set-oriented counterpart of the habitat queries: one batch per dataset
+  // for every discovered corridor at once, using the same measurement definitions.
+  const discovery = createDiscoveryQueries({
+    openDataset, initialize, provenance: habitat.provenance,
+    record: (datasetId, entry, queryMs, error) => {
+      if (error) { diagnostics.error = error; return; }
+      diagnostics.firstDiscoveryQueryMs ??= queryMs;
+      diagnostics.lastDiscoveryQueryMs = queryMs;
+      if (entry) diagnostics.habitatDatasetBytes = { ...diagnostics.habitatDatasetBytes, [datasetId]: entry.transferredBytes };
+    },
+  });
+
   // Occurrence distance measurement reuses the same DuckDB engine and EPSG:5070 measurement path;
   // the occurrence layer owns the source adapters and the privacy rules.
   const occurrenceQueries = createOccurrenceQueries({ initialize });
 
   return {
-    initialize, openDataset, getEcoregions, queryRoads, getRoad,
+    initialize, openDataset, getEcoregions, queryRoads, getRoad, queryRoadNetwork,
     ...habitat,
+    async analyzeDiscovery(corridors, options = {}) {
+      const result = await discovery.analyzeDiscoveryCorridors(corridors, options);
+      diagnostics.discoveryCorridorCount = Object.keys(result.corridors).length;
+      return result;
+    },
     measureOccurrenceDistances: occurrenceQueries.measureCorridorDistances,
     async getCoverage(datasetId, target) {
       if (datasetId === ROAD_DATASET_ID) {

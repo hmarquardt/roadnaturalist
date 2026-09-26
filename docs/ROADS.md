@@ -4,6 +4,20 @@ This is the first real **road geometry** dataset in Road Naturalist. It replaces
 sample corridor: corridors now carry geometry from an identified public source, and the same GIS
 service that resolves EPA ecoregions also retrieves those road features.
 
+There are two bounded road artifacts from the same pinned TIGER/Line 2025 county archives:
+
+* `data/gis/or-roads-pilot-2025.parquet` — the three hand-selected pilot roads (`scripts/build-roads.py`),
+  the geometry the declared pilot candidates compose;
+* `data/gis/or-roads-network-2025.parquet` — the whole pilot window's eligible road network
+  (`scripts/build-road-network.py`), the extract candidate discovery surveys. See
+  [docs/DISCOVERY.md](DISCOVERY.md).
+
+Both verify the same source digests, both keep the published NAD83 decimal degrees in an EPSG:4326
+column, and both measure lengths in meters. The pilot artifact reports EPSG:5070 lengths; the network
+artifact reports the same spherical length the browser's own `haversineM` computes, so its unit and
+corridor counts agree with what the application displays. Neither artifact is clipped: a feature that
+leaves its window is excluded rather than cut.
+
 ```text
 U.S. Census Bureau TIGER/Line 2025 ROADS (pinned county archives)
         ↓  source verification (SHA-256, expected road/county feature counts)
@@ -238,10 +252,12 @@ consistency), the geometry rules against real coordinates (duplicate collapse, u
 invented vertices, order independence), the domain model (provenance survival, attribute states,
 candidate composition), road coverage semantics, and the GIS boundary: real road features through
 `queryRoads`, provider failures as `UNKNOWN`, and the real composed corridor flowing into the EPA
-query. `tests/app.spec.js` runs the pilot in Chromium with real DuckDB-WASM + Spatial and checks the
-rendered road facts, ecology, coverage rows, map selection, and mobile layout, while a run with the
-DuckDB bundle blocked asserts the honest degraded state. Every Node test is offline: the source
-archives are never downloaded during tests.
+query. `tests/discovery.test.js` and `tests/discovery.spec.js` cover the network extract, road
+eligibility, named-road units, segmentation, batch analysis, coverage, lifecycle, and promotion; see
+[docs/DISCOVERY.md](DISCOVERY.md). `tests/app.spec.js` runs the pilot in Chromium with real
+DuckDB-WASM + Spatial and checks the rendered road facts, ecology, coverage rows, map selection, and
+mobile layout, while a run with the DuckDB bundle blocked asserts the honest degraded state. Every Node
+test is offline: the source archives are never downloaded during tests.
 
 ## Next steps (not in this task)
 

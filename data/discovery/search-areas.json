@@ -1,0 +1,21 @@
+{
+  "kind": "road-discovery-search-areas",
+  "version": 1,
+  "note": "Bounded areas candidate discovery can survey. A search area must lie inside the loaded road-network extract and the loaded habitat extracts; discovery reports PARTIAL coverage rather than guessing when it does not. This is a pilot window, not national coverage.",
+  "searchAreas": [
+    {
+      "id": "or-pilot-window",
+      "name": "Oregon pilot area",
+      "datasetId": "or-roads-network-pilot",
+      "bbox": [-123.07, 45.505, -122.75, 45.67],
+      "requires": [
+        "or-roads-network-pilot",
+        "nwi-wetlands-or-pilot",
+        "nhd-hydrography-or-pilot",
+        "epa-ecoregions-or-l3",
+        "epa-ecoregions-or-l4"
+      ],
+      "note": "The same bounded window the road, wetland, hydrography, and ecoregion extracts were built for: about 25 km by 18 km west of Portland, Oregon, in Washington and Multnomah counties."
+    }
+  ]
+}

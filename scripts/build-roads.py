@@ -10,26 +10,18 @@ See docs/ROADS.md for the source decision, regeneration command, and limitations
 import argparse
 import hashlib
 import json
-import urllib.request
-import zipfile
 from pathlib import Path
 
 import duckdb
-import pyarrow as pa
-import pyarrow.parquet as pq
-import shapefile
-from pyproj import CRS, Transformer
+from pyproj import CRS
 from shapely import wkb as shapely_wkb
 from shapely.geometry import LineString
 
+from tiger_sources import (COUNTIES, PILOT_BBOX, SOURCE_AGENCY, SOURCE_BASE, SOURCE_CRS, SOURCE_DATASET, SOURCE_DOCS,
+                           SOURCE_LICENSE, SOURCE_PUBLICATION_DATE, SOURCE_VINTAGE, bounds_of, clean, composed_lines,
+                           feature_parts, line_length_m, open_roads, slug, source_archive, within, write_geoparquet)
+
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_BASE = "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/"
-SOURCE_AGENCY = "U.S. Census Bureau"
-SOURCE_DATASET = "TIGER/Line 2025 ROADS (county road centerlines)"
-SOURCE_VINTAGE = "TIGER2025"
-SOURCE_PUBLICATION_DATE = "2025-09-22"
-SOURCE_DOCS = "https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html"
-SOURCE_LICENSE = "Public domain (U.S. Government work)"
 PIPELINE_VERSION = "road-ingest-v1"
 NORMALIZATION = (
     "Filter TIGER/Line county ROADS features by pilot road name and pilot bounding box; split multi-part shapes "
@@ -39,14 +31,6 @@ NORMALIZATION = (
 DATASET_ID = "or-roads-pilot"
 DATASET_VERSION = "tiger-2025-v1"
 DATASET_SCOPE = "Oregon road centerline pilot (Washington and Multnomah County extract)"
-COUNTIES = {
-    "41067": ("Washington County, Oregon", "tl_2025_41067_roads.zip",
-              "fda13013515689b57a500462db9b19bdd4dc0c3a70d341eec7eb9f7d7c42eea7"),
-    "41051": ("Multnomah County, Oregon", "tl_2025_41051_roads.zip",
-              "30ae0afe1a0bb6685da281b8ad97fc708876b61e9bfc7c1f0f96118d33d3cb92"),
-}
-# Bounded extraction window. The pilot is a bounded extract, not a county or state road catalog.
-PILOT_BBOX = (-123.10, 45.50, -122.70, 45.70)
 # Source verification: the road/county pairs and source feature counts this pilot was designed against.
 # NW Springville Rd and NW Cornelius Pass Rd both cross the Washington/Multnomah county line, so one real road
 # becomes two county-scoped road records that a candidate composes (see docs/ROADS.md).
@@ -59,96 +43,62 @@ PILOT_ROADS = [
 ]
 PROVENANCE = {
     "source_agency": SOURCE_AGENCY, "source_dataset": SOURCE_DATASET, "source_vintage": SOURCE_VINTAGE,
-    "source_publication_date": SOURCE_PUBLICATION_DATE, "source_crs": "EPSG:4269", "crs": "EPSG:4326",
+    "source_publication_date": SOURCE_PUBLICATION_DATE, "source_crs": SOURCE_CRS, "crs": "EPSG:4326",
     "pipeline_version": PIPELINE_VERSION, "normalization": NORMALIZATION,
 }
-# Conus Albers (EPSG:5070) meters for deterministic length and endpoint measurements.
-TO_METERS = Transformer.from_crs(4326, 5070, always_xy=True).transform
-# Composition tolerance mirrors src/roads/normalize.js: short junction gaps are joined in order,
-# larger gaps are reported as unresolved rather than invented.
-COMPOSITION_TOLERANCE_M = 150.0
-REVERSED_LINK_LENGTH_RATIO = 0.25
-
-
-def slug(text):
-    cleaned = "".join(char.lower() if char.isalnum() else "-" for char in str(text))
-    return "-".join(part for part in cleaned.split("-") if part)
 
 
 def road_id(county_fips, name):
     return f"tiger-2025-or-{county_fips}-{slug(name)}"
 
 
-def source_archive(county_fips, supplied, cache, download):
-    name, digest = COUNTIES[county_fips][1], COUNTIES[county_fips][2]
-    path = supplied or cache / name
-    if not path.exists():
-        if not download:
-            raise FileNotFoundError(f"{path} missing; pass --download or --archive")
-        cache.mkdir(parents=True, exist_ok=True)
-        urllib.request.urlretrieve(SOURCE_BASE + name, path)
-    actual = hashlib.sha256(path.read_bytes()).hexdigest()
-    if actual != digest:
-        raise ValueError(f"{name} SHA-256 mismatch: {actual} (source republished? see docs/ROADS.md)")
-    return path
-
-
-def clean(coords):
-    """Drop consecutive duplicate vertices; real centerlines repeat junction vertices."""
-    kept = []
-    for point in coords:
-        if kept and (point[0], point[1]) == (kept[-1][0], kept[-1][1]):
-            continue
-        kept.append((float(point[0]), float(point[1])))
-    return kept
-
-
 def read_county(county_fips, archive):
-    stem = Path(COUNTIES[county_fips][1]).stem
+    """Extract the pilot's named roads from one county ROADS archive.
+
+    Names are matched exactly as TIGER/Line publishes them (FULLNAME), and a matched feature that
+    leaves the pilot window is an error rather than a silent clip: the pilot must hold whole roads.
+    """
     county_name = COUNTIES[county_fips][0]
     names = {name for name, fips, _ in PILOT_ROADS if fips == county_fips}
     rows = []
-    with zipfile.ZipFile(archive) as archive_zip:
-        source_crs = CRS.from_wkt(archive_zip.read(stem + ".prj").decode())
-        if source_crs.to_authority() != ("EPSG", "4269"):
-            raise ValueError(f"{county_fips} source CRS is {source_crs.to_authority()}, expected EPSG:4269")
-        project = Transformer.from_crs(source_crs, 4326, always_xy=True).transform
-        reader = shapefile.Reader(shp=archive_zip.open(stem + ".shp"), shx=archive_zip.open(stem + ".shx"),
-                                  dbf=archive_zip.open(stem + ".dbf"), encoding="latin1")
-        fields = [field[0] for field in reader.fields[1:]]
-        for feature in reader.iterShapeRecords():
-            record = dict(zip(fields, feature.record))
+    with open_roads(county_fips, archive) as (reader, fields, _source_crs):
+        for record, part_index, coords in feature_parts(reader, fields):
             name = str(record.get("FULLNAME") or "").strip()
             if name not in names:
                 continue
-            geometry = feature.shape.__geo_interface__
-            parts = geometry["coordinates"] if geometry["type"] == "MultiLineString" else [geometry["coordinates"]]
-            for part_index, part in enumerate(parts):
-                coords = clean(part)
-                xs = [point[0] for point in coords]
-                ys = [point[1] for point in coords]
-                if min(xs) < PILOT_BBOX[0] or max(xs) > PILOT_BBOX[2] or min(ys) < PILOT_BBOX[1] or max(ys) > PILOT_BBOX[3]:
-                    raise ValueError(f"{name} source feature {record['LINEARID']} leaves the pilot bounding box")
-                if len(coords) < 2:
-                    raise ValueError(f"{name} source feature {record['LINEARID']} has fewer than two vertices")
-                projected = [TO_METERS(lon, lat) for lon, lat in coords]
-                length_m = sum(
-                    ((projected[i][0] - projected[i - 1][0]) ** 2 + (projected[i][1] - projected[i - 1][1]) ** 2) ** 0.5
-                    for i in range(1, len(projected)))
-                line = LineString(coords)
-                if line.is_empty or not line.is_valid or line.length <= 0:
-                    raise ValueError(f"Invalid geometry for {name} source feature {record['LINEARID']}")
-                rows.append({
-                    "road_id": road_id(county_fips, name), "name": name, "road_class": str(record["MTFCC"]),
-                    "route_type": str(record.get("RTTYP") or ""), "county_fips": county_fips, "county_name": county_name,
-                    "source_feature_id": str(record["LINEARID"]), "part": part_index, "point_count": len(coords),
-                    "length_m": round(length_m, 3), "min_lon": min(xs), "min_lat": min(ys), "max_lon": max(xs),
-                    "max_lat": max(ys), "source_url": SOURCE_BASE + COUNTIES[county_fips][1],
-                    "source_archive_sha256": COUNTIES[county_fips][2], **PROVENANCE, "geometry": line.wkb,
-                })
+            if not within(PILOT_BBOX, coords):
+                raise ValueError(f"{name} source feature {record['LINEARID']} leaves the pilot bounding box")
+            if len(coords) < 2:
+                raise ValueError(f"{name} source feature {record['LINEARID']} has fewer than two vertices")
+            rows.append(pilot_row(county_fips, county_name, record, part_index, name, coords))
     if not rows:
         raise ValueError(f"No pilot road features found in {archive}")
     return rows
+
+
+def pilot_row(county_fips, county_name, record, part_index, name, coords):
+    length_m = line_length_m(coords)
+    line = LineString(coords)
+    if line.is_empty or not line.is_valid or line.length <= 0:
+        raise ValueError(f"Invalid geometry for {name} source feature {record['LINEARID']}")
+    min_lon, min_lat, max_lon, max_lat = bounds_of(coords)
+    return {
+        "road_id": road_id(county_fips, name), "name": name, "road_class": str(record["MTFCC"]),
+        "route_type": str(record.get("RTTYP") or ""), "county_fips": county_fips, "county_name": county_name,
+        "source_feature_id": str(record["LINEARID"]), "part": part_index, "point_count": len(coords),
+        "length_m": round(length_m, 3), "min_lon": min_lon, "min_lat": min_lat, "max_lon": max_lon,
+        "max_lat": max_lat, "source_url": SOURCE_BASE + COUNTIES[county_fips][1],
+        "source_archive_sha256": COUNTIES[county_fips][2], **PROVENANCE, "geometry": line.wkb,
+    }
+
+
+def source_lines(rows):
+    """Composed source geometry for offline verification of one county-scoped road.
+
+    Ordering and canonical geometry are decided in the browser normalizer, not here; this only
+    applies the same duplicate handling so the offline numbers and the browser agree.
+    """
+    return composed_lines([{"coordinates": list(shapely_wkb.loads(row["geometry"]).coords)} for row in rows])
 
 
 def verify_source_coverage(rows):
@@ -164,83 +114,12 @@ def verify_source_coverage(rows):
         raise ValueError("Unexpected pilot road/county pairs in the source extract")
 
 
-def composed_lines(rows):
-    """Duplicate handling that mirrors src/roads/normalize.js, used only for offline verification.
-
-    Exact duplicates (same or reversed vertex sequence) are dropped, and a pair of features that
-    digitizes the same junction link in opposite directions is collapsed to the longer one.
-    Ordering and canonical geometry are decided in the browser normalizer, not here.
-    """
-    key = lambda line: (-line_length_m(line), tuple(line[0]), tuple(line[-1]))
-    kept, seen = [], set()
-    for line in sorted([list(shapely_wkb.loads(row["geometry"]).coords) for row in rows], key=key):
-        sequences = (tuple(line), tuple(reversed(line)))
-        if sequences[0] in seen or sequences[1] in seen:
-            continue
-        seen.update(sequences)
-        kept.append(line)
-    collapsed = []
-    for line in kept:
-        if not any(is_reversed_link(line, other) for other in collapsed):
-            collapsed.append(line)
-    return collapsed
-
-
-def endpoint_gap_m(first, second):
-    first_m = [TO_METERS(lon, lat) for lon, lat in (first[0], first[-1])]
-    second_m = [TO_METERS(lon, lat) for lon, lat in (second[0], second[-1])]
-    return min(((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5 for a in first_m for b in second_m)
-
-
-def is_reversed_link(first, second, tolerance_m=COMPOSITION_TOLERANCE_M):
-    """True when two features digitize the same short stretch of road in opposite directions."""
-    if endpoint_gap_m(list(reversed(first)), second) > tolerance_m:
-        return False
-    lengths = (line_length_m(first), line_length_m(second))
-    if abs(lengths[0] - lengths[1]) > REVERSED_LINK_LENGTH_RATIO * max(lengths):
-        return False
-    midpoints = [TO_METERS(*line[len(line) // 2]) for line in (first, second)]
-    return ((midpoints[0][0] - midpoints[1][0]) ** 2 + (midpoints[0][1] - midpoints[1][1]) ** 2) ** 0.5 <= tolerance_m
-
-
-def line_length_m(coordinates):
-    projected = [TO_METERS(lon, lat) for lon, lat in coordinates]
-    return sum(((projected[i][0] - projected[i - 1][0]) ** 2 + (projected[i][1] - projected[i - 1][1]) ** 2) ** 0.5
-               for i in range(1, len(projected)))
-
-
-def write_geoparquet(rows, path):
-    columns = {key: [row[key] for row in rows] for key in rows[0]}
-    table = pa.table(columns)
-    geo = {"version": "1.1.0", "primary_column": "geometry", "columns": {"geometry": {
-        "encoding": "WKB", "geometry_types": ["LineString"], "crs": CRS.from_epsg(4326).to_json_dict(),
-        "bbox": [min(row["min_lon"] for row in rows), min(row["min_lat"] for row in rows),
-                 max(row["max_lon"] for row in rows), max(row["max_lat"] for row in rows)]}}}
-    table = table.replace_schema_metadata({b"geo": json.dumps(geo, separators=(",", ":")).encode()})
-    path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(table, path, compression="zstd")
-    reread = pq.read_table(path)
-    if reread.num_rows != len(rows) or b"geo" not in reread.schema.metadata:
-        raise ValueError("GeoParquet round-trip failed")
-    if any(value is None for value in reread.column("geometry").to_pylist()):
-        raise ValueError("GeoParquet contains null geometry")
-    conn = duckdb.connect()
-    conn.execute("INSTALL spatial; LOAD spatial;")
-    total, roads, points, linears = conn.execute(
-        "SELECT count(*), count(DISTINCT road_id), sum(ST_NPoints(geometry)), "
-        "sum(CASE WHEN ST_GeometryType(geometry) = 'LINESTRING' THEN 1 ELSE 0 END) FROM read_parquet(?)",
-        [str(path)]).fetchone()
-    if (total, linears) != (len(rows), len(rows)) or roads < 1 or points < len(rows) * 2:
-        raise ValueError("DuckDB read-back failed")
-    return {"featureCount": int(total), "roadCount": int(roads), "pointCount": int(points)}
-
-
 def write_snapshot(rows, path):
     """Deterministic offline snapshot of the real pilot source features for Node tests."""
     roads = []
     for road in sorted({row["road_id"] for row in rows}):
         features = [row for row in rows if row["road_id"] == road]
-        lines = composed_lines(features)
+        lines = source_lines(features)
         roads.append({
             "roadId": road, "name": features[0]["name"], "roadClass": features[0]["road_class"],
             "routeType": features[0]["route_type"], "countyFips": features[0]["county_fips"],
@@ -270,7 +149,7 @@ def verify_ecoregions(rows):
     conn = duckdb.connect()
     conn.execute("INSTALL spatial; LOAD spatial;")
     for road in sorted({row["road_id"] for row in rows}):
-        lines = composed_lines([row for row in rows if row["road_id"] == road])
+        lines = source_lines([row for row in rows if row["road_id"] == road])
         wkt = "MULTILINESTRING(" + ",".join("(" + ",".join(f"{lon} {lat}" for lon, lat in line) + ")" for line in lines) + ")"
         geom = f"ST_GeomFromText('{wkt}')"
         projected = f"ST_Transform({geom}, 'EPSG:4326', 'EPSG:5070', always_xy := true)"
@@ -335,7 +214,8 @@ def main():
     manifest_path = ROOT / "data" / "manifest.json"
     manifest = json.loads(manifest_path.read_text())
     others = [dataset for dataset in manifest["datasets"] if dataset["id"] != DATASET_ID]
-    manifest["datasets"] = others + [manifest_entry(path, digest, stats, snapshot_roads)]
+    # Deterministic order so rebuilding one artifact rewrites exactly one entry instead of moving it.
+    manifest["datasets"] = sorted(others + [manifest_entry(path, digest, stats, snapshot_roads)], key=lambda entry: entry["id"])
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     print(f"manifest: {len(manifest['datasets'])} datasets declared")
 

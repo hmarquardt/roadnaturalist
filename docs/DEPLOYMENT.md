@@ -84,6 +84,11 @@ The staged payload includes the investigator probe catalog and its schema
 modules; `stage:pages` refuses to stage a payload without them. Catalog validation is a separate, offline step:
 `npm run validate:probes`.
 
+The discovery workspace adds three payloads of its own: the bounded road-network extract
+(`data/gis/or-roads-network-2025.parquet`, a manifest dataset like the others), the declared search areas
+(`data/discovery/search-areas.json`), and the discovery modules under `src/discovery/`. `stage:pages` refuses to stage
+a payload without the search-area declaration, and the manifest byte check covers the extract.
+
 `stage:pages` fails the deployment rather than shipping a broken payload: every stylesheet/icon/script referenced by
 `index.html`, every relative `import` in the `src/` module graph, and every dataset in `data/manifest.json` must be
 present, and a staged dataset whose byte length disagrees with the manifest is a failure. `dist/` is gitignored and is

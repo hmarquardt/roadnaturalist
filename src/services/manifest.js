@@ -1,6 +1,7 @@
 // Dataset entries are declared in data/manifest.json. Type-specific fields are validated here so
 // application modules never hard-code a dataset path.
-export const DATASET_TYPE = Object.freeze({ ECOREGIONS: 'ecoregions', ROAD_CENTERLINES: 'road-centerlines', WETLANDS: 'wetlands', HYDROGRAPHY: 'hydrography' });
+export const DATASET_TYPE = Object.freeze({ ECOREGIONS: 'ecoregions', ROAD_CENTERLINES: 'road-centerlines',
+  ROAD_CENTERLINE_NETWORK: 'road-centerlines-network', WETLANDS: 'wetlands', HYDROGRAPHY: 'hydrography' });
 
 export function validateManifest(manifest) {
   if (manifest.schemaVersion !== 1 || !Array.isArray(manifest.datasets) || !manifest.datasets.length) throw new TypeError('Invalid data manifest');
@@ -22,6 +23,21 @@ function validateDataset(dataset) {
       && dataset.scope.roads.every(entry => typeof entry.id === 'string' && entry.id && typeof entry.name === 'string' && entry.name)
       && typeof dataset.source?.urls === 'object' && dataset.source.urls && Object.keys(dataset.source.urls).length > 0;
     if (!road) throw new TypeError(`Invalid road dataset entry: ${dataset.id}`);
+  }
+  if (dataset.type === DATASET_TYPE.ROAD_CENTERLINE_NETWORK) {
+    // The discovery network must declare how much it holds, which TIGER classes it kept, how much it
+    // left out, and in which CRS distances are measured: discovery coverage claims depend on all four.
+    const network = Number.isSafeInteger(dataset.featureCount) && dataset.featureCount > 0
+      && Number.isSafeInteger(dataset.roadCount) && dataset.roadCount > 0
+      && Number.isSafeInteger(dataset.pointCount) && dataset.pointCount > 0
+      && typeof dataset.source?.dataset === 'string' && dataset.source.dataset
+      && typeof dataset.normalization?.method === 'string' && dataset.normalization.method
+      && typeof dataset.normalization?.measureCrs === 'string' && dataset.normalization.measureCrs
+      && typeof dataset.scope?.classes === 'object' && dataset.scope.classes && Object.keys(dataset.scope.classes).length > 0
+      && typeof dataset.scope?.excludedClasses === 'object' && dataset.scope.excludedClasses
+      && Number.isFinite(dataset.scope?.totalLengthM) && dataset.scope.totalLengthM > 0
+      && typeof dataset.source?.urls === 'object' && dataset.source.urls && Object.keys(dataset.source.urls).length > 0;
+    if (!network) throw new TypeError(`Invalid road-network dataset entry: ${dataset.id}`);
   }
   if (dataset.type === DATASET_TYPE.WETLANDS || dataset.type === DATASET_TYPE.HYDROGRAPHY) {
     // Buffered habitat datasets must declare their coverage extent, measured CRS, and geometry

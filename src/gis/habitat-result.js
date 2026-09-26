@@ -66,6 +66,17 @@ export function distanceOrNull(value) {
   return value == null || !Number.isFinite(Number(value)) ? null : round(Number(value));
 }
 
+// One neighbourhood pad definition for both the per-corridor habitat queries and the set-oriented
+// discovery queries: a feature whose stored bounds lie outside this pad is provably farther from the
+// corridor than the requested distance. Pad is deliberately generous (10% margin).
+export function paddedBounds(bounds, distanceM) {
+  if (!Array.isArray(bounds) || bounds.length !== 4 || !Number.isFinite(distanceM)) return null;
+  const centre = ((bounds[1] + bounds[3]) / 2) * Math.PI / 180;
+  const latPad = (distanceM / 110000) * 1.1;
+  const lonPad = (distanceM / (111320 * Math.max(Math.cos(centre), 0.2))) * 1.1;
+  return [bounds[0] - lonPad, bounds[1] - latPad, bounds[2] + lonPad, bounds[3] + latPad];
+}
+
 function round(value, digits = 3) {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;

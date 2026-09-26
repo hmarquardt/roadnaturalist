@@ -8,6 +8,8 @@ function el(tag, className, text) { const node = document.createElement(tag); if
 
 export const COVERAGE_LABELS = Object.freeze({
   [COVERAGE_DATASET.ROAD_GEOMETRY]: 'Road geometry',
+  [COVERAGE_DATASET.ROAD_NETWORK]: 'Road network (discovery)',
+  [COVERAGE_DATASET.DISCOVERY]: 'Road discovery',
   [COVERAGE_DATASET.EPA_LEVEL3]: 'EPA Level III',
   [COVERAGE_DATASET.EPA_LEVEL4]: 'EPA Level IV',
   [COVERAGE_DATASET.WETLANDS]: 'Wetlands',
@@ -43,7 +45,7 @@ export function renderCandidates(container, state, onSelect) {
 
 export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null, occurrence = null, onQueryOccurrence = null,
   investigation = null, access = null, onRunAccess = null, onExportBundle = null, onReviewAccess = null, recordedCaptureAt = null, liveOsm = false,
-  workerStatus = null, workerUrl = '' } = {}) {
+  workerStatus = null, workerUrl = '', declaredSourceCount = null } = {}) {
   container.replaceChildren();
   if (!candidate) { container.append(empty('Investigation starts with a road', 'Open the pilot and select a corridor to inspect its geometry source, evidence, missing data, and research questions.')); return; }
   container.append(el('h3', 'detail-title', candidate.name), el('p', 'detail-lede', candidate.summary ?? ''), el('span', `tag ${candidate.status === 'rejected' ? 'warn' : ''}`, candidate.status));
@@ -54,8 +56,10 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
   // ACCESS & ROAD STATUS is its own section and its own evidence class: geometry being verified never
   // implies access, and access never borrows habitat or occurrence language.
   const accessEvidence = access ?? investigation?.access ?? null;
-  container.append(investigation ? renderAccessSection({ ...investigation, access: accessEvidence }, { onRun: onRunAccess, onExport: onExportBundle, onReview: onReviewAccess, recordedCaptureAt, liveOsm, workerStatus, workerUrl })
-    : renderAccessSection(null, { onRun: onRunAccess, recordedCaptureAt, liveOsm, workerStatus, workerUrl }));
+  const accessOptions = { onRun: onRunAccess, onExport: onExportBundle, onReview: onReviewAccess, recordedCaptureAt, liveOsm,
+    workerStatus, workerUrl, declaredSourceCount };
+  container.append(investigation ? renderAccessSection({ ...investigation, access: accessEvidence }, accessOptions)
+    : renderAccessSection(null, { onRun: onRunAccess, recordedCaptureAt, liveOsm, workerStatus, workerUrl, declaredSourceCount }));
   container.append(renderInvestigationSection(investigation ? { ...investigation, access: accessEvidence } : null, { onReview: onReviewAccess, onExport: onExportBundle, candidateId: candidate.id }));
   const evidenceSection = section('Evidence trail');
   const list = el('ul', 'evidence-list');
@@ -522,10 +526,16 @@ function evidenceBlock(title, items, { sign = '', className = '' } = {}) {
 // contradictions, and the unresolved list are visible; the stage log, every source check, and the adversarial
 // checklist live behind disclosure elements.
 export function renderAccessSection(investigation, { onRun = null, onExport = null, onReview = null, recordedCaptureAt = null, liveOsm = false,
-  workerStatus = null, workerUrl = '' } = {}) {
+  workerStatus = null, workerUrl = '', declaredSourceCount = null } = {}) {
   const node = section('Access & road status');
   node.classList.add('access-section');
   node.append(el('span', 'tag unknown', 'ACCESS EVIDENCE'));
+  // A corridor discovered by candidate discovery has no reviewed research sources until a reviewer
+  // declares them. That is expected, not an error: access stays UNVERIFIED and the panel says so.
+  if (declaredSourceCount === 0) {
+    node.append(el('p', 'small muted', 'No reviewed research sources are declared for this corridor. Access verification is UNVERIFIED; '
+      + 'community mapping can still be replayed, and a reviewer can declare official sources for it later.'));
+  }
   const boundary = researchBoundaryLine(workerStatus, workerUrl, recordedCaptureAt);
   if (!investigation) {
     node.append(el('p', 'small muted', 'No access verification has run for this corridor. The road geometry is evidence that the road is mapped, not that the public may drive it.'));

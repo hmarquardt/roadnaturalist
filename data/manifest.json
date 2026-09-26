@@ -61,177 +61,6 @@
       "schemaVersion": 1
     },
     {
-      "id": "or-roads-pilot",
-      "type": "road-centerlines",
-      "version": "tiger-2025-v1",
-      "format": "GeoParquet",
-      "url": "gis/or-roads-pilot-2025.parquet",
-      "bytes": 28918,
-      "sha256": "34e58793f7c2b74bbc8fd356e35d5d007943b78323ee3cfaaa98139d3f2467e2",
-      "featureCount": 10,
-      "roadCount": 5,
-      "pointCount": 657,
-      "crs": "EPSG:4326",
-      "scope": {
-        "kind": "Oregon road centerline pilot (Washington and Multnomah County extract)",
-        "bbox": [
-          -123.1,
-          45.5,
-          -122.7,
-          45.7
-        ],
-        "roads": [
-          {
-            "id": "tiger-2025-or-41051-nw-cornelius-pass-rd",
-            "name": "NW Cornelius Pass Rd",
-            "roadClass": "S1400",
-            "countyFips": "41051",
-            "countyName": "Multnomah County, Oregon",
-            "sourceFeatureCount": 1,
-            "sourceLengthM": 7876.06,
-            "uniqueSourceLengthM": 7876.06
-          },
-          {
-            "id": "tiger-2025-or-41051-nw-springville-rd",
-            "name": "NW Springville Rd",
-            "roadClass": "S1400",
-            "countyFips": "41051",
-            "countyName": "Multnomah County, Oregon",
-            "sourceFeatureCount": 3,
-            "sourceLengthM": 6325.735,
-            "uniqueSourceLengthM": 6325.735
-          },
-          {
-            "id": "tiger-2025-or-41067-nw-cornelius-pass-rd",
-            "name": "NW Cornelius Pass Rd",
-            "roadClass": "S1400",
-            "countyFips": "41067",
-            "countyName": "Washington County, Oregon",
-            "sourceFeatureCount": 4,
-            "sourceLengthM": 9161.49,
-            "uniqueSourceLengthM": 9100.534
-          },
-          {
-            "id": "tiger-2025-or-41067-nw-springville-rd",
-            "name": "NW Springville Rd",
-            "roadClass": "S1400",
-            "countyFips": "41067",
-            "countyName": "Washington County, Oregon",
-            "sourceFeatureCount": 1,
-            "sourceLengthM": 3333.906,
-            "uniqueSourceLengthM": 3333.906
-          },
-          {
-            "id": "tiger-2025-or-41067-nw-susbauer-rd",
-            "name": "NW Susbauer Rd",
-            "roadClass": "S1400",
-            "countyFips": "41067",
-            "countyName": "Washington County, Oregon",
-            "sourceFeatureCount": 1,
-            "sourceLengthM": 4804.657,
-            "uniqueSourceLengthM": 4804.657
-          }
-        ]
-      },
-      "source": {
-        "agency": "U.S. Census Bureau",
-        "dataset": "TIGER/Line 2025 ROADS (county road centerlines)",
-        "vintage": "TIGER2025",
-        "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41067_roads.zip",
-        "urls": {
-          "41051": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41051_roads.zip",
-          "41067": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41067_roads.zip"
-        },
-        "sha256": {
-          "41051": "30ae0afe1a0bb6685da281b8ad97fc708876b61e9bfc7c1f0f96118d33d3cb92",
-          "41067": "fda13013515689b57a500462db9b19bdd4dc0c3a70d341eec7eb9f7d7c42eea7"
-        },
-        "publicationDate": "2025-09-22",
-        "documentationUrl": "https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html",
-        "license": "Public domain (U.S. Government work)"
-      },
-      "normalization": {
-        "pipelineVersion": "road-ingest-v1",
-        "method": "Filter TIGER/Line county ROADS features by pilot road name and pilot bounding box; split multi-part shapes into one row per part; drop consecutive duplicate vertices; transform EPSG:4269 to EPSG:4326 with always_xy; emit one WKB LineString row per source feature part.",
-        "sourceCrs": "EPSG:4269",
-        "crs": "EPSG:4326"
-      },
-      "schemaVersion": 1
-    },
-    {
-      "id": "nwi-wetlands-or-pilot",
-      "type": "wetlands",
-      "version": "nwi-or-2026-05-v1",
-      "format": "GeoParquet",
-      "url": "gis/nwi-wetlands-pilot.parquet",
-      "bytes": 3385175,
-      "sha256": "b8f9c05f2e34891ee3f096bc33689d961ae3a86f5752c8b167fec8c2dc8efdd8",
-      "featureCount": 5248,
-      "crs": "EPSG:4326",
-      "scope": {
-        "kind": "Bounded NWI wetland extract around the Oregon road pilot",
-        "bbox": [
-          -123.07,
-          45.505,
-          -122.75,
-          45.67
-        ],
-        "windowMarginM": 1500,
-        "statewideFeatureCount": 674153,
-        "windowFeatureCount": 5249,
-        "totalWetlandAreaM2": 61404718.7,
-        "sourceImageYears": [
-          1975,
-          1981,
-          1982,
-          2009
-        ],
-        "wetlandTypes": [
-          "Freshwater Emergent Wetland",
-          "Freshwater Forested/Shrub Wetland",
-          "Freshwater Pond",
-          "Lake",
-          "Riverine"
-        ],
-        "geometryTreatment": {
-          "clipped": "analytical window",
-          "simplifiedToleranceM": 1.0,
-          "roundDigits": 6,
-          "measuredCrs": "EPSG:5070"
-        }
-      },
-      "source": {
-        "agency": "U.S. Fish and Wildlife Service",
-        "dataset": "National Wetlands Inventory \u2014 Oregon state extract (GeoPackage)",
-        "vintage": "May 2026 NWI release (state download published 2026-05-04)",
-        "url": "https://documentst.ecosphere.fws.gov/wetlands/data/State-Downloads/OR_geopackage_wetlands.zip",
-        "bytes": 1934005929,
-        "sha256": "ae6a75e7945943ce517350f8165ec6dd936c75fea7118a9cdabf765d816954a5",
-        "publicationDate": "2026-05-04",
-        "documentationUrl": "https://www.fws.gov/program/national-wetlands-inventory/data-download",
-        "license": "Public domain (U.S. Government work)",
-        "layer": "OR_Wetlands",
-        "sourceCrs": "EPSG:5070",
-        "sourceCrsDefinition": "PROJCRS[\"NAD_1983_Albers\",BASEGEOGCRS[\"NAD83\",DATUM[\"North American Datum 1983\",ELLIPSOID[\"GRS 1980\",6378137,298.257222101,LENGTHUNIT[\"metre\",1]],ID[\"EPSG\",6269]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"Degree\",0.0174532925199433]]],CONVERSION[\"unnamed\",METHOD[\"Albers Equal Area\",ID[\"EPSG\",9822]],PARAMETER[\"Latitude of false origin\",23,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8821]],PARAMETER[\"Longitude of false origin\",-96,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8822]],PARAMETER[\"Latitude of 1st standard parallel\",29.5,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8823]],PARAMETER[\"Latitude of 2nd standard parallel\",45.5,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8824]],PARAMETER[\"Easting at false origin\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8826]],PARAMETER[\"Northing at false origin\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8827]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]",
-        "fields": [
-          "ATTRIBUTE",
-          "WETLAND_TYPE",
-          "QAQC_CODE",
-          "ACRES",
-          "NWI_ID"
-        ]
-      },
-      "normalization": {
-        "pipelineVersion": "habitat-ingest-v1",
-        "method": "GeoPackage R-tree window selection; clip to the analytical window; simplify preserving topology; round to 1e-6 degrees; transform the NWI Albers source CRS to EPSG:4326; areas measured in EPSG:5070",
-        "sourceCrs": "EPSG:5070",
-        "crs": "EPSG:4326",
-        "measureCrs": "EPSG:5070",
-        "simplifyToleranceM": 1.0
-      },
-      "schemaVersion": 1
-    },
-    {
       "id": "nhd-hydrography-or-pilot",
       "type": "hydrography",
       "version": "nhd-hr-hu8-2023-12-v1",
@@ -352,6 +181,267 @@
         "crs": "EPSG:4326",
         "measureCrs": "EPSG:5070",
         "simplifyToleranceM": 1.0
+      },
+      "schemaVersion": 1
+    },
+    {
+      "id": "nwi-wetlands-or-pilot",
+      "type": "wetlands",
+      "version": "nwi-or-2026-05-v1",
+      "format": "GeoParquet",
+      "url": "gis/nwi-wetlands-pilot.parquet",
+      "bytes": 3385175,
+      "sha256": "b8f9c05f2e34891ee3f096bc33689d961ae3a86f5752c8b167fec8c2dc8efdd8",
+      "featureCount": 5248,
+      "crs": "EPSG:4326",
+      "scope": {
+        "kind": "Bounded NWI wetland extract around the Oregon road pilot",
+        "bbox": [
+          -123.07,
+          45.505,
+          -122.75,
+          45.67
+        ],
+        "windowMarginM": 1500,
+        "statewideFeatureCount": 674153,
+        "windowFeatureCount": 5249,
+        "totalWetlandAreaM2": 61404718.7,
+        "sourceImageYears": [
+          1975,
+          1981,
+          1982,
+          2009
+        ],
+        "wetlandTypes": [
+          "Freshwater Emergent Wetland",
+          "Freshwater Forested/Shrub Wetland",
+          "Freshwater Pond",
+          "Lake",
+          "Riverine"
+        ],
+        "geometryTreatment": {
+          "clipped": "analytical window",
+          "simplifiedToleranceM": 1.0,
+          "roundDigits": 6,
+          "measuredCrs": "EPSG:5070"
+        }
+      },
+      "source": {
+        "agency": "U.S. Fish and Wildlife Service",
+        "dataset": "National Wetlands Inventory \u2014 Oregon state extract (GeoPackage)",
+        "vintage": "May 2026 NWI release (state download published 2026-05-04)",
+        "url": "https://documentst.ecosphere.fws.gov/wetlands/data/State-Downloads/OR_geopackage_wetlands.zip",
+        "bytes": 1934005929,
+        "sha256": "ae6a75e7945943ce517350f8165ec6dd936c75fea7118a9cdabf765d816954a5",
+        "publicationDate": "2026-05-04",
+        "documentationUrl": "https://www.fws.gov/program/national-wetlands-inventory/data-download",
+        "license": "Public domain (U.S. Government work)",
+        "layer": "OR_Wetlands",
+        "sourceCrs": "EPSG:5070",
+        "sourceCrsDefinition": "PROJCRS[\"NAD_1983_Albers\",BASEGEOGCRS[\"NAD83\",DATUM[\"North American Datum 1983\",ELLIPSOID[\"GRS 1980\",6378137,298.257222101,LENGTHUNIT[\"metre\",1]],ID[\"EPSG\",6269]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"Degree\",0.0174532925199433]]],CONVERSION[\"unnamed\",METHOD[\"Albers Equal Area\",ID[\"EPSG\",9822]],PARAMETER[\"Latitude of false origin\",23,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8821]],PARAMETER[\"Longitude of false origin\",-96,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8822]],PARAMETER[\"Latitude of 1st standard parallel\",29.5,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8823]],PARAMETER[\"Latitude of 2nd standard parallel\",45.5,ANGLEUNIT[\"Degree\",0.0174532925199433],ID[\"EPSG\",8824]],PARAMETER[\"Easting at false origin\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8826]],PARAMETER[\"Northing at false origin\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8827]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]",
+        "fields": [
+          "ATTRIBUTE",
+          "WETLAND_TYPE",
+          "QAQC_CODE",
+          "ACRES",
+          "NWI_ID"
+        ]
+      },
+      "normalization": {
+        "pipelineVersion": "habitat-ingest-v1",
+        "method": "GeoPackage R-tree window selection; clip to the analytical window; simplify preserving topology; round to 1e-6 degrees; transform the NWI Albers source CRS to EPSG:4326; areas measured in EPSG:5070",
+        "sourceCrs": "EPSG:5070",
+        "crs": "EPSG:4326",
+        "measureCrs": "EPSG:5070",
+        "simplifyToleranceM": 1.0
+      },
+      "schemaVersion": 1
+    },
+    {
+      "id": "or-roads-network-pilot",
+      "type": "road-centerlines-network",
+      "version": "tiger-2025-net1",
+      "format": "GeoParquet",
+      "url": "gis/or-roads-network-2025.parquet",
+      "bytes": 1205820,
+      "sha256": "0ef640fed63606b272bf6050837f65b28197f285c8dc2340952669a56e381d1c",
+      "featureCount": 5300,
+      "roadCount": 4027,
+      "pointCount": 71406,
+      "crs": "EPSG:4326",
+      "scope": {
+        "kind": "Bounded Oregon road-network extract for candidate discovery (pilot analysis window)",
+        "bbox": [
+          -123.07,
+          45.505,
+          -122.75,
+          45.67
+        ],
+        "classes": {
+          "S1200": 19,
+          "S1400": 5279,
+          "S1500": 2
+        },
+        "excludedClasses": {
+          "S1100": 41,
+          "S1630": 646,
+          "S1640": 322,
+          "S1710": 153,
+          "S1730": 450,
+          "S1740": 481,
+          "S1750": 65,
+          "S1780": 41,
+          "S1820": 17
+        },
+        "outsideWindowFeatureCount": 20878,
+        "namedFeatureCount": 4889,
+        "unnamedFeatureCount": 411,
+        "totalLengthM": 1653747.611,
+        "counties": [
+          {
+            "fips": "41051",
+            "name": "Multnomah County, Oregon",
+            "featureCount": 615
+          },
+          {
+            "fips": "41067",
+            "name": "Washington County, Oregon",
+            "featureCount": 4685
+          }
+        ]
+      },
+      "source": {
+        "agency": "U.S. Census Bureau",
+        "dataset": "TIGER/Line 2025 ROADS (county road centerlines)",
+        "vintage": "TIGER2025",
+        "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41067_roads.zip",
+        "urls": {
+          "41051": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41051_roads.zip",
+          "41067": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41067_roads.zip"
+        },
+        "sha256": {
+          "41051": "30ae0afe1a0bb6685da281b8ad97fc708876b61e9bfc7c1f0f96118d33d3cb92",
+          "41067": "fda13013515689b57a500462db9b19bdd4dc0c3a70d341eec7eb9f7d7c42eea7"
+        },
+        "publicationDate": "2025-09-22",
+        "documentationUrl": "https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html",
+        "license": "Public domain (U.S. Government work)"
+      },
+      "normalization": {
+        "pipelineVersion": "road-network-extract-v1",
+        "method": "Select TIGER/Line county ROADS features whose MTFCC is a discovery-relevant class and whose vertices all lie inside the bounded discovery window; split multi-part shapes into one row per part; drop consecutive duplicate vertices; keep the published EPSG:4269 coordinates in an EPSG:4326 column; emit one WKB LineString row per source feature part. Named features keep the county-scoped road id of the road pilot; unnamed features keep a per-feature road id. Feature and unit lengths use the same spherical formula as the browser (haversine, mean Earth radius 12,742,000 m), so the offline extraction summary and the browser agree.",
+        "sourceCrs": "EPSG:4269",
+        "crs": "EPSG:4326",
+        "measureCrs": "EPSG:5070",
+        "windowBbox": [
+          -123.07,
+          45.505,
+          -122.75,
+          45.67
+        ],
+        "extractClasses": [
+          "S1200",
+          "S1400",
+          "S1500"
+        ]
+      },
+      "schemaVersion": 1
+    },
+    {
+      "id": "or-roads-pilot",
+      "type": "road-centerlines",
+      "version": "tiger-2025-v1",
+      "format": "GeoParquet",
+      "url": "gis/or-roads-pilot-2025.parquet",
+      "bytes": 28918,
+      "sha256": "34e58793f7c2b74bbc8fd356e35d5d007943b78323ee3cfaaa98139d3f2467e2",
+      "featureCount": 10,
+      "roadCount": 5,
+      "pointCount": 657,
+      "crs": "EPSG:4326",
+      "scope": {
+        "kind": "Oregon road centerline pilot (Washington and Multnomah County extract)",
+        "bbox": [
+          -123.1,
+          45.5,
+          -122.7,
+          45.7
+        ],
+        "roads": [
+          {
+            "id": "tiger-2025-or-41051-nw-cornelius-pass-rd",
+            "name": "NW Cornelius Pass Rd",
+            "roadClass": "S1400",
+            "countyFips": "41051",
+            "countyName": "Multnomah County, Oregon",
+            "sourceFeatureCount": 1,
+            "sourceLengthM": 7876.06,
+            "uniqueSourceLengthM": 7876.06
+          },
+          {
+            "id": "tiger-2025-or-41051-nw-springville-rd",
+            "name": "NW Springville Rd",
+            "roadClass": "S1400",
+            "countyFips": "41051",
+            "countyName": "Multnomah County, Oregon",
+            "sourceFeatureCount": 3,
+            "sourceLengthM": 6325.735,
+            "uniqueSourceLengthM": 6325.735
+          },
+          {
+            "id": "tiger-2025-or-41067-nw-cornelius-pass-rd",
+            "name": "NW Cornelius Pass Rd",
+            "roadClass": "S1400",
+            "countyFips": "41067",
+            "countyName": "Washington County, Oregon",
+            "sourceFeatureCount": 4,
+            "sourceLengthM": 9161.49,
+            "uniqueSourceLengthM": 9100.534
+          },
+          {
+            "id": "tiger-2025-or-41067-nw-springville-rd",
+            "name": "NW Springville Rd",
+            "roadClass": "S1400",
+            "countyFips": "41067",
+            "countyName": "Washington County, Oregon",
+            "sourceFeatureCount": 1,
+            "sourceLengthM": 3333.906,
+            "uniqueSourceLengthM": 3333.906
+          },
+          {
+            "id": "tiger-2025-or-41067-nw-susbauer-rd",
+            "name": "NW Susbauer Rd",
+            "roadClass": "S1400",
+            "countyFips": "41067",
+            "countyName": "Washington County, Oregon",
+            "sourceFeatureCount": 1,
+            "sourceLengthM": 4804.657,
+            "uniqueSourceLengthM": 4804.657
+          }
+        ]
+      },
+      "source": {
+        "agency": "U.S. Census Bureau",
+        "dataset": "TIGER/Line 2025 ROADS (county road centerlines)",
+        "vintage": "TIGER2025",
+        "url": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41067_roads.zip",
+        "urls": {
+          "41051": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41051_roads.zip",
+          "41067": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_41067_roads.zip"
+        },
+        "sha256": {
+          "41051": "30ae0afe1a0bb6685da281b8ad97fc708876b61e9bfc7c1f0f96118d33d3cb92",
+          "41067": "fda13013515689b57a500462db9b19bdd4dc0c3a70d341eec7eb9f7d7c42eea7"
+        },
+        "publicationDate": "2025-09-22",
+        "documentationUrl": "https://www.census.gov/geographies/mapping-files/time-series/geo/tiger-line-file.html",
+        "license": "Public domain (U.S. Government work)"
+      },
+      "normalization": {
+        "pipelineVersion": "road-ingest-v1",
+        "method": "Filter TIGER/Line county ROADS features by pilot road name and pilot bounding box; split multi-part shapes into one row per part; drop consecutive duplicate vertices; transform EPSG:4269 to EPSG:4326 with always_xy; emit one WKB LineString row per source feature part.",
+        "sourceCrs": "EPSG:4269",
+        "crs": "EPSG:4326"
       },
       "schemaVersion": 1
     }

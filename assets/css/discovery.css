@@ -1,0 +1,42 @@
+/* Candidate discovery: a bounded survey of the road network, its measured facts, and the promotion
+   step into the ordinary candidate workflow. Restrained on purpose: no scores, no heat colours. */
+.discovery-panel .discovery-body{padding:1rem 1.15rem}
+.discovery-controls{display:flex;flex-wrap:wrap;align-items:end;gap:.75rem}
+.discovery-controls .primary-button{flex:none}
+.discovery-area{margin:0;color:#4c6458;font-size:.83rem}
+.discovery-status{margin:0;color:#4c6458;font-size:.8rem}
+.discovery-error{margin:.6rem 0 0;color:#8a3324;font-size:.82rem}
+.discovery-coverage{margin-top:.9rem;padding:.7rem .85rem;border:1px solid #d2dbd0;border-left-width:4px;border-radius:6px;background:#f7f8f3}
+.discovery-coverage.ok{border-left-color:#4d7f5b}
+.discovery-coverage.caution{border-left-color:#b5852a}
+.discovery-coverage p{margin:.3rem 0 0}
+.discovery-toolbar{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:.75rem;margin-top:1rem}
+.discovery-filters{display:flex;flex-wrap:wrap;gap:.6rem .9rem;align-items:end}
+.discovery-field{display:flex;flex-direction:column;gap:.25rem;font-size:.72rem;letter-spacing:.03em;text-transform:uppercase;color:#5b6d61}
+.discovery-field span{font-size:.72rem}
+.discovery-input,.discovery-select{font:inherit;font-size:.85rem;text-transform:none;letter-spacing:0;padding:.3rem .4rem;border:1px solid #c8d3c6;border-radius:4px;background:#fff;color:#22322c;min-width:6.5rem}
+.discovery-check{display:flex;align-items:center;gap:.35rem;font-size:.78rem;text-transform:none;letter-spacing:0;color:#33463d}
+.discovery-count{margin:0;font-size:.8rem;color:#4c6458}
+.discovery-table-wrap{margin-top:.75rem;max-height:420px;overflow:auto;border:1px solid #dce3d9;border-radius:6px}
+.discovery-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.discovery-table th,.discovery-table td{padding:.45rem .6rem;text-align:left;border-bottom:1px solid #eef2ea;vertical-align:top;white-space:nowrap}
+.discovery-table thead th{position:sticky;top:0;background:#f4f7f1;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:#4b5f54}
+.discovery-table tr.selected{background:#eef4ea}
+.discovery-table tr.promoted td:last-child{color:#2f6a43;font-weight:500}
+.discovery-table tr.dismissed{color:#7b857d}
+.discovery-row{font:inherit;font-weight:500;background:none;border:0;padding:0;color:#1c3b2c;cursor:pointer;text-align:left}
+.discovery-row:hover{text-decoration:underline}
+.discovery-table td small{display:block;color:#6b7a70;font-weight:400}
+.discovery-note{margin:.5rem 0 0;font-size:.75rem;color:#63746a}
+.discovery-selected{margin-top:1rem;padding:.85rem 1rem;border:1px solid #d2dbd0;border-radius:6px;background:#fbfcf8}
+.discovery-selected h3{margin:.15rem 0 .6rem;font-size:1rem}
+.discovery-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:.2rem .9rem}
+.discovery-facts>div{display:flex;gap:.4rem;font-size:.78rem;border-bottom:1px solid #eef2ea;padding:.15rem 0}
+.discovery-facts dt{color:#5b6d61;flex:none}
+.discovery-facts dd{margin:0;color:#22322c}
+.discovery-coverage-list{margin-top:.6rem}
+.discovery-not-run{margin-top:.6rem;color:#5b6d61}
+.discovery-not-run p{margin:.15rem 0}
+.discovery-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem}
+.discovery-eligible{margin:.5rem 0 0;font-size:.74rem;color:#63746a}
+@media(max-width:700px){.discovery-panel .discovery-body{padding:.85rem}.discovery-filters{flex-direction:column;align-items:stretch}.discovery-input,.discovery-select{width:100%}.discovery-table-wrap{max-height:none}.discovery-table th:nth-child(5),.discovery-table td:nth-child(5){display:none}}

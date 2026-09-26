@@ -1,6 +1,6 @@
 import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
 import { corridorGeometry, corridorWkt } from '../domain/geometry.js';
-import { ANALYSIS_DISTANCES_M, MEASURE_CRS, bufferSummary, distanceOrNull, summarizeBufferCoverage } from './habitat-result.js';
+import { ANALYSIS_DISTANCES_M, MEASURE_CRS, bufferSummary, distanceOrNull, paddedBounds, summarizeBufferCoverage } from './habitat-result.js';
 
 // Buffered habitat analysis against the bounded wetland and hydrography extracts.
 //
@@ -43,12 +43,9 @@ export function createHabitatQueries({ openDataset, initialize, record }) {
   // reach the buffered corridor are transformed and measured, which keeps the browser queries
   // bounded by neighbourhood size instead of extract size. The pad is deliberately generous.
   function boundsClause(bounds, distanceM) {
-    if (!Array.isArray(bounds) || bounds.length !== 4) return 'TRUE';
-    const centre = ((bounds[1] + bounds[3]) / 2) * Math.PI / 180;
-    const latPad = (distanceM / 110000) * 1.1;
-    const lonPad = (distanceM / (111320 * Math.max(Math.cos(centre), 0.2))) * 1.1;
-    return `min_lon <= ${bounds[2] + lonPad} AND max_lon >= ${bounds[0] - lonPad} `
-      + `AND min_lat <= ${bounds[3] + latPad} AND max_lat >= ${bounds[1] - latPad}`;
+    const pad = paddedBounds(bounds, distanceM);
+    if (!pad) return 'TRUE';
+    return `min_lon <= ${pad[2]} AND max_lon >= ${pad[0]} AND min_lat <= ${pad[3]} AND max_lat >= ${pad[1]}`;
   }
 
   async function coverageRows(entry, wkt, distancesM, engine) {

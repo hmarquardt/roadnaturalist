@@ -25,6 +25,14 @@ export function mergeLineGeometries(geometries) {
   return lines.length === 1 ? { type: 'LineString', coordinates: lines[0] } : { type: 'MultiLineString', coordinates: lines };
 }
 
+// Coordinate access for line GeoJSON, defined once at the domain boundary so the analysis layers and
+// the replaceable map view read the same shape.
+export function linesOf(geometry) {
+  if (geometry?.type === 'LineString') return [geometry.coordinates];
+  if (geometry?.type === 'MultiLineString') return geometry.coordinates;
+  return [];
+}
+
 export function corridorWkt(input) {
   const { geometry } = corridorGeometry(input);
   const lineText = line => `(${line.map(point => point.join(' ')).join(',')})`;

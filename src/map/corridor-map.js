@@ -1,5 +1,8 @@
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+// Corridor geometry access lives in the domain layer; the map only projects and draws it.
+import { linesOf } from '../domain/geometry.js';
+
 // The map is a replaceable view over canonical GeoJSON. It never owns the domain model:
 // it receives plain corridor descriptors and draws them on a schematic coordinate grid.
 export function createCorridorMap(container, { onSelect } = {}) {
@@ -16,6 +19,7 @@ export function createCorridorMap(container, { onSelect } = {}) {
   let selected = null;
   let overlay = null;
   let occurrenceOverlay = null;
+  let discovery = null;
   let zoom = 1;
   let pan = { x: 0, y: 0 };
   let dragging = null;
@@ -28,11 +32,13 @@ export function createCorridorMap(container, { onSelect } = {}) {
   }
   function fit() { zoom = 1; pan = { x: 0, y: 0 }; viewBox(); }
 
-  function draw({ corridors: next = [], selectedId = null, overlay: nextOverlay = null, occurrenceOverlay: nextOccurrence = null } = {}) {
+  function draw({ corridors: next = [], selectedId = null, overlay: nextOverlay = null, occurrenceOverlay: nextOccurrence = null,
+    discovery: nextDiscovery = null } = {}) {
     corridors = Array.isArray(next) ? next : [];
     selected = corridors.find(corridor => corridor.id === selectedId) ?? null;
     overlay = nextOverlay ?? null;
     occurrenceOverlay = nextOccurrence ?? null;
+    discovery = nextDiscovery ?? null;
     fit();
     render();
   }
@@ -40,22 +46,24 @@ export function createCorridorMap(container, { onSelect } = {}) {
   function render() {
     svg.replaceChildren();
     const placeholder = container.querySelector('.map-placeholder');
-    if (!corridors.length) {
+    const discoveryLines = (discovery?.corridors ?? []).flatMap(entry => linesOf(entry.geometry));
+    if (!corridors.length && !discoveryLines.length) {
       if (!placeholder) {
         const empty = document.createElement('div');
         empty.className = 'map-placeholder';
-        empty.innerHTML = '<div><strong>No corridor loaded</strong><p>Open the Oregon road pilot to place real road geometry here.</p></div>';
+        empty.innerHTML = '<div><strong>No corridor loaded</strong><p>Discover roads in the Oregon pilot area, or open the road pilot, to place real road geometry here.</p></div>';
         container.append(empty);
       }
       return;
     }
     placeholder?.remove();
-    projection = createProjection(corridors.flatMap(corridor => linesOf(corridor.geometry)));
+    projection = createProjection([...corridors.flatMap(corridor => linesOf(corridor.geometry)), ...discoveryLines]);
     for (let x = 0; x <= 1000; x += 100) line('grid-line', `M ${x} 0 L ${x} 700`);
     for (let y = 0; y <= 700; y += 100) line('grid-line', `M 0 ${y} L 1000 ${y}`);
     line('contour', 'M0 180 Q180 70 360 180 T700 170 T1000 130');
     line('contour', 'M0 260 Q180 150 360 260 T700 250 T1000 210');
     line('contour', 'M0 560 Q180 450 360 560 T700 550 T1000 510');
+    drawDiscovery();
     for (const corridor of corridors) {
       if (corridor.id === selected?.id) continue;
       const faint = line('road-faint', pathData(corridor.geometry));
@@ -65,7 +73,35 @@ export function createCorridorMap(container, { onSelect } = {}) {
     drawOccurrenceOverlay();
     if (selected) drawSelected(selected);
     svg.append(text('map-label', 20, 35, projection.readout()));
-    svg.append(text('map-badge', 20, 660, selected?.badge ?? 'OREGON ROAD PILOT · REAL ROAD GEOMETRY · ACCESS UNVERIFIED'));
+    svg.append(text('map-badge', 20, 660, selected?.badge ?? discovery?.badge
+      ?? 'OREGON ROAD PILOT · REAL ROAD GEOMETRY · ACCESS UNVERIFIED'));
+  }
+
+  // Discovery corridors are drawn as light polylines: one path per corridor, no labels and no anchors,
+  // so a bounded search result stays a bounded number of map nodes. The selected and promoted corridors
+  // are the only ones emphasised (see MAX_DISCOVERY_PATHS in src/discovery/constants.js).
+  function drawDiscovery() {
+    if (!discovery) return;
+    for (const entry of discovery.corridors ?? []) {
+      const isSelected = entry.id === discovery.selectedId;
+      const isPromoted = (discovery.promotedIds ?? []).includes(entry.id);
+      if (isSelected || isPromoted) continue;
+      const path = line('discovery-corridor', pathData(entry.geometry));
+      path.setAttribute('aria-hidden', 'true');
+    }
+    for (const entry of discovery.corridors ?? []) {
+      if (!(discovery.promotedIds ?? []).includes(entry.id) || entry.id === discovery.selectedId) continue;
+      const path = line('discovery-corridor promoted', pathData(entry.geometry));
+      path.setAttribute('aria-hidden', 'true');
+    }
+    const selectedEntry = (discovery.corridors ?? []).find(entry => entry.id === discovery.selectedId);
+    if (selectedEntry) {
+      line('discovery-shadow', pathData(selectedEntry.geometry));
+      const path = line('discovery-selected', pathData(selectedEntry.geometry));
+      path.setAttribute('role', 'button');
+      path.setAttribute('tabindex', '0');
+      path.setAttribute('aria-label', `Selected discovery corridor ${selectedEntry.name}`);
+    }
   }
 
   // Occurrence points are precise public observations only, already privacy-filtered by the
@@ -136,18 +172,17 @@ export function createCorridorMap(container, { onSelect } = {}) {
   return { draw, fit, getZoom: () => zoom };
 }
 
-export function linesOf(geometry) {
-  if (geometry?.type === 'LineString') return [geometry.coordinates];
-  if (geometry?.type === 'MultiLineString') return geometry.coordinates;
-  return [];
-}
-
 function createProjection(lines) {
-  const points = lines.flat();
-  const longitudes = points.map(point => point[0]);
-  const latitudes = points.map(point => point[1]);
-  const minLon = Math.min(...longitudes), maxLon = Math.max(...longitudes);
-  const minLat = Math.min(...latitudes), maxLat = Math.max(...latitudes);
+  // Bounded loops, not spread: a discovery result can hold tens of thousands of vertices and spreading
+  // them into Math.min would overflow the call stack.
+  let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+  for (const line of lines) for (const point of line) {
+    if (point[0] < minLon) minLon = point[0];
+    if (point[0] > maxLon) maxLon = point[0];
+    if (point[1] < minLat) minLat = point[1];
+    if (point[1] > maxLat) maxLat = point[1];
+  }
+  if (!Number.isFinite(minLon) || !Number.isFinite(minLat)) return { point: () => [0, 0], readout: () => 'No geometry' };
   const spanLon = Math.max(maxLon - minLon, 0.01), spanLat = Math.max(maxLat - minLat, 0.007);
   const lonCenter = (minLon + maxLon) / 2, latCenter = (minLat + maxLat) / 2;
   const scale = Math.min(760 / spanLon, 460 / spanLat);

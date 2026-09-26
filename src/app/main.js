@@ -18,8 +18,18 @@ import { createResearchService, createRecordedTransport, createLiveResearchTrans
 import { BROWSER_MIRRORS, createOsmSource, createRecordedOsmSource } from '../investigator/osm.js';
 import { PILOT_PROBES_BY_CORRIDOR } from '../investigator/sources.js';
 import { buildCorridorBundle } from '../investigator/bundle.js';
+import { runDiscovery } from '../discovery/run.js';
+import { renderDiscovery, eligibilityNote } from '../ui/discovery.js';
+import { readDiscoveryMarks, writeDiscoveryMarks } from '../discovery/persistence.js';
+import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDiscoveryResult } from '../discovery/lifecycle.js';
+import { defaultSearchArea, validateSearchAreas } from '../discovery/search-area.js';
+import { filterAndSort } from '../discovery/filter.js';
+import { MAX_RESULT_ROWS } from '../discovery/constants.js';
 
 const PILOT_URL = new URL('../../data/roads/or-roads-pilot.json', import.meta.url);
+// Declared discovery search areas. The loader refuses an area that is not inside every dataset it
+// requires, so the workspace can never offer a survey the loaded data cannot cover.
+const SEARCH_AREAS_URL = new URL('../../data/discovery/search-areas.json', import.meta.url);
 // The reviewed operator capture of official-source research, replayed offline. The browser cannot crawl county
 // sites (they send no CORS header) and must not depend on a live Overpass mirror, so it replays this record and
 // offers a live OpenStreetMap re-check as an explicit, separate action.
@@ -48,10 +58,64 @@ const nodes = {
   context: document.getElementById('data-context'), count: document.getElementById('candidate-count'),
   caption: document.getElementById('map-caption'), fit: document.getElementById('fit-map'),
   load: document.getElementById('load-pilot'), overlayNote: document.getElementById('habitat-layers-note'),
+  discovery: document.getElementById('discovery'), discoveryCount: document.getElementById('discovery-count'),
 };
 let manifest = null;
 let manifestError = null;
-const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverlay: null, resolvedId: null };
+let searchAreas = [];
+let searchAreaId = null;
+const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverlay: null, resolvedId: null,
+  discoveryNodes: null, discoverySignature: null };
+
+// DISCOVERY WORKSPACE. Discovery reads only the bounded road-network extract and the bounded habitat and
+// ecoregion extracts through the GIS service: it never calls an occurrence API and never calls the
+// Investigator Worker or Overpass. Deeper evidence starts when a person promotes a corridor.
+async function loadSearchAreas() {
+  const declaration = validateSearchAreas(await fetchJson(SEARCH_AREAS_URL), manifest);
+  searchAreas = [...declaration.searchAreas];
+  searchAreaId = searchAreas[0]?.id ?? null;
+  return searchAreas;
+}
+
+async function discoverRoads() {
+  const state = store.getState();
+  const searchArea = searchAreas.find(area => area.id === searchAreaId) ?? defaultSearchArea({ searchAreas });
+  const marks = state.discovery.marks ?? readDiscoveryMarks();
+  store.startDiscovery(searchArea, marks);
+  try {
+    const run = await runDiscovery({ gis, searchArea, marks });
+    if (run.status !== 'ready') {
+      store.failDiscovery({ coverage: run.coverage, searchArea, marks,
+        error: `${run.roadQuery.reason ?? run.roadQuery.note ?? 'The road-network extract could not be read.'} A failed query is not an empty search area.` });
+      return;
+    }
+    store.finishDiscovery({ results: run.results, coverage: run.coverage, diagnostics: run.diagnostics,
+      eligibility: run.eligibility, raw: { ...run.raw, provenance: run.roadQuery.provenance }, searchArea, marks });
+  } catch (error) {
+    store.failDiscovery({ searchArea, marks, error: error.message });
+  }
+}
+
+// Promotion reuses the ordinary road/candidate builders, so a discovered corridor becomes a normal
+// candidate: same detail pipeline, same evidence workflow, and no Investigator probe entry required.
+function promoteDiscoveryCorridor(id) {
+  const state = store.getState();
+  const result = state.discovery.results.find(entry => entry.id === id);
+  if (!result) return;
+  const candidate = promoteDiscoveryResult(result, { features: state.discovery.raw?.features ?? [],
+    provenance: state.discovery.raw?.provenance ?? null });
+  store.promoteDiscoveryCandidate(candidate, id);
+  writeDiscoveryMarks(store.getState().discovery.marks);
+  nodes.list.scrollIntoView({ block: 'nearest' });
+}
+
+function markDiscoveryCorridor(id, status) {
+  const state = store.getState();
+  const current = state.discovery.results.find(entry => entry.id === id);
+  if (!current) return;
+  const next = status ?? (current.status === DISCOVERY_STATUS.DISMISSED ? DISCOVERY_STATUS.DISCOVERED : DISCOVERY_STATUS.DISMISSED);
+  store.setDiscoveryMarks(writeDiscoveryMarks(markDiscovery(state.discovery.marks, id, next)));
+}
 
 async function resolveEcology(id) {
   const state = store.getState();
@@ -340,21 +404,74 @@ store.subscribe(state => {
     investigation, access: investigation && accessReview ? { ...investigation.access, human: accessReview } : investigation?.access ?? null,
     onRunAccess: options => requestAccess(options), onExportBundle: () => { exportBundle().catch(error => reportAccessNote(error.message)); },
     onReviewAccess: review => recordAccessReview(review), recordedCaptureAt: accessRecord?.capturedAt ?? null, liveOsm: state.liveOsm,
-    workerStatus: state.workerStatus, workerUrl: INVESTIGATOR_WORKER_URL });
+    workerStatus: state.workerStatus, workerUrl: INVESTIGATOR_WORKER_URL,
+    declaredSourceCount: (PILOT_PROBES_BY_CORRIDOR[selected?.id] ?? []).length });
   renderContext(nodes.context, { manifest, pilotLoaded: state.pilotLoaded, error: manifestError, coverage: selected?.coverage, roadQuery: state.roadQuery });
+  // The discovery workspace renders from its own state slice, so a candidate interaction never
+  // rebuilds a bounded result table.
+  renderDiscoveryPanel(state);
   nodes.fit.disabled = !selected;
   nodes.caption.textContent = caption(state);
   const overlay = state.habitatOverlay && state.habitatOverlay.candidateId === selected?.id ? state.habitatOverlay : null;
   const occurrenceOverlay = state.occurrenceOverlay && state.occurrenceOverlay.candidateId === selected?.id ? state.occurrenceOverlay : null;
+  const discoveryLayer = discoveryDescriptors(state);
+  const discoveryKey = `${state.discovery.status}|${state.discovery.selectedId}|${discoveryLayer?.corridors.length ?? 0}|${discoveryLayer?.promotedIds.join(',') ?? ''}`;
   if (selected?.id !== drawn.selectedId || drawn.corridors.length !== state.candidates.length
-    || drawn.overlay !== overlay || drawn.occurrenceOverlay !== occurrenceOverlay) {
+    || drawn.overlay !== overlay || drawn.occurrenceOverlay !== occurrenceOverlay || drawn.discoveryKey !== discoveryKey) {
     drawn.corridors = corridorDescriptors(state);
     drawn.overlay = overlay;
     drawn.occurrenceOverlay = occurrenceOverlay;
-    map.draw({ corridors: drawn.corridors, selectedId: selected?.id ?? null, overlay, occurrenceOverlay });
+    drawn.discoveryKey = discoveryKey;
+    map.draw({ corridors: drawn.corridors, selectedId: selected?.id ?? null, overlay, occurrenceOverlay, discovery: discoveryLayer });
     drawn.selectedId = selected?.id ?? null;
   }
 });
+
+function signature(state) {
+  const discovery = state.discovery;
+  return `${discovery.status}|${discovery.results.length}|${discovery.selectedId}|${Object.keys(discovery.marks).length}|${discovery.sort}|${JSON.stringify(discovery.filters)}|${discovery.error ?? ''}`;
+}
+
+// The discovery panel is rendered only when its own state changed: selecting a candidate must not
+// rebuild a bounded result table of up to a few hundred rows.
+function renderDiscoveryPanel(state) {
+  if (drawn.discoveryNodes === state.discovery && drawn.discoverySignature === signature(state)) return;
+  drawn.discoveryNodes = state.discovery;
+  drawn.discoverySignature = signature(state);
+  // Marks are the authoritative promoted/dismissed state: applying them at render time keeps the table,
+  // the map layer, and the persisted record in step with each other after a promotion.
+  const discovery = { ...state.discovery, results: applyMarks(state.discovery.results, state.discovery.marks) };
+  renderDiscovery(nodes.discovery, {
+    discovery, searchAreas, searchAreaId,
+    onDiscover: () => { discoverRoads().catch(error => store.failDiscovery({ error: error.message, marks: state.discovery.marks })); },
+    onSelect: id => store.selectDiscovery(id),
+    onPromote: id => promoteDiscoveryCorridor(id),
+    onDismiss: id => markDiscoveryCorridor(id),
+    onFilters: filters => store.setDiscoveryFilters(filters),
+    onSort: sort => store.setDiscoverySort(sort),
+    onSearchArea: id => { searchAreaId = id; },
+  });
+  const note = eligibilityNote(state.discovery.eligibility);
+  if (note) nodes.discovery.append(el('p', 'discovery-eligible', note));
+  nodes.discoveryCount.textContent = state.discovery.results.length ? String(state.discovery.results.length) : '0';
+}
+
+function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
+
+// Only the bounded, currently visible discovery corridors reach the map: the same first rows the table
+// shows, so a search area stays a bounded number of SVG paths.
+function discoveryDescriptors(state) {
+  const discovery = state.discovery;
+  if (discovery.status !== 'ready' || !discovery.results.length) return null;
+  const results = applyMarks(discovery.results, discovery.marks);
+  const view = filterAndSort(results, discovery.filters, discovery.sort).slice(0, MAX_RESULT_ROWS);
+  return {
+    corridors: view.map(result => ({ id: result.id, name: result.name, geometry: result.geometry })),
+    selectedId: discovery.selectedId,
+    promotedIds: view.filter(result => result.status === DISCOVERY_STATUS.PROMOTED).map(result => result.id),
+    badge: `DISCOVERY ${discovery.coverage?.coverage ?? COVERAGE.UNKNOWN} · ${view.length} OF ${results.length} CORRIDORS · ACCESS UNVERIFIED`,
+  };
+}
 
 async function openPilot() {
   nodes.load.disabled = true;
@@ -421,10 +538,19 @@ const dialog = document.getElementById('about-dialog');
 document.getElementById('about-button').addEventListener('click', () => dialog.showModal());
 document.getElementById('close-about').addEventListener('click', () => dialog.close());
 
-loadManifest().then(value => {
+loadManifest().then(async value => {
   manifest = value;
   const state = store.getState();
   renderContext(nodes.context, { manifest, pilotLoaded: state.pilotLoaded, coverage: state.candidates.find(candidate => candidate.id === state.selectedId)?.coverage, roadQuery: state.roadQuery });
+  try {
+    await loadSearchAreas();
+  } catch (error) {
+    // A search area that the loaded datasets cannot cover is a declaration problem, not a survey.
+    store.failDiscovery({ error: `Discovery search areas are unavailable: ${error.message}`, marks: readDiscoveryMarks() });
+  }
+  renderDiscoveryPanel(store.getState());
+  const discovery = store.getState().discovery;
+  if (discovery.status === 'idle') store.setDiscoveryMarks(readDiscoveryMarks());
 }).catch(error => {
   manifestError = error.message;
   renderContext(nodes.context, { error: manifestError });

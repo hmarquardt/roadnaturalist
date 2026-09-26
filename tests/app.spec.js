@@ -17,7 +17,7 @@ for (const width of [1440, 390]) {
     await page.goto('/');
     await expect(page.locator('#candidate-list')).toContainText('No corridor loaded', { timeout: 30000 });
     await expect(page.locator('#map')).toContainText('No corridor loaded');
-    await expect(page.locator('#data-context')).toContainText('Published GIS datasets5');
+    await expect(page.locator('#data-context')).toContainText('Published GIS datasets6');
     await expect(page.locator('#data-context')).toContainText('WetlandsUNKNOWN');
     await page.getByRole('button', { name: /Open Oregon road pilot/ }).click();
     await expect(page.locator('#candidate-list')).toContainText('Road geometry could not be loaded');

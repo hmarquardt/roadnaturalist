@@ -114,6 +114,24 @@ function collapseReversedLinks(lines, toleranceM) {
   return { lines: kept, collapsed };
 }
 
+// Duplicate handling and endpoint connectivity are the road-composition primitives. Candidate
+// discovery needs the same decisions per named road rather than per composed corridor, so both are
+// exported: one implementation, two callers, no second set of duplicate rules.
+export function dedupeSourceLines(lines, toleranceM = DEFAULT_TOLERANCE_M) {
+  const cleaned = (lines ?? []).map(line => ({ sourceFeatureId: String(line?.sourceFeatureId ?? ''), coordinates: cleanLine(line?.coordinates) }))
+    .filter(line => line.coordinates.length >= 2);
+  const exact = removeExactDuplicates(cleaned);
+  const collapsed = collapseReversedLinks(exact.lines, toleranceM);
+  return { lines: collapsed.lines, duplicatesRemoved: exact.duplicatesRemoved, collapsedReversedLinks: collapsed.collapsed };
+}
+
+export function componentGroups(lines, toleranceM = DEFAULT_TOLERANCE_M) {
+  if (!Array.isArray(lines) || !lines.length) return [];
+  return connectedComponents(lines, toleranceM);
+}
+
+export function compareSourceLines(left, right) { return compareLines(left, right); }
+
 function connectedComponents(lines, toleranceM) {
   const parent = lines.map((_, index) => index);
   const find = index => parent[index] === index ? index : (parent[index] = find(parent[index]));

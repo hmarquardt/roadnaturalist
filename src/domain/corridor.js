@@ -7,6 +7,8 @@ export const EVIDENCE_KIND = Object.freeze({ EXPECTED: 'EXPECTED', HISTORICAL: '
 // separate dimensions; one failing never becomes the other's answer.
 export const COVERAGE_DATASET = Object.freeze({
   ROAD_GEOMETRY: 'road-geometry',
+  ROAD_NETWORK: 'road-network-extract',
+  DISCOVERY: 'road-discovery',
   EPA_LEVEL3: 'epa-ecoregions-or-l3',
   EPA_LEVEL4: 'epa-ecoregions-or-l4',
   WETLANDS: 'wetlands',
