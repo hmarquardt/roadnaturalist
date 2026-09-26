@@ -37,24 +37,34 @@ test('production access research runs live through the deployed Worker for all t
     await page.locator('.candidate-card', { hasText: name }).first().click();
     const section = page.locator('.access-section');
     await expect(section).toBeVisible({ timeout: 90000 });
-    await expect(section).toContainText('live through the Road Naturalist Worker boundary', { timeout: 60000 });
+    // Production resolves the boundary from the deployed origin with no manual global (src/app/config.js), so the
+    // panel names the real API host before anything runs. The wording differs between the first corridor (the
+    // boundary has not been checked yet) and later ones (it already has), so assert the host, not the phrasing.
+    await expect(section).toContainText('api.roadnaturalist.com', { timeout: 60000 });
 
     // First run for this corridor: the sources have not been read by this colo yet.
     await section.getByRole('button', { name: /Run access investigation|Re-check access evidence/ }).click();
     await expect(section.locator('.access-finding-label')).toBeVisible({ timeout: 240000 });
+    await expect(section).toContainText('live through the Road Naturalist Worker boundary', { timeout: 60000 });
 
     const read = async () => section.evaluate(node => {
       const text = node.innerText;
-      const pick = pattern => new RegExp(pattern).exec(text)?.[1] ?? null;
+      const pick = pattern => new RegExp(pattern, "i").exec(text)?.[1] ?? null;
+      // The panel's own retrieval-mode counters describe the declared research probes (OpenStreetMap is not one of
+      // them), which is the app's statement about how each source was read.
+      const reads = /(\d+) live, (\d+) from the worker cache, (\d+) replayed from the reviewed capture, (\d+) not run/.exec(text);
       return {
         finding: node.querySelector('.access-finding-label')?.textContent?.trim() ?? null,
-        coverage: pick('Access verification coverage\\n?([A-Z]+)'),
-        reads: pick('(Source reads:[^\\n]+)'),
-        boundary: new RegExp('(Official-source research:[^\\n]+)').exec(text)?.[1] ?? null,
-        failureLine: new RegExp('(\\d+ source request\\(s\\) failed)').exec(text)?.[1] ?? null,
-        liveSources: (node.innerText.match(/live read \\(worker boundary\\)/g) ?? []).length,
-        cachedSources: (node.innerText.match(/cache read \\(worker boundary\\)/g) ?? []).length,
-        replayedSources: (node.innerText.match(/replayed from the reviewed capture/g) ?? []).length,
+        // The label is uppercased by CSS, so match the coverage vocabulary case-insensitively; requiring one of the
+        // four values keeps the coverage *reason* sentence from matching this label.
+        coverage: pick('access verification coverage\\s*(FULL|PARTIAL|UNKNOWN|NONE)'),
+        readsLine: reads ? reads[0] : null,
+        live: reads ? Number(reads[1]) : null,
+        cached: reads ? Number(reads[2]) : null,
+        replayed: reads ? Number(reads[3]) : null,
+        notRun: reads ? Number(reads[4]) : null,
+        boundary: pick('(Official-source research:[^\\n]+)'),
+        failureLine: pick('(\\d+ source request\\(s\\) failed)'),
         note: document.querySelector('#access-note')?.textContent?.trim() ?? null,
       };
     });
@@ -68,10 +78,11 @@ test('production access research runs live through the deployed Worker for all t
 
     expect(second.boundary).toContain('api.roadnaturalist.com');
     expect(FINDING_LABELS).toContain(second.finding);
-    expect(second.liveSources + second.cachedSources, `${name}: no source was read through the boundary`).toBeGreaterThan(0);
-    expect(second.replayedSources, `${name}: the boundary answered, so nothing should be a capture replay`).toBe(0);
+    expect(second.live + second.cached, `${name}: no source was read through the boundary`).toBeGreaterThan(0);
+    expect(second.replayed, `${name}: the boundary answered, so nothing should be a capture replay`).toBe(0);
+    expect(second.notRun, `${name}: every declared source should have been read`).toBe(0);
     expect(['FULL', 'PARTIAL']).toContain(second.coverage);
-    expect(second.cachedSources, `${name}: the repeat run should have used the Worker cache`).toBeGreaterThan(0);
+    expect(second.cached, `${name}: the repeat run should have used the Worker cache`).toBeGreaterThan(0);
     if (!second.failureLine) expect(second.coverage, `${name}: every source answered, so coverage should be FULL`).toBe('FULL');
   }
 

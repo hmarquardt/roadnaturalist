@@ -34,8 +34,8 @@ verifiable. CORS is the price, and it is already the project's model.
 | Worker | `roadnaturalist-investigator` | source: `worker/`; one new version per deploy |
 | Worker custom domain | `api.roadnaturalist.com` | declared in `worker/wrangler.toml`; DNS record + certificate created by Cloudflare |
 | Worker smoke host | `roadnaturalist-investigator.hmarquardt.workers.dev` | `workers_dev = true`; useful for a first check |
-| Pages project | `roadnaturalist` | direct upload from `dist/`; production branch `main` |
-| Pages custom domains | `roadnaturalist.com`, `www.roadnaturalist.com` | attached to the Pages project |
+| Pages project | `roadnaturalist` | direct upload from `dist/`; production branch `main`; live at `https://roadnaturalist.pages.dev` |
+| Pages custom domains | `roadnaturalist.com`, `www.roadnaturalist.com` | attached to the Pages project; **pending a DNS record** — see §8 |
 | Zone | `roadnaturalist.com` | already in the account that owns the domain |
 
 Nothing else is used or needed: no KV, no D1, no R2, no queue, no Durable Object, no cron trigger, no secret. Fruiting
@@ -138,6 +138,61 @@ county site: the Worker is exercised in-process with a stubbed fetch, and the br
   replays the reviewed capture, says so, and reports coverage `PARTIAL` rather than pretending a fresh check happened.
 * Access-verification coverage reaches `FULL` when every declared source answered and the OpenStreetMap stage
   completed. Coverage describes whether the research completed, never what it supports.
+
+## 8. Current state of `roadnaturalist.com` (2026-09-26)
+
+Deployed and verified:
+
+* the Worker `roadnaturalist-investigator` answers at `https://api.roadnaturalist.com` (custom domain), and
+  `INVESTIGATOR_WORKER_URL=https://api.roadnaturalist.com npm run verify:investigator:worker` reported 14/14 probes
+  with drift `UNCHANGED`, no failures, 496 kB read from the sources against 15.4 kB returned, and a repeat pass served
+  entirely from the Worker cache;
+* the application is deployed to the Pages project `roadnaturalist` and serves from
+  `https://roadnaturalist.pages.dev`, including the GeoParquet datasets and the `_headers` policy;
+* a browser on that host resolved the Worker from `PRODUCTION_BOUNDARY` with no manual global and, for all three pilot
+  corridors, read every declared source through the deployed boundary with **zero capture replays** and coverage
+  `FULL`:
+
+| Corridor | Finding | Coverage | Retrieval (repeat run) |
+| --- | --- | --- | --- |
+| NW Cornelius Pass Rd | `RESTRICTED OR CLOSED` (R3) | `FULL` | 6 from the Worker cache, 0 replayed |
+| NW Springville Rd | `PROBABLE_PUBLIC` (R7) | `FULL` | 2 live, 2 from the Worker cache, 0 replayed |
+| NW Susbauer Rd | `RESTRICTED OR CLOSED` (R4) | `FULL` | 4 from the Worker cache, 0 replayed |
+
+A cold pass in the same browser run showed the live reads themselves ("3 live, 1 from the worker cache" and "4
+source(s) read live through the Worker boundary"), and the browser never contacted an official source directly.
+
+
+The one outstanding step is DNS for the two Pages custom domains, which this session's Cloudflare credentials were not
+permitted to change:
+
+```text
+GET /accounts/<account>/pages/projects/roadnaturalist/domains
+  roadnaturalist.com      status pending   verification_data.error_message "CNAME record not set"
+  www.roadnaturalist.com  status pending   verification_data.error_message "CNAME record not set"
+POST /zones/<roadnaturalist.com zone>/dns_records -> Authentication error (this token has zone:read, not DNS:edit)
+```
+
+The zone still carries the older proxied records for the apex and `www` that point at an origin which no longer serves
+anything (`https://roadnaturalist.com` times out; `https://www.roadnaturalist.com` answers 525 from the edge). Cloudflare
+creates the DNS record for a Worker custom domain itself (`api.roadnaturalist.com` needed nothing manual), but a Pages
+custom domain expects the hostname to point at the project.
+
+Fix it once, with either:
+
+1. **Dashboard** — Cloudflare dashboard → Workers & Pages → `roadnaturalist` → Custom domains → add
+   `roadnaturalist.com` and `www.roadnaturalist.com`. The dashboard performs the DNS change with your own permissions
+   and replaces the stale apex/`www` records with the project's CNAME; or
+2. **API with a DNS-capable token** — a token that has `Zone → DNS → Edit` for `roadnaturalist.com` (in addition to
+   `Account → Cloudflare Pages → Edit`), then
+   `POST /accounts/<account>/pages/projects/roadnaturalist/domains` with `{"name":"roadnaturalist.com"}` and the same
+   for `www`, replacing the existing A/AAAA records with a proxied CNAME to `roadnaturalist.pages.dev`.
+
+Until then the production application is reachable at `https://roadnaturalist.pages.dev`, which is in the Worker's
+origin allow-list, and the API is already live at `https://api.roadnaturalist.com`. Nothing else has to change after
+the records are fixed: the app resolves its boundary from the deployed origin, and no code or configuration depends on
+the hostname.
+
 
    unless you point the override at a local Worker.
 
