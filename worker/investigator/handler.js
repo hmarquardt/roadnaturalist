@@ -25,10 +25,13 @@ export const API = Object.freeze({ LIST: '/api/investigator/probes', DETAIL_PREF
 
 // Origins the frontend is served from, plus local development. A request with no Origin header (a script, curl, or a
 // same-origin call) is allowed; a browser request from an origin that is not listed here is refused with 403 and no
-// CORS header, so the boundary stays intentional even though everything served is public.
+// CORS header, so the boundary stays intentional even though everything served is public. Matching is exact: a Pages
+// *preview* origin (a random <hash>.roadnaturalist.pages.dev) is deliberately not allowed, and the app replays the
+// reviewed capture there and says so, rather than the boundary accepting any *.pages.dev host.
 export const DEFAULT_ALLOWED_ORIGINS = Object.freeze([
   'https://roadnaturalist.com',
   'https://www.roadnaturalist.com',
+  'https://roadnaturalist.pages.dev',
   'http://localhost:8000',
   'http://127.0.0.1:8000',
 ]);

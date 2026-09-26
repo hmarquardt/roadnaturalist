@@ -1,8 +1,14 @@
 # The Road Naturalist Worker boundary
 
 This directory holds the one backend the project has: a Cloudflare Worker that reads **declared public official
-sources** for the Investigator, so the browser does not need CORS access to a county web site. It is implemented and
-tested; it is **not deployed** by this repository.
+sources** for the Investigator, so the browser does not need CORS access to a county web site.
+
+Deployed production endpoints (see `docs/DEPLOYMENT.md` for the full topology):
+
+```text
+https://api.roadnaturalist.com          custom domain, declared in wrangler.toml
+https://roadnaturalist-investigator.hmarquardt.workers.dev    workers_dev smoke host
+```
 
 ```text
 browser  ──GET /api/investigator/probes/:probeId──▶  Worker  ──GET <declared URL>──▶  county / agency page
@@ -152,24 +158,28 @@ response contract are all covered offline.
 
 `verify:investigator:worker` has two modes and says which it used:
 
-* **DEPLOYED** — with `INVESTIGATOR_WORKER_URL` set, it requests every declared probe from the real Worker and reports
-  HTTP result, extraction, cache state, drift against the committed baseline, coverage, and the deterministic finding.
+* **DEPLOYED** — with `INVESTIGATOR_WORKER_URL` set (for example `https://api.roadnaturalist.com`), it requests every
+  declared probe from the real Worker and reports HTTP result, extraction, cache state, drift against the committed
+  baseline, coverage, and the deterministic finding.
 * **LOCAL** — with no URL configured, it serves the same handler over `127.0.0.1` in-process and exercises it
-  end-to-end against the real sources (this is the mode used so far). It prints the exact deployment step it skipped.
+  end-to-end against the real sources. It prints the exact deployment step it skipped.
 
-Deploying is a reviewed operator step, not something this repository does:
+Deploying this Worker, which is reproducible from this directory alone:
 
 ```sh
-# 1. review the diff and the committed policy (URLs, hosts, caps, TTLs)
-# 2. from worker/, with a Cloudflare account that holds this project:
-#      npx wrangler deploy            # reads worker/wrangler.toml (no KV, no D1, no secret)
-# 3. verify the live boundary:  INVESTIGATOR_WORKER_URL=https://<name>.<account>.workers.dev npm run verify:investigator:worker
-# 4. point the app at it: set window.ROADNATURALIST_WORKER_URL (src/app/config.js) in the deployment
-# 5. only then consider an account-level rate limiting rule and a custom route
+npm run deploy:worker      # from the repository root: cd worker && npx wrangler@4.135.0 deploy
 ```
 
-`worker/wrangler.toml` declares a bare Worker: `workers_dev = true`, two optional variables, and no route, no KV, no
-D1, and no secret, because the endpoint needs none. The origin allow-list is the one value a deployment may override.
+`wrangler.toml` is the whole deployment: worker name, `compatibility_date`, the two optional variables, `workers_dev`,
+and the `api.roadnaturalist.com` custom domain (`custom_domain = true`, so Cloudflare owns that DNS record and
+certificate). No KV, no D1, no R2, no secret. After a deploy, verify the live boundary:
+
+```sh
+INVESTIGATOR_WORKER_URL=https://api.roadnaturalist.com npm run verify:investigator:worker
+```
+
+The app does not need its own configuration change to follow a redeploy: production resolves the boundary from
+`PRODUCTION_BOUNDARY` in `src/app/config.js`, and only overrides it if `window.ROADNATURALIST_WORKER_URL` is set.
 
 ## 8. Occurrence credentials (documented need, not implemented)
 

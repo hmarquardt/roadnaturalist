@@ -598,3 +598,22 @@ test('the worker entry rejects an unknown path and reports internal failures hon
 const sharedTextOf = text => normalizeWhitespace(htmlToText(text));
 
 function bodyHasNoSecrets(value) { return !/api[_-]?key|token|secret|bearer/i.test(JSON.stringify(value)); }
+
+test('production origins are allowed exactly, with no wildcard and no suffix matching', async () => {
+  const production = ['https://roadnaturalist.com', 'https://www.roadnaturalist.com', 'https://roadnaturalist.pages.dev'];
+  for (const origin of production) assert.equal(DEFAULT_ALLOWED_ORIGINS.includes(origin), true, `${origin} must be allowed`);
+  assert.equal(DEFAULT_ALLOWED_ORIGINS.includes('*'), false);
+  assert.equal(DEFAULT_ALLOWED_ORIGINS.every(origin => /^https:\/\/|^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)), true,
+    'every allowed origin is either https or an explicit local development origin');
+
+  const { call } = harness();
+  const pages = await call(CORNELIUS_ADVISORY, { origin: 'https://roadnaturalist.pages.dev' });
+  assert.equal(pages.status, 200);
+  assert.equal(pages.headers.get('Access-Control-Allow-Origin'), 'https://roadnaturalist.pages.dev');
+  // A preview deployment has a generated hostname, and is refused: the app replays the reviewed capture there and says
+  // so, which is better than the boundary accepting any *.pages.dev host.
+  const preview = await call(CORNELIUS_ADVISORY, { origin: 'https://abc123.roadnaturalist.pages.dev' });
+  assert.equal(preview.status, 403);
+  assert.equal(preview.headers.get('Access-Control-Allow-Origin'), null);
+  assert.equal((await bodyOf(preview)).error.code, 'ORIGIN_NOT_ALLOWED');
+});

@@ -734,3 +734,26 @@ test('the bundle carries how sources were read, what drifted, and which run it r
   assert.equal(validateBundle(bundle).valid, true);
   assert.equal(parseBundle(JSON.stringify(bundle)).access.previousRun.coverage, 'PARTIAL');
 });
+
+test('the browser resolves the Worker boundary explicitly, by production default, or not at all', async () => {
+  const { PRODUCTION_BOUNDARY, resolveWorkerUrl } = await import('../src/app/config.js');
+  assert.equal(PRODUCTION_BOUNDARY, 'https://api.roadnaturalist.com');
+  // A deployed origin uses the committed production boundary with no manual configuration.
+  for (const host of ['roadnaturalist.com', 'www.roadnaturalist.com', 'roadnaturalist.pages.dev', 'some-hash.roadnaturalist.pages.dev']) {
+    assert.equal(resolveWorkerUrl({ hostname: host }), PRODUCTION_BOUNDARY, `${host} should use the production boundary`);
+  }
+  // A local origin has no boundary, so offline development replays the reviewed capture and needs no Cloudflare access.
+  for (const host of ['localhost', 'LOCALHOST', '127.0.0.1', '0.0.0.0', '::1', '[::1]', '', undefined]) {
+    assert.equal(resolveWorkerUrl({ hostname: host }), '', `${String(host)} should have no boundary`);
+  }
+  // An explicit override wins, and is normalized; a blank override is not an override.
+  assert.equal(resolveWorkerUrl({ override: 'http://127.0.0.1:8787/', hostname: 'roadnaturalist.com' }), 'http://127.0.0.1:8787');
+  assert.equal(resolveWorkerUrl({ override: ' https://example.test/boundary// ', hostname: 'localhost' }), 'https://example.test/boundary');
+  assert.equal(resolveWorkerUrl({ override: '   ', hostname: 'localhost' }), '');
+  assert.equal(resolveWorkerUrl({ override: null, hostname: 'localhost' }), '');
+  // In a Node process there is no location and no override, so the module reports itself unconfigured.
+  const config = await import('../src/app/config.js');
+  assert.equal(config.INVESTIGATOR_WORKER_URL, '');
+  assert.equal(config.INVESTIGATOR_WORKER_CONFIGURED, false);
+  assert.match(config.CONFIG_NOTE, /replays the reviewed operator capture/);
+});

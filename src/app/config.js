@@ -1,18 +1,36 @@
 // BROWSER BUILD CONFIGURATION.
 //
-// The investigator Worker boundary is optional by design. With no URL configured, the app replays the reviewed
-// operator capture (data/investigator/or-pilot-access-evidence.json) and reports those sources as deferred with
-// access-verification coverage PARTIAL — the honest behaviour for a build that has no live boundary.
+// Which Investigator boundary this build talks to, in this order:
 //
-// When a boundary is deployed, the deployment sets `window.ROADNATURALIST_WORKER_URL` (for example in a small inline
-// script or a Pages transform) rather than editing code, so the same committed build can run with or without it.
-// Tests set the same global before loading the app.
+//   1. `window.ROADNATURALIST_WORKER_URL` — an explicit override. Tests use it, and so does a developer running a
+//      local Worker (`cd worker && npx wrangler dev`).
+//   2. `PRODUCTION_BOUNDARY` on any deployed origin — so production does not depend on somebody setting a global by
+//      hand in a browser console. This is the checked-in production configuration.
+//   3. nothing on a local origin — `npm run dev` replays the reviewed capture unless the override points it at a
+//      local Worker, so offline development keeps working with no Cloudflare access at all.
+//
+// The resolved URL is the *base* of the Worker boundary: requests go to `${base}/api/investigator/probes/:probeId`.
+// Whatever is resolved here, the browser only ever sends a probe id (worker/README.md).
+export const PRODUCTION_BOUNDARY = 'https://api.roadnaturalist.com';
+
+const LOCAL_HOSTS = new Set(['', 'localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]']);
+
+// Pure so it can be tested directly (tests/investigator.test.js) without a browser.
+export function resolveWorkerUrl({ override = undefined, hostname = undefined, production = PRODUCTION_BOUNDARY,
+  localHosts = LOCAL_HOSTS } = {}) {
+  const given = typeof override === 'string' ? override.trim() : '';
+  if (given) return given.replace(/\/+$/, '');
+  const host = String(hostname ?? '').toLowerCase();
+  if (!host || localHosts.has(host)) return '';
+  return production;
+}
+
 const overrideValue = typeof globalThis === 'undefined' ? undefined : globalThis.ROADNATURALIST_WORKER_URL;
+const hostname = typeof globalThis === 'undefined' ? undefined : globalThis.location?.hostname;
 
-const normalized = typeof overrideValue === 'string' && overrideValue.trim() ? overrideValue.trim().replace(/\/+$/, '') : '';
-
-export const INVESTIGATOR_WORKER_URL = normalized;
-export const INVESTIGATOR_WORKER_CONFIGURED = Boolean(normalized);
+export const INVESTIGATOR_WORKER_URL = resolveWorkerUrl({ override: overrideValue, hostname });
+export const INVESTIGATOR_WORKER_CONFIGURED = Boolean(INVESTIGATOR_WORKER_URL);
 export const CONFIG_NOTE = INVESTIGATOR_WORKER_CONFIGURED
-  ? `Investigator live research is configured against ${normalized}; the reviewed capture stays available as the fallback.`
+  ? `Investigator live research is configured against ${INVESTIGATOR_WORKER_URL}; the reviewed capture stays available as the fallback.`
   : 'No investigator Worker is configured for this build, so official-source research replays the reviewed operator capture.';
+

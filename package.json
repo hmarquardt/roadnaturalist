@@ -9,7 +9,11 @@
     "verify:occurrence:live": "node scripts/verify-occurrence-live.mjs",
     "verify:occurrence:browser": "RUN_OCCURRENCE_LIVE=1 playwright test tests/occurrence-live.spec.js",
     "verify:investigator:live": "node scripts/verify-investigator-live.mjs",
-    "verify:investigator:worker": "node scripts/verify-investigator-worker.mjs"
+    "verify:investigator:worker": "node scripts/verify-investigator-worker.mjs",
+    "stage:pages": "node scripts/stage-pages.mjs",
+    "deploy:pages": "node scripts/deploy-pages.mjs",
+    "deploy:worker": "cd worker && npx --yes wrangler@4.135.0 deploy",
+    "verify:production:browser": "RUN_PRODUCTION_LIVE=1 playwright test tests/production-live.spec.js"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"

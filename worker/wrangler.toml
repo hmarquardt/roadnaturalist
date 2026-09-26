@@ -1,9 +1,15 @@
 # Cloudflare Worker configuration for the Road Naturalist investigator source boundary.
 #
-# This file describes the Worker; it is deliberately NOT deployed by this repository, and it creates no
-# resources. Deploying it is a reviewed operator step (see worker/README.md for the exact commands and the
-# required variables). No route, no custom domain, no KV namespace, no D1 database, and no secret is declared
-# here, because the endpoint needs none: it reads public pages and holds no credential.
+# PRODUCTION (deployed 2026-09-26):
+#   Worker name   roadnaturalist-investigator
+#   endpoint      https://api.roadnaturalist.com        (custom domain, this file)
+#   smoke URL     https://roadnaturalist-investigator.hmarquardt.workers.dev   (workers_dev)
+#   deploy        cd worker && npx wrangler deploy      (reproducible from this file alone)
+#
+# It creates no KV namespace, no D1 database, no R2 bucket, no queue, no Durable Object, no cron trigger, and no
+# secret, because the endpoint needs none: it reads public pages and holds no credential. The only deployment state
+# that cannot live in this file is the DNS record and certificate Cloudflare creates for the custom domain, which
+# `wrangler deploy` requests from the API on the operator's behalf.
 
 name = "roadnaturalist-investigator"
 main = "index.js"
@@ -15,9 +21,15 @@ workers_dev = true
 [vars]
 # Comma-separated browser origins allowed to call the endpoint. The committed default lives in
 # worker/investigator/handler.js and is only overridden here for a deployment that serves another domain.
-INVESTIGATOR_ALLOWED_ORIGINS = "https://roadnaturalist.com,https://www.roadnaturalist.com,http://localhost:8000,http://127.0.0.1:8000"
+INVESTIGATOR_ALLOWED_ORIGINS = "https://roadnaturalist.com,https://www.roadnaturalist.com,https://roadnaturalist.pages.dev,http://localhost:8000,http://127.0.0.1:8000"
 # Set to "off" to bypass the source cache while reviewing a page by hand.
 INVESTIGATOR_CACHE = "on"
+
+# The canonical API endpoint. `custom_domain = true` tells Cloudflare to own the DNS record and certificate for this
+# hostname, so the topology is reproduced by deploying this file rather than by dashboard work.
+[[routes]]
+pattern = "api.roadnaturalist.com"
+custom_domain = true
 
 [observability]
 enabled = true

@@ -325,7 +325,10 @@ finding" is stated in the UI next to the drift.
 **Runtime order.** Live Worker (when this build is configured with one and it answers) → reviewed capture (replayed,
 marked as replayed and *not re-checked here*) → explicit degraded coverage. A live run in which no source answers falls
 back to the capture, and the fallback is recorded in the result (`transportFallback`) and in the note under the panel.
-With no boundary configured, `src/app/config.js` leaves the app on the recorded path, exactly as before.
+`src/app/config.js` resolves the boundary: an explicit `window.ROADNATURALIST_WORKER_URL` first, then the committed
+`PRODUCTION_BOUNDARY` (`https://api.roadnaturalist.com`, the deployed Worker) on any deployed origin, and nothing on a
+local origin, so a production host reads its declared sources live while `npm run dev` still replays the capture with
+no Cloudflare access. The deployed topology is in `docs/DEPLOYMENT.md`.
 
 The retrieval mode of every source is recorded and shown: `LIVE`, `CACHE`, `RECORDED`, or `DEFERRED`, with
 `notReChecked` counting replayed sources this environment could not re-check. Coverage reaches `FULL` only when every
