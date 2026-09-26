@@ -7,7 +7,8 @@
     "test": "node --test tests/*.test.js",
     "test:e2e": "playwright test",
     "verify:occurrence:live": "node scripts/verify-occurrence-live.mjs",
-    "verify:occurrence:browser": "RUN_OCCURRENCE_LIVE=1 playwright test tests/occurrence-live.spec.js"
+    "verify:occurrence:browser": "RUN_OCCURRENCE_LIVE=1 playwright test tests/occurrence-live.spec.js",
+    "verify:investigator:live": "node scripts/verify-investigator-live.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"

@@ -1,0 +1,77 @@
+/* ACCESS & ROAD STATUS + INVESTIGATION RECORD.
+   Access evidence is its own visual class: a finding is never styled like a habitat measurement, and a
+   contradiction is never styled as a footnote. */
+
+.access-section,
+.investigation-section {
+  border-left: 3px solid var(--line, #3c4a45);
+}
+
+.access-finding {
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  margin: 0.5rem 0 0.75rem;
+  background: #14201d;
+  border: 1px solid var(--line, #3c4a45);
+}
+
+.access-finding .eyebrow { display: block; margin-bottom: 0.15rem; }
+.access-finding-label { display: block; font-size: 1.15rem; letter-spacing: 0.04em; }
+.access-finding.ok { border-color: #4f8a6b; background: #16241d; }
+.access-finding.caution { border-color: #a58b3f; background: #241f14; }
+.access-finding.warn { border-color: #a4573f; background: #241816; }
+.access-finding.unknown { border-color: #4a5560; background: #171b1e; }
+
+.access-evidence { margin: 0.6rem 0; }
+.access-evidence .eyebrow { display: block; margin-bottom: 0.3rem; }
+.access-claim { font-weight: 600; margin: 0.35rem 0 0; }
+.access-source { margin: 0 0 0.5rem; }
+.access-evidence.community { opacity: 0.92; }
+.access-evidence.restrictions { border-left: 2px solid #a4573f; padding-left: 0.6rem; }
+.access-evidence.inactive { opacity: 0.75; }
+.access-evidence.attention { border-left: 2px solid #a58b3f; padding-left: 0.6rem; }
+.access-contradictions {
+  border: 1px solid #a4573f;
+  background: #241816;
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  margin: 0.7rem 0;
+}
+.access-contradictions .eyebrow { display: block; margin-bottom: 0.3rem; }
+
+.access-unresolved { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.access-unresolved li { margin-bottom: 0.25rem; }
+
+.access-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.6rem 0; }
+.access-actions .primary-button, .access-actions .quiet-button { flex: 0 0 auto; }
+
+.stage-list { list-style: none; margin: 0.3rem 0 0; padding: 0; }
+.stage-list .stage { border-left: 2px solid var(--line, #3c4a45); padding: 0.3rem 0 0.3rem 0.6rem; margin-bottom: 0.35rem; }
+.stage-list .stage.complete { border-left-color: #4f8a6b; }
+.stage-list .stage.warning { border-left-color: #a58b3f; }
+.stage-list .stage.failed { border-left-color: #a4573f; }
+.stage-list .stage.skipped { border-left-color: #4a5560; }
+.stage-status { display: inline-block; margin-right: 0.4rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.85; }
+
+.source-list { list-style: none; margin: 0.3rem 0 0; padding: 0; }
+.source-list .source { border-left: 2px solid var(--line, #3c4a45); padding: 0.35rem 0 0.35rem 0.6rem; margin-bottom: 0.35rem; }
+.source-list .source.evidence { border-left-color: #4f8a6b; }
+.source-list .source.no_relevant_evidence { border-left-color: #4a5560; }
+.source-list .source.failed, .source-list .source.not_run { border-left-color: #a4573f; }
+.source-list .source.operator_only { border-left-color: #a58b3f; }
+
+.adversarial-list { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.adversarial-list .concern { color: #e3b389; }
+.adversarial-list .unresolved { color: #e3b389; }
+.adversarial-list .pass { opacity: 0.85; }
+
+.warn-text { color: #e3b389; }
+
+.human-review .review-select { min-width: 12rem; }
+.human-review .review-note { width: 100%; margin-top: 0.4rem; background: #14201d; color: inherit; border: 1px solid var(--line, #3c4a45); border-radius: 8px; padding: 0.4rem 0.5rem; font: inherit; }
+
+@media (max-width: 700px) {
+  .access-actions { flex-direction: column; align-items: stretch; }
+  .access-actions .primary-button, .access-actions .quiet-button { width: 100%; }
+  .access-finding-label { font-size: 1.05rem; }
+}

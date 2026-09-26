@@ -1,0 +1,122 @@
+{
+ "kind": "investigator-source-excerpts",
+ "note": "Excerpts of the declared probe phrases that the operator verification run (scripts/verify-investigator-live.mjs) found in the served page text on 2026-09-25. Offline tests replay these excerpts; they are not copies of the pages. Declared phrases that the operator check did NOT find at their source are excluded, so a no-result search stays a no-result search offline, and sources with nothing relevant carry a real non-matching sentence. The live script remains the authority for what each source serves.",
+ "absentFacts": [
+  "Cornelius Pass Road",
+  "Springville Road",
+  "Susbauer Road"
+ ],
+ "capturedAt": "2026-09-25T23:54:00.000Z",
+ "sources": {
+  "https://content.govdelivery.com/accounts/ORDOT/bulletins/2c218b2": {
+   "corridorId": "or-roads-cornelius-pass-rd",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://content.govdelivery.com/accounts/ORDOT/bulletins/2c218b2",
+   "text": "Page text as served: NW Cornelius Pass Road between U.S. 30 and U.S. 26 is a state highway as of Monday, March 1 after a jurisdictional transfer from Multnomah County and Washington County. ... Page text as served: As a state highway, the road will be subject to ODOT standards for design and maintenance",
+   "probeIds": [
+    "odot-cornelius-transfer"
+   ]
+  },
+  "https://www.washingtoncountyor.gov/lut/projects/cornelius-pass-road-bridge-rock-creek": {
+   "corridorId": "or-roads-cornelius-pass-rd",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://www.washingtoncountyor.gov/lut/projects/cornelius-pass-road-bridge-rock-creek",
+   "text": "Page text as served: Road closure has been extended to October 7, 2026 ... Page text as served: Road closure has been extended to October 7, 2026 ... Page text as served: Jurisdiction of Cornelius Pass Road has transferred to ODOT, and is now OR 127. ... Page text as served: Once complete, the bridge will be transferred to ODOT for all future maintenance. ... Page text as served: No trucks are allowed on Old Cornelius Pass Road.",
+   "probeIds": [
+    "wc-cornelius-bridge-project"
+   ]
+  },
+  "https://www.washingtoncountyor.gov/lut/news/2026/07/09/safety-and-freight-improvements-cornelius-pass-road-bridge-replacement-rock-creek": {
+   "corridorId": "or-roads-cornelius-pass-rd",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://www.washingtoncountyor.gov/lut/news/2026/07/09/safety-and-freight-improvements-cornelius-pass-road-bridge-replacement-rock-creek",
+   "text": "Page text as served: Cornelius Pass Road (OR-127) will be closed between Germantown Road and Kaiser Road from July 15 to October 7, 2026 ... Page text as served: from July 15 to October 7, 2026",
+   "probeIds": [
+    "wc-cornelius-closure-news"
+   ]
+  },
+  "https://www.wc-roads.com/": {
+   "corridorId": "or-roads-cornelius-pass-rd",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://www.wc-roads.com/",
+   "text": "Page text as served: Cornelius Pass Road From/To: At Rock Creek (View Detour Map) Impact: Road closure Reason: Bridge replacement Schedule: From: 07/15/2026 To: 10/07/2026 Use alternate route ... Page text as served: To: 10/07/2026",
+   "probeIds": [
+    "wc-roads-cornelius-advisory"
+   ]
+  },
+  "https://multco.us/info/rcip-project-rankings": {
+   "corridorId": "or-roads-cornelius-pass-rd",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://multco.us/info/rcip-project-rankings",
+   "text": "Page text as served: NW Cornelius Pass Road: Highway 30 - Skyline Boulevard ... Page text as served: NW Cornelius Pass Road: Skyline Boulevard - County Line ... Page text as served: NW Springville Road: City of Portland line to Washington County line",
+   "probeIds": [
+    "mc-cornelius-rcip",
+    "mc-springville-rcip"
+   ]
+  },
+  "https://www.washingtoncountyor.gov/lut/projects/springville-road-phase-4": {
+   "corridorId": "or-roads-springville-rd",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://www.washingtoncountyor.gov/lut/projects/springville-road-phase-4",
+   "text": "Page text as served: Springville Road Phase 4 is the middle and final section of the urban street improvements for Springville Road between 185th Avenue and Kaiser Road. ... Page text as served: Funding source: North Bethany County Service District for Roads (NBCSDR)",
+   "probeIds": [
+    "wc-springville-phase4"
+   ]
+  },
+  "https://www.washingtoncountyor.gov/index.php/lut/news/2026/04/02/celebrate-springville-road-improvements": {
+   "corridorId": "or-roads-springville-rd",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://www.washingtoncountyor.gov/index.php/lut/news/2026/04/02/celebrate-springville-road-improvements",
+   "text": "Page text as served: Improvements to Springville Road were supported by the North Bethany County Service District for Roads ... Page text as served: The work improved Springville Road from 185th Avenue intersection to Kaiser Road in four phases:",
+   "probeIds": [
+    "wc-springville-improvements-news"
+   ]
+  },
+  "https://www.washingtoncountyor.gov/lut/road-maintenance/flooding-winds": {
+   "corridorId": "or-roads-susbauer-rd",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://www.washingtoncountyor.gov/lut/road-maintenance/flooding-winds",
+   "text": "Page text as served: Susbauer and Fern Hill roads both flood often during heavy rainfall. ... Page text as served: Susbauer and Fern Hill roads both flood often during heavy rainfall. ... Page text as served: We have installed permanent, manual-locking flood gates on both these roads. ... Page text as served: The gates on Susbauer Road are south of Hornecker Road and north of Long Road.",
+   "probeIds": [
+    "wc-flooding-susbauer"
+   ]
+  },
+  "https://www.washingtoncountyor.gov/lut/news/flood-gates-closed-fern-hill-and-susbauer-roads-use-alternate-routes-0": {
+   "corridorId": "or-roads-susbauer-rd",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://www.washingtoncountyor.gov/lut/news/flood-gates-closed-fern-hill-and-susbauer-roads-use-alternate-routes-0",
+   "text": "Page text as served: Susbauer is closed between Long and Hornecker roads. ... Page text as served: Both roads frequently flood during periods of heavy rain. ... Page text as served: The flood gates at Fern Hill and Susbauer roads are closed due to high water.",
+   "probeIds": [
+    "wc-susbauer-flood-closure-news"
+   ]
+  },
+  "https://www.washingtoncountyor.gov/lut/mstip-3f-funding-allocation": {
+   "corridorId": "or-roads-susbauer-rd",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://www.washingtoncountyor.gov/lut/mstip-3f-funding-allocation",
+   "text": "Page text as served: Wren Road/Susbauer Road intersection",
+   "probeIds": [
+    "wc-mstip-susbauer"
+   ]
+  },
+  "https://multco.us/info/our-roads": {
+   "corridorId": "or-roads-pilot",
+   "retrievedAt": "2026-09-25T23:54:00.000Z",
+   "httpStatus": 200,
+   "url": "https://multco.us/info/our-roads",
+   "text": "Multnomah County Road Maintenance is responsible for maintaining 269 miles of roads.",
+   "probeIds": [],
+   "noRelevantEvidenceOnly": true
+  }
+ }
+}

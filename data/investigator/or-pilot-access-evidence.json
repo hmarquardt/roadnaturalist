@@ -1,0 +1,3775 @@
+{
+ "schemaVersion": "roadnaturalist-access-evidence/1",
+ "capturedAt": "2026-09-26T00:02:01.389Z",
+ "environment": "operator/node",
+ "corridors": {
+  "or-roads-cornelius-pass-rd": {
+   "checkedAsOf": "2026-09-26T00:02:01.390Z",
+   "finding": {
+    "finding": "RESTRICTED_OR_CLOSED",
+    "ruleId": "R3_CURRENT_RESTRICTION",
+    "checkedAsOf": "2026-09-26T00:02:01.390Z",
+    "coverage": "FULL"
+   },
+   "probes": [
+    {
+     "probeId": "odot-cornelius-transfer",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://content.govdelivery.com/accounts/ORDOT/bulletins/2c218b2",
+      "retrievedAt": "2026-09-26T00:02:10.342Z",
+      "httpStatus": 200,
+      "bytes": 32049,
+      "transport": "live-http",
+      "sourceTextHash": "c02ce60a"
+     },
+     "note": "2 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-odot-cornelius-transfer-1",
+       "corridorId": "or-roads-cornelius-pass-rd",
+       "claimType": "PUBLIC_ROAD",
+       "claimValue": "state highway OR 127",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Oregon Department of Transportation",
+       "sourceTitle": "Cornelius Pass Road Jurisdictional Transfer Complete (ODOT bulletin, March 1 2021)",
+       "sourceUrl": "https://content.govdelivery.com/accounts/ORDOT/bulletins/2c218b2",
+       "sourceType": "state agency bulletin",
+       "appliesTo": "NW Cornelius Pass Road",
+       "quote": "NW Cornelius Pass Road between U.S. 30 and U.S. 26 is a state highway as of Monday, March 1 after a jurisdictional transfer from Multnomah County and Washington County.",
+       "summary": "ODOT states that NW Cornelius Pass Road between U.S. 30 and U.S. 26 became a state highway on March 1 2021, transferred from Multnomah and Washington counties.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:10.342Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR",
+        "corridorPart": null,
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 32049,
+         "sourceTextHash": "c02ce60a",
+         "transport": "live-http",
+         "question": "Does an authoritative source state that this road is a public road?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      },
+      {
+       "id": "probe-odot-cornelius-transfer-2",
+       "corridorId": "or-roads-cornelius-pass-rd",
+       "claimType": "ROAD_MAINTAINED",
+       "claimValue": "ODOT design and maintenance standards",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Oregon Department of Transportation",
+       "sourceTitle": "Cornelius Pass Road Jurisdictional Transfer Complete (ODOT bulletin, March 1 2021)",
+       "sourceUrl": "https://content.govdelivery.com/accounts/ORDOT/bulletins/2c218b2",
+       "sourceType": "state agency bulletin",
+       "appliesTo": "NW Cornelius Pass Road",
+       "quote": "As a state highway, the road will be subject to ODOT standards for design and maintenance",
+       "summary": "ODOT states the road is subject to ODOT standards for design and maintenance.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:10.342Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR",
+        "corridorPart": null,
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 32049,
+         "sourceTextHash": "c02ce60a",
+         "transport": "live-http",
+         "question": "Does an authoritative source state that this road is a public road?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      }
+     ]
+    },
+    {
+     "probeId": "mc-cornelius-rcip",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://multco.us/info/rcip-project-rankings",
+      "retrievedAt": "2026-09-26T00:02:10.512Z",
+      "httpStatus": 200,
+      "bytes": 67564,
+      "transport": "live-http",
+      "sourceTextHash": "29580318"
+     },
+     "note": "2 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-mc-cornelius-rcip-1",
+       "corridorId": "or-roads-cornelius-pass-rd",
+       "claimType": "ROAD_MAINTAINED",
+       "claimValue": "ranked county road project",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Multnomah County Transportation",
+       "sourceTitle": "Multnomah County Roads Capital Improvement Plan — project rankings (last reviewed December 3 2024)",
+       "sourceUrl": "https://multco.us/info/rcip-project-rankings",
+       "sourceType": "county capital plan",
+       "appliesTo": "NW Cornelius Pass Road",
+       "quote": "NW Cornelius Pass Road: Highway 30 - Skyline Boulevard",
+       "summary": "Multnomah County lists NW Cornelius Pass Road (Highway 30 – Skyline Boulevard) among the road projects in its Roads Capital Improvement Plan.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:10.512Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "Highway 30 – Skyline Boulevard (Multnomah County section)",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 67564,
+         "sourceTextHash": "29580318",
+         "transport": "live-http",
+         "question": "Does the other county that names this road still treat it as a road it maintains?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      },
+      {
+       "id": "probe-mc-cornelius-rcip-2",
+       "corridorId": "or-roads-cornelius-pass-rd",
+       "claimType": "ROAD_MAINTAINED",
+       "claimValue": "ranked county road project",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Multnomah County Transportation",
+       "sourceTitle": "Multnomah County Roads Capital Improvement Plan — project rankings (last reviewed December 3 2024)",
+       "sourceUrl": "https://multco.us/info/rcip-project-rankings",
+       "sourceType": "county capital plan",
+       "appliesTo": "NW Cornelius Pass Road",
+       "quote": "NW Cornelius Pass Road: Skyline Boulevard - County Line",
+       "summary": "Multnomah County lists NW Cornelius Pass Road (Skyline Boulevard – County Line) among the road projects in its Roads Capital Improvement Plan.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:10.512Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "Skyline Boulevard – county line (Multnomah County section)",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 67564,
+         "sourceTextHash": "29580318",
+         "transport": "live-http",
+         "question": "Does the other county that names this road still treat it as a road it maintains?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      }
+     ]
+    },
+    {
+     "probeId": "wc-mstip-cornelius-roadsafety",
+     "outcome": "NO_RELEVANT_EVIDENCE",
+     "searched": {
+      "url": "https://www.washingtoncountyor.gov/lut/mstip-3f-funding-allocation",
+      "retrievedAt": "2026-09-26T00:02:13.029Z",
+      "httpStatus": 200,
+      "bytes": 60730,
+      "transport": "live-http",
+      "sourceTextHash": "1c45dd8c"
+     },
+     "note": "The source was retrieved but none of the declared phrases is present. That is a no-result search, not evidence that nothing exists.",
+     "evidence": []
+    },
+    {
+     "probeId": "wc-cornelius-bridge-project",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://www.washingtoncountyor.gov/lut/projects/cornelius-pass-road-bridge-rock-creek",
+      "retrievedAt": "2026-09-26T00:02:14.651Z",
+      "httpStatus": 200,
+      "bytes": 45349,
+      "transport": "live-http",
+      "sourceTextHash": "8826ef95"
+     },
+     "note": "4 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-wc-cornelius-bridge-project-1",
+       "corridorId": "or-roads-cornelius-pass-rd",
+       "claimType": "TEMPORARY_CLOSURE",
+       "claimValue": "full closure for bridge replacement",
+       "effect": "RESTRICTIVE",
+       "stance": "CONTRADICTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Cornelius Pass Road Bridge at Rock Creek Replacement (Washington County project page)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/projects/cornelius-pass-road-bridge-rock-creek",
+       "sourceType": "county project page",
+       "appliesTo": "Cornelius Pass Road",
+       "quote": "Road closure has been extended to October 7, 2026",
+       "summary": "Washington County states the full road closure for the Rock Creek bridge replacement is extended to October 7 2026.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:14.651Z",
+       "effectiveFrom": "2026-07-15T00:00:00.000Z",
+       "effectiveUntil": "2026-10-07T00:00:00.000Z",
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "bridge over Rock Creek, north of Germantown Road",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 45349,
+         "sourceTextHash": "8826ef95",
+         "transport": "live-http",
+         "question": "Is any part of this road closed, gated, or restricted right now, and who controls it?",
+         "stage": "contradiction-search"
+        },
+        "transport": null
+       }
+      },
+      {
+       "id": "probe-wc-cornelius-bridge-project-2",
+       "corridorId": "or-roads-cornelius-pass-rd",
+       "claimType": "LAND_MANAGER",
+       "claimValue": "ODOT (OR 127)",
+       "effect": "NEUTRAL",
+       "stance": "NEUTRAL",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Cornelius Pass Road Bridge at Rock Creek Replacement (Washington County project page)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/projects/cornelius-pass-road-bridge-rock-creek",
+       "sourceType": "county project page",
+       "appliesTo": "Cornelius Pass Road",
+       "quote": "Jurisdiction of Cornelius Pass Road has transferred to ODOT, and is now OR 127.",
+       "summary": "Washington County states jurisdiction of Cornelius Pass Road transferred to ODOT and the road is now OR 127.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:14.651Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "the OR 127 section",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 45349,
+         "sourceTextHash": "8826ef95",
+         "transport": "live-http",
+         "question": "Is any part of this road closed, gated, or restricted right now, and who controls it?",
+         "stage": "contradiction-search"
+        },
+        "transport": null
+       }
+      },
+      {
+       "id": "probe-wc-cornelius-bridge-project-3",
+       "corridorId": "or-roads-cornelius-pass-rd",
+       "claimType": "LAND_MANAGER",
+       "claimValue": "ODOT (future maintenance)",
+       "effect": "NEUTRAL",
+       "stance": "NEUTRAL",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Cornelius Pass Road Bridge at Rock Creek Replacement (Washington County project page)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/projects/cornelius-pass-road-bridge-rock-creek",
+       "sourceType": "county project page",
+       "appliesTo": "Cornelius Pass Road",
+       "quote": "Once complete, the bridge will be transferred to ODOT for all future maintenance.",
+       "summary": "Washington County states the replacement bridge will be transferred to ODOT for future maintenance.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:14.651Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "the new Rock Creek bridge",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 45349,
+         "sourceTextHash": "8826ef95",
+         "transport": "live-http",
+         "question": "Is any part of this road closed, gated, or restricted right now, and who controls it?",
+         "stage": "contradiction-search"
+        },
+        "transport": null
+       }
+      },
+      {
+       "id": "probe-wc-cornelius-bridge-project-4",
+       "corridorId": "or-roads-cornelius-pass-rd",
+       "claimType": "ROAD_NAME_VARIANT",
+       "claimValue": "Old Cornelius Pass Road",
+       "effect": "ATTENTION",
+       "stance": "NEUTRAL",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Cornelius Pass Road Bridge at Rock Creek Replacement (Washington County project page)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/projects/cornelius-pass-road-bridge-rock-creek",
+       "sourceType": "county project page",
+       "appliesTo": "Cornelius Pass Road",
+       "quote": "No trucks are allowed on Old Cornelius Pass Road.",
+       "summary": "The county detour notice restricts trucks on Old Cornelius Pass Road, which is not the corridor: a similarly named but different road. The restriction does not apply to NW Cornelius Pass Rd.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:14.651Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "Old Cornelius Pass Road (a separate road used as the detour)",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 45349,
+         "sourceTextHash": "8826ef95",
+         "transport": "live-http",
+         "question": "Is any part of this road closed, gated, or restricted right now, and who controls it?",
+         "stage": "contradiction-search"
+        },
+        "transport": null
+       }
+      }
+     ]
+    },
+    {
+     "probeId": "wc-cornelius-closure-news",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://www.washingtoncountyor.gov/lut/news/2026/07/09/safety-and-freight-improvements-cornelius-pass-road-bridge-replacement-rock-creek",
+      "retrievedAt": "2026-09-26T00:02:14.697Z",
+      "httpStatus": 200,
+      "bytes": 44200,
+      "transport": "live-http",
+      "sourceTextHash": "79c955db"
+     },
+     "note": "1 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-wc-cornelius-closure-news-1",
+       "corridorId": "or-roads-cornelius-pass-rd",
+       "claimType": "TEMPORARY_CLOSURE",
+       "claimValue": "full closure between Germantown Road and Kaiser Road",
+       "effect": "RESTRICTIVE",
+       "stance": "CONTRADICTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Safety and Freight Improvements: Cornelius Pass Road Bridge Replacement at Rock Creek (July 9 2026)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/news/2026/07/09/safety-and-freight-improvements-cornelius-pass-road-bridge-replacement-rock-creek",
+       "sourceType": "county news release",
+       "appliesTo": "Cornelius Pass Road (OR-127)",
+       "quote": "Cornelius Pass Road (OR-127) will be closed between Germantown Road and Kaiser Road from July 15 to October 7, 2026",
+       "summary": "Washington County states Cornelius Pass Road (OR-127) is closed between Germantown Road and Kaiser Road from July 15 to October 7 2026, with detours in place.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:14.697Z",
+       "effectiveFrom": "2026-07-15T00:00:00.000Z",
+       "effectiveUntil": "2026-10-07T00:00:00.000Z",
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "between Germantown Road and Kaiser Road",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 44200,
+         "sourceTextHash": "79c955db",
+         "transport": "live-http",
+         "question": "Which exact section of the road is closed, and for how long?",
+         "stage": "contradiction-search"
+        },
+        "transport": null
+       }
+      }
+     ]
+    },
+    {
+     "probeId": "wc-roads-cornelius-advisory",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://www.wc-roads.com/",
+      "retrievedAt": "2026-09-26T00:02:15.139Z",
+      "httpStatus": 200,
+      "bytes": 49684,
+      "transport": "live-http",
+      "sourceTextHash": "56110c64"
+     },
+     "note": "1 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-wc-roads-cornelius-advisory-1",
+       "corridorId": "or-roads-cornelius-pass-rd",
+       "claimType": "TEMPORARY_CLOSURE",
+       "claimValue": "road closure at Rock Creek",
+       "effect": "RESTRICTIVE",
+       "stance": "CONTRADICTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Road Closures & Traffic Advisories (wc-roads.com)",
+       "sourceTitle": "Road Closures & Traffic Advisories (current advisory list)",
+       "sourceUrl": "https://www.wc-roads.com/",
+       "sourceType": "county road-status service",
+       "appliesTo": "Cornelius Pass Road",
+       "quote": "Cornelius Pass Road From/To: At Rock Creek (View Detour Map) Impact: Road closure Reason: Bridge replacement Schedule: From: 07/15/2026 To: 10/07/2026 Use alternate route",
+       "summary": "The county advisory list carries a current road closure on Cornelius Pass Road at Rock Creek for bridge replacement, 07/15/2026 to 10/07/2026.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:15.139Z",
+       "effectiveFrom": "2026-07-15T00:00:00.000Z",
+       "effectiveUntil": "2026-10-07T00:00:00.000Z",
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "at Rock Creek",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 49684,
+         "sourceTextHash": "56110c64",
+         "transport": "live-http",
+         "question": "Does the county road-status service list a current restriction on this road?",
+         "stage": "contradiction-search"
+        },
+        "transport": null
+       }
+      }
+     ]
+    }
+   ],
+   "osm": {
+    "status": "OK",
+    "retrievedAt": "2026-09-26T00:02:01.391Z",
+    "osmTimestamp": "2026-09-26T00:00:25Z",
+    "mirrorsUsed": [
+     "overpass-api-de",
+     "overpass-api-de"
+    ],
+    "searchNames": [
+     "NW Cornelius Pass Rd",
+     "Northwest Cornelius Pass Road",
+     "Cornelius Pass Road"
+    ],
+    "searchBounds": [
+     -122.903916,
+     45.515683,
+     -122.84856,
+     45.654658
+    ],
+    "match": {
+     "method": "corridor sampled every 25 m; a sample counts as matched when a mapped way segment is within 30 m; all distances computed in one local equirectangular frame centred on the corridor",
+     "crs": "EPSG:4326 source coordinates, local metric frame for measurement",
+     "corridorLengthM": 16975.33630279593,
+     "sampleIntervalM": 25,
+     "toleranceM": 30,
+     "sampleCount": 747,
+     "matchedSampleCount": 679,
+     "matchedFraction": 0.9089692101740294,
+     "matchedLengthM": 16975,
+     "unmatchedLengthM": 0.33630279593126033,
+     "matchedWayCount": 100,
+     "candidateWayCount": 107,
+     "meanWayDistanceM": 4.304049232347537,
+     "maxWayDistanceM": 17.562129018169117,
+     "geometryVerified": false,
+     "ways": [
+      {
+       "osmId": "107644060",
+       "name": "Northwest Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/107644060",
+       "nearestM": 0,
+       "matchedSamples": 148,
+       "lengthM": 3135,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "115050060",
+       "name": "Northwest Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/115050060",
+       "nearestM": 0,
+       "matchedSamples": 109,
+       "lengthM": 2493,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "1539601872",
+       "name": "Northwest Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/1539601872",
+       "nearestM": 0,
+       "matchedSamples": 77,
+       "lengthM": 1750,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "600467626",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "trunk",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/600467626",
+       "nearestM": 0,
+       "matchedSamples": 5,
+       "lengthM": 77,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "891548344",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/891548344",
+       "nearestM": 0,
+       "matchedSamples": 7,
+       "lengthM": 86,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "26170723",
+       "name": "Northwest Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/26170723",
+       "nearestM": 0,
+       "matchedSamples": 7,
+       "lengthM": 93,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "600467636",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "trunk",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/600467636",
+       "nearestM": 0,
+       "matchedSamples": 9,
+       "lengthM": 150,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "880478646",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/880478646",
+       "nearestM": 0,
+       "matchedSamples": 6,
+       "lengthM": 44,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "125570285",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/125570285",
+       "nearestM": 0.2,
+       "matchedSamples": 21,
+       "lengthM": 207,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "169949633",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/169949633",
+       "nearestM": 0.2,
+       "matchedSamples": 29,
+       "lengthM": 592,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "745185456",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/745185456",
+       "nearestM": 0.2,
+       "matchedSamples": 11,
+       "lengthM": 16,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "745185459",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/745185459",
+       "nearestM": 0.2,
+       "matchedSamples": 17,
+       "lengthM": 214,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "109791030",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/109791030",
+       "nearestM": 0.3,
+       "matchedSamples": 7,
+       "lengthM": 90,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "913014641",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/913014641",
+       "nearestM": 0.3,
+       "matchedSamples": 4,
+       "lengthM": 61,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "123830247",
+       "name": "Northwest Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/123830247",
+       "nearestM": 0.4,
+       "matchedSamples": 84,
+       "lengthM": 1955,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "199287873",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/199287873",
+       "nearestM": 0.4,
+       "matchedSamples": 11,
+       "lengthM": 175,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "745185455",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/745185455",
+       "nearestM": 0.6,
+       "matchedSamples": 10,
+       "lengthM": 13,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "170034453",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/170034453",
+       "nearestM": 0.6,
+       "matchedSamples": 8,
+       "lengthM": 118,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "913014644",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/913014644",
+       "nearestM": 0.6,
+       "matchedSamples": 6,
+       "lengthM": 96,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "162011452",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/162011452",
+       "nearestM": 0.7,
+       "matchedSamples": 6,
+       "lengthM": 106,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "1068144549",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/1068144549",
+       "nearestM": 1,
+       "matchedSamples": 4,
+       "lengthM": 36,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "927809281",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/927809281",
+       "nearestM": 1.1,
+       "matchedSamples": 6,
+       "lengthM": 99,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "124817280",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/124817280",
+       "nearestM": 1.1,
+       "matchedSamples": 3,
+       "lengthM": 28,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "600467632",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "trunk",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/600467632",
+       "nearestM": 1.2,
+       "matchedSamples": 7,
+       "lengthM": 98,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "880478649",
+       "name": "Northeast Cornelius Pass Road",
+       "highway": "primary",
+       "ref": "OR 127",
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/880478649",
+       "nearestM": 1.2,
+       "matchedSamples": 7,
+       "lengthM": 98,
+       "accessSignal": "ABSENT"
+      }
+     ],
+     "waysTruncated": true
+    },
+    "nameVariants": [
+     {
+      "name": "Northwest Old Cornelius Pass Road",
+      "relation": "CORE_VARIANT"
+     },
+     {
+      "name": "Northeast Cornelius Pass Road",
+      "relation": "DIRECTION_VARIANT"
+     }
+    ],
+    "queries": [
+     {
+      "kind": "ways",
+      "query": "[out:json][timeout:45];way[\"highway\"][\"name\"~\"NW Cornelius Pass Rd|Northwest Cornelius Pass Road|Cornelius Pass Road\",i](45.5157,-122.9039,45.6547,-122.8486);out tags geom;",
+      "status": "OK"
+     },
+     {
+      "kind": "barriers",
+      "query": "[out:json][timeout:45];node[\"barrier\"](45.5157,-122.9039,45.6547,-122.8486);out tags;",
+      "status": "OK"
+     }
+    ],
+    "failures": [],
+    "waySummaries": [
+     {
+      "osmId": "5392722",
+      "name": "Northwest Old Cornelius Pass Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/5392722",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "5516571",
+      "name": "Northwest Old Cornelius Pass Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/5516571",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "23564221",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "concrete",
+      "url": "https://www.openstreetmap.org/way/23564221",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "26170723",
+      "name": "Northwest Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/26170723",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "53050306",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/53050306",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "71693400",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/71693400",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "71693403",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/71693403",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "107627326",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/107627326",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "107627347",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/107627347",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "107627379",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/107627379",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "107644060",
+      "name": "Northwest Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/107644060",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "109791030",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/109791030",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "109791037",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/109791037",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "109791038",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "concrete",
+      "url": "https://www.openstreetmap.org/way/109791038",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "109791040",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/109791040",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "109791041",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/109791041",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "115050060",
+      "name": "Northwest Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/115050060",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "119523518",
+      "name": "Northwest Old Cornelius Pass Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/119523518",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "123830245",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/123830245",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "123830247",
+      "name": "Northwest Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/123830247",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "123830248",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/123830248",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "124817280",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/124817280",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "124817284",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/124817284",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "125570285",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/125570285",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "136435914",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/136435914",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "136688607",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/136688607",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "150809788",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/150809788",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "162011451",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": "OR 127",
+      "surface": "concrete",
+      "url": "https://www.openstreetmap.org/way/162011451",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "162011452",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/162011452",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "167495527",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/167495527",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "169949633",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/169949633",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "170034453",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/170034453",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "170040849",
+      "name": "Northwest Old Cornelius Pass Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/170040849",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "170040855",
+      "name": "Northwest Old Cornelius Pass Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "concrete",
+      "url": "https://www.openstreetmap.org/way/170040855",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "186049877",
+      "name": "Northwest Old Cornelius Pass Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/186049877",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199287873",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199287873",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199287874",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199287874",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199287877",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199287877",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199287878",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199287878",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199287879",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199287879",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199567795",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199567795",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "340583610",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/340583610",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "340583611",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/340583611",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "340583612",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/340583612",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "340648050",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/340648050",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "366753339",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/366753339",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "471879540",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/471879540",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "517779544",
+      "name": "Northwest Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/517779544",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "533222417",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/533222417",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "533222418",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/533222418",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600467621",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600467621",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600467625",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600467625",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600467626",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600467626",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600467628",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600467628",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600467631",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600467631",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600467632",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600467632",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600467633",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600467633",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600467634",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600467634",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600467636",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600467636",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600467640",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600467640",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "675377332",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/675377332",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "711126412",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/711126412",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "745185455",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/745185455",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "745185456",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/745185456",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "745185459",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/745185459",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880478640",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880478640",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880478641",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880478641",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880478642",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": null,
+      "url": "https://www.openstreetmap.org/way/880478642",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880478644",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880478644",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880478645",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880478645",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880478646",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880478646",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880478647",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880478647",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880478649",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880478649",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880478654",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880478654",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880878381",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880878381",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880878386",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880878386",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880904623",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880904623",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880976668",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880976668",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880976669",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": null,
+      "url": "https://www.openstreetmap.org/way/880976669",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880976670",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880976670",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "880980810",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/880980810",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "891548344",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/891548344",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "909196245",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/909196245",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "913014641",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/913014641",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "913014642",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/913014642",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "913014643",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/913014643",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "913014644",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/913014644",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "913014646",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/913014646",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "913014647",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/913014647",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "927809280",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/927809280",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "927809281",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/927809281",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "967418718",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/967418718",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1068144549",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1068144549",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1069578158",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1069578158",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1076016494",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "trunk",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1076016494",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1222408961",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1222408961",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1268507482",
+      "name": "Northwest Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1268507482",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1361084813",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1361084813",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1361084814",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1361084814",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1366465989",
+      "name": "Northwest Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1366465989",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1385379580",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1385379580",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1464476571",
+      "name": "Northwest Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1464476571",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1464476572",
+      "name": "Northwest Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1464476572",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1477339401",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1477339401",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1493468988",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1493468988",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1503253370",
+      "name": "Northeast Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1503253370",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1539601872",
+      "name": "Northwest Cornelius Pass Road",
+      "highway": "primary",
+      "ref": "OR 127",
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1539601872",
+      "accessSignal": "ABSENT"
+     }
+    ],
+    "evidence": [
+     {
+      "id": "osm-access-tag-absent",
+      "corridorId": "or-roads-cornelius-pass-rd",
+      "claimType": "ACCESS_TAG_ABSENT",
+      "claimValue": "107 of 107 matched way(s)",
+      "effect": "NEUTRAL",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "OpenStreetMap matched ways — access tags",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Cornelius Pass Rd",
+      "quote": "access tags absent on 107 of 107 matched way(s) (highway=primary, secondary, tertiary, trunk)",
+      "summary": "OpenStreetMap carries no access, motor_vehicle, motorcar or vehicle tag on 107 of the 107 mapped ways matching this corridor (named Northwest Old Cornelius Pass Road, Northeast Cornelius Pass Road, Northwest Cornelius Pass Road). That means the tags are absent: OpenStreetMap makes no access statement here, which is neither public access nor a restriction.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:01.391Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": "every matched way",
+       "note": null
+      },
+      "provenance": {
+       "method": "OpenStreetMap tags retrieved through Overpass and matched to the corridor geometry",
+       "retrieval": {
+        "osmTimestamp": "2026-09-26T00:00:25Z",
+        "status": "OK",
+        "failures": 0
+       },
+       "transport": null
+      }
+     },
+     {
+      "id": "osm-road-class",
+      "corridorId": "or-roads-cornelius-pass-rd",
+      "claimType": "ROAD_CLASS",
+      "claimValue": "primary, secondary, tertiary, trunk",
+      "effect": "NEUTRAL",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "OpenStreetMap highway classification (matched ways)",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Cornelius Pass Rd",
+      "quote": "highway=primary, highway=secondary, highway=tertiary, highway=trunk",
+      "summary": "Mapped ways matching this corridor carry highway=primary, secondary, tertiary, trunk. Classification is mapped context, not a status statement.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:01.391Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": null,
+       "note": null
+      },
+      "provenance": {
+       "method": "OpenStreetMap tags retrieved through Overpass and matched to the corridor geometry",
+       "retrieval": null,
+       "transport": null
+      }
+     },
+     {
+      "id": "osm-name-variant-Northwest Old Cornelius Pass Road",
+      "corridorId": "or-roads-cornelius-pass-rd",
+      "claimType": "ROAD_NAME_VARIANT",
+      "claimValue": "Northwest Old Cornelius Pass Road",
+      "effect": "ATTENTION",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "OpenStreetMap way names near the corridor",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Cornelius Pass Rd",
+      "quote": "mapped name: Northwest Old Cornelius Pass Road",
+      "summary": "Mapped ways near this corridor are named \"Northwest Old Cornelius Pass Road\" (core variant relative to NW Cornelius Pass Rd). Check that a source statement about a similarly named road applies to this corridor.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:01.391Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": "Northwest Old Cornelius Pass Road",
+       "note": null
+      },
+      "provenance": {
+       "method": "Name comparison against the corridor name (directional prefixes recorded, not discarded)",
+       "retrieval": null,
+       "transport": null
+      }
+     },
+     {
+      "id": "osm-name-variant-Northeast Cornelius Pass Road",
+      "corridorId": "or-roads-cornelius-pass-rd",
+      "claimType": "ROAD_NAME_VARIANT",
+      "claimValue": "Northeast Cornelius Pass Road",
+      "effect": "ATTENTION",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "OpenStreetMap way names near the corridor",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Cornelius Pass Rd",
+      "quote": "mapped name: Northeast Cornelius Pass Road",
+      "summary": "Mapped ways near this corridor are named \"Northeast Cornelius Pass Road\" (direction variant relative to NW Cornelius Pass Rd). Check that a source statement about a similarly named road applies to this corridor.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:01.391Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": "Northeast Cornelius Pass Road",
+       "note": null
+      },
+      "provenance": {
+       "method": "Name comparison against the corridor name (directional prefixes recorded, not discarded)",
+       "retrieval": null,
+       "transport": null
+      }
+     },
+     {
+      "id": "osm-barriers",
+      "corridorId": "or-roads-cornelius-pass-rd",
+      "claimType": "GATE_REPORTED",
+      "claimValue": "879 barrier node(s)",
+      "effect": "ATTENTION",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "Mapped barrier nodes in the corridor bounding box",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Cornelius Pass Rd",
+      "quote": "barrier tags near the corridor: gate, bollard, entrance, yes, kerb, cycle_barrier, block, jersey_barrier, swing_gate, chain, barrier_board, lift_gate",
+      "summary": "OpenStreetMap maps 879 barrier node(s) in the corridor's bounding box (gate, bollard, entrance, yes, kerb, cycle_barrier). These are mapped features, not confirmed gates on the carriageway.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:01.391Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": "bounding box (±0.003°)",
+       "note": null
+      },
+      "provenance": {
+       "method": "Overpass node query for barrier tags in the corridor bounding box",
+       "retrieval": null,
+       "transport": null
+      }
+     }
+    ]
+   }
+  },
+  "or-roads-springville-rd": {
+   "checkedAsOf": "2026-09-26T00:02:15.640Z",
+   "finding": {
+    "finding": "PROBABLE_PUBLIC",
+    "ruleId": "R7_AUTHORITATIVE_PART_OF_CORRIDOR",
+    "checkedAsOf": "2026-09-26T00:02:15.640Z",
+    "coverage": "FULL"
+   },
+   "probes": [
+    {
+     "probeId": "wc-springville-phase4",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://www.washingtoncountyor.gov/lut/projects/springville-road-phase-4",
+      "retrievedAt": "2026-09-26T00:02:26.390Z",
+      "httpStatus": 200,
+      "bytes": 44729,
+      "transport": "live-http",
+      "sourceTextHash": "602d89d9"
+     },
+     "note": "2 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-wc-springville-phase4-1",
+       "corridorId": "or-roads-springville-rd",
+       "claimType": "PUBLIC_ROAD",
+       "claimValue": "county street improvement project",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Springville Road Phase 4 (Joss Avenue to PCC Rock Creek), Washington County",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/projects/springville-road-phase-4",
+       "sourceType": "county project page",
+       "appliesTo": "Springville Road",
+       "quote": "Springville Road Phase 4 is the middle and final section of the urban street improvements for Springville Road between 185th Avenue and Kaiser Road.",
+       "summary": "Washington County states that its Springville Road Phase 4 project is the final section of urban street improvements for Springville Road between 185th Avenue and Kaiser Road.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:26.390Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "185th Avenue to Kaiser Road (North Bethany urban section)",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 44729,
+         "sourceTextHash": "602d89d9",
+         "transport": "live-http",
+         "question": "Does the county describe this road as part of its own street system, and for which section?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      },
+      {
+       "id": "probe-wc-springville-phase4-2",
+       "corridorId": "or-roads-springville-rd",
+       "claimType": "ROAD_MAINTAINED",
+       "claimValue": "county service district for roads",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Springville Road Phase 4 (Joss Avenue to PCC Rock Creek), Washington County",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/projects/springville-road-phase-4",
+       "sourceType": "county project page",
+       "appliesTo": "Springville Road",
+       "quote": "Funding source: North Bethany County Service District for Roads (NBCSDR)",
+       "summary": "Washington County states the Springville Road improvements are funded by the North Bethany County Service District for Roads.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:26.390Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "185th Avenue to Kaiser Road",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 44729,
+         "sourceTextHash": "602d89d9",
+         "transport": "live-http",
+         "question": "Does the county describe this road as part of its own street system, and for which section?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      }
+     ]
+    },
+    {
+     "probeId": "wc-springville-improvements-news",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://www.washingtoncountyor.gov/index.php/lut/news/2026/04/02/celebrate-springville-road-improvements",
+      "retrievedAt": "2026-09-26T00:02:27.788Z",
+      "httpStatus": 200,
+      "bytes": 45451,
+      "transport": "live-http",
+      "sourceTextHash": "96e718b0"
+     },
+     "note": "2 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-wc-springville-improvements-news-1",
+       "corridorId": "or-roads-springville-rd",
+       "claimType": "ROAD_MAINTAINED",
+       "claimValue": "county service district for roads",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Celebrate Springville Road Improvements! (April 2 2026)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/index.php/lut/news/2026/04/02/celebrate-springville-road-improvements",
+       "sourceType": "county news release",
+       "appliesTo": "Springville Road",
+       "quote": "Improvements to Springville Road were supported by the North Bethany County Service District for Roads",
+       "summary": "Washington County states the Springville Road improvements were supported by the North Bethany County Service District for Roads, and describes four completed phases.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:27.788Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "185th Avenue to Kaiser Road",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 45451,
+         "sourceTextHash": "96e718b0",
+         "transport": "live-http",
+         "question": "Which section of this road is maintained by the county, and when did that work finish?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      },
+      {
+       "id": "probe-wc-springville-improvements-news-2",
+       "corridorId": "or-roads-springville-rd",
+       "claimType": "PUBLIC_ROAD",
+       "claimValue": "county street improvement project",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Celebrate Springville Road Improvements! (April 2 2026)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/index.php/lut/news/2026/04/02/celebrate-springville-road-improvements",
+       "sourceType": "county news release",
+       "appliesTo": "Springville Road",
+       "quote": "The work improved Springville Road from 185th Avenue intersection to Kaiser Road in four phases:",
+       "summary": "Washington County states the completed work improved Springville Road from the 185th Avenue intersection to Kaiser Road.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:27.788Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "185th Avenue to Kaiser Road",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 45451,
+         "sourceTextHash": "96e718b0",
+         "transport": "live-http",
+         "question": "Which section of this road is maintained by the county, and when did that work finish?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      }
+     ]
+    },
+    {
+     "probeId": "mc-springville-rcip",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://multco.us/info/rcip-project-rankings",
+      "retrievedAt": "2026-09-26T00:02:28.503Z",
+      "httpStatus": 200,
+      "bytes": 67560,
+      "transport": "live-http",
+      "sourceTextHash": "29580318"
+     },
+     "note": "1 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-mc-springville-rcip-1",
+       "corridorId": "or-roads-springville-rd",
+       "claimType": "ROAD_MAINTAINED",
+       "claimValue": "ranked county road project",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Multnomah County Transportation",
+       "sourceTitle": "Multnomah County Roads Capital Improvement Plan — project rankings (last reviewed December 3 2024)",
+       "sourceUrl": "https://multco.us/info/rcip-project-rankings",
+       "sourceType": "county capital plan",
+       "appliesTo": "NW Springville Road",
+       "quote": "NW Springville Road: City of Portland line to Washington County line",
+       "summary": "Multnomah County lists NW Springville Road (City of Portland line to Washington County line) among the road projects in its Roads Capital Improvement Plan.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:02:28.503Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "City of Portland line to Washington County line (Multnomah County section)",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 67560,
+         "sourceTextHash": "29580318",
+         "transport": "live-http",
+         "question": "Does the other county that this road runs into list it as one of its roads?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      }
+     ]
+    },
+    {
+     "probeId": "wc-roads-springville-advisory",
+     "outcome": "NO_RELEVANT_EVIDENCE",
+     "searched": {
+      "url": "https://www.wc-roads.com/",
+      "retrievedAt": "2026-09-26T00:02:29.077Z",
+      "httpStatus": 200,
+      "bytes": 49684,
+      "transport": "live-http",
+      "sourceTextHash": "56110c64"
+     },
+     "note": "The source was retrieved but none of the declared phrases is present. That is a no-result search, not evidence that nothing exists.",
+     "evidence": []
+    }
+   ],
+   "osm": {
+    "status": "OK",
+    "retrievedAt": "2026-09-26T00:02:15.641Z",
+    "osmTimestamp": "2026-09-26T00:00:25Z",
+    "mirrorsUsed": [
+     "overpass-api-de",
+     "overpass-api-de"
+    ],
+    "searchNames": [
+     "NW Springville Rd",
+     "Northwest Springville Road",
+     "Springville Road"
+    ],
+    "searchBounds": [
+     -122.870575,
+     45.559303,
+     -122.768208,
+     45.589325
+    ],
+    "match": {
+     "method": "corridor sampled every 25 m; a sample counts as matched when a mapped way segment is within 30 m; all distances computed in one local equirectangular frame centred on the corridor",
+     "crs": "EPSG:4326 source coordinates, local metric frame for measurement",
+     "corridorLengthM": 9641.485098177627,
+     "sampleIntervalM": 25,
+     "toleranceM": 30,
+     "sampleCount": 446,
+     "matchedSampleCount": 384,
+     "matchedFraction": 0.8609865470852018,
+     "matchedLengthM": 9600,
+     "unmatchedLengthM": 41.48509817762715,
+     "matchedWayCount": 55,
+     "candidateWayCount": 55,
+     "meanWayDistanceM": 3.7860573528988377,
+     "maxWayDistanceM": 23.386681944376818,
+     "geometryVerified": false,
+     "ways": [
+      {
+       "osmId": "5522180",
+       "name": "Northwest Springville Road",
+       "highway": "residential",
+       "ref": null,
+       "surface": "paved",
+       "url": "https://www.openstreetmap.org/way/5522180",
+       "nearestM": 0,
+       "matchedSamples": 28,
+       "lengthM": 512,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "5522191",
+       "name": "Northwest Springville Road",
+       "highway": "tertiary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/5522191",
+       "nearestM": 0,
+       "matchedSamples": 136,
+       "lengthM": 2552,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "1554356028",
+       "name": "Northwest Springville Road",
+       "highway": "tertiary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/1554356028",
+       "nearestM": 0,
+       "matchedSamples": 6,
+       "lengthM": 91,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "1554356029",
+       "name": "Northwest Springville Road",
+       "highway": "tertiary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/1554356029",
+       "nearestM": 0,
+       "matchedSamples": 2,
+       "lengthM": 14,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "199579088",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/199579088",
+       "nearestM": 0,
+       "matchedSamples": 6,
+       "lengthM": 56,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "444047747",
+       "name": "Northwest Springville Road",
+       "highway": "residential",
+       "ref": null,
+       "surface": "pebblestone",
+       "url": "https://www.openstreetmap.org/way/444047747",
+       "nearestM": 0,
+       "matchedSamples": 12,
+       "lengthM": 223,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "424192151",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/424192151",
+       "nearestM": 0.1,
+       "matchedSamples": 7,
+       "lengthM": 96,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "1554356033",
+       "name": "Northwest Springville Road",
+       "highway": "tertiary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/1554356033",
+       "nearestM": 0.1,
+       "matchedSamples": 5,
+       "lengthM": 73,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "143323739",
+       "name": "Northwest Springville Road",
+       "highway": "tertiary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/143323739",
+       "nearestM": 0.1,
+       "matchedSamples": 56,
+       "lengthM": 1201,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "1554356027",
+       "name": "Northwest Springville Road",
+       "highway": "tertiary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/1554356027",
+       "nearestM": 0.2,
+       "matchedSamples": 7,
+       "lengthM": 116,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "990626989",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/990626989",
+       "nearestM": 0.2,
+       "matchedSamples": 8,
+       "lengthM": 115,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "115043109",
+       "name": "Northwest Springville Road",
+       "highway": "residential",
+       "ref": null,
+       "surface": "pebblestone",
+       "url": "https://www.openstreetmap.org/way/115043109",
+       "nearestM": 0.2,
+       "matchedSamples": 11,
+       "lengthM": 180,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "990626988",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": null,
+       "url": "https://www.openstreetmap.org/way/990626988",
+       "nearestM": 0.3,
+       "matchedSamples": 5,
+       "lengthM": 37,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "117911410",
+       "name": "Northwest Springville Road",
+       "highway": "tertiary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/117911410",
+       "nearestM": 0.5,
+       "matchedSamples": 18,
+       "lengthM": 343,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "199579086",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/199579086",
+       "nearestM": 0.5,
+       "matchedSamples": 19,
+       "lengthM": 400,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "199579094",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/199579094",
+       "nearestM": 0.5,
+       "matchedSamples": 6,
+       "lengthM": 63,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "600089938",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/600089938",
+       "nearestM": 0.6,
+       "matchedSamples": 7,
+       "lengthM": 92,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "802711386",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/802711386",
+       "nearestM": 0.8,
+       "matchedSamples": 5,
+       "lengthM": 50,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "1554356030",
+       "name": "Northwest Springville Road",
+       "highway": "tertiary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/1554356030",
+       "nearestM": 1,
+       "matchedSamples": 4,
+       "lengthM": 80,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "1554356026",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/1554356026",
+       "nearestM": 1,
+       "matchedSamples": 4,
+       "lengthM": 29,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "117911412",
+       "name": "Northwest Springville Road",
+       "highway": "tertiary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/117911412",
+       "nearestM": 1,
+       "matchedSamples": 4,
+       "lengthM": 19,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "666027227",
+       "name": "Northwest Springville Road",
+       "highway": "residential",
+       "ref": null,
+       "surface": "pebblestone",
+       "url": "https://www.openstreetmap.org/way/666027227",
+       "nearestM": 1.2,
+       "matchedSamples": 5,
+       "lengthM": 93,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "990625224",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": null,
+       "url": "https://www.openstreetmap.org/way/990625224",
+       "nearestM": 1.3,
+       "matchedSamples": 4,
+       "lengthM": 20,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "1554356032",
+       "name": "Northwest Springville Road",
+       "highway": "tertiary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/1554356032",
+       "nearestM": 1.4,
+       "matchedSamples": 4,
+       "lengthM": 28,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "990625225",
+       "name": "Northwest Springville Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/990625225",
+       "nearestM": 1.4,
+       "matchedSamples": 6,
+       "lengthM": 73,
+       "accessSignal": "ABSENT"
+      }
+     ],
+     "waysTruncated": true
+    },
+    "nameVariants": [],
+    "queries": [
+     {
+      "kind": "ways",
+      "query": "[out:json][timeout:45];way[\"highway\"][\"name\"~\"NW Springville Rd|Northwest Springville Road|Springville Road\",i](45.5593,-122.8706,45.5893,-122.7682);out tags geom;",
+      "status": "OK"
+     },
+     {
+      "kind": "barriers",
+      "query": "[out:json][timeout:45];node[\"barrier\"](45.5593,-122.8706,45.5893,-122.7682);out tags;",
+      "status": "OK"
+     }
+    ],
+    "failures": [],
+    "waySummaries": [
+     {
+      "osmId": "5522180",
+      "name": "Northwest Springville Road",
+      "highway": "residential",
+      "ref": null,
+      "surface": "paved",
+      "url": "https://www.openstreetmap.org/way/5522180",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "5522191",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/5522191",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "115043109",
+      "name": "Northwest Springville Road",
+      "highway": "residential",
+      "ref": null,
+      "surface": "pebblestone",
+      "url": "https://www.openstreetmap.org/way/115043109",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "117911410",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/117911410",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "117911412",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/117911412",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "143323739",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/143323739",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199579086",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199579086",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199579088",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199579088",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199579089",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": null,
+      "url": "https://www.openstreetmap.org/way/199579089",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199579090",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199579090",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199579091",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199579091",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199579092",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": null,
+      "url": "https://www.openstreetmap.org/way/199579092",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199579093",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199579093",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "199579094",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/199579094",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "298864952",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": null,
+      "url": "https://www.openstreetmap.org/way/298864952",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "298864956",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": null,
+      "url": "https://www.openstreetmap.org/way/298864956",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "309357031",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/309357031",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "424192151",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/424192151",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "444047747",
+      "name": "Northwest Springville Road",
+      "highway": "residential",
+      "ref": null,
+      "surface": "pebblestone",
+      "url": "https://www.openstreetmap.org/way/444047747",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "470838443",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/470838443",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "470838444",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/470838444",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600089929",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600089929",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600089934",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600089934",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600089938",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600089938",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600089942",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600089942",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600089949",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600089949",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600089952",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/600089952",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "600089956",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": null,
+      "url": "https://www.openstreetmap.org/way/600089956",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "644217799",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/644217799",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "644217803",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/644217803",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "666027227",
+      "name": "Northwest Springville Road",
+      "highway": "residential",
+      "ref": null,
+      "surface": "pebblestone",
+      "url": "https://www.openstreetmap.org/way/666027227",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "712338323",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/712338323",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "712338324",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/712338324",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "747796303",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/747796303",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "747796304",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/747796304",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "802711386",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/802711386",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "990625190",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/990625190",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "990625214",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/990625214",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "990625215",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/990625215",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "990625216",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/990625216",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "990625223",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/990625223",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "990625224",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": null,
+      "url": "https://www.openstreetmap.org/way/990625224",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "990625225",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/990625225",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "990626988",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": null,
+      "url": "https://www.openstreetmap.org/way/990626988",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "990626989",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/990626989",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1282360199",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1282360199",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1283617052",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1283617052",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1554356026",
+      "name": "Northwest Springville Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1554356026",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1554356027",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1554356027",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1554356028",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1554356028",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1554356029",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1554356029",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1554356030",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1554356030",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1554356031",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1554356031",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1554356032",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1554356032",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "1554356033",
+      "name": "Northwest Springville Road",
+      "highway": "tertiary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/1554356033",
+      "accessSignal": "ABSENT"
+     }
+    ],
+    "evidence": [
+     {
+      "id": "osm-access-tag-absent",
+      "corridorId": "or-roads-springville-rd",
+      "claimType": "ACCESS_TAG_ABSENT",
+      "claimValue": "55 of 55 matched way(s)",
+      "effect": "NEUTRAL",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "OpenStreetMap matched ways — access tags",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Springville Rd",
+      "quote": "access tags absent on 55 of 55 matched way(s) (highway=residential, secondary, tertiary)",
+      "summary": "OpenStreetMap carries no access, motor_vehicle, motorcar or vehicle tag on 55 of the 55 mapped ways matching this corridor (named Northwest Springville Road). That means the tags are absent: OpenStreetMap makes no access statement here, which is neither public access nor a restriction.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:15.641Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": "every matched way",
+       "note": null
+      },
+      "provenance": {
+       "method": "OpenStreetMap tags retrieved through Overpass and matched to the corridor geometry",
+       "retrieval": {
+        "osmTimestamp": "2026-09-26T00:00:25Z",
+        "status": "OK",
+        "failures": 0
+       },
+       "transport": null
+      }
+     },
+     {
+      "id": "osm-road-class",
+      "corridorId": "or-roads-springville-rd",
+      "claimType": "ROAD_CLASS",
+      "claimValue": "residential, secondary, tertiary",
+      "effect": "NEUTRAL",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "OpenStreetMap highway classification (matched ways)",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Springville Rd",
+      "quote": "highway=residential, highway=secondary, highway=tertiary",
+      "summary": "Mapped ways matching this corridor carry highway=residential, secondary, tertiary. Classification is mapped context, not a status statement.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:15.641Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": null,
+       "note": null
+      },
+      "provenance": {
+       "method": "OpenStreetMap tags retrieved through Overpass and matched to the corridor geometry",
+       "retrieval": null,
+       "transport": null
+      }
+     },
+     {
+      "id": "osm-barriers",
+      "corridorId": "or-roads-springville-rd",
+      "claimType": "GATE_REPORTED",
+      "claimValue": "353 barrier node(s)",
+      "effect": "ATTENTION",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "Mapped barrier nodes in the corridor bounding box",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Springville Rd",
+      "quote": "barrier tags near the corridor: yes, bollard, gate, kerb, swing_gate, block, chain",
+      "summary": "OpenStreetMap maps 353 barrier node(s) in the corridor's bounding box (yes, bollard, gate, kerb, swing_gate, block). These are mapped features, not confirmed gates on the carriageway.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:15.641Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": "bounding box (±0.003°)",
+       "note": null
+      },
+      "provenance": {
+       "method": "Overpass node query for barrier tags in the corridor bounding box",
+       "retrieval": null,
+       "transport": null
+      }
+     }
+    ]
+   }
+  },
+  "or-roads-susbauer-rd": {
+   "checkedAsOf": "2026-09-26T00:02:29.500Z",
+   "finding": {
+    "finding": "RESTRICTED_OR_CLOSED",
+    "ruleId": "R4_RECURRING_RESTRICTION",
+    "checkedAsOf": "2026-09-26T00:02:29.500Z",
+    "coverage": "FULL"
+   },
+   "probes": [
+    {
+     "probeId": "wc-flooding-susbauer",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://www.washingtoncountyor.gov/lut/road-maintenance/flooding-winds",
+      "retrievedAt": "2026-09-26T00:03:01.212Z",
+      "httpStatus": 200,
+      "bytes": 41307,
+      "transport": "live-http",
+      "sourceTextHash": "0cc21c8d"
+     },
+     "note": "3 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-wc-flooding-susbauer-1",
+       "corridorId": "or-roads-susbauer-rd",
+       "claimType": "SEASONAL_CLOSURE",
+       "claimValue": "recurring high-water flooding",
+       "effect": "RESTRICTIVE",
+       "stance": "CONTRADICTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Flooding and Winds (Washington County road maintenance)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/road-maintenance/flooding-winds",
+       "sourceType": "county road-maintenance page",
+       "appliesTo": "Susbauer Road",
+       "quote": "Susbauer and Fern Hill roads both flood often during heavy rainfall.",
+       "summary": "Washington County states Susbauer and Fern Hill roads both flood often during heavy rainfall, and explains that its barricades close a road while high-water signs alone do not.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:03:01.212Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": "high-water",
+       "geographicScope": {
+        "scope": "CORRIDOR",
+        "corridorPart": null,
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 41307,
+         "sourceTextHash": "0cc21c8d",
+         "transport": "live-http",
+         "question": "Does the county document a recurring closure or gate on this road, and who maintains it?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      },
+      {
+       "id": "probe-wc-flooding-susbauer-2",
+       "corridorId": "or-roads-susbauer-rd",
+       "claimType": "ROAD_MAINTAINED",
+       "claimValue": "county-installed permanent flood gates",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Flooding and Winds (Washington County road maintenance)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/road-maintenance/flooding-winds",
+       "sourceType": "county road-maintenance page",
+       "appliesTo": "Susbauer Road",
+       "quote": "We have installed permanent, manual-locking flood gates on both these roads.",
+       "summary": "Washington County states it installed permanent, manual-locking flood gates on Susbauer Road and manages its high-water closures. Road Naturalist reads county-installed, county-operated infrastructure as affirmative county-maintenance evidence (a derived reading of this source statement).",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:03:01.212Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR",
+        "corridorPart": null,
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 41307,
+         "sourceTextHash": "0cc21c8d",
+         "transport": "live-http",
+         "question": "Does the county document a recurring closure or gate on this road, and who maintains it?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      },
+      {
+       "id": "probe-wc-flooding-susbauer-3",
+       "corridorId": "or-roads-susbauer-rd",
+       "claimType": "GATE_REPORTED",
+       "claimValue": "permanent manual-locking flood gates",
+       "effect": "ATTENTION",
+       "stance": "NEUTRAL",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Flooding and Winds (Washington County road maintenance)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/road-maintenance/flooding-winds",
+       "sourceType": "county road-maintenance page",
+       "appliesTo": "Susbauer Road",
+       "quote": "The gates on Susbauer Road are south of Hornecker Road and north of Long Road.",
+       "summary": "Washington County states the flood gates on Susbauer Road are south of Hornecker Road and north of Long Road.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:03:01.212Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "south of Hornecker Road and north of Long Road",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 41307,
+         "sourceTextHash": "0cc21c8d",
+         "transport": "live-http",
+         "question": "Does the county document a recurring closure or gate on this road, and who maintains it?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      }
+     ]
+    },
+    {
+     "probeId": "wc-mstip-susbauer",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://www.washingtoncountyor.gov/lut/mstip-3f-funding-allocation",
+      "retrievedAt": "2026-09-26T00:03:02.474Z",
+      "httpStatus": 200,
+      "bytes": 60730,
+      "transport": "live-http",
+      "sourceTextHash": "1c45dd8c"
+     },
+     "note": "1 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-wc-mstip-susbauer-1",
+       "corridorId": "or-roads-susbauer-rd",
+       "claimType": "ROAD_MAINTAINED",
+       "claimValue": "funded county intersection project",
+       "effect": "AFFIRMATIVE",
+       "stance": "SUPPORTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Multnomah/Washington County MSTIP 3f funding allocation",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/mstip-3f-funding-allocation",
+       "sourceType": "county funding program",
+       "appliesTo": "Susbauer Road",
+       "quote": "Wren Road/Susbauer Road intersection",
+       "summary": "The county funding allocation lists a Wren Road/Susbauer Road intersection improvement, naming Susbauer Road as part of the county road system.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:03:02.474Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "Wren Road/Susbauer Road intersection",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 60730,
+         "sourceTextHash": "1c45dd8c",
+         "transport": "live-http",
+         "question": "Does a county funding program name this road as a county road with a funded project?",
+         "stage": "access-research"
+        },
+        "transport": null
+       }
+      }
+     ]
+    },
+    {
+     "probeId": "mc-roads-susbauer",
+     "outcome": "NO_RELEVANT_EVIDENCE",
+     "searched": {
+      "url": "https://multco.us/info/our-roads",
+      "retrievedAt": "2026-09-26T00:03:02.523Z",
+      "httpStatus": 200,
+      "bytes": 35909,
+      "transport": "live-http",
+      "sourceTextHash": "9b7fd278"
+     },
+     "note": "The source was retrieved but none of the declared phrases is present. That is a no-result search, not evidence that nothing exists.",
+     "evidence": []
+    },
+    {
+     "probeId": "wc-susbauer-flood-closure-news",
+     "outcome": "EVIDENCE",
+     "searched": {
+      "url": "https://www.washingtoncountyor.gov/lut/news/flood-gates-closed-fern-hill-and-susbauer-roads-use-alternate-routes-0",
+      "retrievedAt": "2026-09-26T00:03:03.383Z",
+      "httpStatus": 200,
+      "bytes": 40135,
+      "transport": "live-http",
+      "sourceTextHash": "85e0f9f3"
+     },
+     "note": "2 declared fact(s) matched source text.",
+     "evidence": [
+      {
+       "id": "probe-wc-susbauer-flood-closure-news-1",
+       "corridorId": "or-roads-susbauer-rd",
+       "claimType": "SEASONAL_CLOSURE",
+       "claimValue": "closed for high water",
+       "effect": "RESTRICTIVE",
+       "stance": "CONTRADICTS_PUBLIC_ACCESS",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Flood gates closed on Fern Hill and Susbauer roads; use alternate routes (December 30 2022)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/news/flood-gates-closed-fern-hill-and-susbauer-roads-use-alternate-routes-0",
+       "sourceType": "county news release",
+       "appliesTo": "Susbauer Road",
+       "quote": "Susbauer is closed between Long and Hornecker roads.",
+       "summary": "Washington County states Susbauer Road was closed between Long and Hornecker roads for high water, and that both roads frequently flood during heavy rain.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:03:03.383Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": "high-water",
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "between Long and Hornecker roads",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 40135,
+         "sourceTextHash": "85e0f9f3",
+         "transport": "live-http",
+         "question": "Has this road actually been closed, how, and does the source say it happens again?",
+         "stage": "contradiction-search"
+        },
+        "transport": null
+       }
+      },
+      {
+       "id": "probe-wc-susbauer-flood-closure-news-2",
+       "corridorId": "or-roads-susbauer-rd",
+       "claimType": "GATE_REPORTED",
+       "claimValue": "flood gates closed",
+       "effect": "ATTENTION",
+       "stance": "NEUTRAL",
+       "sourceClass": "TIER_1_AUTHORITATIVE",
+       "sourceTier": 1,
+       "sourceOrganization": "Washington County Land Use & Transportation",
+       "sourceTitle": "Flood gates closed on Fern Hill and Susbauer roads; use alternate routes (December 30 2022)",
+       "sourceUrl": "https://www.washingtoncountyor.gov/lut/news/flood-gates-closed-fern-hill-and-susbauer-roads-use-alternate-routes-0",
+       "sourceType": "county news release",
+       "appliesTo": "Susbauer Road",
+       "quote": "The flood gates at Fern Hill and Susbauer roads are closed due to high water.",
+       "summary": "Washington County states the flood gates at Fern Hill and Susbauer roads are closed due to high water and that all travelers must use alternate routes.",
+       "claimStrength": "stated",
+       "publishedAt": null,
+       "retrievedAt": "2026-09-26T00:03:03.383Z",
+       "effectiveFrom": null,
+       "effectiveUntil": null,
+       "recurrence": null,
+       "geographicScope": {
+        "scope": "CORRIDOR_PART",
+        "corridorPart": "flood gates",
+        "note": null
+       },
+       "provenance": {
+        "method": "Declared probe fact matched verbatim source text",
+        "retrieval": {
+         "httpStatus": 200,
+         "bytes": 40135,
+         "sourceTextHash": "85e0f9f3",
+         "transport": "live-http",
+         "question": "Has this road actually been closed, how, and does the source say it happens again?",
+         "stage": "contradiction-search"
+        },
+        "transport": null
+       }
+      }
+     ]
+    }
+   ],
+   "osm": {
+    "status": "OK",
+    "retrievedAt": "2026-09-26T00:02:29.501Z",
+    "osmTimestamp": "2026-09-26T00:01:30Z",
+    "mirrorsUsed": [
+     "overpass-api-de",
+     "osm-mail-ru"
+    ],
+    "searchNames": [
+     "NW Susbauer Rd",
+     "Northwest Susbauer Road",
+     "Susbauer Road"
+    ],
+    "searchBounds": [
+     -123.048493,
+     45.527807,
+     -123.031961,
+     45.575987
+    ],
+    "match": {
+     "method": "corridor sampled every 25 m; a sample counts as matched when a mapped way segment is within 30 m; all distances computed in one local equirectangular frame centred on the corridor",
+     "crs": "EPSG:4326 source coordinates, local metric frame for measurement",
+     "corridorLengthM": 4806.791531600191,
+     "sampleIntervalM": 25,
+     "toleranceM": 30,
+     "sampleCount": 197,
+     "matchedSampleCount": 197,
+     "matchedFraction": 1,
+     "matchedLengthM": 4925,
+     "unmatchedLengthM": 0,
+     "matchedWayCount": 3,
+     "candidateWayCount": 4,
+     "meanWayDistanceM": 1.3457949481160805,
+     "maxWayDistanceM": 2.2767225288684867,
+     "geometryVerified": true,
+     "ways": [
+      {
+       "osmId": "111289448",
+       "name": "Northwest Susbauer Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/111289448",
+       "nearestM": 0.9,
+       "matchedSamples": 42,
+       "lengthM": 1273,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "111774053",
+       "name": "Northwest Susbauer Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "asphalt",
+       "url": "https://www.openstreetmap.org/way/111774053",
+       "nearestM": 0.9,
+       "matchedSamples": 155,
+       "lengthM": 3747,
+       "accessSignal": "ABSENT"
+      },
+      {
+       "osmId": "111774047",
+       "name": "Northwest Susbauer Road",
+       "highway": "secondary",
+       "ref": null,
+       "surface": "paved",
+       "url": "https://www.openstreetmap.org/way/111774047",
+       "nearestM": 2.3,
+       "matchedSamples": 5,
+       "lengthM": 68,
+       "accessSignal": "ABSENT"
+      }
+     ],
+     "waysTruncated": false
+    },
+    "nameVariants": [],
+    "queries": [
+     {
+      "kind": "ways",
+      "query": "[out:json][timeout:45];way[\"highway\"][\"name\"~\"NW Susbauer Rd|Northwest Susbauer Road|Susbauer Road\",i](45.5278,-123.0485,45.5760,-123.0320);out tags geom;",
+      "status": "OK"
+     },
+     {
+      "kind": "barriers",
+      "query": "[out:json][timeout:45];node[\"barrier\"](45.5278,-123.0485,45.5760,-123.0320);out tags;",
+      "status": "OK"
+     }
+    ],
+    "failures": [],
+    "waySummaries": [
+     {
+      "osmId": "111289447",
+      "name": "Northwest Susbauer Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": null,
+      "url": "https://www.openstreetmap.org/way/111289447",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "111289448",
+      "name": "Northwest Susbauer Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/111289448",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "111774047",
+      "name": "Northwest Susbauer Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "paved",
+      "url": "https://www.openstreetmap.org/way/111774047",
+      "accessSignal": "ABSENT"
+     },
+     {
+      "osmId": "111774053",
+      "name": "Northwest Susbauer Road",
+      "highway": "secondary",
+      "ref": null,
+      "surface": "asphalt",
+      "url": "https://www.openstreetmap.org/way/111774053",
+      "accessSignal": "ABSENT"
+     }
+    ],
+    "evidence": [
+     {
+      "id": "osm-access-tag-absent",
+      "corridorId": "or-roads-susbauer-rd",
+      "claimType": "ACCESS_TAG_ABSENT",
+      "claimValue": "4 of 4 matched way(s)",
+      "effect": "NEUTRAL",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "OpenStreetMap matched ways — access tags",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Susbauer Rd",
+      "quote": "access tags absent on 4 of 4 matched way(s) (highway=secondary)",
+      "summary": "OpenStreetMap carries no access, motor_vehicle, motorcar or vehicle tag on 4 of the 4 mapped ways matching this corridor (named Northwest Susbauer Road). That means the tags are absent: OpenStreetMap makes no access statement here, which is neither public access nor a restriction.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:29.501Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": "every matched way",
+       "note": null
+      },
+      "provenance": {
+       "method": "OpenStreetMap tags retrieved through Overpass and matched to the corridor geometry",
+       "retrieval": {
+        "osmTimestamp": "2026-09-26T00:01:30Z",
+        "status": "OK",
+        "failures": 0
+       },
+       "transport": null
+      }
+     },
+     {
+      "id": "osm-road-class",
+      "corridorId": "or-roads-susbauer-rd",
+      "claimType": "ROAD_CLASS",
+      "claimValue": "secondary",
+      "effect": "NEUTRAL",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "OpenStreetMap highway classification (matched ways)",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Susbauer Rd",
+      "quote": "highway=secondary",
+      "summary": "Mapped ways matching this corridor carry highway=secondary. Classification is mapped context, not a status statement.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:29.501Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": null,
+       "note": null
+      },
+      "provenance": {
+       "method": "OpenStreetMap tags retrieved through Overpass and matched to the corridor geometry",
+       "retrieval": null,
+       "transport": null
+      }
+     },
+     {
+      "id": "osm-barriers",
+      "corridorId": "or-roads-susbauer-rd",
+      "claimType": "GATE_REPORTED",
+      "claimValue": "8 barrier node(s)",
+      "effect": "ATTENTION",
+      "stance": "NEUTRAL",
+      "sourceClass": "TIER_3_COMMUNITY",
+      "sourceTier": 3,
+      "sourceOrganization": "OpenStreetMap contributors",
+      "sourceTitle": "Mapped barrier nodes in the corridor bounding box",
+      "sourceUrl": null,
+      "sourceType": "community map data",
+      "appliesTo": "NW Susbauer Rd",
+      "quote": "barrier tags near the corridor: gate",
+      "summary": "OpenStreetMap maps 8 barrier node(s) in the corridor's bounding box (gate). These are mapped features, not confirmed gates on the carriageway.",
+      "claimStrength": "described",
+      "publishedAt": null,
+      "retrievedAt": "2026-09-26T00:02:29.501Z",
+      "effectiveFrom": null,
+      "effectiveUntil": null,
+      "recurrence": null,
+      "geographicScope": {
+       "scope": "CORRIDOR_PART",
+       "corridorPart": "bounding box (±0.003°)",
+       "note": null
+      },
+      "provenance": {
+       "method": "Overpass node query for barrier tags in the corridor bounding box",
+       "retrieval": null,
+       "transport": null
+      }
+     }
+    ]
+   }
+  }
+ }
+}

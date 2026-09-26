@@ -1,4 +1,4 @@
-import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
+import { COVERAGE, COVERAGE_DATASET, setCandidateCoverage } from '../domain/corridor.js';
 import { createStore } from '../state/store.js';
 import { createCorridorMap } from '../map/corridor-map.js';
 import { renderCandidates, renderDetail, renderContext } from '../ui/render.js';
@@ -10,8 +10,19 @@ import { buildPilotCandidates, pilotRoadIds, roadSourceLabel, validatePilot } fr
 import { roadEvidenceSummary } from '../roads/road.js';
 import { createOccurrenceService } from '../occurrence/service.js';
 import { COVERAGE_DATASETS, summarizeOccurrences } from '../occurrence/context.js';
+import { createInvestigatorService } from '../investigator/service.js';
+import { createResearchService, createRecordedTransport, createLiveResearchTransport } from '../investigator/research.js';
+import { BROWSER_MIRRORS, createOsmSource, createRecordedOsmSource } from '../investigator/osm.js';
+import { PILOT_PROBES_BY_CORRIDOR } from '../investigator/sources.js';
+import { buildCorridorBundle } from '../investigator/bundle.js';
 
 const PILOT_URL = new URL('../../data/roads/or-roads-pilot.json', import.meta.url);
+// The reviewed operator capture of official-source research, replayed offline. The browser cannot crawl county
+// sites (they send no CORS header) and must not depend on a live Overpass mirror, so it replays this record and
+// offers a live OpenStreetMap re-check as an explicit, separate action.
+const ACCESS_EVIDENCE_URL = new URL('../../data/investigator/or-pilot-access-evidence.json', import.meta.url);
+// Origins a browser cannot fetch: recorded evidence for them is replayed as OPERATOR_ONLY, never as a fresh check.
+const OPERATOR_ONLY_ORIGINS = Object.freeze(['https://www.washingtoncountyor.gov', 'https://content.govdelivery.com', 'https://multco.us', 'https://www.wc-roads.com']);
 const store = createStore();
 export const gis = createGisService();
 // Occurrence evidence is lazy (queried only when the user asks), and the browser never holds an
@@ -117,6 +128,92 @@ async function toggleOccurrenceOverlay(enabled) {
     .reduce((total, summary) => total + (summary.regionalOnlyObservations ?? 0), 0) });
 }
 
+
+// ACCESS INVESTIGATION. Explicitly requested, like occurrence evidence: nothing is fetched on load or on a
+// corridor switch. Official sources replay the reviewed operator capture; OpenStreetMap is replayed from that
+// capture by default and queried live only when the reader asks for it.
+let accessRecord = null;
+let accessRecordError = null;
+async function loadAccessRecord() {
+  if (accessRecord || accessRecordError) return accessRecord;
+  try { accessRecord = await fetchJson(ACCESS_EVIDENCE_URL); } catch (error) { accessRecordError = error.message; }
+  return accessRecord;
+}
+
+function investigatorFor(candidateId, { liveOsm = false } = {}) {
+  const probes = PILOT_PROBES_BY_CORRIDOR[candidateId] ?? [];
+  // The capture is per corridor: a recorded run for another corridor is not evidence for this one.
+  const corridorRecord = accessRecord?.corridors?.[candidateId] ?? null;
+  const recordedRun = corridorRecord ? { ...corridorRecord, capturedAt: accessRecord.capturedAt ?? null } : null;
+  const research = createResearchService({
+    transport: liveOsm ? createLiveResearchTransport({ fetchImpl: fetch, operatorOnlyOrigins: OPERATOR_ONLY_ORIGINS })
+      : createRecordedTransport({ record: recordedRun, browserOrigins: OPERATOR_ONLY_ORIGINS }),
+    probes,
+  });
+  const osmSource = liveOsm ? createOsmSource({ mirrors: BROWSER_MIRRORS, requireCors: true }) : createRecordedOsmSource({ record: accessRecord, corridorId: candidateId });
+  return createInvestigatorService({ osmSource, research, probes, record: recordedRun, environment: liveOsm ? 'browser/recorded official sources + live OpenStreetMap' : 'browser/recorded operator run' });
+}
+
+async function resolveAccess(id, { refresh = false, liveOsm = false } = {}) {
+  const state = store.getState();
+  const candidate = state.candidates.find(item => item.id === id);
+  if (!candidate) return;
+  if (state.investigationByCandidate[id] && !refresh) return;
+  await loadAccessRecord();
+  const roads = state.roadsByCandidate[id] ?? [];
+  const investigation = await investigatorFor(id, { liveOsm }).investigate({ candidate, roads,
+    evidence: { ecology: state.ecologyByCandidate[id] ?? null, habitat: state.habitatByCandidate[id] ?? null, occurrence: state.occurrenceByCandidate[id] ?? null } });
+  store.setInvestigationResult(id, investigation);
+  store.setCoverage(id, COVERAGE_DATASET.ACCESS_VERIFICATION, { coverage: investigation.access.coverage.coverage, reason: investigation.access.coverage.reason });
+}
+
+function reportAccessNote(message) { const node = document.getElementById('access-note'); if (node) node.textContent = message; }
+
+function requestAccess({ refresh = true, liveOsm = false } = {}) {
+  const selected = store.getState().selectedId;
+  if (!selected) return;
+  reportAccessNote('Running the staged access investigation…');
+  resolveAccess(selected, { refresh, liveOsm })
+    .then(() => reportAccessNote(liveOsm ? 'Access evidence: official sources replayed from the reviewed operator capture; OpenStreetMap queried live.' : 'Access evidence replayed from the reviewed operator capture. A failed source is reported as a failure, never as "no restriction found".'))
+    .catch(error => reportAccessNote(error.message));
+}
+
+// A human finding is stored beside the automated one. Neither replaces the other.
+function recordAccessReview({ candidateId, finding, annotation }) {
+  const selected = candidateId ?? store.getState().selectedId;
+  if (!selected) return;
+  if (!finding && !annotation) { store.setAccessReview(selected, null); return; }
+  store.setAccessReview(selected, Object.freeze({ finding: finding ?? null, annotation: annotation ?? null, decidedAt: new Date().toISOString(),
+    automatedFinding: store.getState().investigationByCandidate[selected]?.access?.finding ?? null }));
+}
+
+// EXPORT. The bundle is JSON, versioned, and carries summaries and provenance only.
+async function exportBundle(candidateId = null) {
+  const state = store.getState();
+  const candidate = state.candidates.find(item => item.id === (candidateId ?? state.selectedId));
+  if (!candidate) return;
+  await loadAccessRecord();
+  const investigation = state.investigationByCandidate[candidate.id] ?? null;
+  const review = state.accessReviewByCandidate[candidate.id] ?? null;
+  const bundle = buildCorridorBundle({
+    candidate, roads: state.roadsByCandidate[candidate.id] ?? [], ecology: state.ecologyByCandidate[candidate.id] ?? null,
+    habitat: state.habitatByCandidate[candidate.id] ?? null, occurrence: state.occurrenceByCandidate[candidate.id] ?? null,
+    investigation: investigation && review ? { ...investigation, access: { ...investigation.access, human: review } } : investigation,
+  });
+  const text = `${JSON.stringify(bundle, null, 2)}
+`;
+  const blob = new Blob([text], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${candidate.id}-evidence-bundle.json`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  reportAccessNote(`Exported ${(text.length / 1024).toFixed(1)} kB evidence bundle for ${candidate.name}.`);
+}
+
 const OCCURRENCE_MAP_LIMIT = 300;
 
 function corridorDescriptors(state) {
@@ -147,6 +244,8 @@ store.subscribe(state => {
   const ecology = selected ? state.ecologyByCandidate[selected.id] : null;
   const habitat = selected ? state.habitatByCandidate[selected.id] : null;
   const occurrenceEvidence = selected ? state.occurrenceByCandidate[selected.id] ?? null : null;
+  const investigation = selected ? state.investigationByCandidate[selected.id] ?? null : null;
+  const accessReview = selected ? state.accessReviewByCandidate[selected.id] ?? null : null;
   const roads = selected ? state.roadsByCandidate[selected.id] ?? [] : [];
   // Each corridor resolves its own ecological and habitat analysis when it is first selected.
   // Occurrence evidence is never fetched automatically: only the explicit button triggers it.
@@ -159,7 +258,10 @@ store.subscribe(state => {
   nodes.count.textContent = String(state.candidates.length);
   renderCandidates(nodes.list, state, id => store.select(id));
   renderDetail(nodes.detail, selected, (id, status) => store.decide(id, status), { ecology, roads, habitat, occurrence: occurrenceEvidence,
-    onQueryOccurrence: () => requestOccurrence({ refresh: true }) });
+    onQueryOccurrence: () => requestOccurrence({ refresh: true }),
+    investigation, access: investigation && accessReview ? { ...investigation.access, human: accessReview } : investigation?.access ?? null,
+    onRunAccess: options => requestAccess(options), onExportBundle: () => { exportBundle().catch(error => reportAccessNote(error.message)); },
+    onReviewAccess: review => recordAccessReview(review), recordedCaptureAt: accessRecord?.capturedAt ?? null, liveOsm: state.liveOsm });
   renderContext(nodes.context, { manifest, pilotLoaded: state.pilotLoaded, error: manifestError, coverage: selected?.coverage, roadQuery: state.roadQuery });
   nodes.fit.disabled = !selected;
   nodes.caption.textContent = caption(state);
@@ -219,6 +321,9 @@ function requestOccurrence({ refresh = false } = {}) {
     .then(() => { nodes.occurrenceNote.textContent = 'Occurrence coverage is reported per source; an unavailable source is never a zero.'; })
     .catch(error => { nodes.occurrenceNote.textContent = error.message; });
 }
+const accessLiveToggle = document.getElementById('access-live-osm');
+accessLiveToggle?.addEventListener('change', event => { store.setLiveOsm(event.target.checked); reportAccessNote(event.target.checked ? 'OpenStreetMap will be queried live on the next run; official sources still replay the reviewed operator capture.' : 'The next run replays the reviewed operator capture for OpenStreetMap as well.'); });
+
 nodes.occurrenceToggle?.addEventListener('change', event => {
   toggleOccurrenceOverlay(event.target.checked).catch(error => { nodes.occurrenceNote.textContent = error.message; });
 });
@@ -229,6 +334,10 @@ habitatToggle?.addEventListener('change', event => {
   nodes.overlayNote.textContent = enabled ? 'Loading habitat layers…' : '';
   toggleHabitatOverlay(enabled).then(() => { nodes.overlayNote.textContent = enabled ? 'Wetlands, flowlines, and the 1 km analysis buffer for the selected corridor.' : ''; }).catch(error => { nodes.overlayNote.textContent = error.message; });
 });
+// The pilot button ships disabled: enabling it here is the signal that every listener above is attached, so a
+// click can never arrive before the workspace can answer it.
+nodes.load.disabled = false;
+
 const dialog = document.getElementById('about-dialog');
 document.getElementById('about-button').addEventListener('click', () => dialog.showModal());
 document.getElementById('close-about').addEventListener('click', () => dialog.close());

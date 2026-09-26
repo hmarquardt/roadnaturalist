@@ -2,6 +2,18 @@
 
 Add a Cloudflare Worker only for a concrete need such as server-held API keys, external API proxy/cache, or Investigator calls. The static app and deterministic browser GIS remain independent of it. No Worker is deployed or configured yet.
 
+## Investigator access research (documented need, not implemented)
+
+The Investigator's access research is deliberately operator/local for now: the sources it asks are public pages, and a
+browser cannot read most of them because they send no CORS header. The browser therefore replays the reviewed operator
+capture (`data/investigator/or-pilot-access-evidence.json`) and reports those sources as *deferred*, with
+`access-verification` coverage `PARTIAL`, rather than pretending a fresh check happened. A Worker is the intended place
+to change that later: one bounded endpoint per declared probe, a fixed allow-list of source URLs (no arbitrary URL
+fetching), the same declared phrases, the same response size limits, and no credential in the browser. It must keep the
+probe vocabulary and quote-verification rules of `src/investigator/research.js` so a proxied read cannot become a
+different kind of evidence. Until that boundary is reviewed and deployed, live access research stays on
+`npm run verify:investigator:live`.
+
 ## Occurrence credentials (documented need, not implemented)
 
 eBird requires a personal API key on every request. Road Naturalist does not ship that key to the

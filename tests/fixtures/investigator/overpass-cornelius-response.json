@@ -1,0 +1,426 @@
+{
+ "osm3s": {
+  "timestamp_osm_base": "2026-09-25T23:39:05Z",
+  "copyright": "OpenStreetMap contributors"
+ },
+ "note": "Real Overpass response captured 2026-09-25 by scripts/verify-investigator-live.mjs (mail.ru mirror), trimmed to a few ways of NW Cornelius Pass Rd for deterministic offline tests.",
+ "elements": [
+  {
+   "type": "way",
+   "id": 71693400,
+   "version": 1,
+   "timestamp": null,
+   "tags": {
+    "bicycle": "designated",
+    "cycleway": "lane",
+    "hgv": "designated",
+    "highway": "primary",
+    "lanes": "4",
+    "lit": "yes",
+    "maxspeed": "45 mph",
+    "name": "Northeast Cornelius Pass Road",
+    "sidewalk:both": "separate",
+    "smoothness": "excellent",
+    "source:hgv": "https://ecode360.com/44346137#44346138",
+    "surface": "asphalt"
+   },
+   "geometry": [
+    {
+     "lat": 45.5231256,
+     "lon": -122.8999142
+    },
+    {
+     "lat": 45.5232615,
+     "lon": -122.8999211
+    },
+    {
+     "lat": 45.5234667,
+     "lon": -122.8999313
+    },
+    {
+     "lat": 45.523865,
+     "lon": -122.8999509
+    },
+    {
+     "lat": 45.5247821,
+     "lon": -122.8999942
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 109791030,
+   "version": 1,
+   "timestamp": null,
+   "tags": {
+    "bicycle": "designated",
+    "cycleway": "lane",
+    "foot": "designated",
+    "hgv": "designated",
+    "highway": "primary",
+    "lanes": "2",
+    "lit": "yes",
+    "maxspeed": "45 mph",
+    "name": "Northeast Cornelius Pass Road",
+    "old_name": "Northwest Cornelius Pass Road",
+    "oneway": "yes",
+    "sidewalk:left": "no",
+    "sidewalk:right": "separate",
+    "smoothness": "excellent",
+    "source:hgv": "https://ecode360.com/44346137#44346138",
+    "surface": "asphalt"
+   },
+   "geometry": [
+    {
+     "lat": 45.5333308,
+     "lon": -122.8996485
+    },
+    {
+     "lat": 45.5334306,
+     "lon": -122.8995728
+    },
+    {
+     "lat": 45.5339599,
+     "lon": -122.8995733
+    },
+    {
+     "lat": 45.5341133,
+     "lon": -122.8996517
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 109791037,
+   "version": 1,
+   "timestamp": null,
+   "tags": {
+    "bicycle": "designated",
+    "cycleway": "lane",
+    "foot": "designated",
+    "hgv": "designated",
+    "highway": "primary",
+    "lanes": "5",
+    "lanes:forward": "3",
+    "lit": "yes",
+    "maxspeed": "45 mph",
+    "name": "Northeast Cornelius Pass Road",
+    "old_name": "Northwest Cornelius Pass Road",
+    "sidewalk:both": "separate",
+    "sidewalk:both:surface": "concrete:plates",
+    "smoothness": "excellent",
+    "source:hgv": "https://ecode360.com/44346137#44346138",
+    "surface": "asphalt"
+   },
+   "geometry": [
+    {
+     "lat": 45.5341133,
+     "lon": -122.8996517
+    },
+    {
+     "lat": 45.53428,
+     "lon": -122.8996601
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 109791038,
+   "version": 1,
+   "timestamp": null,
+   "tags": {
+    "bicycle": "designated",
+    "bridge": "yes",
+    "cycleway": "lane",
+    "hgv": "designated",
+    "highway": "primary",
+    "lanes": "4",
+    "layer": "1",
+    "lit": "yes",
+    "maxspeed": "45 mph",
+    "name": "Northeast Cornelius Pass Road",
+    "old_name": "Northwest Cornelius Pass Road",
+    "sidewalk": "both",
+    "source:hgv": "https://ecode360.com/44346137#44346138",
+    "surface": "concrete"
+   },
+   "geometry": [
+    {
+     "lat": 45.5205782,
+     "lon": -122.8997809
+    },
+    {
+     "lat": 45.5210813,
+     "lon": -122.8998058
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 109791040,
+   "version": 1,
+   "timestamp": null,
+   "tags": {
+    "bicycle": "designated",
+    "cycleway": "lane",
+    "hgv": "designated",
+    "highway": "primary",
+    "lanes": "4",
+    "lit": "yes",
+    "maxspeed": "45 mph",
+    "name": "Northeast Cornelius Pass Road",
+    "sidewalk": "both",
+    "source:hgv": "https://ecode360.com/44346137#44346138",
+    "surface": "asphalt"
+   },
+   "geometry": [
+    {
+     "lat": 45.5210813,
+     "lon": -122.8998058
+    },
+    {
+     "lat": 45.5220193,
+     "lon": -122.8998592
+    },
+    {
+     "lat": 45.5223508,
+     "lon": -122.8998781
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 109791041,
+   "version": 1,
+   "timestamp": null,
+   "tags": {
+    "bicycle": "designated",
+    "cycleway": "lane",
+    "foot": "no",
+    "hgv": "designated",
+    "highway": "primary",
+    "lanes": "2",
+    "lit": "yes",
+    "maxspeed": "45 mph",
+    "name": "Northeast Cornelius Pass Road",
+    "old_name": "Northwest Cornelius Pass Road",
+    "oneway": "yes",
+    "sidewalk": "no",
+    "sidewalk:right:surface": "asphalt",
+    "smoothness": "excellent",
+    "source:hgv": "https://ecode360.com/44346137#44346138",
+    "surface": "asphalt"
+   },
+   "geometry": [
+    {
+     "lat": 45.5341133,
+     "lon": -122.8996517
+    },
+    {
+     "lat": 45.5339687,
+     "lon": -122.8997319
+    },
+    {
+     "lat": 45.5337276,
+     "lon": -122.8997286
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 124817280,
+   "version": 1,
+   "timestamp": null,
+   "tags": {
+    "bicycle": "designated",
+    "bridge": "yes",
+    "cycleway": "lane",
+    "hgv": "designated",
+    "highway": "primary",
+    "lanes": "2",
+    "layer": "1",
+    "lit": "yes",
+    "maxspeed": "45 mph",
+    "name": "Northeast Cornelius Pass Road",
+    "old_name": "Northwest Cornelius Pass Road",
+    "sidewalk": "both",
+    "source:hgv": "https://ecode360.com/44346137#44346138",
+    "surface": "asphalt"
+   },
+   "geometry": [
+    {
+     "lat": 45.5290367,
+     "lon": -122.8996388
+    },
+    {
+     "lat": 45.5292869,
+     "lon": -122.8996398
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 124817284,
+   "version": 1,
+   "timestamp": null,
+   "tags": {
+    "bicycle": "designated",
+    "bicycle:backward": "designated",
+    "bicycle:forward": "designated",
+    "cycleway": "lane",
+    "foot": "designated",
+    "hgv": "designated",
+    "highway": "primary",
+    "lanes": "4",
+    "lanes:backward": "2",
+    "lanes:forward": "2",
+    "lit": "yes",
+    "maxspeed": "45 mph",
+    "name": "Northeast Cornelius Pass Road",
+    "old_name": "Northwest Cornelius Pass Road",
+    "sidewalk:both:surface": "concrete:plates",
+    "sidewalk:left": "yes",
+    "sidewalk:right": "separate",
+    "smoothness": "excellent",
+    "source:hgv": "https://ecode360.com/44346137#44346138",
+    "surface": "asphalt"
+   },
+   "geometry": [
+    {
+     "lat": 45.5325773,
+     "lon": -122.8996483
+    },
+    {
+     "lat": 45.5326687,
+     "lon": -122.8996483
+    },
+    {
+     "lat": 45.5333308,
+     "lon": -122.8996485
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 125570285,
+   "version": 1,
+   "timestamp": null,
+   "tags": {
+    "bicycle": "designated",
+    "cycleway": "lane",
+    "fixme": "section of Cornelius Pass Road reduced to 2 lanes and 35mph speed limit during adjacent pipeline construction project. Reverts back to 4 lanes/45mph on 2023-11-20.",
+    "hgv": "designated",
+    "highway": "primary",
+    "lanes": "2",
+    "lit": "yes",
+    "maxspeed": "45 mph",
+    "name": "Northeast Cornelius Pass Road",
+    "sidewalk:both": "separate",
+    "source:hgv": "https://ecode360.com/44346137#44346138",
+    "surface": "asphalt"
+   },
+   "geometry": [
+    {
+     "lat": 45.5250276,
+     "lon": -122.9000082
+    },
+    {
+     "lat": 45.525289,
+     "lon": -122.9000231
+    },
+    {
+     "lat": 45.5254416,
+     "lon": -122.9000339
+    },
+    {
+     "lat": 45.5255212,
+     "lon": -122.9000335
+    },
+    {
+     "lat": 45.5256039,
+     "lon": -122.9000402
+    },
+    {
+     "lat": 45.5257701,
+     "lon": -122.9000353
+    },
+    {
+     "lat": 45.5258881,
+     "lon": -122.9000303
+    },
+    {
+     "lat": 45.5260318,
+     "lon": -122.9000133
+    },
+    {
+     "lat": 45.5261057,
+     "lon": -122.8999975
+    },
+    {
+     "lat": 45.5261836,
+     "lon": -122.8999797
+    },
+    {
+     "lat": 45.5263298,
+     "lon": -122.8999415
+    },
+    {
+     "lat": 45.526449,
+     "lon": -122.8999011
+    },
+    {
+     "lat": 45.5265608,
+     "lon": -122.8998615
+    },
+    {
+     "lat": 45.5266657,
+     "lon": -122.8998172
+    },
+    {
+     "lat": 45.5268635,
+     "lon": -122.8997322
+    }
+   ]
+  },
+  {
+   "type": "way",
+   "id": 136688607,
+   "version": 1,
+   "timestamp": null,
+   "tags": {
+    "bicycle": "designated",
+    "cycleway": "lane",
+    "hgv": "designated",
+    "highway": "primary",
+    "lanes": "5",
+    "lanes:backward": "2",
+    "lanes:both_ways": "1",
+    "lanes:forward": "2",
+    "lit": "yes",
+    "maxspeed": "45 mph",
+    "name": "Northeast Cornelius Pass Road",
+    "sidewalk": "both",
+    "source:hgv": "https://ecode360.com/44346137#44346138",
+    "surface": "asphalt"
+   },
+   "geometry": [
+    {
+     "lat": 45.518705,
+     "lon": -122.8996836
+    },
+    {
+     "lat": 45.5194806,
+     "lon": -122.8997281
+    },
+    {
+     "lat": 45.5200668,
+     "lon": -122.8997632
+    },
+    {
+     "lat": 45.5205782,
+     "lon": -122.8997809
+    }
+   ]
+  }
+ ]
+}

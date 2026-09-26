@@ -41,7 +41,8 @@ export function renderCandidates(container, state, onSelect) {
   }
 }
 
-export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null, occurrence = null, onQueryOccurrence = null } = {}) {
+export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null, occurrence = null, onQueryOccurrence = null,
+  investigation = null, access = null, onRunAccess = null, onExportBundle = null, onReviewAccess = null, recordedCaptureAt = null, liveOsm = false } = {}) {
   container.replaceChildren();
   if (!candidate) { container.append(empty('Investigation starts with a road', 'Open the pilot and select a corridor to inspect its geometry source, evidence, missing data, and research questions.')); return; }
   container.append(el('h3', 'detail-title', candidate.name), el('p', 'detail-lede', candidate.summary ?? ''), el('span', `tag ${candidate.status === 'rejected' ? 'warn' : ''}`, candidate.status));
@@ -49,6 +50,12 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
   container.append(ecologySection(ecology));
   container.append(habitatSection(habitat));
   container.append(occurrenceSection(occurrence, onQueryOccurrence));
+  // ACCESS & ROAD STATUS is its own section and its own evidence class: geometry being verified never
+  // implies access, and access never borrows habitat or occurrence language.
+  const accessEvidence = access ?? investigation?.access ?? null;
+  container.append(investigation ? renderAccessSection({ ...investigation, access: accessEvidence }, { onRun: onRunAccess, onExport: onExportBundle, onReview: onReviewAccess, recordedCaptureAt, liveOsm })
+    : renderAccessSection(null, { onRun: onRunAccess, recordedCaptureAt, liveOsm }));
+  container.append(renderInvestigationSection(investigation ? { ...investigation, access: accessEvidence } : null, { onReview: onReviewAccess, onExport: onExportBundle, candidateId: candidate.id }));
   const evidenceSection = section('Evidence trail');
   const list = el('ul', 'evidence-list');
   for (const item of candidate.evidence) {
@@ -465,4 +472,230 @@ function regionBounds(region) {
 function count(value) {
   const number = Number(value);
   return Number.isFinite(number) ? number.toLocaleString('en-US') : 'unknown';
+}
+
+// ACCESS & ROAD STATUS. A separate, first-class section: it answers a different question from geometry,
+// ecology, habitat, or occurrence evidence, and it never borrows their language. A finding is shown with its
+// guardrail rule, its date, its restrictions, its contradictions, and what is still unresolved.
+export const ACCESS_FINDING_LABELS = Object.freeze({
+  VERIFIED_PUBLIC: 'VERIFIED PUBLIC',
+  PROBABLE_PUBLIC: 'PROBABLE PUBLIC',
+  UNVERIFIED: 'UNVERIFIED',
+  CONFLICTED: 'CONFLICTED',
+  RESTRICTED_OR_CLOSED: 'RESTRICTED OR CLOSED',
+});
+export const ACCESS_FINDING_CLASS = Object.freeze({
+  VERIFIED_PUBLIC: 'ok', PROBABLE_PUBLIC: 'caution', UNVERIFIED: 'unknown', CONFLICTED: 'warn', RESTRICTED_OR_CLOSED: 'warn',
+});
+export const PROBE_OUTCOME_LABELS = Object.freeze({
+  EVIDENCE: 'evidence', NO_RELEVANT_EVIDENCE: 'no relevant evidence', FAILED: 'source failed', OPERATOR_ONLY: 'operator path only', NOT_RUN: 'not run',
+});
+
+const TIER_LABELS = Object.freeze({ 1: 'Tier 1 authority', 2: 'Tier 2 government data', 3: 'Tier 3 community map', 4: 'Tier 4 anecdotal' });
+const formatDate = value => (value ? String(value).slice(0, 10) : 'date unrecorded');
+
+function sourceLine(item) {
+  const row = el('p', 'small access-source');
+  row.append(el('span', 'tag unknown', TIER_LABELS[item.sourceTier] ?? 'tier unrecorded'), document.createTextNode(` ${item.sourceOrganization} · ${item.sourceTitle} · published ${formatDate(item.publishedAt)} · retrieved ${formatDate(item.retrievedAt)}${item.effectiveUntil ? ` · effective to ${formatDate(item.effectiveUntil)}` : ''}${item.recurrence ? ` · recurs (${item.recurrence})` : ''}`));
+  if (String(item.sourceUrl ?? '').startsWith('https://')) {
+    const link = el('a', '', ' source'); link.href = item.sourceUrl; link.target = '_blank'; link.rel = 'noopener noreferrer'; row.append(link);
+  }
+  return row;
+}
+
+function evidenceBlock(title, items, { sign = '', className = '' } = {}) {
+  const block = el('div', `access-evidence ${className}`.trim());
+  block.append(el('span', 'eyebrow', title));
+  if (!items.length) { block.append(el('p', 'small muted', 'None.')); return block; }
+  for (const item of items) {
+    block.append(el('p', 'small access-claim', `${sign}${item.claimType}${item.claimValue ? `: ${item.claimValue}` : ''}${item.temporalScope ? ` · ${item.temporalScope.toLowerCase()}` : ''}`));
+    if (item.geographicScope?.corridorPart) block.append(el('p', 'small muted', `Applies to: ${item.geographicScope.corridorPart}`));
+    block.append(el('p', 'small muted', `“${item.quote.length > 240 ? `${item.quote.slice(0, 240)}…` : item.quote}”`));
+    block.append(sourceLine(item));
+    block.append(el('p', 'small', item.summary));
+  }
+  return block;
+}
+
+// The main Access & road status section. Restrained by default: the finding, its guardrail, restrictions,
+// contradictions, and the unresolved list are visible; the stage log, every source check, and the adversarial
+// checklist live behind disclosure elements.
+export function renderAccessSection(investigation, { onRun = null, onExport = null, onReview = null, recordedCaptureAt = null, liveOsm = false } = {}) {
+  const node = section('Access & road status');
+  node.classList.add('access-section');
+  node.append(el('span', 'tag unknown', 'ACCESS EVIDENCE'));
+  if (!investigation) {
+    node.append(el('p', 'small muted', 'No access verification has run for this corridor. The road geometry is evidence that the road is mapped, not that the public may drive it.'));
+    if (onRun) node.append(runRow(onRun, { liveOsm, recordedCaptureAt }));
+    return node;
+  }
+  const access = investigation.access;
+  const human = access.human ?? null;
+  const shown = human?.finding ?? access.finding;
+  const header = el('div', `access-finding ${ACCESS_FINDING_CLASS[shown] ?? 'unknown'}`);
+  header.append(el('span', 'eyebrow', 'Finding'), el('strong', 'access-finding-label', ACCESS_FINDING_LABELS[shown] ?? shown));
+  header.append(el('p', 'small', human ? `Human review recorded ${formatDate(human.decidedAt)}: ${human.finding}. Automated finding: ${ACCESS_FINDING_LABELS[access.finding] ?? access.finding}.` : access.meaning));
+  node.append(header);
+
+  if (human?.annotation) node.append(el('p', 'small', `Human annotation: ${human.annotation}`));
+  const rows = [
+    ['Public road evidence', access.publicRoadEvidence],
+    ['Motor-vehicle access', access.motorVehicleAccess],
+    ['Restrictions', access.restrictionsFound ? `${access.restrictions.filter(item => item.temporalScope === 'CURRENT' || item.temporalScope === 'RECURRING').length} in force or recurring` : 'No restriction in force'],
+    ['Evidence checked', `${formatDate(access.evidenceCheckedAt)}${recordedCaptureAt ? ` (recorded operator run ${formatDate(recordedCaptureAt)})` : ''}`],
+    ['Access verification coverage', `${access.coverage?.coverage ?? COVERAGE.UNKNOWN}`],
+    ['Scope', access.scope?.wholeCorridor ? 'whole corridor' : access.scope?.note ?? 'unrecorded'],
+    ['Guardrail rule', `${access.ruleId} — ${access.rule}`],
+    ['Corridor', `${investigation.environment ?? 'environment unrecorded'} · transport ${investigation.transport ?? 'unrecorded'}`],
+  ];
+  node.append(factList(rows));
+  if (access.coverage?.reason) node.append(el('p', 'small muted', access.coverage.reason));
+  node.append(el('p', 'small muted', `Evidence mix: ${access.evidenceCounts.tier1} Tier 1 · ${access.evidenceCounts.tier2} Tier 2 · ${access.evidenceCounts.tier3} Tier 3 · ${access.evidenceCounts.tier4} Tier 4.`));
+
+  if (access.contradictions.length) {
+    const box = el('div', 'access-contradictions');
+    box.append(el('span', 'eyebrow', `Contradictions and disagreements (${access.contradictions.length})`));
+    for (const contradiction of access.contradictions) box.append(el('p', 'small', `${contradiction.kind}: ${contradiction.note}`));
+    box.append(el('p', 'small muted', 'A contradiction is never resolved here by preference. Review the sources, then record a human finding if the conflict matters.'));
+    node.append(box);
+  }
+
+  node.append(evidenceBlock('Supporting evidence', access.affirmative, { sign: '✓ ' }));
+  node.append(evidenceBlock('Community-mapped evidence', access.community, { sign: '~ ', className: 'community' }));
+  node.append(evidenceBlock('Restrictions and closures', access.restrictions, { sign: '! ', className: 'restrictions' }));
+  if (access.notActing?.length) node.append(evidenceBlock('Restrictions that cannot act (expired, stale, or undated)', access.notActing, { sign: '· ', className: 'inactive' }));
+  node.append(evidenceBlock('Caution (gates, unmaintained, similar road names)', access.attention, { sign: '? ', className: 'attention' }));
+
+  if (access.unresolved.length) {
+    const list = el('ul', 'access-unresolved');
+    for (const item of access.unresolved) list.append(el('li', 'small', `${item.code}: ${item.text}`));
+    const block = el('div', 'access-evidence');
+    block.append(el('span', 'eyebrow', 'Unresolved'), list);
+    node.append(block);
+  }
+  if (access.qualifiers.length) {
+    const details = el('details', 'provenance-details');
+    details.append(el('summary', '', `Qualifiers (${access.qualifiers.length})`));
+    for (const qualifier of access.qualifiers) details.append(el('p', 'small', qualifier));
+    node.append(details);
+  }
+  // Research may be re-requested at any time: a dated finding is a snapshot, and the reader decides when to
+  // refresh it. The recorded/deferred note stays attached so a replay is never mistaken for a fresh check.
+  if (onRun) node.append(runRow(onRun, { liveOsm, recordedCaptureAt, label: 'Re-check access evidence' }));
+  return node;
+}
+
+function runRow(onRun, { liveOsm, recordedCaptureAt, label = 'Run access investigation' }) {
+  const row = el('div', 'access-actions');
+  const button = el('button', label === 'Run access investigation' ? 'primary-button' : 'quiet-button', label);
+  button.type = 'button';
+  button.addEventListener('click', () => onRun({ refresh: true, liveOsm: Boolean(liveOsm) }));
+  row.append(button);
+  row.append(el('span', 'small muted', liveOsm ? 'OpenStreetMap will be queried live; official sources replay the recorded operator run.' : `OpenStreetMap and official sources replay the recorded operator run${recordedCaptureAt ? ` captured ${formatDate(recordedCaptureAt)}` : ''}.`));
+  return row;
+}
+
+// The investigation record: stages, source checks, adversarial review, and the human review controls. This is
+// where a reader can see how the finding was reached and where they can disagree with it without erasing it.
+export function renderInvestigationSection(investigation, { onReview = null, onExport = null, candidateId = null, bundleReady = false } = {}) {
+  const node = section('Investigation record');
+  node.classList.add('investigation-section');
+  if (!investigation) {
+    node.append(el('p', 'small muted', 'The staged investigation has not run for this corridor. Access stays unverified until it does.'));
+    return node;
+  }
+  const access = investigation.access;
+  const stages = el('ol', 'stage-list');
+  for (const stage of investigation.stages) {
+    const row = el('li', `stage ${stage.status}`);
+    row.append(el('span', 'stage-status', `${stage.status}`), el('strong', '', stage.label), el('p', 'small', stage.summary));
+    const counters = Object.entries(stage.counters ?? {}).map(([key, value]) => `${key} ${value}`).join(' · ');
+    if (counters) row.append(el('p', 'small muted', counters));
+    for (const warning of stage.warnings ?? []) row.append(el('p', 'small warn-text', warning));
+    stages.append(row);
+  }
+  const stagesBlock = el('div', 'access-evidence');
+  stagesBlock.append(el('span', 'eyebrow', `Stages (${investigation.stageSummary.complete} complete · ${investigation.stageSummary.warning} warning · ${investigation.stageSummary.failed} failed)`), stages);
+  node.append(stagesBlock);
+
+  const review = access.review;
+  if (review) {
+    const checks = el('ul', 'adversarial-list');
+    for (const check of review.checks) checks.append(el('li', `small ${check.outcome.toLowerCase()}`, `${check.outcome} — ${check.question} ${check.note}`));
+    const details = el('details', 'provenance-details');
+    details.open = review.concerns.length > 0;
+    details.append(el('summary', '', `Adversarial review (${review.concerns.length} concern(s))`), checks);
+    node.append(details);
+  }
+
+  if (access.provisionalFinding && access.findingsChangedByReview !== false && access.findingChangedByReview != null) {
+    node.append(el('p', 'small', `Provisional finding before the contradiction search and adversarial review: ${ACCESS_FINDING_LABELS[access.provisionalFinding] ?? access.provisionalFinding}. Final finding: ${ACCESS_FINDING_LABELS[access.finding] ?? access.finding}${access.findingChangedByReview ? ' (changed by the review)' : ' (unchanged)'}.`));
+  }
+
+  const probeRows = el('ul', 'source-list');
+  for (const probe of investigation.research.probes) {
+    const row = el('li', `source ${probe.outcome.toLowerCase()}`);
+    row.append(el('span', 'tag unknown', PROBE_OUTCOME_LABELS[probe.outcome] ?? probe.outcome), el('strong', '', probe.organization));
+    row.append(el('p', 'small', probe.question));
+    row.append(el('p', 'small muted', `${probe.title} · retrieved ${formatDate(probe.searched?.retrievedAt)}${probe.searched?.httpStatus ? ` · HTTP ${probe.searched.httpStatus}` : ''}`));
+    if (String(probe.url ?? '').startsWith('https://')) { const link = el('a', '', 'source'); link.href = probe.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; row.append(el('span', 'small', ' '), link); }
+    if (probe.note) row.append(el('p', 'small muted', probe.note));
+    probeRows.append(row);
+  }
+  const sourcesBlock = el('div', 'access-evidence');
+  sourcesBlock.append(el('span', 'eyebrow', `Sources checked (${investigation.research.probes.length})`), probeRows);
+  node.append(sourcesBlock);
+
+  if (investigation.osm) {
+    const osm = investigation.osm;
+    const rows = [['OpenStreetMap status', osm.status],
+      ['Retrieved', `${formatDate(osm.retrievedAt)}${osm.capturedAt ? ` (recorded ${formatDate(osm.capturedAt)})` : ''}`],
+      ['Mirrors used', osm.mirrorsUsed?.join(', ') || 'none'],
+      ['Search names', (osm.searchNames ?? []).join(' | ')],
+      ['Ways matched', osm.match ? `${osm.match.matchedWayCount} of ${osm.match.candidateWayCount} within ${osm.match.toleranceM} m` : 'not measured'],
+      ['Corridor matched', osm.match ? `${(osm.match.matchedFraction * 100).toFixed(1)}% at ${osm.match.sampleIntervalM} m sampling` : 'not measured'],
+      ['Name variants seen', (osm.nameVariants ?? []).map(variant => `${variant.name} (${variant.relation.toLowerCase().replace(/_/g, ' ')})`).join(' · ') || 'none']];
+    const details = el('details', 'provenance-details');
+    details.append(el('summary', '', 'OpenStreetMap road context'), factList(rows));
+    if (osm.match?.method) details.append(el('p', 'small muted', osm.match.method));
+    for (const way of (osm.waySummaries ?? []).slice(0, 12)) details.append(el('p', 'small', `${way.highway ?? 'highway unrecorded'} · ${way.name ?? 'unnamed'} · ${way.ref ?? 'no ref'} · ${way.surface ?? 'surface unrecorded'} · access tag ${way.accessSignal === 'ABSENT' ? 'absent' : way.accessSignal}`));
+    for (const failure of osm.failures ?? []) details.append(el('p', 'small warn-text', `Mirror failure: ${failure.mirror ?? 'transport'} — ${failure.reason}`));
+    node.append(details);
+  }
+
+  node.append(renderHumanReview(access, { onReview, candidateId }));
+  if (onExport) {
+    const row = el('div', 'access-actions');
+    const button = el('button', 'quiet-button', bundleReady ? 'Export evidence bundle (JSON)' : 'Export evidence bundle');
+    button.type = 'button';
+    button.addEventListener('click', () => onExport());
+    row.append(button, el('span', 'small muted', 'The bundle carries summaries, evidence, provenance, coverage, and freshness. It carries no credential, no observation record, and no raw GIS data.'));
+    node.append(row);
+  }
+  return node;
+}
+
+function renderHumanReview(access, { onReview, candidateId }) {
+  const block = el('div', 'access-evidence human-review');
+  block.append(el('span', 'eyebrow', 'Human review'));
+  block.append(el('p', 'small muted', 'A human finding is recorded alongside the automated one; the automated result is never erased.'));
+  if (access.human) block.append(el('p', 'small', `Recorded ${formatDate(access.human.decidedAt)}: ${access.human.finding}${access.human.annotation ? ` — ${access.human.annotation}` : ''}`));
+  if (!onReview) return block;
+  const select = el('select', 'review-select');
+  for (const finding of ['', 'VERIFIED_PUBLIC', 'PROBABLE_PUBLIC', 'UNVERIFIED', 'CONFLICTED', 'RESTRICTED_OR_CLOSED']) {
+    const option = el('option', '', finding ? ACCESS_FINDING_LABELS[finding] : 'Automated finding only');
+    option.value = finding;
+    select.append(option);
+  }
+  select.value = access.human?.finding ?? '';
+  const note = el('textarea', 'review-note');
+  note.rows = 2; note.placeholder = 'Annotation (what you checked, what you disagree with) — optional';
+  note.value = access.human?.annotation ?? '';
+  const button = el('button', 'quiet-button', 'Record human review');
+  button.type = 'button';
+  button.addEventListener('click', () => onReview({ candidateId, finding: select.value || null, annotation: note.value.trim() || null }));
+  const row = el('div', 'access-actions');
+  row.append(select, button);
+  block.append(row, note);
+  return block;
 }
