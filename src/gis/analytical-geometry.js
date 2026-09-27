@@ -76,21 +76,40 @@ export function createAnalyticalGeometryQueries({ initialize, record = () => {} 
     });
   }
 
-  // Prepare one corridor. Canonical geometry first; then the ladder, in order, stopping at the first
-  // candidate that both the metric gate and the engine accept.
+  // Prepare one corridor. A duplicated traversal in the source geometry goes first, then the canonical line or
+  // one of the remaining rungs, whichever the engine accepts.
+  //
+  // The order matters and is not an engine detail: a TIGER part that repeats a segment makes the corridor
+  // measure its own length twice, so *which* line the metrics describe must not depend on whether the local
+  // engine happens to buffer the doubled form. DuckDB-WASM refuses some of those geometries and the native
+  // engine accepts others, and a derived metric plane and a browser would otherwise disagree about the same
+  // corridor. So a doubled traversal is removed for every reader, before any probe, exactly as
+  // remove-duplicate-segments describes it. The canonical corridor the map draws is untouched either way.
   async function prepareAnalyticalGeometry({ engine = null, id, geometry, distancesM = ANALYSIS_DISTANCES_M, probeCanonical = null }) {
     const resolved = engine ?? await initialize();
     const canonical = canonicalAnalysis(geometry);
     const attempts = [];
-    const canonicalProbe = probeCanonical ? await probeCanonical() : await probeCandidate(resolved, corridorWkt(canonical.geometry), distancesM);
-    if (canonicalProbe.usable) {
-      attempts.push(Object.freeze({ method: ANALYSIS_GEOMETRY_METHOD.NONE, accepted: true, usable: true, reason: null }));
-      return entryFor({ id, selection: canonical, probe: canonicalProbe, attempts, repairMs: 0 });
-    }
-    attempts.push(Object.freeze({ method: ANALYSIS_GEOMETRY_METHOD.NONE, accepted: true, usable: false, reason: canonicalProbe.error }));
-    const repairStarted = performance.now();
     const candidates = repairCandidates(geometry);
-    for (const selection of candidates) {
+    const doubledIndex = candidates.findIndex(candidate => candidate.accepted
+      && (candidate.repairs?.removedSegmentCount ?? 0) > 0);
+    let remaining = candidates;
+    if (doubledIndex >= 0) {
+      const doubled = candidates[doubledIndex];
+      const probe = await probeCandidate(resolved, corridorWkt(doubled.geometry), distancesM);
+      attempts.push(Object.freeze({ method: doubled.method, accepted: true, usable: probe.usable, reason: probe.error }));
+      if (probe.usable) return entryFor({ id, selection: doubled, probe, attempts, repairMs: 0 });
+      // The engine refuses even the de-duplicated line: the remaining rungs below still get their chance.
+      remaining = candidates.slice(doubledIndex + 1);
+    } else {
+      const canonicalProbe = probeCanonical ? await probeCanonical() : await probeCandidate(resolved, corridorWkt(canonical.geometry), distancesM);
+      if (canonicalProbe.usable) {
+        attempts.push(Object.freeze({ method: ANALYSIS_GEOMETRY_METHOD.NONE, accepted: true, usable: true, reason: null }));
+        return entryFor({ id, selection: canonical, probe: canonicalProbe, attempts, repairMs: 0 });
+      }
+      attempts.push(Object.freeze({ method: ANALYSIS_GEOMETRY_METHOD.NONE, accepted: true, usable: false, reason: canonicalProbe.error }));
+    }
+    const repairStarted = performance.now();
+    for (const selection of remaining) {
       if (!selection.accepted) {
         attempts.push(Object.freeze({ method: selection.method, accepted: false, usable: false, reason: selection.rejection }));
         continue;

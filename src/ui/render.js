@@ -241,6 +241,10 @@ function habitatSection(habitat) {
     node.append(el('p', 'small muted', habitat?.diagnostics?.reason ?? 'Habitat analysis has not run.'));
     return node;
   }
+  // The detailed panel and the discovery list make different claims. The list is the precomputed deterministic
+  // metrics; this section measures the raw regional partitions for one corridor, whatever produced the candidate.
+  node.append(el('span', 'eyebrow', 'Detailed GIS'),
+    el('p', 'small muted', 'Measured from the raw regional partitions for this corridor, independently of the discovery list.'));
   node.append(wetlandBlock(habitat.wetlands), hydrographyBlock(habitat.hydrography));
   node.append(el('p', 'small muted', habitat.interpretation ?? ''));
   node.append(habitatProvenance(habitat));

@@ -177,8 +177,8 @@ test('the survey repairs the corridors the engine refuses, and promotion measure
   const panel = page.locator('#discovery');
   // No corridor is left with UNKNOWN habitat coverage because of its own geometry.
   await expect(panel).not.toContainText('have UNKNOWN habitat coverage');
-  // The eight corridors that the engine refused are the committed regression fixture; the survey must
-  // repair all of them, and report zero unusable geometry.
+  // The eight originally refused corridors remain a regression fixture. The shared preparation rule also
+  // removes doubled traversals before probing, so additional corridors legitimately report a repair.
   const batch = await page.evaluate(async () => {
     const { createGisService } = await import('/src/gis/service.js');
     const { buildDiscoveryUnits } = await import('/src/discovery/units.js');
@@ -203,8 +203,9 @@ test('the survey repairs the corridors the engine refuses, and promotion measure
       wetlandCoverage: coverage, facts };
   });
   expect(batch.unbufferable).toEqual([]);
-  expect(batch.repaired.sort()).toEqual(REPAIRED_CORRIDORS);
-  expect(batch.methods['remove-duplicate-segments']).toBe(8);
+  for (const id of REPAIRED_CORRIDORS) expect(batch.repaired).toContain(id);
+  expect(batch.methods['remove-duplicate-segments']).toBe(batch.repairedCount);
+  expect(batch.repairedCount).toBeGreaterThanOrEqual(REPAIRED_CORRIDORS.length);
   expect(batch.maxDisplacement).toBe(0);
   expect(batch.wetlandCoverage.UNKNOWN ?? 0).toBe(0);
   for (const id of REPAIRED_CORRIDORS) {

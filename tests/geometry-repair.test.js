@@ -253,12 +253,31 @@ test('a corridor the engine refuses is repaired, and the repaired geometry is wh
   assert.notDeepEqual(entry.geometry, RETRACED, 'the repaired representation is not the canonical one');
   assert.equal(entry.geometryForAnalysis.repaired, true);
   assert.equal(entry.geometryForAnalysis.displacementM, 0);
-  assert.equal(entry.diagnostics.attempts.length, 2, 'the canonical probe is recorded before the repair probe');
-  assert.equal(entry.diagnostics.attempts[0].usable, false);
-  assert.match(entry.diagnostics.attempts[0].reason, /assigned depths/);
-  assert.equal(entry.diagnostics.attempts[1].usable, true);
+  // The doubled traversal is removed before any probe (see the test below), so the de-duplicated line is the
+  // only candidate this corridor offers and the only one that gets probed.
+  assert.equal(entry.diagnostics.attempts.length, 1);
+  assert.equal(entry.diagnostics.attempts[0].method, ANALYSIS_GEOMETRY_METHOD.DUPLICATE_SEGMENTS);
+  assert.equal(entry.diagnostics.attempts[0].usable, true);
   assert.ok(entry.diagnostics.repairMs >= 0);
   assert.deepEqual(RETRACED, line([point(0), point(1000), point(2000), point(1000)]), 'canonical geometry is untouched');
+});
+
+test('a doubled traversal is removed before any probe, whatever the engine would have accepted', async () => {
+  // The engine here refuses nothing, which is exactly the native-versus-WASM difference: the doubled form is a
+  // property of the source geometry, and a corridor that measures its own length twice must not be measured
+  // differently depending on the engine. So the de-duplicated line is chosen without asking about the canonical
+  // one at all.
+  const { entry, statements } = await prepare(RETRACED);
+  assert.equal(entry.usable, true);
+  assert.equal(entry.repaired, true);
+  assert.equal(entry.repairMethod, ANALYSIS_GEOMETRY_METHOD.DUPLICATE_SEGMENTS);
+  assert.equal(entry.diagnostics.attempts.length, 1, 'the canonical line is not even probed');
+  assert.equal(entry.diagnostics.attempts[0].usable, true);
+  assert.equal(entry.geometryForAnalysis.repaired, true);
+  assert.ok(entry.geometryForAnalysis.canonicalLengthM > entry.geometryForAnalysis.analyticalLengthM,
+    'the measured path is shorter than the doubled traversal');
+  assert.equal(statements.length, 1, 'one probe, of the de-duplicated line');
+  assert.ok(!statements[0].includes(corridorWkt(RETRACED)), 'the probe never asked about the doubled line');
 });
 
 test('a corridor that no candidate rescues stays unavailable, with an honest reason', async () => {
@@ -270,7 +289,8 @@ test('a corridor that no candidate rescues stays unavailable, with an honest rea
   assert.equal(entry.geometry, null);
   assert.match(entry.reason, /no point-preserving repair was accepted/);
   assert.match(entry.reason, /unchanged/);
-  assert.equal(entry.diagnostics.attempts.length, 2);
+  assert.equal(entry.diagnostics.attempts.length, 1, 'the de-duplicated line is the only rung this geometry offers');
+  assert.equal(entry.diagnostics.attempts[0].usable, false, 'and the engine refused it');
 });
 
 test('an engine failure that is not a geometry refusal is loud, never relabelled as geometry', async () => {

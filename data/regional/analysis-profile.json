@@ -38,6 +38,7 @@
    "remove-duplicate-segments+split-repeated-vertices",
    "remove-duplicate-segments+node-self-intersections"
   ],
+  "duplicateSegmentsBeforeProbe": true,
   "tolerance": {
    "maxDisplacementM": 0.05,
    "maxBoundsDeltaDeg": 0.000001,
@@ -89,7 +90,8 @@
   "hydrographyLength": "clipped-length-sum-v1",
   "habitatCounts": "distinct-contributing-features-v1",
   "coverage": "extent-per-distance-v1",
+  "hydroNames": "sorted-distinct-first-40-v1",
   "wetlandDefinition": "sum of each mapped feature's own geometry clipped to the requested buffer (feature-area sum, not a spatial union)"
  },
- "fingerprint": "6d0c5a126ce65b21218afccdd2ee4b63858e473fe1488f77a13f9528afa088e2"
+ "fingerprint": "41b574f0651a22e00fc505cf4c41c87800065fdc1b7ff6e20e70ea6002895b5f"
 }

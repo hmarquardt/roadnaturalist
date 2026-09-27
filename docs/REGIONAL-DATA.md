@@ -260,7 +260,7 @@ disk is already served by whole cells whose habitat content is 46 MB. Finer cell
 partition scheme was deliberately left alone for this measurement, and derived metrics answer the same
 problem without touching it.
 
-### The derived artifact this measurement calls for (design, not yet built)
+### The derived artifact this measurement called for
 
 Not implemented in this pass. The measurement is what was missing, and it is now in hand; the design below is
 what the numbers point at, and building it is the next feature rather than a second architecture.
@@ -276,7 +276,7 @@ what the numbers point at, and building it is the next feature rather than a sec
 * **Fingerprint**: the catalog declares a deterministic analysis fingerprint over the road source version,
   composition version, segmentation profile, geometry-repair version, each habitat dataset version, the
   ecoregion versions, the analysis buffer profile and the derived schema version. A run whose loaded versions
-  do not reproduce the fingerprint uses the raw path instead: stale metrics are never used because a corridor
+  do not reproduce the fingerprint fail closed: stale metrics are never used because a corridor
   id happens to match.
 * **Hybrid path**: derived partitions answer browsing, filtering, sorting and selection. Selecting or
   promoting a corridor loads the raw cells it needs through the existing service boundary, so the detailed
@@ -315,7 +315,7 @@ Two smaller defects of the same "one definition" class were fixed at the same ti
   (`c.geom_4326`), so its per-corridor `corridorInside` flag was wrong. Coverage is now built from one pair of
   expressions for both paths.
 * the metric expressions (clipped area, clipped length, distinct feature count, coverage predicates) now live
-  in `src/gis/habitat-metrics.js` and are used by the set-oriented batch, the detailed panel, and - next - an
+  in `src/gis/habitat-metrics.js` and are used by the set-oriented batch, the detailed panel, and the
   offline derived build. `tests/habitat-metrics.test.js` asserts that the statements each path issues really
   contain those shared expressions.
 
@@ -412,22 +412,27 @@ corridor identity or as a metric.
 `data/regional/analysis-profile.json` freezes the semantics a derived artifact would bake in, and
 `src/discovery/analysis-fingerprint.js` builds it from the values the runtime actually uses (the constants are
 imported, never restated) and reduces it to canonical JSON, then SHA-256. Current fingerprint:
-`6d0c5a126ce65b21218afccdd2ee4b63858e473fe1488f77a13f9528afa088e2`.
+`41b574f0651a22e00fc505cf4c41c87800065fdc1b7ff6e20e70ea6002895b5f`.
+
+That value moved once during this work, which is the machinery doing its job: removing a doubled source
+traversal before the engine probe (below) changes which line the metrics describe, so it is recorded in the
+profile as `analyticalGeometry.duplicateSegmentsBeforeProbe` and every artifact built under the previous
+fingerprint is refused by a browser that computes the new one.
 
 It covers the region version and bounds, the road dataset version plus a digest over every published road
 partition, the component-index digest and join tolerance, the composition tolerance and reversed-link ratio,
 the segmentation constants and id prefix, the repair methods and acceptance tolerances, the wetland and
 hydrography dataset versions and partition digests, every declared ecoregion dataset version and digest, the
 analysis distances, the catalog's halo distance, and the metric-semantic versions (wetland area, clipped
-length, feature counts, coverage). It deliberately excludes timestamps, deployment ids, asset origins and user
+length, feature counts, coverage, and the sorted first 40 hydrography names). It deliberately excludes timestamps, deployment ids, asset origins and user
 state, and `tests/analysis-fingerprint.test.js` proves both directions: every material change above invalidates
 the fingerprint, while reordering partitions, moving the asset origin, or passing deployment metadata does not.
 `node scripts/write-analysis-profile.mjs --check` fails if the committed profile is not current, and the test
 suite asserts the same thing.
 
-A derived manifest would carry the fingerprint it was built with; a browser whose own fingerprint differs
+A derived manifest carries the fingerprint it was built with; a browser whose own fingerprint differs
 reports derived discovery as unavailable (`analysis version mismatch`) rather than showing numbers computed
-under different rules. That machinery is in place; the derived artifact itself is not built yet - see below.
+under different rules.
 
 ## Derived corridor metrics: what is built
 
@@ -456,7 +461,7 @@ composed from the shared expressions the runtime exports (feature-area-sum wetla
 feature-count hydrography, Level III/IV overlap with the 99.5% FULL rule, per-distance coverage against the
 published extent), which `verify:derived-equivalence` checks against a live raw batch.
 
-Metrics are measured in spatial chunks (400 corridors) with the habitat relations restricted to the chunk's
+Metrics are measured in spatial chunks (100 corridors) with the habitat relations restricted to the chunk's
 padded box, so a 6,440-corridor window is a sequence of neighbourhood jobs rather than one cross join. The
 chunk restriction is a bounding-box prefilter of the kind the runtime already applies per corridor.
 
@@ -480,6 +485,59 @@ coverage_hydro_250 coverage_hydro_500 coverage_hydro_1000 analysis_fingerprint
 promotion compare against; `geometry_repaired`/`geometry_repair_method` record whether the offline analysis used
 a repair. No occurrence, access, Investigator, annotation, or user state is stored.
 
+### Built state (`or-sw-wa-portland-v2`, 2026-09-27)
+
+The whole published region is now built, and the numbers are the ones the artifacts actually carry:
+
+| Fact | Value |
+| --- | --- |
+| Analysis fingerprint | `41b574f0651a22e00fc505cf4c41c87800065fdc1b7ff6e20e70ea6002895b5f` |
+| Corridors (unique) | 6,440 |
+| Repaired analysis geometry | 718 corridors via `remove-duplicate-segments` (see below) |
+| Stored rows (after replication) | 8,060 over 1,620 replicated rows and 1,511 multi-cell corridors |
+| Cells | 130 (118 present, 12 declared empty) |
+| GeoParquet bytes | 17,039,103 (16.25 MiB), 2,114 bytes per stored row average |
+| Manifest | `data/derived/corridor-metrics/<fingerprint>/manifest.json`, 50,996 bytes, SHA-256 `961161f30c0dcb9f23472639fe7c666c59bb9fecae27f9287d26b091cab28172` |
+| Build cost | 14.8 minutes wall (65 chunks; analytical 10.7 s, metrics 871.0 s, write 6.5 s) |
+| Build engine | native DuckDB Spatial, `PRAGMA memory_limit='2GB'`, spill directory under `DERIVED_WORK` |
+
+Repair provenance records the shared ladder's decision, and the build applies two rules so that the geometry it
+analyses is the geometry the browser analyses:
+
+* `remove-duplicate-segments` applies whenever the canonical corridor really contains duplicate segments: 718
+  of the 6,440 corridors do. DuckDB-WASM refuses to buffer those geometries and the runtime repairs them, so
+  analysing the canonical line offline would report a degenerate length — measured at up to 43% too long on the
+  equivalence sample (`drv1-n-amherst-st-s1`: 3,740.8 m canonical against 2,112.0 m analytical), which moves
+  every corridor-length-based metric (ecology percentages) and every corridor-line intersection (hydrography
+  crossings). The first equivalence capture found exactly those corridors and nothing else.
+* the shared engine probe covers the remaining rungs (`split-repeated-vertices`, `node-self-intersections`),
+  which rewrite a line without changing its length: the native engine can buffer a geometry DuckDB-WASM refuses,
+  so those rungs are taken only when the native engine also refuses the line without them. The native engine
+  refused no corridor in this build. The derived hydrography name summary retains the same first 40 sorted
+  distinct names as the browser batch; that material summary rule is in the analysis fingerprint.
+
+The rebuilt artifacts passed `verify:derived` (including 96 distinct PARTIAL-coverage corridors),
+`verify:derived-equivalence` (264 shared corridors, zero divergences, six raw detailed checks), and
+`verify:regional-equivalence` (nine batch/detailed corridors, zero unexplained divergences). The equivalence
+capture compares only corridors whose full 1 km analysis bounds fit the raw survey's selected habitat cells;
+raw survey cells around a search box do not cover a long road corridor that continues beyond that box.
+Promotion and detailed analysis select raw habitat around the chosen corridor itself.
+
+### Derived radius benchmark
+
+The committed `data/regional/derived-benchmarks.json` measures each radius in a fresh browser page with HTTP
+cache disabled. Times include data loading, filtering, sorting, the bounded table, and bounded SVG map.
+
+| Radius | Selected metric bytes | Loaded / unique / disk corridors | Cold | Warm | Classification |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 10 mi | 1,820,060 | 1,286 / 1,192 / 368 | 2.79 s | 0.13 s | COMFORTABLE |
+| 25 mi | 6,102,562 | 3,466 / 2,931 / 2,238 | 1.38 s | 0.36 s | COMFORTABLE |
+| 50 mi | 15,749,806 | 7,797 / 6,325 / 5,158 | 1.93 s | 0.81 s | COMFORTABLE |
+
+The 25- and 50-mile table and map draw at most 400 corridors, while the total count stays visible. The measured
+JS heap was 61 MB; 50-mile table render took 6 ms and map drawing 12 ms cold. The benchmark observed zero
+iNaturalist, eBird, Overpass, or Investigator Worker requests during all six discovery passes.
+
 ### Runtime path
 
 ```
@@ -494,6 +552,14 @@ a square search. Derived cells need no 1 km halo: each row already carries compl
 mismatch or a missing artifact reports why the precomputed layer is unavailable; it never falls back to the raw
 regional path automatically, because a clear error beats a 90-second freeze.
 
+One deliberate difference in *selection* is worth stating, because it is visible: the derived path keeps a
+corridor when the corridor itself lies in the search region (its bounds intersect the search box, and for a
+radius search the corridor crosses the disk), while the raw path keeps every corridor of a composed unit whose
+bounds reach the search region. Both refuse to turn a radius into a square; the derived rule is the narrower,
+per-corridor reading of "corridors are kept only where the road crosses the disk", and the equivalence capture
+records the difference (`presence`) rather than asserting it away — including the check that every
+derived-only corridor really does lie in the search box.
+
 ### Promotion
 
 Promotion rebuilds the corridor from the raw regional partitions (closure + the same composure modules), checks
@@ -505,20 +571,40 @@ partitions - precomputed values are never detailed evidence.
 ### Build and verification commands
 
 ```
-npm run build:derived                 # offline build (uv + duckdb + shapely + pyarrow)
+npm run build:derived                 # offline build (uv + duckdb + shapely + pyarrow + pyproj)
+npm run verify:derived                 # offline: structural + geometric review of the built cells
 npm run verify:derived-equivalence     # offline: manifest + fingerprint + captured derived/raw comparison
 npm run verify:regional-equivalence    # unchanged: batch vs detailed
 npm run capture:derived-equivalence    # opt-in: capture a real derived-vs-raw comparison
 npm run benchmark:derived              # opt-in: 10/25/50-mile derived benchmarks
 ```
 
+### How the offline build stays the runtime's own queries
+
+Two details are what keep a derived row the corridor the browser would have built, rather than a lookalike:
+
+- **Buffers are materialised once per chunk**, exactly as `src/gis/discovery-query.js` does in `prepareBuffers`:
+  the metric statements clip against that buffer relation (`b.geom`), never against an inlined
+  `ST_Buffer(c.geom, d.distance_m)`. Inlining recomputes a buffer for every feature pair, which is both a
+  different query and a memory amplifier (it exhausted the engine's ceiling before this was fixed).
+- **Cells are real GeoParquet**, written with the same `geo` metadata the raw partitions carry (WKB,
+  `geometry_types`, EPSG:4326, bbox) and read back through DuckDB Spatial with the same
+  `ST_GeometryType`/`ST_CRS`/`ST_IsValid` checks before the cell is accepted. A plain WKB column named
+  `geometry` is only a BLOB: `ST_XMin` and `ST_AsGeoJSON`, which the runtime reads cells with, refuse it.
+
+The build's scratch directory is `/tmp/roadnaturalist-derived` (override with `DERIVED_WORK`). Everything in it
+is derived from committed inputs, so losing it to a reboot costs a recomposition and never correctness; the
+shared metric expressions are re-exported from `src/gis/habitat-metrics.js` for every build rather than cached.
+
+
 ## Derived corridor metrics: the original design contract
 
 
-The measurement above is why this layer exists, and the correctness work before it is why it is now safe to
+The measurement above is why this layer exists, and the correctness work before it is why it was safe to
 build: batch and detailed habitat agree on a real capture, the wetland semantics is a documented feature-area
 sum, coverage is compared before metrics, pool closure is component-based, and the analysis profile pins the
-semantics a derived build must freeze. What is **not** built in this pass, and what the next pass must do:
+semantics a derived build must freeze. **It is now built, published and consumed**; the numbered list below is
+the contract it satisfies, kept as the record of what each part is for.
 
 1. **Corridor rows.** One compact GeoParquet partition per 0.2-degree derived cell, holding whole derived
    corridor rows replicated into every cell they intersect (deduplicated at runtime by `corridor_id`): corridor
@@ -547,7 +633,7 @@ semantics a derived build must freeze. What is **not** built in this pass, and w
 
 | Scale | Recommendation |
 | --- | --- |
-| 10-mile radius | **Do not offer as a blind raw browser search.** 91 s cold on this machine, dominated by buffered habitat analysis (61.8 s in wetlands alone). Either bound the road-name closure and precompute corridor metrics, or keep the small window presets that already fit the old slice. |
-| 25-mile radius | **Not offerable raw** (202 MB selected, stopped by the feature guard). Keep it as a benchmark scenario until derived metrics exist. |
-| 50-mile radius | **Not offerable raw** (769 MB / ~724k features selected). This is the case immutable derived metrics exist for; the shipped `large-50mi` scenario is the harness that will prove it. |
+| 10-mile radius | Derived browsing is COMFORTABLE at 2.79 s cold, versus 91 s cold for raw discovery. |
+| 25-mile radius | Derived browsing is COMFORTABLE at 1.38 s cold. Raw selected 202 MB and stopped at the road-feature guard. |
+| 50-mile radius | Derived browsing is COMFORTABLE at 1.93 s cold, selecting 15.75 MB. Raw selected 769 MB and stopped at the guard. |
 | Any radius | The partition grid, the manifest, coverage semantics and the shared geometry-repair boundary are sound at this scale and stay as they are. The blocker is analysis cost and closure overfetch, not the data plane. |

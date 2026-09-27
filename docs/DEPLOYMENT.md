@@ -49,6 +49,21 @@ Forecast and the CFLab workers are separate and are not touched by anything here
 
 The first regional release has 18 versioned R2 objects (24,887,577 bytes). Their public GET bytes, SHA-256, Pages-origin CORS and Range response were audited with `node scripts/audit-regional-remote.mjs`. `npm run stage:pages` validates the local object bytes against the catalog and excludes those Parquet files from the Pages payload. On localhost only the asset base changes to `./data/`; all selection, digest and GIS code remains the same. Publish any changed object under a new catalog version and audit it before a Pages release. The Investigator Worker does not proxy R2 or run DuckDB.
 
+The immutable **derived corridor-metrics plane** lives on the same bucket and the same origin, under
+`derived/corridor-metrics/<analysis-fingerprint>/` (`cells/<cell>.parquet` plus `manifest.json`). Its local path
+is the published path — `data/derived/corridor-metrics/<fingerprint>/…` — so a browser on localhost reads exactly
+the objects production reads. `npm run publish:regional` publishes the raw partitions *and* the derived plane
+(one manifest object plus one object per present cell), and `npm run audit:regional:remote` audits both, checking
+bytes, SHA-256, Pages-origin CORS, immutable cache-control, content type (`application/json` for the manifest,
+`application/vnd.apache.parquet` for cells) and a Range `206` on a Parquet object of each plane. A fingerprint
+directory is written once: a rebuilt plane is a new fingerprint directory, never an overwrite, and no prior
+regional partition is deleted. `npm run stage:pages` validates the derived manifest and every present cell in the
+local checkout and then excludes the cell objects from the Pages payload, exactly as it does for the raw
+partitions; the 50 KB manifest itself is small enough to stay with the catalog, and the catalog's
+`derived.manifestUrl` is what the browser fetches from R2. To publish a derived-only release without touching
+raw regional objects, use `npm run publish:regional -- --derived-only --concurrency 6` and
+`npm run audit:regional:remote -- --derived-only`.
+
 ## 3. Configuration
 
 Worker variables (`worker/wrangler.toml`, both optional and both public):
@@ -103,6 +118,20 @@ present, and a staged dataset whose byte length disagrees with the manifest is a
 only ever replaced when it carries the `deployment.json` marker this script writes.
 
 Order when both change: `npm test`, `npm run test:e2e`, commit, push, `npm run deploy:worker`, `npm run deploy:pages`.
+
+The regional data planes are published and audited before a Pages release that reads them:
+
+```sh
+npm run verify:geometry                  # the shared repair ladder is still exact
+npm run verify:regional-equivalence      # batch == detailed on the raw plane
+npm run build:derived                    # only if the road network or the analysis semantics changed
+npm run verify:derived                   # structural + geometric review of the built cells
+npm run capture:derived-equivalence      # opt-in: capture a real derived-vs-raw-vs-detailed comparison
+npm run verify:derived-equivalence       # derived == batch == detailed, offline, deterministic
+npm run publish:regional -- --derived-only --concurrency 6  # immutable derived objects only
+npm run audit:regional:remote -- --derived-only              # public bytes, digest, CORS, type and Range
+npm run benchmark:derived                # opt-in: measured 10/25/50-mile derived discovery
+```
 
 ## 5. Verify
 

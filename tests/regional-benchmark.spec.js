@@ -23,6 +23,11 @@ async function measure(page, scenario) {
     const { resolveSearchArea } = await import('/src/discovery/search-area.js');
     const searchArea = resolveSearchArea({ id: scenario.id, name: scenario.label, kind: 'radius',
       catalogUrl: 'regional/manifest.json', center: scenario.center, radiusMiles: scenario.radiusMiles, bbox: scenario.bbox });
+    // The raw baseline stays the raw baseline: regional discovery now defaults to the precomputed derived
+    // metrics, so the benchmark that records what the raw path costs has to ask for the raw path explicitly.
+    // The 25- and 50-mile raw scenarios are still refused by the road-feature guard, which is the comparison
+    // the derived benchmarks are measured against.
+    searchArea.raw = true;
     const started = performance.now();
     let run = null;
     let failure = null;

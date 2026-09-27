@@ -11,6 +11,7 @@
  * other Cloudflare resource is touched.
  */
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 
@@ -26,22 +27,42 @@ const option = name => { const index = args.indexOf(name); return index === -1 ?
 const catalogPath = option('--catalog') ?? 'data/regional/manifest.json';
 const concurrency = Number(option('--concurrency') ?? 6);
 const checkOnly = flag('--check-only');
+const derivedOnly = flag('--derived-only');
 
 const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'));
 const objects = [];
-for (const dataset of catalog.datasets) for (const part of dataset.partitions) {
+for (const dataset of derivedOnly ? [] : catalog.datasets) for (const part of dataset.partitions) {
   if (part.state === 'empty') continue;
   objects.push({ key: part.url, local: `data/${part.url}`,
     bytes: part.bytes, sha256: part.sha256, dataset: dataset.id, cell: part.id });
 }
+// The derived corridor-metrics plane is published under the same bucket and the same immutability rule: a
+// fingerprint directory is written once, and a rebuilt plane is a new fingerprint, never an overwrite.
+const derivedManifestPath = catalog.derived ? `data/${catalog.derived.localPath}` : null;
+if (derivedOnly && !derivedManifestPath) throw new Error('the catalog declares no derived plane');
+if (derivedManifestPath) {
+  const manifestBytes = readFileSync(derivedManifestPath);
+  objects.push({ key: catalog.derived.manifestUrl, local: derivedManifestPath, bytes: manifestBytes.length,
+    sha256: createHash('sha256').update(manifestBytes).digest('hex'), dataset: 'derived-corridor-metrics', cell: 'manifest',
+    contentType: 'application/json' });
+  const manifest = JSON.parse(manifestBytes);
+  for (const cell of manifest.cells) {
+    if (cell.state === 'empty') continue;
+    objects.push({ key: cell.url, local: `data/${cell.url}`, bytes: cell.bytes, sha256: cell.sha256,
+      dataset: 'derived-corridor-metrics', cell: cell.id });
+  }
+}
 const totalBytes = objects.reduce((sum, object) => sum + object.bytes, 0);
-console.log(`${catalog.version}: ${objects.length} objects, ${totalBytes.toLocaleString()} bytes from ${catalogPath}`);
+console.log(`${catalog.version}: ${objects.length} objects, ${totalBytes.toLocaleString()} bytes from ${catalogPath}`
+  + (derivedManifestPath ? ` (${objects.length - objects.filter(object => object.dataset !== 'derived-corridor-metrics').length} derived)` : ''));
 
 async function remoteBytes(object) {
   try {
-    const response = await fetch(new URL(object.key, catalog.assetBaseUrl), { method: 'HEAD', signal: AbortSignal.timeout(20000) });
+    const response = await fetch(new URL(object.key, catalog.assetBaseUrl), { method: 'HEAD',
+      headers: { 'Accept-Encoding': 'identity' }, signal: AbortSignal.timeout(20000) });
     if (!response.ok) return null;
-    const length = Number(response.headers.get('content-length'));
+    const declared = response.headers.get('content-length');
+    const length = declared == null ? null : Number(declared);
     return Number.isFinite(length) ? length : null;
   } catch { return null; }
 }
@@ -51,7 +72,8 @@ async function publish(object) {
   if (existing === object.bytes) return { status: 'present' };
   if (checkOnly) return { status: existing == null ? 'missing' : 'size-mismatch' };
   await run('npx', ['--yes', WRANGLER, 'r2', 'object', 'put', `${BUCKET}/${object.key}`, '--file', object.local,
-    '--content-type', CONTENT_TYPE, '--cache-control', CACHE_CONTROL, '--remote'], { maxBuffer: 8 * 1024 * 1024, timeout: 600000 });
+    '--content-type', object.contentType ?? CONTENT_TYPE, '--cache-control', CACHE_CONTROL, '--remote'],
+    { maxBuffer: 8 * 1024 * 1024, timeout: 600000 });
   // The audit is what proves bytes and digests; a public HEAD can lag a moment behind an upload, so a
   // missing answer here is a warning rather than a failure.
   const uploaded = await remoteBytes(object);

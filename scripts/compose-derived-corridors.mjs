@@ -77,6 +77,11 @@ if (command === 'compose') {
     rejectedByTolerance: output.reduce((total, entry) => total + entry.candidates.filter(candidate => !candidate.accepted).length, 0) }));
 } else if (command === 'sql') {
   const [outPath] = args;
+  // The expressions are exported against the two clip targets the two readers use: the corridor line itself
+  // (`c.geom`) and the once-materialised buffer relation (`b.geom`) that both the runtime batch and the offline
+  // build create (src/gis/discovery-query.js prepareBuffers). Naming the buffer relation instead of inlining
+  // `ST_Buffer(c.geom, d.distance_m)` into every predicate is what keeps the offline queries the batch's own
+  // shape - and stops a buffer being recomputed for every feature pair.
   writeFileSync(outPath, JSON.stringify({ definition: HABITAT_METRIC_DEFINITION,
     wetlandArea: clippedAreaExpression('w.geom', 'ST_Buffer(c.geom, d.distance_m)'),
     wetlandCount: featureCountExpression(),
@@ -84,6 +89,12 @@ if (command === 'compose') {
     hydroArea: clippedAreaExpression('f.geom', 'ST_Buffer(c.geom, d.distance_m)'),
     hydroCount: featureCountExpression(),
     ecoLength: clippedLengthExpression('e.geom', 'c.geom'),
+    wetlandAreaBuffered: clippedAreaExpression('w.geom', 'b.geom'),
+    wetlandCountBuffered: featureCountExpression(),
+    hydroLengthBuffered: clippedLengthExpression('f.geom', 'b.geom'),
+    hydroAreaBuffered: clippedAreaExpression('f.geom', 'b.geom'),
+    hydroCountBuffered: featureCountExpression(),
+    hydroCrossing: clippedLengthExpression('f.geom', 'c.geom'),
     methods: Object.values(ANALYSIS_GEOMETRY_METHOD) }, null, 1) + '\n');
   console.log(`wrote ${outPath}`);
 } else {

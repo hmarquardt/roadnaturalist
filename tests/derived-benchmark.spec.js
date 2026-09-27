@@ -9,7 +9,6 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 //     RUN_DERIVED_BENCHMARK=1 npx playwright test tests/derived-benchmark.spec.js --reporter=line --retries=0
 const OUT = process.env.DERIVED_BENCHMARK_OUT ?? 'data/regional/derived-benchmarks.json';
 const SCENARIOS = JSON.parse(readFileSync(new URL('../data/regional/benchmarks.json', import.meta.url))).scenarios;
-const CLASSIFY = ms => ms <= 10000 ? 'COMFORTABLE' : ms <= 25000 ? 'USABLE' : ms <= 45000 ? 'SLOW' : 'UNSUITABLE';
 
 test.skip(!process.env.RUN_DERIVED_BENCHMARK, 'The derived benchmark is opt-in: it measures real radius searches in a browser');
 
@@ -20,44 +19,76 @@ test('benchmark derived regional discovery at 10, 25, and 50 miles', async ({ pa
   const externalRequests = [];
   page.on('request', request => {
     const url = request.url();
-    if (/(inaturalist|ebird|overpass|workers\.dev)/i.test(url)) externalRequests.push(url);
+    const host = new URL(url).hostname;
+    if (/(^|\.)(inaturalist\.org|ebird\.org|workers\.dev)$/.test(host) || host.includes('overpass')) externalRequests.push(url);
   });
-  await page.goto('/');
-  await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
-  const report = await page.evaluate(async scenarios => {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
+  const measured = [];
+  for (const scenario of SCENARIOS) {
+    await page.goto('/');
+    await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
+    const entry = await page.evaluate(async scenario => {
+    const classify = ms => ms <= 10000 ? 'COMFORTABLE' : ms <= 25000 ? 'USABLE' : ms <= 45000 ? 'SLOW' : 'UNSUITABLE';
     const { gis } = await import('/src/app/main.js');
     const { runDiscovery } = await import('/src/discovery/run.js');
+    const { filterResults, sortResults, DEFAULT_FILTERS } = await import('/src/discovery/filter.js');
+    const { renderDiscovery } = await import('/src/ui/discovery.js');
+    const { createCorridorMap } = await import('/src/map/corridor-map.js');
+    const { MAX_RESULT_ROWS } = await import('/src/discovery/constants.js');
     const heapMb = () => (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null);
-    const measured = [];
-    for (const scenario of scenarios) {
       const searchArea = { id: `derived-${scenario.id}`, name: `${scenario.label} (derived)`, kind: 'radius',
         center: scenario.center, radiusMiles: scenario.radiusMiles, catalogUrl: 'regional/manifest.json' };
       const passes = [];
       for (const pass of ['cold', 'warm']) {
         const started = performance.now();
         const run = await runDiscovery({ gis, searchArea });
+        const discoveryMs = Math.round(performance.now() - started);
+        const filterStarted = performance.now();
+        const filtered = filterResults(run.results, { wetland: 'intersects' });
+        const filterMs = Math.round(performance.now() - filterStarted);
+        const sortStarted = performance.now();
+        sortResults(filtered, 'name');
+        const sortMs = Math.round(performance.now() - sortStarted);
+        const view = sortResults(run.results, 'wetlandArea250').slice(0, MAX_RESULT_ROWS);
+        const table = document.createElement('div');
+        const renderStarted = performance.now();
+        renderDiscovery(table, { discovery: { ...run, filters: DEFAULT_FILTERS, sort: 'wetlandArea250',
+          selectedId: null }, searchAreas: [searchArea], searchAreaId: searchArea.id });
+        const renderMs = Math.round(performance.now() - renderStarted);
+        const mapContainer = document.createElement('div');
+        const map = createCorridorMap(mapContainer);
+        const mapStarted = performance.now();
+        map.draw({ discovery: { corridors: view.map(result => ({ id: result.id, name: result.name,
+          geometry: result.geometry })), selectedId: null, promotedIds: [] } });
+        const mapMs = Math.round(performance.now() - mapStarted);
         const totalMs = Math.round(performance.now() - started);
         const diagnostics = run.diagnostics ?? {};
         const timing = diagnostics.derivedTimingMs ?? {};
-        passes.push({ pass, totalMs, classification: null, cellsSelected: diagnostics.derivedSelection?.cells?.cells ?? null,
+        passes.push({ pass, totalMs, discoveryMs, renderMs, mapMs, filterMs, sortMs,
+          mapPaths: mapContainer.querySelectorAll('.discovery-corridor').length,
+          tableRows: table.querySelectorAll('tbody tr').length,
+          classification: null, derived: Boolean(run.derived), cellsSelected: diagnostics.derivedSelection?.cells?.cells ?? null,
           cellsPresent: diagnostics.derivedSelection?.cells?.present ?? null, cellsEmpty: diagnostics.derivedSelection?.cells?.empty ?? null,
           cellsRegistered: timing.registeredCells ?? null, selectedBytes: diagnostics.derivedSelection?.bytes ?? null,
           transferredBytes: timing.downloadedBytes ?? null, cacheHits: timing.cacheHits ?? null,
           manifestMs: timing.manifestMs ?? null, fetchMs: timing.fetchMs ?? null, verifyMs: timing.verifyMs ?? null,
           registerMs: timing.registerMs ?? null, queryAndFilterMs: (diagnostics.queryMs ?? 0) + (diagnostics.selectionMs ?? 0),
           queryMs: diagnostics.queryMs ?? null, selectionMs: diagnostics.selectionMs ?? null, buildMs: diagnostics.buildMs ?? null,
-          rowsLoaded: diagnostics.counts?.storedRows ?? null, replicatedRows: (diagnostics.counts?.storedRows ?? 0) - (diagnostics.counts?.corridors ?? 0),
-          uniqueCorridors: diagnostics.counts?.corridors ?? null, radiusSelected: run.results.length,
+          rowsLoaded: diagnostics.counts?.storedRows ?? null,
+          replicatedRows: (diagnostics.counts?.storedRows ?? 0) - (diagnostics.counts?.uniqueLoadedRows ?? 0),
+          uniqueCorridors: diagnostics.counts?.uniqueLoadedRows ?? null, radiusSelected: run.results.length,
           displayed: diagnostics.counts?.displayed ?? null, coverage: run.coverage?.coverage ?? null,
           heapMb: heapMb(), status: run.status, errors: run.diagnostics?.datasetErrors ?? [] });
       }
-      for (const entry of passes) entry.classification = CLASSIFY(entry.totalMs);
-      measured.push({ id: scenario.id, label: scenario.label, radiusMiles: scenario.radiusMiles, center: scenario.center,
-        derived: true, passes });
-    }
-    return { kind: 'road-derived-corridor-discovery-benchmarks', version: 1, region: 'or-sw-wa-portland-v2',
-      capturedAt: new Date().toISOString(), measurements: measured };
-  }, SCENARIOS);
+      for (const entry of passes) entry.classification = classify(entry.totalMs);
+      return { id: scenario.id, label: scenario.label, radiusMiles: scenario.radiusMiles, center: scenario.center,
+        derived: true, passes };
+  }, scenario);
+    measured.push(entry);
+  }
+  const report = { kind: 'road-derived-corridor-discovery-benchmarks', version: 1, region: 'or-sw-wa-portland-v2',
+    capturedAt: new Date().toISOString(), measurements: measured };
   mkdirSync(new URL('../data/regional/', import.meta.url), { recursive: true });
   writeFileSync(OUT, JSON.stringify(report, null, 1) + '\n');
   for (const entry of report.measurements) {
@@ -69,5 +100,9 @@ test('benchmark derived regional discovery at 10, 25, and 50 miles', async ({ pa
   }
   expect(externalRequests).toEqual([]);
   expect(pageErrors).toEqual([]);
-  for (const entry of report.measurements) for (const pass of entry.passes) expect(pass.status).toBe('ready');
+  for (const entry of report.measurements) for (const pass of entry.passes) {
+    expect(pass.status).toBe('ready');
+    // A measurement that silently took the raw path would be a benchmark of the wrong thing.
+    expect(pass.derived).toBe(true);
+  }
 });

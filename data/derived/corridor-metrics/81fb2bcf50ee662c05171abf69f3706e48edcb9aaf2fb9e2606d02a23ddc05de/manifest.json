@@ -1,0 +1,2038 @@
+{
+ "schemaVersion": 1,
+ "kind": "road-derived-corridor-metrics",
+ "analysisFingerprint": "81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de",
+ "derivedSchemaVersion": 1,
+ "profileVersion": 1,
+ "region": {
+  "id": "or-sw-wa-portland",
+  "version": "or-sw-wa-portland-v2",
+  "bounds": [
+   -124.05,
+   44.75,
+   -121.77,
+   46.42
+  ],
+  "publishedBounds": [
+   -124.05,
+   44.75,
+   -121.77,
+   46.42
+  ],
+  "bounded": false
+ },
+ "grid": {
+  "kind": "lonlat-grid",
+  "stepLon": 0.2,
+  "stepLat": 0.2,
+  "origin": [
+   -180,
+   -90
+  ],
+  "crs": "EPSG:4326"
+ },
+ "assetBaseUrl": "https://data.roadnaturalist.com/",
+ "geometry": {
+  "encoding": "WKB",
+  "crs": "EPSG:4326",
+  "geometryTypes": [
+   "LineString",
+   "MultiLineString"
+  ],
+  "primaryColumn": "geometry",
+  "partition": "whole corridor rows replicated; geometry never clipped",
+  "repair": "canonical geometry first, else the shared point-preserving repair ladder"
+ },
+ "schema": [
+  "corridor_id",
+  "road_component_id",
+  "road_unit_id",
+  "name",
+  "normalized_name",
+  "geometry",
+  "bounds",
+  "length_m",
+  "tiger_class",
+  "counties",
+  "county_names",
+  "road_ids",
+  "road_classes",
+  "source_feature_ids",
+  "segment_index",
+  "segment_count",
+  "geometry_repaired",
+  "geometry_repair_method",
+  "primary_l3_code",
+  "primary_l3_name",
+  "primary_l3_percent",
+  "primary_l4_code",
+  "primary_l4_name",
+  "primary_l4_percent",
+  "l3_count",
+  "l4_count",
+  "transition_count",
+  "ecology_coverage",
+  "wetland_intersects",
+  "wetland_nearest_m",
+  "wetland_area_250_m2",
+  "wetland_area_500_m2",
+  "wetland_area_1000_m2",
+  "wetland_count_250",
+  "wetland_count_500",
+  "wetland_count_1000",
+  "wetland_type_summary",
+  "hydro_crossing_count",
+  "hydro_nearest_flowing_m",
+  "hydro_nearest_standing_m",
+  "hydro_flowline_length_1000_m",
+  "hydro_waterbody_area_1000_m2",
+  "hydro_summary",
+  "coverage",
+  "coverage_wetlands_250",
+  "coverage_wetlands_500",
+  "coverage_wetlands_1000",
+  "coverage_hydro_250",
+  "coverage_hydro_500",
+  "coverage_hydro_1000",
+  "analysis_fingerprint",
+  "road_length_m"
+ ],
+ "semantics": {
+  "area": "sum of each mapped feature's own geometry clipped to the requested buffer (feature-area sum, not a spatial union)",
+  "length": "sum of each mapped line feature's clipped length within the requested buffer",
+  "counts": "distinct source feature ids contributing a positive clipped area or length at that buffer distance",
+  "distancesM": [
+   250,
+   500,
+   1000
+  ],
+  "coverage": "per distance against the published source-window extent",
+  "replication": "whole derived row replicated into every 0.2 degree cell its geometry intersects"
+ },
+ "counts": {
+  "corridors": 6440,
+  "storedRows": 8060,
+  "replicatedRows": 1620,
+  "cells": 130,
+  "presentCells": 118,
+  "emptyCells": 12,
+  "bytes": 17020504,
+  "averageRowBytes": 2111.7
+ },
+ "cells": [
+  {
+   "id": "x279_y673",
+   "bounds": [
+    -124.2,
+    44.6,
+    -124.0,
+    44.8
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x279_y674",
+   "bounds": [
+    -124.2,
+    44.8,
+    -124.0,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 36,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x279_y674.parquet",
+   "bytes": 84832,
+   "sha256": "4c4713a5f13f8fa89d53f40dff0329e9d183c49e95518bf2268e549cfde6d8bf"
+  },
+  {
+   "id": "x279_y675",
+   "bounds": [
+    -124.2,
+    45.0,
+    -124.0,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 2,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x279_y675.parquet",
+   "bytes": 33786,
+   "sha256": "13d9d4fc7cfea01e2418d11dba2cb06eb53d3157ccd001fe9754e92678d38655"
+  },
+  {
+   "id": "x279_y676",
+   "bounds": [
+    -124.2,
+    45.2,
+    -124.0,
+    45.4
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x279_y677",
+   "bounds": [
+    -124.2,
+    45.4,
+    -124.0,
+    45.6
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x279_y678",
+   "bounds": [
+    -124.2,
+    45.6,
+    -124.0,
+    45.8
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x279_y679",
+   "bounds": [
+    -124.2,
+    45.8,
+    -124.0,
+    46.0
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x279_y680",
+   "bounds": [
+    -124.2,
+    46.0,
+    -124.0,
+    46.2
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x279_y681",
+   "bounds": [
+    -124.2,
+    46.2,
+    -124.0,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 6,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x279_y681.parquet",
+   "bytes": 42026,
+   "sha256": "f1b8a0f022389fd74149c99661ee2fb2c5a1738e133c31264f12a9637fb7c000"
+  },
+  {
+   "id": "x279_y682",
+   "bounds": [
+    -124.2,
+    46.4,
+    -124.0,
+    46.6
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x280_y673",
+   "bounds": [
+    -124.0,
+    44.6,
+    -123.8,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 3,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x280_y673.parquet",
+   "bytes": 31337,
+   "sha256": "e22787bee43a50d43f2975be71ea32d4c34c58a7643aef52456140af7abc8e67"
+  },
+  {
+   "id": "x280_y674",
+   "bounds": [
+    -124.0,
+    44.8,
+    -123.8,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 52,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x280_y674.parquet",
+   "bytes": 150688,
+   "sha256": "b625db900c4b0a5a562f9875abed1ada883d21eaf88c24f4597a8d9296d5b310"
+  },
+  {
+   "id": "x280_y675",
+   "bounds": [
+    -124.0,
+    45.0,
+    -123.8,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 82,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x280_y675.parquet",
+   "bytes": 224359,
+   "sha256": "c2e6ed08b8f259d2c435d04c7bfc1e42dd93c611159c38ef4a1571c55000ff58"
+  },
+  {
+   "id": "x280_y676",
+   "bounds": [
+    -124.0,
+    45.2,
+    -123.8,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 68,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x280_y676.parquet",
+   "bytes": 170866,
+   "sha256": "87e3432197fce5fd952df09799a64dde2b9f7868804068ab37dddaf72b7ea8e8"
+  },
+  {
+   "id": "x280_y677",
+   "bounds": [
+    -124.0,
+    45.4,
+    -123.8,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 76,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x280_y677.parquet",
+   "bytes": 161132,
+   "sha256": "124a0c6b087dcd8b16901325a24c800c1aa00464630503cf1d43b272a6122942"
+  },
+  {
+   "id": "x280_y678",
+   "bounds": [
+    -124.0,
+    45.6,
+    -123.8,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 44,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x280_y678.parquet",
+   "bytes": 132631,
+   "sha256": "82dbc2714a6f371a28cc41fa2cdb0de6c932a9ac64ed0eb600ac0b722e038e5f"
+  },
+  {
+   "id": "x280_y679",
+   "bounds": [
+    -124.0,
+    45.8,
+    -123.8,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 61,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x280_y679.parquet",
+   "bytes": 71464,
+   "sha256": "d61d2065de38b313ec62ec893fcbc98854445e6ee37c6948dbca5bcf5802727c"
+  },
+  {
+   "id": "x280_y680",
+   "bounds": [
+    -124.0,
+    46.0,
+    -123.8,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 121,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x280_y680.parquet",
+   "bytes": 112188,
+   "sha256": "a0d2085ceb570a5f95f5ceb531216daec1fc5f50f16c164a68c00689e2a2998f"
+  },
+  {
+   "id": "x280_y681",
+   "bounds": [
+    -124.0,
+    46.2,
+    -123.8,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 20,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x280_y681.parquet",
+   "bytes": 55892,
+   "sha256": "c31df53616176a3968c64bb6dfb1f74c3d6f34c5d2f35406d0d2f2a99468ed7e"
+  },
+  {
+   "id": "x280_y682",
+   "bounds": [
+    -124.0,
+    46.4,
+    -123.8,
+    46.6
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x281_y673",
+   "bounds": [
+    -123.8,
+    44.6,
+    -123.6,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 2,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x281_y673.parquet",
+   "bytes": 34630,
+   "sha256": "da6f8832b7b708c10595efef4013562c6f4201e226cea0940e69d38e82c5c143"
+  },
+  {
+   "id": "x281_y674",
+   "bounds": [
+    -123.8,
+    44.8,
+    -123.6,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 12,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x281_y674.parquet",
+   "bytes": 50257,
+   "sha256": "afd7aa69f56be3d1f400e987122849607e1f38bbd5c7a180cef05ede4c30eaf5"
+  },
+  {
+   "id": "x281_y675",
+   "bounds": [
+    -123.8,
+    45.0,
+    -123.6,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 40,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x281_y675.parquet",
+   "bytes": 110174,
+   "sha256": "1070181da633854727592dcc5e6e70428f3ab6da9d16c8f32807e3faac9f65a3"
+  },
+  {
+   "id": "x281_y676",
+   "bounds": [
+    -123.8,
+    45.2,
+    -123.6,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 62,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x281_y676.parquet",
+   "bytes": 233447,
+   "sha256": "a53d114474a04b767e37ff75bf674c33d7e3a584a89beeb33e1a7dc48c93da5b"
+  },
+  {
+   "id": "x281_y677",
+   "bounds": [
+    -123.8,
+    45.4,
+    -123.6,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 66,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x281_y677.parquet",
+   "bytes": 205527,
+   "sha256": "3eae94d2f2d689981e21ddc35965996d1f41b5bb66558cf66f8b3c2772781b31"
+  },
+  {
+   "id": "x281_y678",
+   "bounds": [
+    -123.8,
+    45.6,
+    -123.6,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 50,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x281_y678.parquet",
+   "bytes": 198136,
+   "sha256": "0ce686339690f164dd9c95f180be7a3c9d5101267c7f77fae3be8e1398c90df4"
+  },
+  {
+   "id": "x281_y679",
+   "bounds": [
+    -123.8,
+    45.8,
+    -123.6,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 57,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x281_y679.parquet",
+   "bytes": 139805,
+   "sha256": "ab20cd742e016583de80e5791450186719cad772768016c5b136c67424d2f3d7"
+  },
+  {
+   "id": "x281_y680",
+   "bounds": [
+    -123.8,
+    46.0,
+    -123.6,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 61,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x281_y680.parquet",
+   "bytes": 116424,
+   "sha256": "2b81d81adae49b3609b0a23b93730829d22664e37224b575d3e6484bf9705dca"
+  },
+  {
+   "id": "x281_y681",
+   "bounds": [
+    -123.8,
+    46.2,
+    -123.6,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 42,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x281_y681.parquet",
+   "bytes": 85763,
+   "sha256": "5aec36de9b629a33d9fa24cec9b7d3964053d800196ef0bfb67004657f215531"
+  },
+  {
+   "id": "x281_y682",
+   "bounds": [
+    -123.8,
+    46.4,
+    -123.6,
+    46.6
+   ],
+   "state": "present",
+   "rowCount": 4,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x281_y682.parquet",
+   "bytes": 42549,
+   "sha256": "9834c0ff1fefc89e73875d402d5a9d526851168bf38b6c256ee53d8c82cf3da7"
+  },
+  {
+   "id": "x282_y673",
+   "bounds": [
+    -123.6,
+    44.6,
+    -123.4,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 9,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x282_y673.parquet",
+   "bytes": 50677,
+   "sha256": "ac358a5fbd975b3f419103ab03e6aa46b14a3c8844f48c02d9790984f6967cf3"
+  },
+  {
+   "id": "x282_y674",
+   "bounds": [
+    -123.6,
+    44.8,
+    -123.4,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 27,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x282_y674.parquet",
+   "bytes": 93076,
+   "sha256": "204ed13c3653bd13bb360e859f34e6569b4a22f27723c2d853e2e99b7f485272"
+  },
+  {
+   "id": "x282_y675",
+   "bounds": [
+    -123.6,
+    45.0,
+    -123.4,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 106,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x282_y675.parquet",
+   "bytes": 177375,
+   "sha256": "b076a721f59f24f16dd6763935981111e84ce6140e48c6fff1d3653b13597572"
+  },
+  {
+   "id": "x282_y676",
+   "bounds": [
+    -123.6,
+    45.2,
+    -123.4,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 55,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x282_y676.parquet",
+   "bytes": 215895,
+   "sha256": "5519fbc4a654011cf48f51036e4717fe3718af05f1ffd4f5788919b249458a56"
+  },
+  {
+   "id": "x282_y677",
+   "bounds": [
+    -123.6,
+    45.4,
+    -123.4,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 62,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x282_y677.parquet",
+   "bytes": 240444,
+   "sha256": "75eb17abe35f62565f7af4813b88e4231c69c4e5df321fd5c0cefeab902771a2"
+  },
+  {
+   "id": "x282_y678",
+   "bounds": [
+    -123.6,
+    45.6,
+    -123.4,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 66,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x282_y678.parquet",
+   "bytes": 233776,
+   "sha256": "59164f9731c77a865a2057be5db6037aed190162725c763cbd63d72957d1911e"
+  },
+  {
+   "id": "x282_y679",
+   "bounds": [
+    -123.6,
+    45.8,
+    -123.4,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 74,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x282_y679.parquet",
+   "bytes": 155364,
+   "sha256": "8ef6d15646c0320cc020cc808501799c38f7a76c578487508e42e29aad083218"
+  },
+  {
+   "id": "x282_y680",
+   "bounds": [
+    -123.6,
+    46.0,
+    -123.4,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 53,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x282_y680.parquet",
+   "bytes": 119971,
+   "sha256": "1575c86cefe87565a4293f0340f5549c8dd681a1f5a4db9ecbbd9501d30d7877"
+  },
+  {
+   "id": "x282_y681",
+   "bounds": [
+    -123.6,
+    46.2,
+    -123.4,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 33,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x282_y681.parquet",
+   "bytes": 79849,
+   "sha256": "25212b804c5284fca06fec328394787818136cefa492d6bc42870d992f32b620"
+  },
+  {
+   "id": "x282_y682",
+   "bounds": [
+    -123.6,
+    46.4,
+    -123.4,
+    46.6
+   ],
+   "state": "present",
+   "rowCount": 5,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x282_y682.parquet",
+   "bytes": 28664,
+   "sha256": "0f923c18d2fc7ed748cc8cb90f3393d3f34b9a93c6dbc082280a0de764e2af27"
+  },
+  {
+   "id": "x283_y673",
+   "bounds": [
+    -123.4,
+    44.6,
+    -123.2,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 13,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x283_y673.parquet",
+   "bytes": 56035,
+   "sha256": "217185e227aa7d26074ea0377dc7b9cd2ab0dc39c2ed9cf5f453f85c113152f2"
+  },
+  {
+   "id": "x283_y674",
+   "bounds": [
+    -123.4,
+    44.8,
+    -123.2,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 103,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x283_y674.parquet",
+   "bytes": 186189,
+   "sha256": "c3e8d4bc92d618f0e51a5811d1c8ba94d1706b26db75a2060be8bacfb68fc361"
+  },
+  {
+   "id": "x283_y675",
+   "bounds": [
+    -123.4,
+    45.0,
+    -123.2,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 139,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x283_y675.parquet",
+   "bytes": 184155,
+   "sha256": "9c40b67b74c1ea2f8cac0d92a16c654346766491e1fc53c874fcb4fbbf6d832d"
+  },
+  {
+   "id": "x283_y676",
+   "bounds": [
+    -123.4,
+    45.2,
+    -123.2,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 95,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x283_y676.parquet",
+   "bytes": 262448,
+   "sha256": "b9a1e536adb8c1affdfc5a14c2775adaccaeb4caabdcd5672e8ffddaab41da77"
+  },
+  {
+   "id": "x283_y677",
+   "bounds": [
+    -123.4,
+    45.4,
+    -123.2,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 74,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x283_y677.parquet",
+   "bytes": 237927,
+   "sha256": "45f54567a9113e049c5b5c282e251b2341857c98e87b2d2a92716281328a015b"
+  },
+  {
+   "id": "x283_y678",
+   "bounds": [
+    -123.4,
+    45.6,
+    -123.2,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 84,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x283_y678.parquet",
+   "bytes": 206222,
+   "sha256": "3f98e2046014a8bf7aabe22143b1a1a61fea4e9145fbbcd450d162ee4324a1b2"
+  },
+  {
+   "id": "x283_y679",
+   "bounds": [
+    -123.4,
+    45.8,
+    -123.2,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 73,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x283_y679.parquet",
+   "bytes": 165230,
+   "sha256": "e52e09ac8faa19341844c1337f506b61347361771f34a624a40021e312343b9f"
+  },
+  {
+   "id": "x283_y680",
+   "bounds": [
+    -123.4,
+    46.0,
+    -123.2,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 86,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x283_y680.parquet",
+   "bytes": 167229,
+   "sha256": "d84b6939a8cc945cb9249a07b182977e19319c8faba379ab13b0923e75e09f59"
+  },
+  {
+   "id": "x283_y681",
+   "bounds": [
+    -123.4,
+    46.2,
+    -123.2,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 32,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x283_y681.parquet",
+   "bytes": 71756,
+   "sha256": "ee7a01d45b756a29f9eaec1cc222ba04a439427f41ffb7e43677436856c51402"
+  },
+  {
+   "id": "x283_y682",
+   "bounds": [
+    -123.4,
+    46.4,
+    -123.2,
+    46.6
+   ],
+   "state": "present",
+   "rowCount": 2,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x283_y682.parquet",
+   "bytes": 25936,
+   "sha256": "c8c304d5d4468b505aeb53ce9055cb1348fb275c857c93efde6e13f718361836"
+  },
+  {
+   "id": "x284_y673",
+   "bounds": [
+    -123.2,
+    44.6,
+    -123.0,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 17,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x284_y673.parquet",
+   "bytes": 56103,
+   "sha256": "6173a169166716a80d8e125d15f563aa5153a7deaf6c41442a4e36dd8fe5c329"
+  },
+  {
+   "id": "x284_y674",
+   "bounds": [
+    -123.2,
+    44.8,
+    -123.0,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 193,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x284_y674.parquet",
+   "bytes": 277004,
+   "sha256": "3f35a8328ba227ed75a68457f7fb32142c7236224a3d36fc4d8c199cadc3a712"
+  },
+  {
+   "id": "x284_y675",
+   "bounds": [
+    -123.2,
+    45.0,
+    -123.0,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 150,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x284_y675.parquet",
+   "bytes": 197251,
+   "sha256": "8e0c4ecd5200a3e7cee6e01b88246365add74f8fcebde535962f9302f9ed0714"
+  },
+  {
+   "id": "x284_y676",
+   "bounds": [
+    -123.2,
+    45.2,
+    -123.0,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 197,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x284_y676.parquet",
+   "bytes": 299308,
+   "sha256": "41ce904ffd1f90bf5c9edeabad18d890233dcc256de6fee9bfb041760afac7c9"
+  },
+  {
+   "id": "x284_y677",
+   "bounds": [
+    -123.2,
+    45.4,
+    -123.0,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 140,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x284_y677.parquet",
+   "bytes": 223272,
+   "sha256": "93404f6309bed89759d20c5b9984634aa95bd46e3b4ddfa9a0de9d941d183b4f"
+  },
+  {
+   "id": "x284_y678",
+   "bounds": [
+    -123.2,
+    45.6,
+    -123.0,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 92,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x284_y678.parquet",
+   "bytes": 189751,
+   "sha256": "07ee1b34e559b9ec6a4e1d2d1f8da249f982fbf805eba6fc66509b5913ca361c"
+  },
+  {
+   "id": "x284_y679",
+   "bounds": [
+    -123.2,
+    45.8,
+    -123.0,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 81,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x284_y679.parquet",
+   "bytes": 194232,
+   "sha256": "27c74fad195176da87c9ebb3a6af24c1d4e8960b8224feb04a2cfe2dd761f6bb"
+  },
+  {
+   "id": "x284_y680",
+   "bounds": [
+    -123.2,
+    46.0,
+    -123.0,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 102,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x284_y680.parquet",
+   "bytes": 244767,
+   "sha256": "1f508149d16e69b859f487eb5e91d8a525909c351b4ae043c807aa851c689357"
+  },
+  {
+   "id": "x284_y681",
+   "bounds": [
+    -123.2,
+    46.2,
+    -123.0,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 42,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x284_y681.parquet",
+   "bytes": 109496,
+   "sha256": "d876bfc67908d2dd3da74c52100d9e4a51041f7e27acd46221f0390123b7806c"
+  },
+  {
+   "id": "x284_y682",
+   "bounds": [
+    -123.2,
+    46.4,
+    -123.0,
+    46.6
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x285_y673",
+   "bounds": [
+    -123.0,
+    44.6,
+    -122.8,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 20,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x285_y673.parquet",
+   "bytes": 46478,
+   "sha256": "5f25c07cd1190b74e137c3896eb9961028dc789b5644eee9aabed39852a148e7"
+  },
+  {
+   "id": "x285_y674",
+   "bounds": [
+    -123.0,
+    44.8,
+    -122.8,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 139,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x285_y674.parquet",
+   "bytes": 182841,
+   "sha256": "72430f4ac3bd6079b0b9435bee73781c0da3c0c74bfb8eb1d523d30f354f598d"
+  },
+  {
+   "id": "x285_y675",
+   "bounds": [
+    -123.0,
+    45.0,
+    -122.8,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 138,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x285_y675.parquet",
+   "bytes": 159170,
+   "sha256": "726522220482c20eca43acb520e08ccfb23b5722abbe037c718398cfded616bf"
+  },
+  {
+   "id": "x285_y676",
+   "bounds": [
+    -123.0,
+    45.2,
+    -122.8,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 159,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x285_y676.parquet",
+   "bytes": 250100,
+   "sha256": "9e0f6dfeb62cd268fba421e63d2cdac52c1690cd22207ece71d014d1a827f47e"
+  },
+  {
+   "id": "x285_y677",
+   "bounds": [
+    -123.0,
+    45.4,
+    -122.8,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 208,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x285_y677.parquet",
+   "bytes": 358796,
+   "sha256": "fb88aec111a955857f25b12da05964666871dafd1429effaa9b603307522bdc0"
+  },
+  {
+   "id": "x285_y678",
+   "bounds": [
+    -123.0,
+    45.6,
+    -122.8,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 104,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x285_y678.parquet",
+   "bytes": 197894,
+   "sha256": "64c6703bfa9a004352fd42ccc86a6afc85f2f502bdbb1357a0d816af107892e0"
+  },
+  {
+   "id": "x285_y679",
+   "bounds": [
+    -123.0,
+    45.8,
+    -122.8,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 102,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x285_y679.parquet",
+   "bytes": 242436,
+   "sha256": "48fb938b740521b258ad0509f700c312655560e481c5ed07690a1ef96659c003"
+  },
+  {
+   "id": "x285_y680",
+   "bounds": [
+    -123.0,
+    46.0,
+    -122.8,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 140,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x285_y680.parquet",
+   "bytes": 291178,
+   "sha256": "a920518050df30b6cc56dc18424ff414c34c246047a60ac0ef89c889f74a60e8"
+  },
+  {
+   "id": "x285_y681",
+   "bounds": [
+    -123.0,
+    46.2,
+    -122.8,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 74,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x285_y681.parquet",
+   "bytes": 161086,
+   "sha256": "80616290e1d6e93d8a0a56c44f947c1a60cce70c758648ecae855f3300bd8ae9"
+  },
+  {
+   "id": "x285_y682",
+   "bounds": [
+    -123.0,
+    46.4,
+    -122.8,
+    46.6
+   ],
+   "state": "present",
+   "rowCount": 9,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x285_y682.parquet",
+   "bytes": 37588,
+   "sha256": "8e41b0999e17b1e1d8997c28fef1d84cace966ab21b48a355cf45e6702d524de"
+  },
+  {
+   "id": "x286_y673",
+   "bounds": [
+    -122.8,
+    44.6,
+    -122.6,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 26,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x286_y673.parquet",
+   "bytes": 68305,
+   "sha256": "ecb33a7c24d534bc85422477ce0bc0a1cd708abd4be2c557e0d3d0f7563db936"
+  },
+  {
+   "id": "x286_y674",
+   "bounds": [
+    -122.8,
+    44.8,
+    -122.6,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 85,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x286_y674.parquet",
+   "bytes": 145390,
+   "sha256": "276d3a27482f47297cecb27eff8977a3dc98b22b22c7530513029669fdc8027d"
+  },
+  {
+   "id": "x286_y675",
+   "bounds": [
+    -122.8,
+    45.0,
+    -122.6,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 137,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x286_y675.parquet",
+   "bytes": 177323,
+   "sha256": "cf36c7e99a44d029ba8d1c9665f0f70e451cf11109f947045892d4a978000193"
+  },
+  {
+   "id": "x286_y676",
+   "bounds": [
+    -122.8,
+    45.2,
+    -122.6,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 197,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x286_y676.parquet",
+   "bytes": 266482,
+   "sha256": "058dce19b2c824fe2e0743a52dca829f66dcae3cba75a030888bd0326466e4b2"
+  },
+  {
+   "id": "x286_y677",
+   "bounds": [
+    -122.8,
+    45.4,
+    -122.6,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 576,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x286_y677.parquet",
+   "bytes": 597930,
+   "sha256": "373c4f553f74d2ff008039d08ab59aa6740400488986031121fde46803ba0c31"
+  },
+  {
+   "id": "x286_y678",
+   "bounds": [
+    -122.8,
+    45.6,
+    -122.6,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 166,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x286_y678.parquet",
+   "bytes": 251163,
+   "sha256": "71b4870b134c69024a396bc7fab0891882ec2262bb55999c342208695a8a0c73"
+  },
+  {
+   "id": "x286_y679",
+   "bounds": [
+    -122.8,
+    45.8,
+    -122.6,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 114,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x286_y679.parquet",
+   "bytes": 227194,
+   "sha256": "c488e648d296cbfe2c56bb2cfd61d66c4c2e6e66211125c3ff8f7153320edec9"
+  },
+  {
+   "id": "x286_y680",
+   "bounds": [
+    -122.8,
+    46.0,
+    -122.6,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 35,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x286_y680.parquet",
+   "bytes": 133129,
+   "sha256": "08e9a4e0acf9907f5be0607592f2b544fba4a4ad4f93a65132a93c0ccd848a0f"
+  },
+  {
+   "id": "x286_y681",
+   "bounds": [
+    -122.8,
+    46.2,
+    -122.6,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 32,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x286_y681.parquet",
+   "bytes": 90833,
+   "sha256": "aded5ecfb8e8ca9ebc354627f3b7067a2091f3e905127cab8b4f445d6d11dd5c"
+  },
+  {
+   "id": "x286_y682",
+   "bounds": [
+    -122.8,
+    46.4,
+    -122.6,
+    46.6
+   ],
+   "state": "present",
+   "rowCount": 1,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x286_y682.parquet",
+   "bytes": 27177,
+   "sha256": "517798efba058bc4ed3ab27df6e915bf4b3dcfb2ebd437161f7e149a513b30c7"
+  },
+  {
+   "id": "x287_y673",
+   "bounds": [
+    -122.6,
+    44.6,
+    -122.4,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 20,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x287_y673.parquet",
+   "bytes": 57177,
+   "sha256": "1472357ffae5e72bb3129829fcc2b517a362818af4332b22b0bf5e0a04ad5d41"
+  },
+  {
+   "id": "x287_y674",
+   "bounds": [
+    -122.6,
+    44.8,
+    -122.4,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 35,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x287_y674.parquet",
+   "bytes": 88289,
+   "sha256": "fdde2fa825ee0f29cff316375431d75b3dc3ce7fc88f9e87412966545ffbf41c"
+  },
+  {
+   "id": "x287_y675",
+   "bounds": [
+    -122.6,
+    45.0,
+    -122.4,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 98,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x287_y675.parquet",
+   "bytes": 174274,
+   "sha256": "e999bef4ec32cbffd81cd18f6dd28d918642ee3b44bf07a4967987777dd867ff"
+  },
+  {
+   "id": "x287_y676",
+   "bounds": [
+    -122.6,
+    45.2,
+    -122.4,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 127,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x287_y676.parquet",
+   "bytes": 218697,
+   "sha256": "907c6e12f983dd9582d7f6455f8e71a551fd1dde44e37ba83f6f58e3459cb846"
+  },
+  {
+   "id": "x287_y677",
+   "bounds": [
+    -122.6,
+    45.4,
+    -122.4,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 345,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x287_y677.parquet",
+   "bytes": 369960,
+   "sha256": "e033b60c8d11361926904be94229d5883d95f5d5d9200ac97ca3e6fe818f3667"
+  },
+  {
+   "id": "x287_y678",
+   "bounds": [
+    -122.6,
+    45.6,
+    -122.4,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 166,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x287_y678.parquet",
+   "bytes": 262582,
+   "sha256": "7578c2e15546d132c7b561c9e061550df3ad8405dbe471ac55b6b41e4cac54c9"
+  },
+  {
+   "id": "x287_y679",
+   "bounds": [
+    -122.6,
+    45.8,
+    -122.4,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 109,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x287_y679.parquet",
+   "bytes": 231101,
+   "sha256": "799ca977696cd0a1c2dfdaea6ee672046a66d7fb59eab9fe82fba4529829ace9"
+  },
+  {
+   "id": "x287_y680",
+   "bounds": [
+    -122.6,
+    46.0,
+    -122.4,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 7,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x287_y680.parquet",
+   "bytes": 42134,
+   "sha256": "2b8de2724311d92aa1b97487fd8dbd31d2da4c5092baefef3c91feaad8b7163f"
+  },
+  {
+   "id": "x287_y681",
+   "bounds": [
+    -122.6,
+    46.2,
+    -122.4,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 11,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x287_y681.parquet",
+   "bytes": 50193,
+   "sha256": "37ae36be739eb7fade0eb9735d4cc5e65428c683dd4d750635dfcf52c04f5716"
+  },
+  {
+   "id": "x287_y682",
+   "bounds": [
+    -122.6,
+    46.4,
+    -122.4,
+    46.6
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x288_y673",
+   "bounds": [
+    -122.4,
+    44.6,
+    -122.2,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 8,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x288_y673.parquet",
+   "bytes": 48804,
+   "sha256": "d8ca4f73befd8d3e5c6aecc29e9733667082b287511def5db80d8aed2e390161"
+  },
+  {
+   "id": "x288_y674",
+   "bounds": [
+    -122.4,
+    44.8,
+    -122.2,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 23,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x288_y674.parquet",
+   "bytes": 83566,
+   "sha256": "13980230bb7b7bb2c50ccfa9884d16fb9fa44ddccde20d415e7585090fc8b108"
+  },
+  {
+   "id": "x288_y675",
+   "bounds": [
+    -122.4,
+    45.0,
+    -122.2,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 63,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x288_y675.parquet",
+   "bytes": 149536,
+   "sha256": "b34f09fcbf0601a7583a5b0a4ccf39bf71ce98413df9846e5eb6b202b49504a4"
+  },
+  {
+   "id": "x288_y676",
+   "bounds": [
+    -122.4,
+    45.2,
+    -122.2,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 127,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x288_y676.parquet",
+   "bytes": 249042,
+   "sha256": "b0a0934bb2aede4c816d64d472cd3a9a58447bff09fe7fdbf4d8c0622349b4a1"
+  },
+  {
+   "id": "x288_y677",
+   "bounds": [
+    -122.4,
+    45.4,
+    -122.2,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 165,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x288_y677.parquet",
+   "bytes": 225310,
+   "sha256": "68eec27ab071a1eaefe547ccb2f57eafffd7fbeb6e6b0825d7db303982b2533e"
+  },
+  {
+   "id": "x288_y678",
+   "bounds": [
+    -122.4,
+    45.6,
+    -122.2,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 77,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x288_y678.parquet",
+   "bytes": 219533,
+   "sha256": "5570aedce141dfb864a5c583a728b133a49fe597b5a8a0ff14f827252d2235ee"
+  },
+  {
+   "id": "x288_y679",
+   "bounds": [
+    -122.4,
+    45.8,
+    -122.2,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 61,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x288_y679.parquet",
+   "bytes": 191190,
+   "sha256": "97028bb8b8b2aed081218839890c50ad38b6ad4e51f78a8dd40c4ff8ef36f6fa"
+  },
+  {
+   "id": "x288_y680",
+   "bounds": [
+    -122.4,
+    46.0,
+    -122.2,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 25,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x288_y680.parquet",
+   "bytes": 77295,
+   "sha256": "a665a160a1faa6b851b55177de7f1f56c7320006b7c573431d1833d5024d25ef"
+  },
+  {
+   "id": "x288_y681",
+   "bounds": [
+    -122.4,
+    46.2,
+    -122.2,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 10,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x288_y681.parquet",
+   "bytes": 46948,
+   "sha256": "7c762e2a230ad055d8e796e656e6a57729fc29a3967daba3790682c1a30305bc"
+  },
+  {
+   "id": "x288_y682",
+   "bounds": [
+    -122.4,
+    46.4,
+    -122.2,
+    46.6
+   ],
+   "state": "empty",
+   "rowCount": 0
+  },
+  {
+   "id": "x289_y673",
+   "bounds": [
+    -122.2,
+    44.6,
+    -122.0,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 13,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x289_y673.parquet",
+   "bytes": 56148,
+   "sha256": "8459909d32ba82c678676a71201601414e21eac60b1e4a3d26127bc3b98000a2"
+  },
+  {
+   "id": "x289_y674",
+   "bounds": [
+    -122.2,
+    44.8,
+    -122.0,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 44,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x289_y674.parquet",
+   "bytes": 162914,
+   "sha256": "b0dde60167b245b3f500c57a9fb1fbe17e62a1762c7d014c9e8e7c0e61a0c987"
+  },
+  {
+   "id": "x289_y675",
+   "bounds": [
+    -122.2,
+    45.0,
+    -122.0,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 71,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x289_y675.parquet",
+   "bytes": 212166,
+   "sha256": "0f58bc8cd377e764e86361a5d3dfff29d7f37ea871980f79946fc579fed4199d"
+  },
+  {
+   "id": "x289_y676",
+   "bounds": [
+    -122.2,
+    45.2,
+    -122.0,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 48,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x289_y676.parquet",
+   "bytes": 147362,
+   "sha256": "9f41866db4560895ee4f9d820c1bc9189c4aa28d01a48fb9c000569c08ab54b3"
+  },
+  {
+   "id": "x289_y677",
+   "bounds": [
+    -122.2,
+    45.4,
+    -122.0,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 55,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x289_y677.parquet",
+   "bytes": 101725,
+   "sha256": "4e860e98a68a7744f54595332498cc130ef394814f15384b3b34c444b8428704"
+  },
+  {
+   "id": "x289_y678",
+   "bounds": [
+    -122.2,
+    45.6,
+    -122.0,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 37,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x289_y678.parquet",
+   "bytes": 134097,
+   "sha256": "afd4f33924d281382351d728e23ec06e9afa816893ecbd95fd91f5a8ed819b83"
+  },
+  {
+   "id": "x289_y679",
+   "bounds": [
+    -122.2,
+    45.8,
+    -122.0,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 82,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x289_y679.parquet",
+   "bytes": 302269,
+   "sha256": "e692d7cf9c76b7db896ed0f859c80f36e63676f6cc7085e527d89ecd38a0c873"
+  },
+  {
+   "id": "x289_y680",
+   "bounds": [
+    -122.2,
+    46.0,
+    -122.0,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 31,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x289_y680.parquet",
+   "bytes": 122707,
+   "sha256": "f62d51db44c7c59f89a96600da06db0c81fc0ab8bf27a36658b34418e7fd1a02"
+  },
+  {
+   "id": "x289_y681",
+   "bounds": [
+    -122.2,
+    46.2,
+    -122.0,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 32,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x289_y681.parquet",
+   "bytes": 114327,
+   "sha256": "b47a2a80c613c09f2bbfa6f992098bb9328178132c18692eb54ed8bafe8312cb"
+  },
+  {
+   "id": "x289_y682",
+   "bounds": [
+    -122.2,
+    46.4,
+    -122.0,
+    46.6
+   ],
+   "state": "present",
+   "rowCount": 2,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x289_y682.parquet",
+   "bytes": 31681,
+   "sha256": "8829171750b611d3f1accbe3cb250f77c7233ef4c40551cdaf06e577db4dbe30"
+  },
+  {
+   "id": "x290_y673",
+   "bounds": [
+    -122.0,
+    44.6,
+    -121.8,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 10,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x290_y673.parquet",
+   "bytes": 44027,
+   "sha256": "2cbb9012d104607cab7a06c37df537bc769f7ab1f3618d3e856ae94d1b292ca4"
+  },
+  {
+   "id": "x290_y674",
+   "bounds": [
+    -122.0,
+    44.8,
+    -121.8,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 55,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x290_y674.parquet",
+   "bytes": 159297,
+   "sha256": "ec8357cfc8ed17cd31e0761f4345d7a111d221c50a8a42f81bcdbe5f50f58397"
+  },
+  {
+   "id": "x290_y675",
+   "bounds": [
+    -122.0,
+    45.0,
+    -121.8,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 71,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x290_y675.parquet",
+   "bytes": 187985,
+   "sha256": "d725fab4c2e98fe7e91d7b7638cc2430617dd2319322fe30ec7cb2a61696fbed"
+  },
+  {
+   "id": "x290_y676",
+   "bounds": [
+    -122.0,
+    45.2,
+    -121.8,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 42,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x290_y676.parquet",
+   "bytes": 100640,
+   "sha256": "3b6d1ae6ac2c9e29b03126cbe9d5c24f2f8dd84b9c53d61a6dbfd0916fdc9d30"
+  },
+  {
+   "id": "x290_y677",
+   "bounds": [
+    -122.0,
+    45.4,
+    -121.8,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 32,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x290_y677.parquet",
+   "bytes": 80950,
+   "sha256": "e055c21a8af3d9142a4c96131ddbae4431efd696b2b97097586f4062da9b01d5"
+  },
+  {
+   "id": "x290_y678",
+   "bounds": [
+    -122.0,
+    45.6,
+    -121.8,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 56,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x290_y678.parquet",
+   "bytes": 145209,
+   "sha256": "3f49e54c43681bb87dd305a233015c376231ce9e3281a678db66ebec472301d6"
+  },
+  {
+   "id": "x290_y679",
+   "bounds": [
+    -122.0,
+    45.8,
+    -121.8,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 89,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x290_y679.parquet",
+   "bytes": 217266,
+   "sha256": "fdac66daaef184b65baa437bf185332da82b3dc3b90c9abc774f83a70164599f"
+  },
+  {
+   "id": "x290_y680",
+   "bounds": [
+    -122.0,
+    46.0,
+    -121.8,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 62,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x290_y680.parquet",
+   "bytes": 172554,
+   "sha256": "fc9b1e6f50a1af53758bac4d3d014d06604253fd19b61c2dc10bedd462ffdfc5"
+  },
+  {
+   "id": "x290_y681",
+   "bounds": [
+    -122.0,
+    46.2,
+    -121.8,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 62,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x290_y681.parquet",
+   "bytes": 208479,
+   "sha256": "13b6544fa75053cd99c356b6678ff2d85058cb4cb746bdd28e72f95bbfd97ed4"
+  },
+  {
+   "id": "x290_y682",
+   "bounds": [
+    -122.0,
+    46.4,
+    -121.8,
+    46.6
+   ],
+   "state": "present",
+   "rowCount": 3,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x290_y682.parquet",
+   "bytes": 35980,
+   "sha256": "9b1cef3fbdc9ae9bd7b4275d97b530ff1343d7639122c8ed422da14c7de946c9"
+  },
+  {
+   "id": "x291_y673",
+   "bounds": [
+    -121.8,
+    44.6,
+    -121.6,
+    44.8
+   ],
+   "state": "present",
+   "rowCount": 5,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x291_y673.parquet",
+   "bytes": 28181,
+   "sha256": "a2cb00a99f09ed344b4dfbe529789690465866a29bf4a58a542e99748ac921a2"
+  },
+  {
+   "id": "x291_y674",
+   "bounds": [
+    -121.8,
+    44.8,
+    -121.6,
+    45.0
+   ],
+   "state": "present",
+   "rowCount": 11,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x291_y674.parquet",
+   "bytes": 40616,
+   "sha256": "5e9504d27411b20ec2463d6d124175fb534921426252aea4403fdc655917ee84"
+  },
+  {
+   "id": "x291_y675",
+   "bounds": [
+    -121.8,
+    45.0,
+    -121.6,
+    45.2
+   ],
+   "state": "present",
+   "rowCount": 5,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x291_y675.parquet",
+   "bytes": 41287,
+   "sha256": "00351d27d52a281f57b34b5bc6cd896f02c2386559863bf8fe87228beceada8e"
+  },
+  {
+   "id": "x291_y676",
+   "bounds": [
+    -121.8,
+    45.2,
+    -121.6,
+    45.4
+   ],
+   "state": "present",
+   "rowCount": 3,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x291_y676.parquet",
+   "bytes": 30088,
+   "sha256": "454f1b00b956300052249429ec4e4e804b813c4fa00440b80fa8af5b41c2654a"
+  },
+  {
+   "id": "x291_y677",
+   "bounds": [
+    -121.8,
+    45.4,
+    -121.6,
+    45.6
+   ],
+   "state": "present",
+   "rowCount": 4,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x291_y677.parquet",
+   "bytes": 42508,
+   "sha256": "bcbd1af8755e7b7085001de7828c3157286fd5147a9638bd12329b8137e0e8b9"
+  },
+  {
+   "id": "x291_y678",
+   "bounds": [
+    -121.8,
+    45.6,
+    -121.6,
+    45.8
+   ],
+   "state": "present",
+   "rowCount": 2,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x291_y678.parquet",
+   "bytes": 37362,
+   "sha256": "bcb933eb62f6120e5c4c5397bd099275d2c8d011511441594565c6c62f1fd4b1"
+  },
+  {
+   "id": "x291_y679",
+   "bounds": [
+    -121.8,
+    45.8,
+    -121.6,
+    46.0
+   ],
+   "state": "present",
+   "rowCount": 6,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x291_y679.parquet",
+   "bytes": 39657,
+   "sha256": "450abd644d7c31a166891a3793c54ffa0618b3de4ed2ac1273fb7cbbc2de257d"
+  },
+  {
+   "id": "x291_y680",
+   "bounds": [
+    -121.8,
+    46.0,
+    -121.6,
+    46.2
+   ],
+   "state": "present",
+   "rowCount": 11,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x291_y680.parquet",
+   "bytes": 43396,
+   "sha256": "4d28598397006cb9b6afd1527b9c2c5e473f2d3f610de3d8353b6fff0551722b"
+  },
+  {
+   "id": "x291_y681",
+   "bounds": [
+    -121.8,
+    46.2,
+    -121.6,
+    46.4
+   ],
+   "state": "present",
+   "rowCount": 5,
+   "url": "derived/corridor-metrics/81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de/cells/x291_y681.parquet",
+   "bytes": 44187,
+   "sha256": "dfeb4ab5ff8a2069a5acaa27190b38213c3005117bbf9b488324341f5cf5a730"
+  },
+  {
+   "id": "x291_y682",
+   "bounds": [
+    -121.8,
+    46.4,
+    -121.6,
+    46.6
+   ],
+   "state": "empty",
+   "rowCount": 0
+  }
+ ],
+ "provenance": {
+  "regionVersion": "or-sw-wa-portland-v2",
+  "roadDatasetVersion": "or-sw-wa-portland-v2",
+  "wetlandDatasetVersion": "or-sw-wa-portland-v2",
+  "hydroDatasetVersion": "or-sw-wa-portland-v2",
+  "roadComponentsSha256": "11cb4b5076f9e0d58ae4288f530204d7126c6fc7580924c3b43399783c826c13",
+  "profile": {
+   "kind": "road-discovery-analysis-profile",
+   "profileVersion": 1,
+   "derivedSchemaVersion": 1,
+   "region": {
+    "version": "or-sw-wa-portland-v2",
+    "bounds": [
+     -124.05,
+     44.75,
+     -121.77,
+     46.42
+    ]
+   },
+   "roadSource": {
+    "id": "roads",
+    "version": "or-sw-wa-portland-v2",
+    "digest": "4faab5a1971c15bcd37082865f1a06e79446a044c00c76d13360849098e53388"
+   },
+   "roadComponents": {
+    "digest": "11cb4b5076f9e0d58ae4288f530204d7126c6fc7580924c3b43399783c826c13",
+    "joinToleranceM": 150,
+    "multiCellComponents": 2601
+   },
+   "composition": {
+    "toleranceM": 150,
+    "reversedLinkLengthRatio": 0.25
+   },
+   "segmentation": {
+    "idPrefix": "drv1",
+    "minCorridorM": 1609.344,
+    "targetCorridorM": 6437.376,
+    "maxCorridorM": 12874.752
+   },
+   "analyticalGeometry": {
+    "methods": [
+     "none",
+     "remove-duplicate-segments",
+     "remove-duplicate-segments+split-repeated-vertices",
+     "remove-duplicate-segments+node-self-intersections"
+    ],
+    "duplicateSegmentsBeforeProbe": true,
+    "tolerance": {
+     "maxDisplacementM": 0.05,
+     "maxBoundsDeltaDeg": 1e-06,
+     "minLengthRatio": 0.5
+    }
+   },
+   "habitat": {
+    "wetlands": {
+     "id": "wetlands",
+     "version": "or-sw-wa-portland-v2",
+     "digest": "c005ebe111a25d220e58659dea891e6a7fa238c5cc9bf595edc411d3a0e880f4"
+    },
+    "hydrography": {
+     "id": "hydrography",
+     "version": "or-sw-wa-portland-v2",
+     "digest": "4428497358f62c28a8d654190ccf00eba98dd4e76e01d9f2f63a57a328bab377"
+    }
+   },
+   "ecology": [
+    {
+     "id": "epa-ecoregions-or-l3",
+     "version": "epa-or-2012-v1",
+     "digest": "d73b3e9f4b89812c952f0ddafcff55f4ca38446c4daca3734c36dba969878d26"
+    },
+    {
+     "id": "epa-ecoregions-or-l4",
+     "version": "epa-or-2012-v1",
+     "digest": "c59d46f566801c6e47e4cd8706581a4ad1690c3c2780268c2ce8c2ddf66a7847"
+    },
+    {
+     "id": "epa-ecoregions-wa-l3",
+     "version": "epa-wa-2012-v1",
+     "digest": "07a828ad6e5009f996083bb5f10719c344c189192cb933adf70abed24d089360"
+    },
+    {
+     "id": "epa-ecoregions-wa-l4",
+     "version": "epa-wa-2012-v1",
+     "digest": "dd90eee69046238f491d15960647a7e4ba20fd1c639b6b9172e58c66b906d95c"
+    }
+   ],
+   "maxAnalysisDistanceM": 1000,
+   "analysisDistancesM": [
+    250,
+    500,
+    1000
+   ],
+   "metrics": {
+    "wetlandArea": "feature-area-sum-v1",
+    "hydrographyLength": "clipped-length-sum-v1",
+    "habitatCounts": "distinct-contributing-features-v1",
+    "coverage": "extent-per-distance-v1",
+    "wetlandDefinition": "sum of each mapped feature's own geometry clipped to the requested buffer (feature-area sum, not a spatial union)"
+   },
+   "fingerprint": "81fb2bcf50ee662c05171abf69f3706e48edcb9aaf2fb9e2606d02a23ddc05de"
+  }
+ },
+ "build": {
+  "pipelineVersion": "derived-corridor-metrics-v1",
+  "corridors": 6440,
+  "report": {
+   "phasesMs": {
+    "analytical": 10960,
+    "prepare": 6,
+    "metrics": 745612
+   },
+   "probe": {
+    "corridors": 6440,
+    "refused": 0
+   },
+   "repair": {
+    "ladder": {
+     "corridors": 6440,
+     "candidates": 804,
+     "rejectedByTolerance": 38
+    },
+    "gatedCorridors": 718,
+    "duplicateRepairs": 718,
+    "unusable": []
+   },
+   "chunks": 26,
+   "writeMs": 6415
+  }
+ }
+}

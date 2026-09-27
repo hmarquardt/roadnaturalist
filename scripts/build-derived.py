@@ -20,6 +20,7 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import subprocess
 import sys
 import time
@@ -28,6 +29,7 @@ from pathlib import Path
 import duckdb
 import pyarrow as pa
 import pyarrow.parquet as pq
+from pyproj import CRS
 from shapely import wkb
 from shapely.geometry import box, shape
 
@@ -37,7 +39,14 @@ METRES_PER_DEGREE_LAT = 110000.0
 METRES_PER_DEGREE_LON = 111320.0
 PAD_MARGIN = 1.1
 DISTANCES = (250, 500, 1000)
-WORK = Path('/tmp/roadnaturalist-derived')
+# The published layout is `derived/corridor-metrics/<fingerprint>/...` on the R2 data plane and, because the
+# runtime resolves a catalog url against `data/`, `data/derived/corridor-metrics/<fingerprint>/...` locally. The
+# two are the same relative path, so a local run reads exactly the objects production reads.
+PUBLISHED_PREFIX = 'derived/corridor-metrics'
+CORRIDOR_GEOMETRY_TYPES = ['LineString', 'MultiLineString']
+# Scratch space for the exported features, the composed corridors, and DuckDB's spill files. Every entry is
+# derived from committed inputs, so losing it (a reboot clears /tmp) costs a recomposition, never correctness.
+WORK = Path(os.environ.get('DERIVED_WORK', '/tmp/roadnaturalist-derived'))
 
 
 def log(message):
@@ -57,6 +66,63 @@ def run_node(args):
     if result.returncode != 0:
         raise RuntimeError(f"node {' '.join(args)} failed:\n{result.stderr[-4000:]}")
     return result.stdout.strip()
+
+
+def habitat_expressions():
+    """The shared habitat metric expressions, exported from src/gis/habitat-metrics.js by the composition module.
+
+    They are regenerated for every build instead of being read from a cached file: the offline statements must
+    be the runtime's own definition at the moment the artifacts are built, so a scratch directory that survived
+    a source change can never become a second definition.
+    """
+    WORK.mkdir(parents=True, exist_ok=True)
+    path = WORK / 'habitat-sql.json'
+    path.unlink(missing_ok=True)
+    run_node([str(ROOT / 'scripts/compose-derived-corridors.mjs'), 'sql', str(path)])
+    return json.loads(path.read_text())
+
+
+def write_cell_geoparquet(rows, path):
+    """Write one derived cell as GeoParquet and prove DuckDB Spatial reads it back as geometry.
+
+    A plain WKB column named `geometry` is only a BLOB: DuckDB will refuse `ST_XMin`/`ST_AsGeoJSON` on it, and
+    the runtime reads the cells with exactly those functions. The GeoParquet `geo` metadata is what makes the
+    column a typed EPSG:4326 GEOMETRY, so the write is verified with the same reader the browser uses rather
+    than trusting the writer.
+    """
+    columns = {key: [member[key] for member in rows] for key in rows[0]}
+    # A derived row carries its geometry as WKB bytes (the shape the corridor module produced), so the type set
+    # is read back from that encoding rather than re-encoding it.
+    geometry_types = sorted({wkb.loads(value).geom_type for value in columns['geometry']})
+    unknown = sorted(set(geometry_types) - set(CORRIDOR_GEOMETRY_TYPES))
+    if unknown:
+        raise ValueError(f'{path.name}: unsupported corridor geometry {unknown}')
+    bounds = columns['bounds']
+    table = pa.table(columns)
+    geo = {'version': '1.1.0', 'primary_column': 'geometry', 'columns': {'geometry': {
+        'encoding': 'WKB', 'geometry_types': geometry_types, 'crs': CRS.from_epsg(4326).to_json_dict(),
+        'bbox': [min(value[0] for value in bounds), min(value[1] for value in bounds),
+                 max(value[2] for value in bounds), max(value[3] for value in bounds)]}}}
+    table = table.replace_schema_metadata({b'geo': json.dumps(geo, separators=(',', ':')).encode()})
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.unlink(missing_ok=True)
+    pq.write_table(table, path, compression='zstd')
+    reread = pq.read_table(path)
+    if reread.num_rows != len(rows) or b'geo' not in reread.schema.metadata:
+        raise ValueError(f'{path.name}: GeoParquet round-trip failed')
+    if any(value is None for value in reread.column('geometry').to_pylist()):
+        raise ValueError(f'{path.name}: GeoParquet contains null geometry')
+    connection = duckdb.connect()
+    connection.execute('INSTALL spatial; LOAD spatial;')
+    total, linears, invalid, srid = connection.execute(
+        "SELECT count(*), count(*) FILTER (WHERE ST_GeometryType(geometry) IN ('LINESTRING', 'MULTILINESTRING')), "
+        "count(*) FILTER (WHERE NOT ST_IsValid(geometry)), any_value(ST_CRS(geometry)) FROM read_parquet(?)",
+        [str(path)]).fetchone()
+    if total != len(rows) or linears != len(rows) or invalid or srid != 'EPSG:4326':
+        raise ValueError(f'{path.name}: DuckDB read-back failed (rows={total}, lines={linears}, '
+                         f'invalid={invalid}, srid={srid})')
+    connection.close()
+    return {'featureCount': int(total), 'geometryTypes': geometry_types}
 
 
 def pad_of(bounds, distance_m):
@@ -94,13 +160,18 @@ class Builder:
         self.profile = profile
         self.fingerprint = profile['fingerprint']
         self.region = region
+        WORK.mkdir(parents=True, exist_ok=True)
         self.con = duckdb.connect()
         self.con.execute('INSTALL spatial; LOAD spatial')
         # The habitat layers are far larger than the process can hold, so DuckDB is given a ceiling and spills
-        # instead of being killed by the machine mid-build.
+        # into the build's own scratch directory instead of being killed by the machine mid-build.
         self.con.execute("PRAGMA memory_limit='2GB'")
-        self.con.execute('PRAGMA threads=4')
-        self.expressions = json.loads(Path('/tmp/habitat-sql.json').read_text())
+        self.con.execute("PRAGMA threads=2")
+        self.con.execute("SET temp_directory='" + str(WORK / 'duckdb') + "'")
+        # Row order is imposed on every written artifact by an explicit sort, so DuckDB is free to stream
+        # instead of materialising insertion order.
+        self.con.execute('PRAGMA preserve_insertion_order=false')
+        self.expressions = habitat_expressions()
         self.datasets = {dataset['id']: dataset for dataset in catalog['datasets']}
         # Per-chunk restriction: corridor chunk bounds and the pad clause each metric query adds for the
         # habitat table it reads. Without it a 16k-corridor window would be one corridor x habitat cross join.
@@ -134,9 +205,11 @@ class Builder:
 
     # ------------------------------------------------------------------ chunk views
     def reset_views(self):
-        """Whole-window relations, used before the first chunk is set."""
+        """There is no whole-window relation to read: every metric is measured on a chunk. This drops what a
+        previous chunk left behind, so a query can never silently read a stale neighbourhood."""
         for name in ('wetland', 'hydro', 'eco'):
-            self.con.execute(f'CREATE OR REPLACE TEMP TABLE {name} AS SELECT * FROM {name}_all')
+            self.con.execute(f'DROP VIEW IF EXISTS {name}')
+            self.con.execute(f'DROP TABLE IF EXISTS {name}')
 
     def set_chunk(self, ids, bounds):
         """Restrict every relation to one chunk: the corridor view to these ids, and each habitat view to the
@@ -151,6 +224,13 @@ class Builder:
         for name in ('wetland', 'hydro', 'eco'):
             self.con.execute(f"CREATE OR REPLACE TEMP TABLE {name} AS SELECT * FROM {name}_all WHERE "
                              f"{pad[0]} <= max_lon AND {pad[2]} >= min_lon AND {pad[1]} <= max_lat AND {pad[3]} >= min_lat")
+        # The requested buffers, materialised once for every corridor in the chunk: the same operation the
+        # runtime batch performs in prepareBuffers (src/gis/discovery-query.js), and the reason its metric
+        # statements clip against `b.geom` instead of recomputing a buffer per feature pair.
+        distances = ', '.join(f'({int(value)})' for value in self.expressions['definition']['distancesM'])
+        self.con.execute('CREATE OR REPLACE TEMP TABLE buffer AS SELECT c.id AS id, d.distance_m AS distance_m, '
+                         'ST_Buffer(c.geom, d.distance_m) AS geom FROM corridor c, '
+                         f'(VALUES {distances}) AS d(distance_m)')
 
     # ------------------------------------------------------------------ corridor table and probing
     def load_corridors(self, corridors, analytical):
@@ -179,11 +259,14 @@ class Builder:
         assert count == len(corridors), (count, len(corridors))
 
     def probe_geometry(self, ids, wkts):
-        """Ask the engine to buffer these corridor geometries: the same operation the runtime probes with."""
+        """Ask the engine for the buffers the runtime asks for: the runtime probes every requested distance in
+        one statement (src/gis/analytical-geometry.js probeStoredGeometry), so the offline probe must ask for
+        the same set. Probing only the widest distance calls a corridor usable that the batch would repair."""
         self.con.register('probe_input', pa.table({'id': ids, 'wkt': wkts}))
         self.con.execute("CREATE OR REPLACE TEMP TABLE probe AS SELECT id, "
                          "ST_Transform(ST_GeomFromText(wkt), 'EPSG:4326', 'EPSG:5070', always_xy := true) AS geom FROM probe_input")
-        self.con.execute('SELECT count(*) FROM (SELECT ST_Buffer(geom, 1000) AS b FROM probe) WHERE b IS NOT NULL')
+        buffers = ', '.join(f'ST_Buffer(geom, {int(value)})' for value in self.expressions['definition']['distancesM'])
+        self.con.execute(f'SELECT count(*) FROM (SELECT {buffers} FROM probe)')
 
     def failing(self, entries):
         """Bisect corridor geometries down to the ones the engine refuses to buffer."""
@@ -202,16 +285,15 @@ class Builder:
 
     def wetland_metrics(self):
         rows = self.con.execute(f"""
-          WITH d(distance_m) AS (VALUES (250), (500), (1000)),
-          hit AS (
-            SELECT c.id AS id, d.distance_m AS distance_m, w.wetland_type AS label, w.attribute AS code,
-                   w.source_feature_id AS source_feature_id, {self.expressions['wetlandArea']} AS area_m2
-            FROM corridor c, d, wetland w
+          WITH hit AS (
+            SELECT b.id AS id, b.distance_m AS distance_m, w.wetland_type AS label, w.attribute AS code,
+                   w.source_feature_id AS source_feature_id, {self.expressions['wetlandAreaBuffered']} AS area_m2
+            FROM buffer b JOIN corridor c ON c.id = b.id, wetland w
             WHERE c.pad_min_lon <= w.max_lon AND c.pad_max_lon >= w.min_lon
               AND c.pad_min_lat <= w.max_lat AND c.pad_max_lat >= w.min_lat
-              AND ST_Intersects(w.geom, ST_Buffer(c.geom, d.distance_m))
+              AND ST_Intersects(w.geom, b.geom)
           )
-          SELECT id, distance_m, label, code, {self.expressions['wetlandCount']} AS feature_count, sum(area_m2) AS area_m2
+          SELECT id, distance_m, label, code, {self.expressions['wetlandCountBuffered']} AS feature_count, sum(area_m2) AS area_m2
           FROM hit WHERE area_m2 > 0 GROUP BY id, distance_m, label, code ORDER BY id, distance_m, sum(area_m2) DESC
         """).fetchall()
         by_id = {}
@@ -241,18 +323,18 @@ class Builder:
 
     def hydro_metrics(self):
         rows = self.con.execute(f"""
-          WITH d(distance_m) AS (VALUES (250), (500), (1000)),
-          hit AS (
-            SELECT c.id AS id, d.distance_m AS distance_m, f.layer AS layer, f.source_feature_id AS source_feature_id,
-                   {self.expressions['hydroLength']} AS length_m, {self.expressions['hydroArea']} AS area_m2
-            FROM corridor c, d, hydro f
+          WITH hit AS (
+            SELECT b.id AS id, b.distance_m AS distance_m, f.layer AS layer, f.source_feature_id AS source_feature_id,
+                   {self.expressions['hydroLengthBuffered']} AS length_m, {self.expressions['hydroAreaBuffered']} AS area_m2
+            FROM buffer b JOIN corridor c ON c.id = b.id, hydro f
             WHERE c.pad_min_lon <= f.max_lon AND c.pad_max_lon >= f.min_lon
               AND c.pad_min_lat <= f.max_lat AND c.pad_max_lat >= f.min_lat
-              AND ST_Intersects(f.geom, ST_Buffer(c.geom, d.distance_m))
+              AND ST_Intersects(f.geom, b.geom)
           )
-          SELECT id, distance_m, layer, {self.expressions['hydroCount']} AS feature_count,
+          SELECT id, distance_m, layer, {self.expressions['hydroCountBuffered']} AS feature_count,
                  sum(area_m2) AS area_m2, sum(length_m) AS length_m
-          FROM hit WHERE length_m > 0 OR area_m2 > 0 GROUP BY id, distance_m, layer ORDER BY id, distance_m, layer
+          FROM hit WHERE length_m > 0 OR area_m2 > 0
+          GROUP BY id, distance_m, layer ORDER BY id, distance_m, layer
         """).fetchall()
         buffers = {}
         for identifier, distance, layer, feature_count, area, length in rows:
@@ -262,9 +344,8 @@ class Builder:
             bucket['flowlineLengthM'] += float(length or 0.0)
             bucket['waterbodyAreaM2'] += float(area or 0.0)
         crossings = {}
-        for identifier, source_id, name, label, overlap in self.con.execute("""
-            SELECT c.id, f.source_feature_id, f.name, f.feature_type_label,
-                   ST_Length(ST_Intersection(f.geom, c.geom)) AS overlap_m
+        for identifier, source_id, name, label, overlap in self.con.execute(f"""
+            SELECT c.id, f.source_feature_id, f.name, f.feature_type_label, {self.expressions['hydroCrossing']} AS overlap_m
             FROM corridor c, hydro f
             WHERE f.layer = 'flowline' AND c.pad_min_lon <= f.max_lon AND c.pad_max_lon >= f.min_lon
               AND c.pad_min_lat <= f.max_lat AND c.pad_max_lat >= f.min_lat AND ST_Intersects(f.geom, c.geom)""").fetchall():
@@ -284,10 +365,10 @@ class Builder:
               'nearestStandingM': None if standing is None or float(standing) > max(DISTANCES) else float(standing)}
         names = {}
         for identifier, name in self.con.execute("""
-            SELECT DISTINCT c.id, f.name FROM corridor c, hydro f, (VALUES (1000)) AS d(distance_m)
-            WHERE f.name <> '' AND c.pad_min_lon <= f.max_lon AND c.pad_max_lon >= f.min_lon
+            SELECT DISTINCT b.id, f.name FROM hydro f, buffer b JOIN corridor c ON c.id = b.id
+            WHERE f.name <> '' AND b.distance_m = 1000 AND c.pad_min_lon <= f.max_lon AND c.pad_max_lon >= f.min_lon
               AND c.pad_min_lat <= f.max_lat AND c.pad_max_lat >= f.min_lat
-              AND ST_Intersects(f.geom, ST_Buffer(c.geom, d.distance_m)) ORDER BY c.id, f.name""").fetchall():
+              AND ST_Intersects(f.geom, b.geom) ORDER BY b.id, f.name""").fetchall():
             names.setdefault(identifier, []).append(name)
         output = {}
         for identifier in set(list(buffers) + list(crossings) + list(proximity) + list(names)):
@@ -317,13 +398,15 @@ class Builder:
         bounds = self.catalog['region']['bounds']
         polygon = (f"POLYGON(({bounds[0]} {bounds[1]}, {bounds[2]} {bounds[1]}, {bounds[2]} {bounds[3]}, "
                    f"{bounds[0]} {bounds[3]}, {bounds[0]} {bounds[1]}))")
+        # The established coverage rule (src/gis/habitat-metrics.js coverageExpressions): a requested buffer is
+        # covered when the published extent contains it, and the corridor itself is inside the extent when it
+        # intersects. The buffer is the chunk's materialised one, so the rule is stated once per distance.
         rows = self.con.execute(f"""
-          WITH d(distance_m) AS (VALUES (250), (500), (1000)),
-          extent AS (SELECT ST_Transform(ST_GeomFromText('{polygon}'), 'EPSG:4326', 'EPSG:5070', always_xy := true) AS w)
-          SELECT c.id AS id, d.distance_m AS distance_m,
-                 ST_Contains((SELECT w FROM extent), ST_Buffer(c.geom, d.distance_m)) AS covered,
+          WITH extent AS (SELECT ST_Transform(ST_GeomFromText('{polygon}'), 'EPSG:4326', 'EPSG:5070', always_xy := true) AS w)
+          SELECT b.id AS id, b.distance_m AS distance_m,
+                 ST_Contains((SELECT w FROM extent), b.geom) AS covered,
                  ST_Intersects((SELECT w FROM extent), c.geom) AS corridor_inside
-          FROM corridor c, d ORDER BY c.id, d.distance_m""").fetchall()
+          FROM buffer b JOIN corridor c ON c.id = b.id ORDER BY b.id, b.distance_m""").fetchall()
         output = {}
         for identifier, distance, covered, corridor_inside in rows:
             entry = output.setdefault(identifier, {})
@@ -381,7 +464,7 @@ class Builder:
                 'hydro_nearest_standing_m': water['nearestStandingM'],
                 'hydro_flowline_length_1000_m': round(hydro_buffers[1000]['flowlineLengthM'], 3),
                 'hydro_waterbody_area_1000_m2': round(hydro_buffers[1000]['waterbodyAreaM2'], 3),
-                'hydro_summary': ' | '.join(water['names'][:5]) or None,
+                'hydro_summary': ' | '.join(water['names'][:40]) or None,
                 'coverage': distance_states['overall'],
                 'coverage_wetlands_250': distance_states['states'][250]['wetlands'], 'coverage_wetlands_500': distance_states['states'][500]['wetlands'],
                 'coverage_wetlands_1000': distance_states['states'][1000]['wetlands'],
@@ -431,31 +514,32 @@ class Builder:
     # ------------------------------------------------------------------ write
     def write_derived(self, rows, corridors, out_dir, report):
         out_dir.mkdir(parents=True, exist_ok=True)
-        bounds = self.build_bounds or self.catalog['region']['bounds']
-        cells = list(cells_for(bounds))
-        membership = {cell_id: [] for cell_id, _bounds in cells}
+        region_bounds = self.build_bounds or self.catalog['region']['bounds']
+        cells = list(cells_for(region_bounds))
+        membership = {cell_id: [] for cell_id, _cell_bounds in cells}
         for row in rows:
+            row_bounds = row['bounds']
             geometry = wkb.loads(row['geometry'])
-            for cell_id, bounds in cells:
-                window = box(*bounds)
-                if geometry.intersects(window):
+            for cell_id, cell_bounds in cells:
+                # A cheap bounds prefilter first: a whole corridor row is replicated into every cell its
+                # geometry intersects, so most cell/row pairs are rejected before any geometry work.
+                if row_bounds[0] > cell_bounds[2] or row_bounds[2] < cell_bounds[0] \
+                        or row_bounds[1] > cell_bounds[3] or row_bounds[3] < cell_bounds[1]:
+                    continue
+                if geometry.intersects(box(*cell_bounds)):
                     membership[cell_id].append(row)
         stamp = time.time()
+        base = f"{PUBLISHED_PREFIX}/{self.fingerprint}"
         entries = []
-        for cell_id, bounds in cells:
+        geometry_types = set()
+        for cell_id, cell_bounds in cells:
             members = membership[cell_id]
-            entry = {'id': cell_id, 'bounds': bounds, 'state': 'present' if members else 'empty', 'rowCount': len(members)}
+            entry = {'id': cell_id, 'bounds': cell_bounds, 'state': 'present' if members else 'empty', 'rowCount': len(members)}
             if members:
                 path = out_dir / 'cells' / f'{cell_id}.parquet'
-                path.parent.mkdir(parents=True, exist_ok=True)
-                columns = {key: [member[key] for member in members] for key in members[0]}
-                table = pa.table(columns)
-                path.unlink(missing_ok=True)
-                pq.write_table(table, path, compression='zstd')
-                reread = pq.read_table(path)
-                if reread.num_rows != len(members):
-                    raise ValueError(f'{cell_id}: GeoParquet round-trip failed')
-                entry.update({'url': f"derived/corridor-metrics/{self.fingerprint}/cells/{cell_id}.parquet",
+                written = write_cell_geoparquet(members, path)
+                geometry_types.update(written['geometryTypes'])
+                entry.update({'url': f"{base}/cells/{cell_id}.parquet",
                               'bytes': path.stat().st_size, 'sha256': sha256_of(path)})
             entries.append(entry)
         report['writeMs'] = round((time.time() - stamp) * 1000)
@@ -465,9 +549,12 @@ class Builder:
           'analysisFingerprint': self.fingerprint, 'derivedSchemaVersion': self.profile['derivedSchemaVersion'],
           'profileVersion': self.profile['profileVersion'],
           'region': {'id': self.catalog['region']['id'], 'version': self.catalog['version'],
-            'bounds': list(bounds), 'publishedBounds': list(self.catalog['region']['bounds']),
+            'bounds': list(region_bounds), 'publishedBounds': list(self.catalog['region']['bounds']),
             'bounded': bool(self.build_bounds)},
           'grid': self.catalog['grid'], 'assetBaseUrl': self.catalog['assetBaseUrl'],
+          'geometry': {'encoding': 'WKB', 'crs': 'EPSG:4326', 'geometryTypes': sorted(geometry_types),
+            'primaryColumn': 'geometry', 'partition': 'whole corridor rows replicated; geometry never clipped',
+            'repair': 'canonical geometry first, else the shared point-preserving repair ladder'},
           'schema': list(rows[0].keys()) if rows else [],
           'semantics': {**self.expressions['definition'], 'coverage': 'per distance against the published source-window extent',
             'replication': 'whole derived row replicated into every 0.2 degree cell its geometry intersects'},
@@ -486,23 +573,35 @@ class Builder:
         report['manifestBytes'] = manifest_path.stat().st_size
         return manifest_path, manifest
 
-    def repair_corridors(self, corridors, failing):
-        """Run the shared repair ladder for the corridors the engine refuses, and probe its candidates with the
-        same buffering the runtime probes with. A corridor with no usable candidate keeps its canonical geometry
-        and is reported as unbufferable, exactly as the batch reports it."""
-        by_id = {corridor['id']: corridor for corridor in corridors}
+    def prepare_analysis_geometry(self, corridors, failing):
+        """Decide the analysis geometry for every corridor with the shared repair ladder.
+
+        Two rules, both taken from what the runtime actually does:
+
+        * `remove-duplicate-segments` (the ladder's first rung) applies whenever the canonical geometry really
+          contains duplicate segments. A TIGER part that repeats a segment makes the corridor measure its own
+          length twice, so the line the metrics describe must not depend on which engine happens to buffer the
+          doubled form; the runtime boundary removes a doubled traversal before probing for every reader
+          (src/gis/analytical-geometry.js), and this build does the same. Measured on the equivalence sample the
+          doubled length was up to 43% too long, which moves every corridor-length-based metric (ecology
+          percentages) and every corridor-line intersection (hydrography crossings).
+        * the shared engine probe decides the rest, and it is asked from the de-duplicated line onwards: a
+          corridor the engine refuses pays for the ladder, a corridor it accepts is used as it is.
+        """
         request_path = WORK / 'repair-request.json'
         output_path = WORK / 'repair-candidates.json'
-        request_path.write_text(json.dumps([{'id': identifier, 'geometry': by_id[identifier]['geometry']} for identifier in failing]))
+        request_path.write_text(json.dumps([{'id': corridor['id'], 'geometry': corridor['geometry']} for corridor in corridors]))
         summary = json.loads(run_node([str(ROOT / 'scripts/compose-derived-corridors.mjs'), 'repair-candidates',
                                        str(request_path), str(output_path)]))
-        candidates = json.loads(output_path.read_text())
-        repaired, unusable = 0, []
-        for entry in candidates:
+        refused = set(failing)
+        gated, duplicates, unusable = 0, 0, []
+        for entry in json.loads(output_path.read_text()):
+            candidates = [candidate for candidate in entry['candidates'] if candidate['accepted']]
+            doubled = next((candidate for candidate in candidates if candidate['repairs'].get('removedSegmentCount')), None)
+            if doubled is None and entry['id'] not in refused:
+                continue
             chosen = None
-            for candidate in entry['candidates']:
-                if not candidate['accepted']:
-                    continue
+            for candidate in candidates:
                 try:
                     self.probe_geometry([entry['id']], [candidate['wkt']])
                     chosen = candidate
@@ -512,10 +611,12 @@ class Builder:
             if chosen is None:
                 unusable.append(entry['id'])
                 continue
+            gated += 1
+            if chosen['repairs'].get('removedSegmentCount'):
+                duplicates += 1
             self.analytical[entry['id']] = {'wkt': chosen['wkt'], 'method': chosen['method'], 'repaired': True,
               'metrics': chosen['metrics'], 'repairs': chosen['repairs']}
-            repaired += 1
-        return {'ladder': summary, 'repaired': repaired, 'unusable': unusable}
+        return {'ladder': summary, 'gatedCorridors': gated, 'duplicateRepairs': duplicates, 'unusable': unusable}
 
 
 def main():
@@ -523,6 +624,8 @@ def main():
     parser.add_argument('--region', default='or-sw-wa-portland-v2')
     parser.add_argument('--refresh', action='store_true', help='re-export source features and recompose corridors')
     parser.add_argument('--bbox', default=None, help='build only the corridors intersecting this box (min_lon,min_lat,max_lon,max_lat)')
+    parser.add_argument('--no-publish-catalog', action='store_true',
+                        help='write the plane without declaring it in data/regional/manifest.json (used for probes)')
     args = parser.parse_args()
     started = time.time()
     report = {'phasesMs': {}}
@@ -532,7 +635,9 @@ def main():
     profile = json.loads((ROOT / 'data/regional/analysis-profile.json').read_text())
     builder = Builder(catalog, profile, args.region)
     builder.analytical = {}
-    out_dir = ROOT / 'data/regional/derived' / profile['fingerprint']
+    # The local path is the published path: the runtime resolves a catalog url against data/, so the artifacts
+    # a local browser reads are byte-for-byte the objects the R2 data plane serves under the same key.
+    out_dir = ROOT / 'data' / PUBLISHED_PREFIX / profile['fingerprint']
     log(f'derived build: {args.region} fingerprint {profile["fingerprint"]}')
 
     roads = builder.datasets['roads']
@@ -565,16 +670,15 @@ def main():
         log(f"bounded to {builder.build_bounds}: {len(corridors)} corridors")
 
     stamp = time.time()
-    # Analytical geometry: probe the canonical corridors the way the runtime does, run the shared repair ladder
-    # for the ones the engine refuses, and keep the accepted repair (or report the corridor as unbufferable).
+    # Analysis geometry: probe the canonical corridors the way the runtime does, then let the shared ladder
+    # decide (duplicate segments always; the other rungs when the engine refuses the line without them).
     for corridor in corridors:
         builder.analytical[corridor['id']] = {'wkt': wkt_of(corridor['geometry']), 'method': 'none', 'repaired': False}
     failing = builder.failing([(corridor['id'], builder.analytical[corridor['id']]['wkt']) for corridor in corridors])
     report['probe'] = {'corridors': len(corridors), 'refused': len(failing)}
-    log(f'canonical probe: {len(failing)} of {len(corridors)} corridors need the repair ladder')
-    if failing:
-        report['repair'] = builder.repair_corridors(corridors, failing)
-        log('repair: ' + json.dumps(report['repair']))
+    log(f'canonical probe: {len(failing)} of {len(corridors)} corridors are refused by the native engine')
+    report['repair'] = builder.prepare_analysis_geometry(corridors, failing)
+    log('analysis geometry: ' + json.dumps({key: value for key, value in report['repair'].items() if key != 'ladder'}))
     builder.load_corridors(corridors, builder.analytical)
     report['phasesMs']['analytical'] = round((time.time() - stamp) * 1000)
 
@@ -586,7 +690,9 @@ def main():
     # narrows the relations they read to the chunk's padded box, so the work stays proportional to the search
     # each corridor really implies instead of a whole-window cross join.
     ordered = sorted(corridors, key=lambda item: (math.floor(item['bounds'][0] / STEP), math.floor(item['bounds'][1] / STEP), item['id']))
-    chunk_size = 400
+    # Chunking is an internal batching detail: the pad proof makes a corridor's metrics identical in any chunk.
+    # Keep each chunk's materialised buffers and spatial joins within the 2 GB DuckDB ceiling.
+    chunk_size = 100
     rows = []
     chunks = 0
     for start in range(0, len(ordered), chunk_size):
@@ -596,8 +702,10 @@ def main():
         builder.set_chunk([item['id'] for item in chunk], chunk_bounds)
         rows.extend(builder.derived_rows(chunk))
         chunks += 1
-        if chunks % 10 == 0:
-            log(f'  measured {len(rows)} of {len(corridors)} corridors in {chunks} chunks')
+        # Log every chunk: a whole-region build is the long pole, and a build that cannot be watched cannot be
+        # diagnosed when the machine is under pressure.
+        log(f'  measured {len(rows)} of {len(corridors)} corridors in {chunks} chunk(s), '
+            f'{time.time() - stamp:.0f} s elapsed')
     report['chunks'] = chunks
     report['phasesMs']['metrics'] = round((time.time() - stamp) * 1000)
     log(f'{len(rows)} derived rows')
@@ -607,15 +715,19 @@ def main():
     report['phasesMs']['total'] = round((time.time() - started) * 1000)
 
     published = json.loads((ROOT / 'data/regional/manifest.json').read_text())
-    published['derived'] = {'manifestUrl': f'derived/corridor-metrics/{profile["fingerprint"]}/manifest.json',
-      'localPath': str(manifest_path.relative_to(ROOT / 'data')),
-      'analysisFingerprint': profile['fingerprint'], 'derivedSchemaVersion': profile['derivedSchemaVersion'],
-      'bounds': list(manifest['region']['bounds']), 'bounded': manifest['region']['bounded'],
-      'corridors': manifest['counts']['corridors'], 'bytes': manifest['counts']['bytes'],
-      'cells': manifest['counts']['cells'], 'presentCells': manifest['counts']['presentCells'],
-      'emptyCells': manifest['counts']['emptyCells'], 'manifestSha256': sha256_of(manifest_path)}
-    (ROOT / 'data/regional/manifest.json').write_text(json.dumps(published, indent=1) + '\n')
-    (ROOT / 'data/regional/build-derived-' + args.region + '.json').write_text(json.dumps(report, indent=1) + '\n')
+    if not args.no_publish_catalog:
+        published['derived'] = {'manifestUrl': f'{PUBLISHED_PREFIX}/{profile["fingerprint"]}/manifest.json',
+          'localPath': str(manifest_path.relative_to(ROOT / 'data')),
+          'analysisFingerprint': profile['fingerprint'], 'derivedSchemaVersion': profile['derivedSchemaVersion'],
+          'bounds': list(manifest['region']['bounds']), 'bounded': manifest['region']['bounded'],
+          'corridors': manifest['counts']['corridors'], 'bytes': manifest['counts']['bytes'],
+          'cells': manifest['counts']['cells'], 'presentCells': manifest['counts']['presentCells'],
+          'emptyCells': manifest['counts']['emptyCells'], 'storedRows': manifest['counts']['storedRows'],
+          'averageRowBytes': manifest['counts']['averageRowBytes'], 'manifestSha256': sha256_of(manifest_path)}
+        (ROOT / 'data/regional/manifest.json').write_text(json.dumps(published, indent=2) + '\n')
+        log('declared the derived plane in data/regional/manifest.json')
+    report_path = ROOT / 'data/regional' / f'build-derived-{args.region}.json'
+    report_path.write_text(json.dumps(report, indent=2) + '\n')
     log('derived build report: ' + json.dumps(report))
     log(f"manifest: {manifest_path} ({manifest_path.stat().st_size:,} bytes)")
 

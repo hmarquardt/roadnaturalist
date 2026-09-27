@@ -19,10 +19,8 @@ import { BROWSER_MIRRORS, createOsmSource, createRecordedOsmSource } from '../in
 import { PILOT_PROBES_BY_CORRIDOR } from '../investigator/sources.js';
 import { buildCorridorBundle } from '../investigator/bundle.js';
 import { runDiscovery } from '../discovery/run.js';
-import { buildDiscoveryUnits } from '../discovery/units.js';
-import { segmentUnit } from '../discovery/segment.js';
+import { verifyDerivedPromotion } from '../discovery/promotion.js';
 import { eligibleClasses } from '../discovery/eligibility.js';
-import { minDistanceToLineM } from '../domain/geometry.js';
 import { ANALYSIS_DISTANCES_M } from '../gis/habitat-result.js';
 import { renderDiscovery, eligibilityNote } from '../ui/discovery.js';
 import { readDiscoveryMarks, writeDiscoveryMarks } from '../discovery/persistence.js';
@@ -107,8 +105,6 @@ async function discoverRoads() {
 // A precomputed corridor is an index, not evidence. Promotion rebuilds it from the raw regional partitions and
 // checks the id and the geometry before the corridor is allowed to become a candidate; a corridor that cannot be
 // reconstructed is refused instead of being analysed from precomputed geometry.
-const PROMOTION_MAX_DRIFT_M = 1;
-
 async function reconstructDerivedCorridor(result) {
   const state = store.getState();
   const catalogUrl = state.discovery.searchArea?.catalogUrl ?? null;
@@ -119,30 +115,8 @@ async function reconstructDerivedCorridor(result) {
   if (road.coverage !== COVERAGE.FULL && road.coverage !== COVERAGE.PARTIAL) {
     throw new Error('the raw regional road network could not be read back');
   }
-  for (const unit of buildDiscoveryUnits(road.features ?? []).units) {
-    for (const corridor of segmentUnit(unit).corridors) {
-      if (corridor.id !== result.id) continue;
-      const drift = maxDriftM(entry.corridor.geometry, corridor.geometry);
-      if (drift > PROMOTION_MAX_DRIFT_M) {
-        throw new Error(`the raw corridor differs from the precomputed row by about ${Math.round(drift)} m`);
-      }
-      return { unit, corridor, features: road.features ?? [] };
-    }
-  }
-  throw new Error('the raw regional road network does not compose this corridor id');
-}
-
-function maxDriftM(from, to) {
-  let worst = 0;
-  for (const line of linesOf(from)) {
-    for (const point of line) worst = Math.max(worst, minDistanceToLineM(point, to));
-  }
-  return worst;
-}
-
-function linesOf(geometry) {
-  if (geometry.type === 'LineString') return [geometry.coordinates];
-  return geometry.type === 'MultiLineString' ? geometry.coordinates : [];
+  const verified = verifyDerivedPromotion({ derived: entry.corridor, features: road.features });
+  return { unit: verified.unit, corridor: verified.corridor, features: verified.features };
 }
 
 async function promoteDiscoveryCorridor(id) {

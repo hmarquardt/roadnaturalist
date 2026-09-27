@@ -50,10 +50,53 @@ if (!existsSync(fixturePath)) {
   }
   sections.worstDriftM = worstDrift;
   if (worstDrift > 1) problems.push(`geometry drift of ${worstDrift} m between the derived row and the raw reconstruction`);
+  // The chain is derived == raw batch == detailed. A detailed comparison exists for the sampled corridors, and
+  // only distances where both sides report FULL coverage were compared - the capture records the rest as
+  // coverage, not as a difference.
+  const detailed = fixture.detailed ?? [];
+  const comparable = detailed.reduce((total, entry) => total + (entry.comparable ?? []).length, 0);
+  if (!detailed.length) problems.push('the capture compared no corridor against the detailed analysis');
+  if (!comparable) problems.push('no derived buffer distance was comparable with the detailed analysis');
+  for (const entry of detailed) {
+    const derivedRepaired = entry.geometryForAnalysis?.derived?.repaired;
+    const detailedRepaired = entry.geometryForAnalysis?.detailed?.repaired;
+    // Same rule as the batch comparison: a derived repair must also be a detailed repair, the reverse is a
+    // recorded native-versus-WASM engine difference, and two repairs must choose the same rung.
+    if (derivedRepaired === true && detailedRepaired !== true) {
+      problems.push(`${entry.id}: repair provenance differs (derived ${derivedRepaired} vs detailed ${detailedRepaired})`);
+    }
+    const derivedMethod = entry.geometryForAnalysis?.derived?.method;
+    const detailedMethod = entry.geometryForAnalysis?.detailed?.method;
+    if (derivedRepaired === true && detailedRepaired === true && derivedMethod !== detailedMethod) {
+      problems.push(`${entry.id}: repair method differs (derived ${derivedMethod} vs detailed ${detailedMethod})`);
+    }
+  }
+  sections.repairProvenance = { corridors: detailed.length, engineDifferences: (fixture.repairEngineDifferences ?? []).length };
+  sections.detailed = { corridors: detailed.length, comparableDistances: comparable };
+  sections.presence = fixture.presence ?? null;
+  if (fixture.presence) {
+    // The derived path is narrower by design: it keeps a corridor only when the corridor itself lies in the
+    // search region. That is only acceptable if every corridor it adds really does lie there.
+    if (fixture.presence.derivedOnlyOutsideSearchBox) {
+      problems.push(`${fixture.presence.derivedOnlyOutsideSearchBox} derived-only corridor(s) lie outside the search box`);
+    }
+    if (!fixture.presence.rawOnly) {
+      problems.push('the capture found no raw-only corridor: the two selection rules are expected to differ');
+    }
+  }
+  // A comparison of two nulls passes without ever looking at a number, so the capture's own evidence that it
+  // compared real measurements is asserted here.
+  const measuredWetland = (fixture.comparisons ?? []).filter(item =>
+    item.derived?.wetlands?.areas?.[1000] != null && item.raw?.wetlands?.areas?.[1000] != null).length;
+  const measuredHydro = (fixture.comparisons ?? []).filter(item =>
+    item.derived?.hydrography?.flowlineLength1000M != null && item.raw?.hydrography?.flowlineLength1000M != null).length;
+  if (!measuredWetland) problems.push('the capture compared no wetland area value');
+  if (!measuredHydro) problems.push('the capture compared no hydrography length value');
+  sections.measured = { wetlandArea1000: measuredWetland, hydroFlowlineLength1000: measuredHydro };
   sections.shapes = {
     segmented: (fixture.comparisons ?? []).filter(item => (item.derived?.segment?.[1] ?? 1) > 1).length,
-    wetlandHeavy: (fixture.comparisons ?? []).filter(item => (item.derived?.wetlands?.buffers?.[1000]?.areaM2 ?? 0) > 10000).length,
-    hydroHeavy: (fixture.comparisons ?? []).filter(item => (item.derived?.hydrography?.buffers?.[1000]?.lengthM ?? 0) > 500).length,
+    wetlandHeavy: (fixture.comparisons ?? []).filter(item => (item.derived?.wetlands?.areas?.[1000] ?? 0) > 10000).length,
+    hydroHeavy: (fixture.comparisons ?? []).filter(item => (item.derived?.hydrography?.flowlineLength1000M ?? 0) > 500).length,
     partial: (fixture.comparisons ?? []).filter(item => item.derived?.coverage?.wetlands === 'PARTIAL' || item.derived?.coverage?.hydrography === 'PARTIAL').length,
     repaired: (fixture.comparisons ?? []).filter(item => item.derived?.geometryRepaired).length,
   };
@@ -91,7 +134,15 @@ else {
   if (sections.manifest) console.log(`  manifest     ${sections.manifest.corridors} corridors / ${sections.manifest.storedRows} rows / ${sections.manifest.bytes} bytes / ${sections.manifest.cells} cells (${sections.manifest.present} present, ${sections.manifest.empty} empty)`);
   if (sections.corridors) console.log(`  compared     ${sections.corridors.shared} corridors (derived ${sections.corridors.derived}, raw ${sections.corridors.raw})`);
   if (sections.worstDriftM != null) console.log(`  worst drift  ${sections.worstDriftM} m`);
+  if (sections.detailed) console.log(`  detailed     ${sections.detailed.corridors} corridor(s) compared with the detailed analysis, `
+    + `${sections.detailed.comparableDistances} comparable distance measurement(s)`);
+  if (sections.repairProvenance) console.log(`  repair       ${sections.repairProvenance.corridors} corridor(s) checked, `
+    + `${sections.repairProvenance.engineDifferences} native-versus-WASM engine difference(s) recorded`);
   if (sections.derivedMs && sections.rawMs) console.log(`  transfer     derived ${sections.derivedMs} ms vs raw ${sections.rawMs} ms`);
+  if (sections.measured) console.log(`  measured     ${sections.measured.wetlandArea1000} wetland-area and `
+    + `${sections.measured.hydroFlowlineLength1000} hydrography-length value(s) compared`);
+  if (sections.presence) console.log(`  selection    ${sections.presence.derivedOnly} derived-only corridor(s) `
+    + `(all inside the search box), ${sections.presence.rawOnly} raw-only corridor(s) of selected units`);
   for (const problem of problems) console.log(`  PROBLEM  ${problem}`);
   console.log(problems.length ? `FAILED (${problems.length} problem${problems.length === 1 ? '' : 's'})` : 'VALID');
 }

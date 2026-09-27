@@ -100,6 +100,11 @@ export function derivedMetrics(row) {
       names: row.hydro_summary ? String(row.hydro_summary).split(' | ') : [], types: [] },
     ecology: { coverage: ecologyCoverage, spansMultiple: Boolean(level3.spansMultiple || level4.spansMultiple),
       level3, level4, provenance: null },
+    // Repair provenance is part of what the row stores, so the result's own "was this geometry altered for
+    // analysis?" answer comes from the row rather than from a default that would always say no.
+    geometryForAnalysis: Object.freeze({ repaired: Boolean(row.geometry_repaired),
+      method: row.geometry_repair_method ?? 'none',
+      note: 'Precomputed from verified regional GIS; the raw corridor is reconstructed and verified on promotion.' }),
   };
 }
 

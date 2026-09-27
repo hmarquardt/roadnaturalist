@@ -92,6 +92,24 @@ function coverageBanner(coverage, diagnostics) {
         + `${shape.center[1].toFixed(3)}, ${shape.center[0].toFixed(3)} · cells are selected by the bounding box, `
         + 'corridors are kept only where the road crosses the disk.'));
     }
+    if (diagnostics.derived) {
+      // Discovery metrics and detailed GIS are two different claims, and the interface says which one is on
+      // screen: the list is the precomputed deterministic metrics, the panel below it measures raw regional GIS.
+      const derivedSelection = diagnostics.derivedSelection;
+      const derivedTiming = diagnostics.derivedTimingMs ?? {};
+      block.append(el('span', 'eyebrow', 'Discovery metrics'));
+      block.append(el('p', 'small', 'Precomputed deterministic GIS metrics, verified on load. '
+        + 'Detailed GIS is measured from the raw regional data when a corridor is opened.'));
+      if (derivedSelection) {
+        block.append(el('p', 'small muted', `${diagnostics.counts.corridors ?? 0} corridor(s) in this search area · `
+          + `${derivedSelection.cells.present} metric cell(s) selected (${derivedSelection.cells.empty} declared empty) · `
+          + `${(derivedSelection.bytes / 1048576).toFixed(1)} MiB verified.`));
+      }
+      if (derivedTiming.totalPreparationMs != null) {
+        block.append(el('p', 'small muted', `Metric preparation ${derivedTiming.totalPreparationMs} ms · downloaded `
+          + `${(derivedTiming.downloadedBytes / 1048576).toFixed(1)} MiB · ${derivedTiming.cacheHits} verified cell cache hit(s).`));
+      }
+    }
     if (selection) {
       block.append(el('p', 'small muted', `Search data: ${selection.counts.roads} road, ${selection.counts.wetlands} wetland, `
         + `${selection.counts.hydrography} hydrography partitions · ${(selection.bytes / 1048576).toFixed(1)} MiB verified · 1 km habitat halo.`));
@@ -108,9 +126,11 @@ function coverageBanner(coverage, diagnostics) {
       block.append(el('p', 'small muted', `Data preparation ${timing.totalPreparationMs} ms · downloaded ${(timing.downloadedBytes / 1048576).toFixed(1)} MiB · `
         + `${timing.cacheHits} verified partition cache hit(s).`));
     }
-    block.append(el('p', 'small muted', `Measured in ${diagnostics.totalMs} ms: ${diagnostics.counts.features} road features read, `
-      + `${diagnostics.counts.eligibleUnits} named road units composed, ${diagnostics.counts.corridors} corridors analysed in one GIS batch `
-      + `(${diagnostics.analysisMs} ms), ${diagnostics.roadQueryMs} ms for the road-network query.`));
+    if (!diagnostics.derived) {
+      block.append(el('p', 'small muted', `Measured in ${diagnostics.totalMs} ms: ${diagnostics.counts.features} road features read, `
+        + `${diagnostics.counts.eligibleUnits} named road units composed, ${diagnostics.counts.corridors} corridors analysed in one GIS batch `
+        + `(${diagnostics.analysisMs} ms), ${diagnostics.roadQueryMs} ms for the road-network query.`));
+    }
     const phases = diagnostics.batch?.phaseMs ?? {};
     const breakdown = Object.entries(phases).map(([key, value]) => `${key} ${value} ms`).join(' · ');
     if (breakdown) block.append(el('p', 'small muted', `Batch phases: ${breakdown}.`));

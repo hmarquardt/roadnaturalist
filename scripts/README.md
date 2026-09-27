@@ -4,7 +4,10 @@ corridors with the browser's own modules (`compose-derived-corridors.mjs` -> `sr
 GeoParquet on the 0.2-degree grid, and described by a manifest that carries the analysis fingerprint. Use it
 when the published road network or the analysis semantics change; `--bbox` bounds a build to a sub-box of the
 window (rows stay whole-window corridors, and the manifest declares the box it covers), and `--refresh`
-re-exports the source features. `scripts/verify-derived-equivalence.mjs` is the offline check of the result.
+re-exports the source features. `--no-publish-catalog` writes the plane without declaring it in the regional
+catalog, which is what a build probe uses. `scripts/verify-derived.py` is the offline structural and geometric
+review of the result (grid coverage, digests, CRS, corridor identity, exact replication, coverage vocabulary);
+`scripts/verify-derived-equivalence.mjs` is the offline check against a captured raw comparison.
 
 # Offline preparation
 

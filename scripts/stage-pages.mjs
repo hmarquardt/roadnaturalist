@@ -50,8 +50,10 @@ function stage() {
     mkdirSync(dirname(target), { recursive: true });
     cpSync(source, target, { recursive: statSync(source).isDirectory() });
   }
-  // Regional GeoParquet belongs to R2. Keep its small catalog on Pages, validate every local
-  // source artifact, and remove the bulky files from the staged site before inventorying it.
+  // Regional GeoParquet belongs to R2. Keep its small catalog on Pages, validate every local source
+  // artifact, and remove the bulky files from the staged site before inventorying it. The derived
+  // corridor-metrics plane is published the same way: its manifest is small and stays with the catalog, its
+  // cell objects are validated locally and served from the R2 data origin.
   const regionalPath = join(DIST, 'data/regional/manifest.json');
   const regionalProblems = [];
   if (existsSync(regionalPath)) {
@@ -64,7 +66,25 @@ function stage() {
       const bytes = readFileSync(file);
       if (bytes.length !== part.bytes || sha256(bytes) !== part.sha256) regionalProblems.push(`regional artifact digest mismatch: ${part.url}`);
     }
+    if (regional.derived) {
+      const derivedManifest = join(ROOT, 'data', regional.derived.localPath);
+      if (!existsSync(derivedManifest)) regionalProblems.push(`derived manifest missing: ${regional.derived.localPath}`);
+      else {
+        const manifest = readJson(derivedManifest);
+        if (manifest.analysisFingerprint !== regional.derived.analysisFingerprint) {
+          regionalProblems.push('the derived manifest and the regional catalog disagree about the analysis fingerprint');
+        }
+        for (const cell of manifest.cells ?? []) {
+          if (cell.state === 'empty') continue;
+          const file = join(ROOT, 'data', cell.url);
+          if (!existsSync(file)) { regionalProblems.push(`derived cell missing: ${cell.url}`); continue; }
+          const bytes = readFileSync(file);
+          if (bytes.length !== cell.bytes || sha256(bytes) !== cell.sha256) regionalProblems.push(`derived cell digest mismatch: ${cell.url}`);
+        }
+      }
+    }
     rmSync(join(DIST, 'data/regional/partitions'), { recursive: true, force: true });
+    rmSync(join(DIST, 'data/derived'), { recursive: true, force: true });
   }
 
   // A tiny 404 page: Pages serves it for unknown paths instead of a blank response.

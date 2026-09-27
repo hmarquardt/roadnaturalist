@@ -24,6 +24,7 @@ const METRIC_SEMANTICS = Object.freeze({
   hydrographyLength: 'clipped-length-sum-v1',
   habitatCounts: 'distinct-contributing-features-v1',
   coverage: 'extent-per-distance-v1',
+  hydroNames: 'sorted-distinct-first-40-v1',
 });
 
 // The digest of a published dataset's partitions: sorted cell ids with their content digests, hashed. It
@@ -79,6 +80,9 @@ export async function analysisProfile({ regionalCatalog = null, manifest = null,
     segmentation: { idPrefix: DISCOVERY_ID_PREFIX, minCorridorM: MIN_CORRIDOR_M,
       targetCorridorM: TARGET_CORRIDOR_M, maxCorridorM: MAX_CORRIDOR_M },
     analyticalGeometry: { methods: Object.values(ANALYSIS_GEOMETRY_METHOD),
+      // A doubled source traversal is removed before the engine probe (see src/gis/analytical-geometry.js):
+      // which line the metrics describe is part of the analysis rules, not of the engine, so it belongs here.
+      duplicateSegmentsBeforeProbe: true,
       tolerance: { maxDisplacementM: ANALYSIS_GEOMETRY_TOLERANCE.maxDisplacementM,
         maxBoundsDeltaDeg: ANALYSIS_GEOMETRY_TOLERANCE.maxBoundsDeltaDeg,
         minLengthRatio: ANALYSIS_GEOMETRY_TOLERANCE.minLengthRatio } },
