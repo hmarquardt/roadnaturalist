@@ -86,6 +86,19 @@ function stage() {
     rmSync(join(DIST, 'data/regional/partitions'), { recursive: true, force: true });
     rmSync(join(DIST, 'data/derived'), { recursive: true, force: true });
   }
+  // The place gazetteer is path-loaded like the search-area declaration, and it is checked against its own
+  // build report: a stale or hand-edited place list must fail the deployment rather than ship quietly.
+  const placesPath = join(DIST, 'data/places/or-sw-wa-portland-places.json');
+  if (existsSync(placesPath)) {
+    const placesReportPath = join(ROOT, 'data/places/build-or-sw-wa-portland-places.json');
+    if (!existsSync(placesReportPath)) regionalProblems.push('place gazetteer build report is missing');
+    else {
+      const placesBytes = readFileSync(placesPath);
+      const placesReport = readJson(placesReportPath);
+      if (placesBytes.length !== placesReport.artifact?.bytes) regionalProblems.push('place gazetteer byte count does not match its build report');
+      if (sha256(placesBytes) !== placesReport.artifact?.sha256) regionalProblems.push('place gazetteer digest does not match its build report');
+    }
+  }
 
   // A tiny 404 page: Pages serves it for unknown paths instead of a blank response.
   writeFileSync(join(DIST, '404.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Not found — Road Naturalist</title><h1>Not found</h1><p><a href="/">Road Naturalist</a></p></html>\n');
