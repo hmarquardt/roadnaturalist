@@ -5,7 +5,8 @@ import { corridorCoverage } from './coverage.js';
 // and provenance. There is no wildlife score, no likelihood, and no "best road" label — only the facts a
 // person can sort and filter, and the units they were measured in.
 
-export function buildDiscoveryResult({ unit, corridor, metrics, roadState = COVERAGE.FULL, provenance = null, analysisDistancesM = [] }) {
+export function buildDiscoveryResult({ unit, corridor, metrics, roadState = COVERAGE.FULL, provenance = null,
+  analysisDistancesM = [], fromCenter = null }) {
   const wetlands = metrics?.wetlands ?? null;
   const hydrography = metrics?.hydrography ?? null;
   const ecology = metrics?.ecology ?? null;
@@ -16,6 +17,13 @@ export function buildDiscoveryResult({ unit, corridor, metrics, roadState = COVE
   return Object.freeze({
     id: corridor.id, name: corridor.name, unitId: unit.id,
     geometry: corridor.geometry, bounds: corridor.bounds, lengthM: corridor.lengthM,
+    // Search context, measured against the centre the person chose: how far the nearest point of this road is
+    // from it and in which direction. Null for a declared box search (there is no centre) and for a geometry
+    // that could not be measured. The distance is the same value the exact-radius search decided with.
+    distanceFromCenterM: fromCenter?.distanceM ?? null,
+    nearestCenterPoint: fromCenter?.nearestPoint ?? null,
+    bearingFromCenterDeg: fromCenter?.bearingDeg ?? null,
+    cardinalFromCenter: fromCenter?.cardinal ?? null,
     road: Object.freeze({
       class: unit.roadClasses.length === 1 ? unit.roadClasses[0] : null,
       classes: Object.freeze([...unit.roadClasses]),

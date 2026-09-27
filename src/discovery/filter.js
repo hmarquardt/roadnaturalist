@@ -6,6 +6,7 @@ import { COVERAGE } from '../domain/corridor.js';
 // display default, never as a recommendation.
 export const SORT_OPTIONS = Object.freeze([
   Object.freeze({ key: 'wetlandArea250', label: 'Wetland area within 250 m', unit: 'm²', direction: 'desc' }),
+  Object.freeze({ key: 'distanceFromCenter', label: 'Distance from center', unit: 'm', direction: 'asc' }),
   Object.freeze({ key: 'name', label: 'Road name', unit: null, direction: 'asc' }),
   Object.freeze({ key: 'length', label: 'Corridor length', unit: 'm', direction: 'desc' }),
   Object.freeze({ key: 'nearestWetland', label: 'Nearest mapped wetland', unit: 'm', direction: 'asc' }),
@@ -63,6 +64,7 @@ export function sortResults(results, sortKey = DEFAULT_SORT) {
   const value = result => {
     switch (option.key) {
       case 'name': return result.name;
+      case 'distanceFromCenter': return result.distanceFromCenterM;
       case 'length': return result.lengthM;
       case 'nearestWetland': return result.signals.wetlands.nearestM;
       case 'wetlandArea1000': return result.signals.wetlands.area1000M2;

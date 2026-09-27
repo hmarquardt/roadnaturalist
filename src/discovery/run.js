@@ -1,5 +1,6 @@
 import { COVERAGE } from '../domain/corridor.js';
 import { minDistanceToLineM } from '../domain/geometry.js';
+import { corridorContextFromCenter } from './search-context.js';
 import { ANALYSIS_DISTANCES, MAX_SEARCH_FEATURES, MAX_RESULT_ROWS } from './constants.js';
 import { eligibleClasses, eligibilitySummary } from './eligibility.js';
 import { buildDiscoveryUnits } from './units.js';
@@ -84,6 +85,10 @@ export async function runDiscovery({ gis, searchArea: declared, marks = {}, elig
     metrics: regional ? regionalCorridorMetrics(analysis.corridors[entry.corridor.id], entry.corridor.bounds,
       regional.selection.publishedBounds, regional.selection.maxAnalysisDistanceM) : analysis.corridors[entry.corridor.id],
     roadState, provenance: roadQuery.provenance,
+    // The raw path keeps every corridor of a composed unit whose geometry reaches the disk (the unit rule the
+    // equivalence capture records), so a corridor's own distance from the centre is context here rather than
+    // the inclusion test. It is measured on the corridor, never on the unit or a centroid.
+    fromCenter: radiusSearch ? corridorContextFromCenter(searchArea.center, entry.corridor.geometry) : null,
     analysisDistancesM: ANALYSIS_DISTANCES })), marks);
   const buildMs = Math.round(performance.now() - buildStarted);
   const coverage = summarizeDiscoveryCoverage({ roadQuery, searchArea, results,
@@ -130,24 +135,29 @@ async function runDerivedDiscovery({ gis, searchArea, radiusSearch, started, mar
   onProgress('Filtering precomputed corridors…');
   const query = await scope.queryDerivedCorridors();
   const rows = query.rows.slice(0, limit);
-  // Bounding boxes selected the cells; the actual search disk selects the corridors.
-  const selected = rows.filter(row => {
+  // Bounding boxes selected the cells; the actual search disk selects the corridors, and the measurement that
+  // decides inclusion is the same one the result reports as its distance from the centre (one pass, no second
+  // geometry implementation).
+  const selected = [];
+  for (const row of rows) {
     const bounds = [row.min_lon, row.min_lat, row.max_lon, row.max_lat];
-    if (!intersects(bounds, searchArea.bbox)) return false;
-    if (!radiusSearch) return true;
-    return minDistanceToLineM(searchArea.center, row.geometry) <= searchArea.radiusM;
-  });
+    if (!intersects(bounds, searchArea.bbox)) continue;
+    const fromCenter = radiusSearch ? corridorContextFromCenter(searchArea.center, row.geometry) : null;
+    if (radiusSearch && !(fromCenter && fromCenter.distanceM <= searchArea.radiusM)) continue;
+    selected.push({ row, fromCenter });
+  }
   const selectionMs = Math.round(performance.now() - queryStarted);
   const buildStarted = performance.now();
-  const entries = selected.map(row => {
+  const entries = selected.map(entry => {
+    const { row } = entry;
     const bounds = [row.min_lon, row.min_lat, row.max_lon, row.max_lat];
-    return Object.freeze({ row, unit: derivedUnit(row, row.geometry, bounds),
+    return Object.freeze({ row, fromCenter: entry.fromCenter, unit: derivedUnit(row, row.geometry, bounds),
       corridor: derivedCorridor(row, row.geometry, bounds), metrics: derivedMetrics(row) });
   });
   const roadState = scope.selection.coverage;
   const results = applyMarks(entries.map(entry => Object.freeze({
     ...buildDiscoveryResult({ unit: entry.unit, corridor: entry.corridor, metrics: entry.metrics, roadState,
-      provenance: scope.provenance, analysisDistancesM: ANALYSIS_DISTANCES }),
+      provenance: scope.provenance, analysisDistancesM: ANALYSIS_DISTANCES, fromCenter: entry.fromCenter }),
     derived: true, derivedFingerprint: scope.fingerprint,
   })), marks);
   const buildMs = Math.round(performance.now() - buildStarted);

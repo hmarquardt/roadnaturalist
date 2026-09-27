@@ -1,4 +1,5 @@
 import { METRES_PER_MILE, METRES_PER_DEGREE_LAT, METRES_PER_DEGREE_LON } from './search-area.js';
+import { haversineM } from '../domain/geometry.js';
 
 // THE PLACE GAZETTEER.
 //
@@ -239,6 +240,58 @@ export function searchPlaces(gazetteer, rawQuery, { limit = MAX_PLACE_RESULTS } 
   }
   return Object.freeze({ status: 'none', query, text, state, tier: null, results: Object.freeze([]),
     message: 'No matching place found.' });
+}
+
+// ------------------------------------------------ nearest place (inferred context)
+//
+// A map-picked or typed centre usually has no name. The nearest published place is a *label* for it, and the
+// wording says so: "Near Vernonia, OR", never "Vernonia, OR", because the coordinates are the search and the
+// gazetteer point is a Census interior point, not the centre, not a downtown address, and not a statement
+// that the centre lies inside that place.
+//
+// The maximum labelling distance is measured, not guessed. Against the committed artifact (387 places, median
+// nearest-neighbour spacing 3.0 mi, p90 6.9 mi), a uniform grid of points inside the published region is at
+// most 5.2 mi (median), 9.4 mi (p75), 14.4 mi (p90) and 24.6 mi (maximum) from its nearest place. Ten miles
+// labels about 77% of in-region centres while keeping the claim modest; beyond it the interface shows
+// coordinates only rather than attaching a distant town to a search.
+export const MAX_NEAR_PLACE_MILES = 10;
+export const MAX_NEAR_PLACE_M = MAX_NEAR_PLACE_MILES * METRES_PER_MILE;
+
+export function nearPlaceLabel(place) {
+  return place ? `Near ${placeLabel(place)}` : '';
+}
+
+// The nearest published place to a centre, with its distance, or null when the artifact is unavailable.
+// A linear scan over a few hundred places: measured well under a millisecond, so no index is built.
+const TIE_TOLERANCE_M = 1;
+
+export function nearestPlace(center, gazetteer, { maxDistanceM = MAX_NEAR_PLACE_M } = {}) {
+  if (!Array.isArray(center) || center.length !== 2 || !center.every(Number.isFinite)) return null;
+  const places = gazetteer?.places;
+  if (!Array.isArray(places) || !places.length) return null;
+  let distanceM = Infinity;
+  for (const place of places) distanceM = Math.min(distanceM, haversineM(center, place.center));
+  // Two places a metre apart are the same distance at this scale; the tie is broken deterministically (name,
+  // state, id) so the same centre always produces the same label.
+  const tied = places.filter(place => haversineM(center, place.center) <= distanceM + TIE_TOLERANCE_M)
+    .sort(comparePlaces);
+  if (!tied.length) return null;
+  if (!(maxDistanceM > 0) || distanceM > maxDistanceM) return null;
+  return Object.freeze({ place: tied[0], distanceM: haversineM(center, tied[0].center), label: nearPlaceLabel(tied[0]) });
+}
+
+function comparePlaces(left, right) {
+  return left.name.localeCompare(right.name) || left.state.localeCompare(right.state) || left.id.localeCompare(right.id);
+}
+
+// The presentation form the search state keeps for an inferred label. It is regenerated from the gazetteer
+// rather than trusted: nothing here is persisted, and a stale label can never change a search.
+export function nearPlaceMetadata(near) {
+  if (!near?.place) return null;
+  const metadata = placeMetadata(near.place);
+  if (!metadata) return null;
+  return Object.freeze({ id: metadata.id, label: near.label ?? nearPlaceLabel(near.place),
+    featureClass: metadata.featureClass, distanceM: Number.isFinite(near.distanceM) ? near.distanceM : null });
 }
 
 // ------------------------------------------------ presentation metadata

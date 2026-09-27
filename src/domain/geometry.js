@@ -76,12 +76,17 @@ export function pointToLineM(point, geometry) {
   return best;
 }
 
-// Exact-enough minimum distance from a point to a line, in metres. The projection uses a local frame
-// centred on the query point and the distance is then measured with the same haversine formula the
-// domain uses everywhere, so a 50-mile radius search decides corridor inclusion to well under a metre
-// rather than through the equirectangular approximation the repair metrics can afford.
-export function minDistanceToLineM(point, geometry) {
+// Exact-enough nearest point on a line, in metres, with the point itself. The projection uses a local frame
+// centred on the query point and the distance is then measured with the same haversine formula the domain
+// uses everywhere, so a 50-mile radius search decides corridor inclusion to well under a metre rather than
+// through the equirectangular approximation the repair metrics can afford.
+//
+// This is the *one* primitive: the exact-radius search keeps a corridor when its distance is within the
+// radius, and a result reports the very same distance and point as the centre-to-corridor context. There is
+// no second geometry implementation for display.
+export function closestPointOnLineM(point, geometry) {
   let best = Infinity;
+  let nearest = null;
   const latScale = Math.cos(point[1] * Math.PI / 180);
   for (const line of linesOf(geometry)) {
     for (let index = 1; index < line.length; index++) {
@@ -91,12 +96,46 @@ export function minDistanceToLineM(point, geometry) {
       const px = (point[0] - from[0]) * 111320 * latScale, py = (point[1] - from[1]) * 110540;
       const t = lengthSquared === 0 ? 0 : Math.max(0, Math.min(1, (px * dx + py * dy) / lengthSquared));
       const closest = [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t];
-      best = Math.min(best, haversineM(point, closest));
+      const distanceM = haversineM(point, closest);
+      if (distanceM < best) { best = distanceM; nearest = closest; }
     }
-    for (const vertex of line) best = Math.min(best, haversineM(point, vertex));
+    // A vertex can be nearer than the projection of any segment (the projection is a local approximation), so
+    // the vertices take part in the same comparison.
+    for (const vertex of line) {
+      const distanceM = haversineM(point, vertex);
+      if (distanceM < best) { best = distanceM; nearest = [vertex[0], vertex[1]]; }
+    }
   }
-  return best;
+  return nearest ? Object.freeze({ distanceM: best, nearestPoint: Object.freeze(nearest) }) : null;
 }
+
+// The minimum distance alone, for callers that only decide inclusion. It is the same measurement, taken from
+// the same primitive, so a distance can never disagree with the decision made from it.
+export function minDistanceToLineM(point, geometry) {
+  return closestPointOnLineM(point, geometry)?.distanceM ?? Infinity;
+}
+
+// The initial great-circle bearing from one coordinate to another: degrees clockwise from true north, in
+// [0, 360). This is the direction from the search centre toward the nearest point of a corridor, not a
+// heading along the road and not a driving direction.
+export function initialBearingDeg(from, to) {
+  const rad = Math.PI / 180;
+  const lat1 = from[1] * rad, lat2 = to[1] * rad, deltaLon = (to[0] - from[0]) * rad;
+  const y = Math.sin(deltaLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon);
+  return ((Math.atan2(y, x) / rad) + 360) % 360;
+}
+
+// The 8-point compass, with sector edges at the half-sector (22.5 degrees), so the conversion is a rounding
+// rule rather than a tuning: N is [337.5, 22.5), NE is [22.5, 67.5), and so on.
+export const CARDINAL_DIRECTIONS = Object.freeze(['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']);
+
+export function cardinalDirection(bearingDeg) {
+  if (bearingDeg == null || !Number.isFinite(bearingDeg)) return null;
+  const normalized = ((bearingDeg % 360) + 360) % 360;
+  return CARDINAL_DIRECTIONS[Math.round(normalized / 45) % 8];
+}
+
 
 // Symmetric discrete Hausdorff distance: the largest distance from any sampled point of either
 // geometry to the other geometry. Segment midpoints are sampled as well as vertices, so dropping a
