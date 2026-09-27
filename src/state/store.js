@@ -3,6 +3,7 @@ import { DEFAULT_FILTERS, DEFAULT_SORT } from '../discovery/filter.js';
 import { DISCOVERY_STATUS, markDiscovery } from '../discovery/lifecycle.js';
 import { CUSTOM_SEARCH_AREA_ID } from '../discovery/search-definition.js';
 import { nearPlaceMetadata, storedPlaceMetadata } from '../discovery/place-gazetteer.js';
+import { IDLE_LOCATION } from '../discovery/geolocation.js';
 import { CANDIDATE_STORAGE_STATUS, readStoredCandidates, writeStoredCandidates } from './candidate-persistence.js';
 
 export function createStore({ storage } = {}) {
@@ -16,7 +17,7 @@ export function createStore({ storage } = {}) {
   // published place when nobody chose one. `place` (explicit) and `near` (inferred) are presentation: they
   // never reach the run, they are never persisted as fact, and a search works exactly the same without them.
   const initialSearch = Object.freeze({ areaId: null, definition: null, picking: false, history: Object.freeze([]),
-    place: null, near: null, error: null });
+    place: null, near: null, error: null, location: IDLE_LOCATION });
   // CANDIDATE STORAGE. `durableCandidateIds` are the candidates this device keeps on disk; `restoredCandidateIds`
   // are the ones that came back from disk at boot (so the panel can say its detailed analysis has not run in this
   // session). The storage slice reports what the last read or write did, including a refused save.
@@ -110,12 +111,20 @@ export function createStore({ storage } = {}) {
         place: storedPlaceMetadata(place), near: nearPlaceMetadata(near) });
     },
     setSearchArea(areaId) { publishSearch({ areaId, picking: false }); },
-    setSearchDefinition(definition, { picking = false, place = null, near = null } = {}) {
+    setSearchDefinition(definition, { picking = false, place = null, near = null, location = null } = {}) {
       // The place label travels with the centre it describes: a new centre means a new label or none, while a
       // radius change keeps the label because the centre did not move. The inferred label is regenerated from
       // the gazetteer for every centre, so it can never outlive the centre it describes.
+      // `location` is the one-shot report of the browser fix that produced this centre, when it did: presentation
+      // only, never part of the definition, and cleared by every selection that did not come from the device.
       publishSearch({ definition: definition ?? null, areaId: CUSTOM_SEARCH_AREA_ID, picking: Boolean(picking),
-        place: storedPlaceMetadata(place), near: nearPlaceMetadata(near) });
+        place: storedPlaceMetadata(place), near: nearPlaceMetadata(near),
+        location: location ? Object.freeze({ ...IDLE_LOCATION, ...location }) : IDLE_LOCATION });
+    },
+    // The state of a location request that has not produced a definition yet (asking, refused, unavailable,
+    // timed out, unsupported). It changes nothing about the search itself.
+    setSearchLocation(location) {
+      publishSearch({ location: Object.freeze({ ...IDLE_LOCATION, ...(location ?? {}) }) });
     },
     setSearchPicking(picking) { publishSearch({ picking: Boolean(picking) }); },
     setSearchHistory(history) { publishSearch({ history: Object.freeze([...(history ?? [])]) }); },

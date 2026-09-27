@@ -49,12 +49,14 @@ map click / tap  ─┐
 lat, lon fields  ─┼─► { center, radiusMiles } ─► radius search area ─► derived discovery
 preset / recent  ─┤        (validated)            (same catalog and
 shared URL       ─┘                               required datasets)
+"Use my location"──┘
 ```
 
 * **Centre.** `Set centre on map` turns the map into a picker: a click or tap places the centre (a drag still
   pans, and a road click is still a road click), and Enter with the map focused places it at the middle of the
   current view. The labelled **Latitude**/**Longitude** fields are the non-map alternative and take the same
-  input the URL does. A chosen centre can always be changed by choosing again.
+  input the URL does. **Use my location** asks the browser for its position, once, after a click - see
+  [Use my location](#use-my-location). A chosen centre can always be changed by choosing again.
 * **Radius.** A slider and a number field (both labelled), with 5/10/25/50-mile stops. Moving the slider
   previews the disk and starts nothing; releasing it commits a radius. There is no continuous search: changing
   the centre or the radius marks the results on screen as belonging to the previous search, and a person
@@ -82,8 +84,53 @@ FULL discovery coverage. A corridor whose 1 km buffer leaves the window reports 
 distance, and a corridor whose geometry the analysis engine cannot buffer reports UNKNOWN. Missing
 coverage is never rendered as zero habitat.
 
-## Finding a place by name
+## Use my location
 
+The centre can also be the browser's own position. It is one more way to answer *where*, and it changes nothing
+else about a search:
+
+```
+"Use my location"  ->  navigator.geolocation.getCurrentPosition  ->  lon/lat  ->  the same validated definition
+                                  (after a click, once)                              at the radius already chosen
+```
+
+* **User gesture only.** The permission prompt appears when a person presses the button, and never before: not on
+  load, not when the discovery panel opens, not when a search or a candidate is restored from this device. A shared
+  link cannot cause it, because a link carries only coordinates.
+* **One position, on request.** `getCurrentPosition` once per click - never `watchPosition`, never a timer, never
+  background tracking. Pressing the button again asks for a current-enough fix.
+* **Conservative options.** `{ enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }`. A road-search
+  centre is not turn-by-turn navigation: letting the browser answer from WiFi or cell rather than demanding a
+  satellite fix is faster and kinder to the battery, a 15-second bound means the control always comes back, and
+  accepting a fix up to a minute old avoids paying for a new one. The options never reach the search.
+* **The radius is the person's.** A location changes the centre and nothing else: 25 miles stays 25 miles, and the
+  reported accuracy never widens or narrows it.
+* **The accuracy is stated, and it is the browser's.** The panel says `Search centre set from this device's
+  location. Browser location accuracy: about 120 m.` - a sentence about the fix, never about the place label
+  beside it. It is presentation only: it does not persist, does not reach the URL, and does not appear on result
+  rows.
+* **No search runs by itself.** The centre appears, the coverage preview is computed with the chosen radius, and
+  nothing happens until **Discover roads** is pressed - exactly like a place, a map click or typed coordinates.
+* **No geocoder, and no snapping.** The centre stays exactly where the browser put it, rounded to the same five
+  decimal places every other centre uses. A nearby published place is only a *label* (`Near Hillsboro, OR`, from
+  the local gazetteer, within ten miles); with no place nearby the centre is labelled by its coordinates. No
+  reverse-geocoding request is made, and nothing about the position is sent anywhere: not to a geocoder, not to
+  the Investigator Worker, not to an occurrence source, not to a server that records where you are.
+* **Nothing special afterwards.** The definition is the ordinary one, so the URL is `?lat=…&lon=…&r=…` with no
+  marker for how it was chosen, the last search is remembered on this device like any other, and a promoted
+  candidate carries the same verified search context (`7.0 mi N of Near Forest Grove, OR`) as a typed centre.
+* **Every refusal is a sentence.** Declining the prompt (`Location permission was not granted…`), a device that
+  cannot answer (`Your device could not determine a location…`), a timeout (`…did not report a location in time…`)
+  and a browser without the API (`This browser cannot report a location…`) each say what happened and leave the
+  place finder, the map picker and the coordinate fields exactly as they were. A browser without the API simply
+  does not show the button.
+* **The latest choice wins.** A fix that arrives after someone has picked a place, clicked the map or typed
+  coordinates is discarded rather than overwriting the newer, explicit centre (`createLocationRequest`).
+* **Measured.** The application's own work after the browser answers - validation, the gazetteer lookup, the URL
+  write and the accuracy line - is about **0.05 ms** (2 000 iterations of the whole post-fix path, 93 ms total,
+  real 387-place gazetteer). The wait for a fix is the browser's, and is never reported as application time.
+
+## Finding a place by name
 The centre can also be named. Typing a place into **Find a place** resolves it to a centre and hands that
 centre to the same search definition a map click or a typed coordinate produces:
 
@@ -774,6 +821,10 @@ browser storage, derived metrics and Worker-side GIS remain unimplemented and re
   browser
 * `src/discovery/persistence.js` — the other device-local entries: discovery marks, the last search, the search
   history
+* `src/discovery/geolocation.js`, `tests/geolocation.test.js`, `tests/geolocation.spec.js` — the browser's
+  position as one more search centre: the conservative options, the canonical definition and radius it produces,
+  the accuracy line, every refusal (declined, unavailable, timed out, unsupported), the latest-choice-wins token,
+  and the browser loop from a granted fix through promotion, reload and restore with no location request
 * `assets/css/discovery.css`, `src/ui/discovery.js` — the discovery workspace
 
 See also [docs/ROADS.md](ROADS.md) for the road sources, [docs/HABITAT.md](HABITAT.md) for the habitat

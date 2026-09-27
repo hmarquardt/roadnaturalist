@@ -8,6 +8,7 @@ import { CUSTOM_SEARCH_AREA_ID, DEFAULT_RADIUS_MILES, MAX_RADIUS_MILES, MIN_RADI
   searchRefusal, searchRegionCoverage, storedDefinition } from '../discovery/search-definition.js';
 import { placeLabel, placeTypeLabel, searchPlaces, nearestPlace } from '../discovery/place-gazetteer.js';
 import { CENTER_LABEL_KIND, CONTEXT_NOTE, centerPresentation, formatContextDistance, formatContextDirection, runCenterPresentation } from '../discovery/search-context.js';
+import { LOCATION_STATUS, accuracyLabel } from '../discovery/geolocation.js';
 import { formatArea, formatDistance, formatLength } from './render.js';
 
 // The discovery workspace: choose a bounded area, run the deterministic survey, filter and sort the
@@ -23,10 +24,10 @@ const CLASS_LABELS = Object.freeze({ S1200: 'Secondary road', S1400: 'Local road
 
 export function renderDiscovery(container, { discovery, searchAreas = [], searchAreaId = null, search = null,
   presets = [], region = null, gazetteer = null, onDiscover, onSelect, onPromote, onDismiss, onFilters, onSort, onSearchArea,
-  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace } = {}) {
+  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported = false } = {}) {
   container.replaceChildren();
   container.append(controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, onDiscover,
-    onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace }));
+    onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }));
   if (discovery.error) container.append(el('p', 'discovery-error', discovery.error));
   if (search?.error) container.append(el('p', 'discovery-error', search.error));
   if (discovery.coverage) container.append(coverageBanner(discovery.coverage, discovery.diagnostics, discovery.searchArea,
@@ -63,7 +64,7 @@ function staleResults({ discovery, search, searchAreaId }) {
 }
 
 function controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, onDiscover, onSearchArea,
-  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace }) {
+  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }) {
   const block = el('div', 'discovery-controls');
   if (searchAreas.length > 1) {
     const label = el('label', 'discovery-field', 'Search area');
@@ -86,7 +87,7 @@ function controls({ discovery, searchAreas, searchAreaId, search, presets, regio
     block.append(el('p', 'discovery-area', `Search area: ${searchAreas[0].name}`));
   }
   block.append(searchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, onSearchDefinition,
-    onSearchRadius, onSearchPicking, onPreview, onSelectPlace }));
+    onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }));
   const customSearch = searchAreaId === CUSTOM_SEARCH_AREA_ID;
   const coverage = coverageOf({ search, searchAreas, searchAreaId, region });
   const runnable = customSearch ? Boolean(search?.definition) && searchIsRunnable({ ok: true, coverage }) : true;
@@ -134,7 +135,7 @@ function coverageOf({ search, searchAreas, searchAreaId, region }) {
 // The centre and the radius. Every control here produces the same plain value, and a map pick, a preset, a
 // shared URL and a remembered search are all just other ways of arriving at it.
 function searchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, onSearchDefinition, onSearchRadius,
-  onSearchPicking, onPreview, onSelectPlace }) {
+  onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }) {
   const block = el('div', 'discovery-search');
   const draft = search?.definition ?? null;
   const custom = searchAreaId === CUSTOM_SEARCH_AREA_ID;
@@ -161,6 +162,9 @@ function searchControls({ search, searchAreas, searchAreaId, presets, region, ga
     `Coverage: ${coverage?.coverage ?? COVERAGE.UNKNOWN}${coverage?.reason ? ` — ${coverage.reason}` : ''}`));
   block.append(status);
   block.append(placeFinder({ gazetteer, place, onSelectPlace }));
+  // Another way to say where: the browser's own location, after an explicit click and nothing else. It sits
+  // beside the other centre inputs rather than above them, and the radius below stays the person's.
+  block.append(locationControl({ location: search?.location ?? null, supported: locationSupported, onUseLocation }));
 
   const form = el('form', 'discovery-search-fields');
   form.id = 'discovery-search-fields';
@@ -270,6 +274,44 @@ function searchControls({ search, searchAreas, searchAreaId, presets, region, ga
 // "Find a place": a small local lookup over the committed regional gazetteer, above the coordinate fields it
 // feeds. Typing never publishes state, never runs a search, and never leaves the browser; choosing a result
 // sets the centre (the radius control is untouched) through the ordinary search definition.
+// USE MY LOCATION. One control, one position, one centre: the browser asks the person for permission, this
+// workspace uses the answer as the search centre and says what accuracy it came with. It never searches, never
+// moves the radius, never tracks, and never sends the position anywhere. Nothing here disables the other ways of
+// choosing a centre - a refusal is one line of text, not a dead panel.
+function locationControl({ location = null, supported = false, onUseLocation = null }) {
+  const block = el('div', 'discovery-location');
+  block.id = 'discovery-location';
+  const status = el('p', 'discovery-status');
+  status.id = 'discovery-location-status';
+  status.setAttribute('role', 'status');
+  status.setAttribute('aria-live', 'polite');
+  if (!supported) {
+    // A browser without the API is not an error state: the feature is simply absent and the panel says so.
+    status.textContent = 'This browser does not offer a location. Choose a place, click the map, or enter coordinates.';
+    block.append(status);
+    return block;
+  }
+  const requesting = location?.status === LOCATION_STATUS.REQUESTING;
+  const button = el('button', 'quiet-button', requesting ? 'Locating…' : 'Use my location');
+  button.type = 'button';
+  button.id = 'discovery-use-location';
+  // One request at a time: a second click while the browser is looking would only start a race with itself.
+  button.disabled = requesting;
+  button.addEventListener('click', () => onUseLocation?.());
+  const line = el('p', 'small muted discovery-location-note');
+  line.id = 'discovery-location-note';
+  if (requesting) status.textContent = 'Asking this browser for its location…';
+  else if (location?.status === LOCATION_STATUS.OK) {
+    status.textContent = `Search centre set from this device's location. ${accuracyLabel(location.accuracyM) ?? ''}`.trim();
+  } else if (location?.message) status.textContent = location.message;
+  block.append(button, status);
+  line.textContent = location?.status === LOCATION_STATUS.OK
+    ? 'The radius above is unchanged, and no search has run: press "Discover roads" when you are ready.'
+    : 'Asks the browser for one current position and uses it as the search centre. Nothing is sent anywhere, and nothing is tracked.';
+  block.append(line);
+  return block;
+}
+
 function placeFinder({ gazetteer, place, onSelectPlace }) {
   const box = el('div', 'discovery-place');
   box.id = 'discovery-place-box';

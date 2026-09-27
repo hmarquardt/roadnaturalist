@@ -29,12 +29,13 @@ import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDiscoveryResult } f
 import { defaultSearchArea, searchAreaBounds, validateSearchAreas } from '../discovery/search-area.js';
 import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiveSearchArea,
   definitionFromSearchArea, formatRadius, initialSearchSelection, placeForSearch, radiusPresets, radiusTemplate,
-  readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
+  readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRefusal, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
 import { placeMetadata, validatePlaceGazetteer } from '../discovery/place-gazetteer.js';
 import { nearestPlace } from '../discovery/place-gazetteer.js';
 import { centerPresentation, formatContextDirection, pendingSearchContext, runCenterPresentation, storedSearchContext } from '../discovery/search-context.js';
 import { filterAndSort } from '../discovery/filter.js';
 import { MAX_RESULT_ROWS } from '../discovery/constants.js';
+import { LOCATION_STATUS, createLocationProvider, createLocationRequest, locationSearchDefinition, locationStatusMessage } from '../discovery/geolocation.js';
 
 const PILOT_URL = new URL('../../data/roads/or-roads-pilot.json', import.meta.url);
 // Declared discovery search areas. The loader refuses an area that is not inside every dataset it
@@ -51,6 +52,10 @@ const ACCESS_EVIDENCE_URL = new URL('../../data/investigator/or-pilot-access-evi
 // Origins a browser cannot fetch: recorded evidence for them is replayed as OPERATOR_ONLY, never as a fresh check.
 const OPERATOR_ONLY_ORIGINS = Object.freeze(['https://www.washingtoncountyor.gov', 'https://content.govdelivery.com', 'https://multco.us', 'https://www.wc-roads.com']);
 const store = createStore();
+// The browser's location is one more way to say where the search is centred. The provider is the only place the
+// geolocation API is touched, and the request token makes the latest deliberate centre selection win.
+const locationProvider = createLocationProvider();
+const locationRequest = createLocationRequest();
 export const gis = createGisService();
 // Occurrence evidence is lazy (queried only when the user asks), and the browser never holds an
 // eBird credential: its transport stays null so the source reports UNKNOWN with a clear reason.
@@ -191,7 +196,7 @@ async function discoverRoads() {
 // The nearest published place is looked up here, for every centre, and kept beside the definition as an
 // inferred label. It never moves the centre: the coordinates stay exact, the URL stays coordinate-based, and
 // the label is presence only.
-function applySearchDefinition(definition, { picking = false, place = null } = {}) {
+function applySearchDefinition(definition, { picking = false, place = null, location = null } = {}) {
   const result = readSearchDefinition({ lat: definition?.center?.[1], lon: definition?.center?.[0],
     radiusMiles: definition?.radiusMiles }, { region: publishedRegion });
   if (!result.ok) {
@@ -200,11 +205,34 @@ function applySearchDefinition(definition, { picking = false, place = null } = {
   }
   const clean = result.definition;
   const near = nearestPlace(clean.center, places);
+  // A deliberate centre change cancels a location request still in flight: the person's newer choice wins over a
+  // fix that arrives afterwards. Changing only the radius leaves that request alone, because the centre stands.
+  const previous = activeSearch().definition;
+  if (!previous || previous.center[0] !== clean.center[0] || previous.center[1] !== clean.center[1]) locationRequest.invalidate();
   store.setSearchError(null);
-  store.setSearchDefinition(clean, { picking, place, near });
+  store.setSearchDefinition(clean, { picking, place, near, location });
   store.setSearchHistory(writeDiscoverySearchHistory(addSearchHistory(activeSearch().history, clean, { place })));
   writeSearchUrl(clean);
   return clean;
+}
+
+// USE MY LOCATION. The browser's position is another centre, so it takes the ordinary path: a validated
+// definition at the radius already on screen, the local gazetteer for a label, the existing coverage preview,
+// and no search. `locationRequest` makes the latest deliberate choice win, so a fix that arrives after someone
+// picked a place, clicked the map or typed coordinates is discarded instead of overwriting them.
+async function useMyLocation() {
+  const token = locationRequest.begin();
+  store.setSearchLocation({ status: LOCATION_STATUS.REQUESTING });
+  const fix = await locationProvider.request();
+  if (!locationRequest.isCurrent(token)) return; // a newer centre selection won while the browser was looking
+  if (!fix.ok) { store.setSearchLocation({ status: fix.status, message: fix.message ?? locationStatusMessage(fix.status) }); return; }
+  const current = activeSearch().definition;
+  const result = locationSearchDefinition(fix, { radiusMiles: current?.radiusMiles ?? undefined, region: publishedRegion });
+  if (!result.ok) {
+    store.setSearchLocation({ status: LOCATION_STATUS.REFUSED, message: searchRefusal(result), accuracyM: fix.accuracyM });
+    return;
+  }
+  applySearchDefinition(result.definition, { location: { status: LOCATION_STATUS.OK, message: null, accuracyM: fix.accuracyM } });
 }
 
 // Choosing a place sets the centre and leaves the radius exactly as it was: the place answers "where", the
@@ -739,6 +767,9 @@ function renderDiscoveryPanel(state) {
     onSort: sort => store.setDiscoverySort(sort),
     // A selected place is the same input a map click or a typed coordinate produces; only the label differs.
     onSelectPlace: selected => selectPlace(selected),
+    // The browser's current location is the same input again: one more centre, at the radius already chosen.
+    onUseLocation: () => { useMyLocation().catch(error => store.setSearchLocation({ status: LOCATION_STATUS.POSITION_UNAVAILABLE, message: error.message })); },
+    locationSupported: locationProvider.supported,
     // A declared radius scenario is a preset, not a second kind of search: choosing one fills the centre and
     // radius and nothing else about the run changes.
     onSearchArea: id => {
