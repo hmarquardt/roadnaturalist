@@ -104,7 +104,7 @@ test('deployed place search, the edge, a refusal, promotion and zero external ca
   // 3. A second real place, so this is a lookup and not one hard-coded name.
   const second = await choosePlace('Vernonia');
   expect(second).toContain('Vernonia, OR · City');
-  await expect(page.locator('#discovery-center-lat')).toHaveValue('45.864');
+  await expect(page.locator('#discovery-center-lat')).toHaveValue('45.8640');
   await setRadius(25);
   const secondBefore = derivedCells.length;
   await page.locator('#discover-roads').click();

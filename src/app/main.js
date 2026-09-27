@@ -99,6 +99,9 @@ async function loadSearchAreas() {
   const initial = initialSearchSelection({ search: globalThis.location?.search ?? '',
     stored: readDiscoverySearch(), history: readDiscoverySearchHistory(), presets: declaredRadiusPresets,
     declaredAreaId: searchAreas[0]?.id ?? null, region: publishedRegion });
+  // The place list is loaded *before* the first panel render, so the workspace appears complete instead of
+  // being rebuilt a moment later: a rebuild would replace whatever a fast reader had already typed.
+  await loadPlaces();
   // A search this device ran before carries its place label beside its coordinates, so a reload shows
   // "Hillsboro, OR · 25 mi" when it can and coordinates when it cannot.
   const remembered = placeForSearch(initial.history, initial.selection.definition);
@@ -809,7 +812,6 @@ loadManifest().then(async value => {
   renderContext(nodes.context, { manifest, pilotLoaded: state.pilotLoaded, coverage: state.candidates.find(candidate => candidate.id === state.selectedId)?.coverage, roadQuery: state.roadQuery, places });
   try {
     await loadSearchAreas();
-    await loadPlaces();
   } catch (error) {
     // A search area that the loaded datasets cannot cover is a declaration problem, not a survey.
     store.failDiscovery({ error: `Discovery search areas are unavailable: ${error.message}`, marks: readDiscoveryMarks() });
