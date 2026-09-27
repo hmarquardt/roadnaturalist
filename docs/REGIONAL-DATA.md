@@ -538,6 +538,13 @@ The 25- and 50-mile table and map draw at most 400 corridors, while the total co
 JS heap was 61 MB; 50-mile table render took 6 ms and map drawing 12 ms cold. The benchmark observed zero
 iNaturalist, eBird, Overpass, or Investigator Worker requests during all six discovery passes.
 
+The same browser harness run against production Pages and the public R2 origin (recorded in
+`data/regional/derived-production-benchmarks.json`) measured 3.47 s, 3.54 s, and
+8.76 s cold at 10, 25, and 50 miles; warm times were 0.13 s, 0.35 s, and 0.81 s. All six passes were
+COMFORTABLE and made zero external evidence requests. The deployed regional preset also promoted a FULL
+corridor: the 250 m wetland area was 618.35 ha in both the derived row and raw detailed GIS, with no raw
+partition requested before promotion.
+
 ### Runtime path
 
 ```

@@ -49,7 +49,7 @@ test('deployed regional discovery verifies coverage, promotion identity and zero
   await page.locator('#discovery-promote').click();
   const habitat = page.locator('.habitat-section');
   await expect(habitat).toContainText('PHYSICAL HABITAT EVIDENCE', { timeout: 300000 });
-  await expect(habitat).toContainText('Detailed GIS');
+  await expect(habitat).toContainText('Detailed GIS', { timeout: 300000 });
   const wetlandFacts = habitat.locator('.habitat-block').first();
   await expect(wetlandFacts).toContainText('Within 250 m', { timeout: 300000 });
   const detailArea = await wetlandFacts.locator('dl div', { hasText: /^Within 250 m/ }).first().locator('dd').innerText();

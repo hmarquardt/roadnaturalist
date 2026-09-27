@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 //
 //     RUN_DERIVED_BENCHMARK=1 npx playwright test tests/derived-benchmark.spec.js --reporter=line --retries=0
 const OUT = process.env.DERIVED_BENCHMARK_OUT ?? 'data/regional/derived-benchmarks.json';
+const BASE = process.env.PRODUCTION_BASE_URL ?? '/';
 const SCENARIOS = JSON.parse(readFileSync(new URL('../data/regional/benchmarks.json', import.meta.url))).scenarios;
 
 test.skip(!process.env.RUN_DERIVED_BENCHMARK, 'The derived benchmark is opt-in: it measures real radius searches in a browser');
@@ -26,7 +27,7 @@ test('benchmark derived regional discovery at 10, 25, and 50 miles', async ({ pa
   await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
   const measured = [];
   for (const scenario of SCENARIOS) {
-    await page.goto('/');
+    await page.goto(BASE);
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
     const entry = await page.evaluate(async scenario => {
     const classify = ms => ms <= 10000 ? 'COMFORTABLE' : ms <= 25000 ? 'USABLE' : ms <= 45000 ? 'SLOW' : 'UNSUITABLE';
