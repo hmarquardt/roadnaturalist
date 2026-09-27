@@ -111,7 +111,10 @@ The discovery workspace adds three payloads of its own: the bounded road-network
 (`data/gis/or-roads-network-2025.parquet`, a manifest dataset like the others), the declared search areas
 (`data/discovery/search-areas.json`, which also declares the published region a chosen search centre is
 classified against), and the discovery modules under `src/discovery/`. `stage:pages` refuses to stage
-a payload without the search-area declaration, and the manifest byte check covers the extract.
+a payload without the search-area declaration, and the manifest byte check covers the extract. The place
+gazetteer (`data/places/or-sw-wa-portland-places.json`, 57 KB) is a fourth: it is loaded by path like the
+declaration, and `stage:pages` refuses to stage a payload without it. Nothing else about it is special — it
+is static data on Pages, not an R2 object and not a Worker concern.
 
 `stage:pages` fails the deployment rather than shipping a broken payload: every stylesheet/icon/script referenced by
 `index.html`, every relative `import` in the `src/` module graph, and every dataset in `data/manifest.json` must be

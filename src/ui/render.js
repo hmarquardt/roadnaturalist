@@ -94,15 +94,28 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
   container.append(decisionSection);
 }
 
-export function renderContext(container, { manifest, pilotLoaded, error, coverage, roadQuery } = {}) {
+export function renderContext(container, { manifest, pilotLoaded, error, coverage, roadQuery, places = null } = {}) {
   container.replaceChildren();
-  const rows = [['Published GIS datasets', manifest ? `${manifest.datasets.length}` : 'Unavailable']];
+  const rows = [['Published GIS datasets', manifest ? `${manifest.datasets.length}` : 'Unavailable'],
+    ['Place-name gazetteer', places ? `${places.places.length} named places` : 'Unavailable']];
   for (const [datasetId, label] of Object.entries(COVERAGE_LABELS)) rows.push([label, coverage?.[datasetId]?.coverage ?? COVERAGE.UNKNOWN]);
   const dl = el('dl', 'coverage-list');
   for (const [label, value] of rows) { const row = el('div'); row.append(el('dt', '', label), el('dd', '', value)); dl.append(row); }
   container.append(dl);
   const reason = coverage?.[COVERAGE_DATASET.ROAD_GEOMETRY]?.reason;
   container.append(el('p', 'context-note', contextNote({ error, pilotLoaded, roadQuery, reason })));
+  if (places) container.append(el('p', 'context-note', placeSourceNote(places)));
+}
+
+// Where the place names come from, in the panel that reports what data is on screen. The lookup itself shows
+// no provenance: a result list is for choosing a place, not for reading a citation.
+function placeSourceNote(places) {
+  const source = places.source ?? {};
+  const scope = places.scope ?? {};
+  return `Place names and centres: ${source.agency} ${source.dataset} (published ${source.publicationDate}), `
+    + `${source.license}, reduced offline to ${scope.counts?.places ?? places.places.length} places inside the published `
+    + `region and a ${scope.marginMiles}-mile margin. A place is a search centre only — not a road, an access finding, `
+    + 'or evidence about any corridor.';
 }
 
 function contextNote({ error, pilotLoaded, roadQuery, reason }) {

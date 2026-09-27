@@ -60,4 +60,13 @@
 .discovery-presets .quiet-button{padding:.34rem .5rem;font-size:.76rem}
 .discovery-summary{margin:.55rem 0 0;padding:.5rem .6rem;border:1px solid #dce3d9;border-radius:5px;background:#fff}
 .discovery-summary p{margin:.25rem 0 0}
-@media(max-width:700px){.discovery-panel .discovery-body{padding:.85rem}.discovery-filters{flex-direction:column;align-items:stretch}.discovery-input,.discovery-select{width:100%}.discovery-table-wrap{max-height:none}.discovery-table th:nth-child(5),.discovery-table td:nth-child(5){display:none}.discovery-search{padding:.7rem}.discovery-search-row,.discovery-radius-row{flex-direction:column;align-items:stretch}.discovery-range{width:100%}}
+/* Find a place: a local, bounded lookup. The list sits under its field, never over the whole panel. */
+.discovery-place{position:relative;display:flex;flex-direction:column;gap:.3rem}
+.discovery-place .discovery-field{max-width:22rem}
+.discovery-place-results{position:absolute;z-index:5;top:100%;left:0;right:0;margin:0;padding:.2rem 0;list-style:none;max-height:15rem;overflow:auto;background:#fff;border:1px solid #c8d3c6;border-radius:5px;box-shadow:0 8px 20px #13231f1f}
+.discovery-place-option{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;padding:.4rem .6rem;cursor:pointer;font-size:.86rem}
+.discovery-place-option.active,.discovery-place-option:hover{background:#eef4ea}
+.discovery-place-option[aria-selected="true"]{outline:2px solid #205646;outline-offset:-2px}
+.discovery-place-name{font-weight:600;color:#1c3b2c}
+.discovery-place-type{font-size:.72rem;color:#5b6d61;white-space:nowrap}
+@media(max-width:700px){.discovery-panel .discovery-body{padding:.85rem}.discovery-filters{flex-direction:column;align-items:stretch}.discovery-input,.discovery-select{width:100%}.discovery-table-wrap{max-height:none}.discovery-table th:nth-child(5),.discovery-table td:nth-child(5){display:none}.discovery-search{padding:.7rem}.discovery-search-row,.discovery-radius-row{flex-direction:column;align-items:stretch}.discovery-range{width:100%}.discovery-place .discovery-field{max-width:none}.discovery-place-results{max-height:12rem}}

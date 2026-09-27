@@ -1,0 +1,78 @@
+{
+  "kind": "road-discovery-place-gazetteer-build",
+  "pipelineVersion": "place-gazetteer-v1",
+  "builtAt": "2026-09-27T16:59:59Z",
+  "artifact": {
+    "path": "data/places/or-sw-wa-portland-places.json",
+    "bytes": 57249,
+    "sha256": "7c07b18b686896683abee953f482f41ac545663f7c975c9792ee74298f744d24",
+    "places": 387
+  },
+  "source": {
+    "agency": "U.S. Census Bureau",
+    "dataset": "2025 Gazetteer Files - Places (national)",
+    "vintage": "2025",
+    "url": "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_Gaz_place_national.zip",
+    "archiveBytes": 1214053,
+    "archiveSha256": "49644173a453469d9bd77fb7a493b027f87567e209edaf2078aac7543ac2ee29",
+    "member": "2025_Gaz_place_national.txt",
+    "memberBytes": 3288984,
+    "memberSha256": "15f4977a010cc42308f4d5ddc5e19f26ef63fc035f20745333a14b78aa08d3fa",
+    "publicationDate": "2025-09-10",
+    "sourceFileDate": "2025-09-08",
+    "documentationUrl": "https://www.census.gov/geographies/reference-files/time-series/geo/gazetteer-files.html",
+    "license": "Public domain (U.S. Government work)",
+    "coordinateReferenceSystem": "NAD83 (EPSG:4269) decimal degrees, carried as EPSG:4326 as every other dataset here is"
+  },
+  "scope": {
+    "bounds": [
+      -125.11284038987046,
+      44.022053555274105,
+      -120.70715961012954,
+      47.147946444725896
+    ],
+    "marginMiles": 50,
+    "derivation": {
+      "marginMiles": 50,
+      "latMarginDeg": 0.7279464447258911,
+      "lonMarginDeg": 1.0628403898704541,
+      "longitudeMarginReferenceLat": 47.147946444725896,
+      "cosineAtReferenceLat": 0.6801076217008244
+    },
+    "counts": {
+      "places": 387,
+      "byState": {
+        "OR": 234,
+        "WA": 153
+      },
+      "byClass": {
+        "cdp": 206,
+        "city": 172,
+        "town": 9
+      }
+    }
+  },
+  "extraction": {
+    "places": 387,
+    "stateFips": {
+      "OR": "41",
+      "WA": "53"
+    },
+    "byState": {
+      "OR": 234,
+      "WA": 153
+    },
+    "byClass": {
+      "cdp": 206,
+      "city": 172,
+      "town": 9
+    },
+    "skipped": {
+      "beyond-margin": 10,
+      "outside-window": 668,
+      "state": 31285
+    }
+  },
+  "artifactVersion": "census-2025-gaz-place-v1",
+  "schemaVersion": 1
+}

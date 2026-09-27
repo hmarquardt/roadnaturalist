@@ -6,6 +6,7 @@ import { MAX_RESULT_ROWS, SEGMENTED_ROAD_NOTE } from '../discovery/constants.js'
 import { CUSTOM_SEARCH_AREA_ID, DEFAULT_RADIUS_MILES, MAX_RADIUS_MILES, MIN_RADIUS_MILES, RADIUS_STOPS_MILES,
   areaCoverage, formatCenter, formatRadius, radiusNumber, readSearchDefinition, searchIsRunnable,
   searchRefusal, searchRegionCoverage, storedDefinition } from '../discovery/search-definition.js';
+import { placeLabel, placeTypeLabel, searchPlaces } from '../discovery/place-gazetteer.js';
 import { formatArea, formatDistance, formatLength } from './render.js';
 
 // The discovery workspace: choose a bounded area, run the deterministic survey, filter and sort the
@@ -20,11 +21,11 @@ function el(tag, className, text) { const node = document.createElement(tag); if
 const CLASS_LABELS = Object.freeze({ S1200: 'Secondary road', S1400: 'Local road' });
 
 export function renderDiscovery(container, { discovery, searchAreas = [], searchAreaId = null, search = null,
-  presets = [], region = null, onDiscover, onSelect, onPromote, onDismiss, onFilters, onSort, onSearchArea,
-  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview } = {}) {
+  presets = [], region = null, gazetteer = null, onDiscover, onSelect, onPromote, onDismiss, onFilters, onSort, onSearchArea,
+  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace } = {}) {
   container.replaceChildren();
-  container.append(controls({ discovery, searchAreas, searchAreaId, search, presets, region, onDiscover, onSearchArea,
-    onSearchDefinition, onSearchRadius, onSearchPicking, onPreview }));
+  container.append(controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, onDiscover,
+    onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace }));
   if (discovery.error) container.append(el('p', 'discovery-error', discovery.error));
   if (search?.error) container.append(el('p', 'discovery-error', search.error));
   if (discovery.coverage) container.append(coverageBanner(discovery.coverage, discovery.diagnostics, discovery.searchArea));
@@ -59,8 +60,8 @@ function staleResults({ discovery, search, searchAreaId }) {
   return `These results are from the previous search (${previous}). Choose a centre and radius, then search again to replace them.`;
 }
 
-function controls({ discovery, searchAreas, searchAreaId, search, presets, region, onDiscover, onSearchArea,
-  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview }) {
+function controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, onDiscover, onSearchArea,
+  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace }) {
   const block = el('div', 'discovery-controls');
   if (searchAreas.length > 1) {
     const label = el('label', 'discovery-field', 'Search area');
@@ -82,8 +83,8 @@ function controls({ discovery, searchAreas, searchAreaId, search, presets, regio
   } else if (searchAreas.length === 1) {
     block.append(el('p', 'discovery-area', `Search area: ${searchAreas[0].name}`));
   }
-  block.append(searchControls({ search, searchAreas, searchAreaId, presets, region, onSearchDefinition,
-    onSearchRadius, onSearchPicking, onPreview }));
+  block.append(searchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, onSearchDefinition,
+    onSearchRadius, onSearchPicking, onPreview, onSelectPlace }));
   const customSearch = searchAreaId === CUSTOM_SEARCH_AREA_ID;
   const coverage = coverageOf({ search, searchAreas, searchAreaId, region });
   const runnable = customSearch ? Boolean(search?.definition) && searchIsRunnable({ ok: true, coverage }) : true;
@@ -117,16 +118,17 @@ function coverageOf({ search, searchAreas, searchAreaId, region }) {
 
 // The centre and the radius. Every control here produces the same plain value, and a map pick, a preset, a
 // shared URL and a remembered search are all just other ways of arriving at it.
-function searchControls({ search, searchAreas, searchAreaId, presets, region, onSearchDefinition, onSearchRadius,
-  onSearchPicking, onPreview }) {
+function searchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, onSearchDefinition, onSearchRadius,
+  onSearchPicking, onPreview, onSelectPlace }) {
   const block = el('div', 'discovery-search');
   const draft = search?.definition ?? null;
   const custom = searchAreaId === CUSTOM_SEARCH_AREA_ID;
   const coverage = coverageOf({ search, searchAreas, searchAreaId, region });
   const radiusMiles = draft?.radiusMiles ?? DEFAULT_RADIUS_MILES;
   const picking = Boolean(search?.picking);
+  const place = search?.place ?? null;
   const active = custom
-    ? (draft ? `Custom radius search · ${formatRadius(draft.radiusMiles)} at ${formatCenter(draft.center)}` : 'Custom radius search · no centre chosen yet')
+    ? (draft ? `Custom radius search · ${formatRadius(draft.radiusMiles)} at ${place ? `${place.label} (${formatCenter(draft.center)})` : formatCenter(draft.center)}` : 'Custom radius search · no centre chosen yet')
     : `Declared search area · ${searchAreas.find(area => area.id === searchAreaId)?.name ?? searchAreaId ?? 'none selected'}`;
   const status = el('div', 'discovery-coverage-status');
   status.id = 'discovery-search-status';
@@ -135,6 +137,7 @@ function searchControls({ search, searchAreas, searchAreaId, presets, region, on
   status.append(el('p', `small discovery-coverage-line ${(coverage?.coverage ?? COVERAGE.UNKNOWN).toLowerCase()}`,
     `Coverage: ${coverage?.coverage ?? COVERAGE.UNKNOWN}${coverage?.reason ? ` — ${coverage.reason}` : ''}`));
   block.append(status);
+  block.append(placeFinder({ gazetteer, place, onSelectPlace }));
 
   const form = el('form', 'discovery-search-fields');
   form.id = 'discovery-search-fields';
@@ -219,21 +222,140 @@ function searchControls({ search, searchAreas, searchAreaId, presets, region, on
     block.append(presetBlock);
   }
 
-  const history = (search?.history ?? []).map(entry => storedDefinition(entry)).filter(Boolean);
+  const history = (search?.history ?? []).filter(entry => storedDefinition(entry));
   if (history.length) {
     const recent = el('div', 'discovery-presets');
     recent.id = 'discovery-recent';
     recent.append(el('span', 'eyebrow', 'Recent searches'));
-    history.forEach((definition, index) => {
-      const chip = el('button', 'quiet-button', `${formatCenter(definition.center)} · ${formatRadius(definition.radiusMiles)}`);
+    history.forEach((entry, index) => {
+      const definition = storedDefinition(entry);
+      // A remembered place is a label, not the search: without one the coordinates are shown instead.
+      const chip = el('button', 'quiet-button',
+        `${entry.place?.label ?? formatCenter(definition.center)} · ${formatRadius(definition.radiusMiles)}`);
       chip.type = 'button';
       chip.id = `discovery-recent-${index}`;
-      chip.addEventListener('click', () => onSearchDefinition?.(definition, { source: 'recent' }));
+      chip.addEventListener('click', () => onSearchDefinition?.(definition, { source: 'recent', place: entry.place ?? null }));
       recent.append(chip);
     });
     block.append(recent);
   }
   return block;
+}
+
+// "Find a place": a small local lookup over the committed regional gazetteer, above the coordinate fields it
+// feeds. Typing never publishes state, never runs a search, and never leaves the browser; choosing a result
+// sets the centre (the radius control is untouched) through the ordinary search definition.
+function placeFinder({ gazetteer, place, onSelectPlace }) {
+  const box = el('div', 'discovery-place');
+  box.id = 'discovery-place-box';
+  if (!gazetteer) {
+    box.append(el('p', 'discovery-status', 'Place-name search is unavailable: the place gazetteer did not load. Coordinates below still work.'));
+    return box;
+  }
+  const field = el('label', 'discovery-field', 'Find a place');
+  const input = el('input', 'discovery-input');
+  input.type = 'text';
+  input.id = 'discovery-place';
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.placeholder = 'Hillsboro';
+  input.setAttribute('role', 'combobox');
+  input.setAttribute('aria-expanded', 'false');
+  input.setAttribute('aria-controls', 'discovery-place-results');
+  input.setAttribute('aria-autocomplete', 'list');
+  input.setAttribute('aria-describedby', 'discovery-place-status');
+  field.append(input);
+  const list = el('ul', 'discovery-place-results');
+  list.id = 'discovery-place-results';
+  list.setAttribute('role', 'listbox');
+  list.setAttribute('aria-label', 'Matching places');
+  list.hidden = true;
+  const status = el('p', 'discovery-status');
+  status.id = 'discovery-place-status';
+  status.setAttribute('role', 'status');
+  box.append(field, list, status);
+  const finder = { input, list, status, results: [], active: -1, open: false, onSelect: onSelectPlace };
+  input.addEventListener('input', () => updatePlaceResults(finder, gazetteer));
+  input.addEventListener('keydown', event => onPlaceKey(event, finder, gazetteer, onSelectPlace));
+  input.addEventListener('blur', () => closePlaceResults(finder));
+  if (place) {
+    // The chosen place is stated where the centre is stated, so the field itself stays a query box.
+    status.textContent = `Centre set to ${place.label}.`;
+  }
+  return box;
+}
+
+function closePlaceResults(finder) {
+  finder.open = false;
+  finder.results = [];
+  finder.active = -1;
+  finder.list.replaceChildren();
+  finder.list.hidden = true;
+  finder.input.setAttribute('aria-expanded', 'false');
+  finder.input.removeAttribute('aria-activedescendant');
+}
+
+function updatePlaceResults(finder, gazetteer) {
+  const outcome = searchPlaces(gazetteer, finder.input.value);
+  finder.results = outcome.status === 'ok' ? [...outcome.results] : [];
+  finder.active = finder.results.length ? 0 : -1;
+  finder.open = finder.results.length > 0;
+  finder.status.textContent = outcome.status === 'ok'
+    ? `${finder.results.length} matching place${finder.results.length === 1 ? '' : 's'}.`
+    : (finder.input.value.trim() ? outcome.message : '');
+  renderPlaceOptions(finder);
+}
+
+function renderPlaceOptions(finder) {
+  finder.list.replaceChildren();
+  finder.list.hidden = !finder.open;
+  finder.input.setAttribute('aria-expanded', String(finder.open));
+  if (!finder.open) {
+    finder.input.removeAttribute('aria-activedescendant');
+    return;
+  }
+  finder.results.forEach((place, index) => {
+    const option = el('li', `discovery-place-option${index === finder.active ? ' active' : ''}`);
+    option.id = `discovery-place-option-${index}`;
+    option.setAttribute('role', 'option');
+    option.setAttribute('aria-selected', String(index === finder.active));
+    option.append(el('span', 'discovery-place-name', placeLabel(place)), el('span', 'discovery-place-type', placeTypeLabel(place)));
+    // A pointer press selects without moving focus out of the field, so the same list works with a mouse, a
+    // finger, and a keyboard.
+    option.addEventListener('pointerdown', event => { event.preventDefault(); choosePlace(finder, index, finder.onSelect); });
+    finder.list.append(option);
+  });
+  finder.input.setAttribute('aria-activedescendant', `discovery-place-option-${finder.active}`);
+}
+
+function onPlaceKey(event, finder, gazetteer, onSelectPlace) {
+  if (event.key === 'Escape') {
+    if (finder.open) { event.preventDefault(); closePlaceResults(finder); }
+    return;
+  }
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    if (!finder.open && finder.input.value.trim()) updatePlaceResults(finder, gazetteer);
+    if (!finder.open) return;
+    event.preventDefault();
+    const step = event.key === 'ArrowDown' ? 1 : -1;
+    finder.active = (finder.active + step + finder.results.length) % finder.results.length;
+    renderPlaceOptions(finder);
+    return;
+  }
+  if (event.key === 'Enter' && finder.open && finder.active >= 0) {
+    // Enter selects the highlighted place and nothing else: it never starts a search by itself.
+    event.preventDefault();
+    choosePlace(finder, finder.active, onSelectPlace);
+  }
+}
+
+function choosePlace(finder, index, onSelect) {
+  const place = finder.results[index];
+  if (!place) return;
+  closePlaceResults(finder);
+  finder.status.textContent = '';
+  finder.input.value = '';
+  onSelect?.(place);
 }
 
 function textField(id, label, value) {

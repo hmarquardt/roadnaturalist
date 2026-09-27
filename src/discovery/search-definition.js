@@ -1,5 +1,6 @@
 import { COVERAGE } from '../domain/corridor.js';
 import { boundsCoverage } from './regional-catalog.js';
+import { storedPlaceMetadata } from './place-gazetteer.js';
 import { METRES_PER_MILE, radiusBounds, searchAreaBounds } from './search-area.js';
 
 // THE INTERACTIVE SEARCH DEFINITION.
@@ -238,9 +239,12 @@ export function storedDefinition(value) {
   return result.ok ? result.definition : null;
 }
 
-export function searchHistoryEntry(definition, { at = null } = {}) {
+export function searchHistoryEntry(definition, { at = null, place = null } = {}) {
+  // `place` is presentation metadata beside the definition, never part of it: the centre and radius stay the
+  // search, and a missing label costs a nicer line in the recent list rather than a search.
+  const metadata = storedPlaceMetadata(place);
   return Object.freeze({ center: Object.freeze([...definition.center]), radiusMiles: definition.radiusMiles,
-    at: typeof at === 'string' && at ? at : null });
+    at: typeof at === 'string' && at ? at : null, ...(metadata ? { place: metadata } : {}) });
 }
 
 export function storedHistory(value, { limit = MAX_SEARCH_HISTORY } = {}) {
@@ -253,18 +257,31 @@ export function storedHistory(value, { limit = MAX_SEARCH_HISTORY } = {}) {
     const key = searchDefinitionKey(definition);
     if (seen.has(key)) continue;
     seen.add(key);
-    entries.push(searchHistoryEntry(definition, { at: entry?.at }));
+    entries.push(searchHistoryEntry(definition, { at: entry?.at, place: entry?.place }));
     if (entries.length >= limit) break;
   }
   return Object.freeze(entries);
 }
 
-export function addSearchHistory(history, definition, { limit = MAX_SEARCH_HISTORY, at = null } = {}) {
+export function addSearchHistory(history, definition, { limit = MAX_SEARCH_HISTORY, at = null, place = null } = {}) {
   const clean = storedHistory(history, { limit });
   if (!definition) return clean;
   const key = searchDefinitionKey(definition);
   const rest = clean.filter(entry => searchDefinitionKey(storedDefinition(entry) ?? entry) !== key);
-  return Object.freeze([searchHistoryEntry(definition, { at }), ...rest].slice(0, Math.max(1, limit)));
+  return Object.freeze([searchHistoryEntry(definition, { at, place }), ...rest].slice(0, Math.max(1, limit)));
+}
+
+// The label a search was run from, when the recent list still remembers that search. Presentation only: a
+// reload with no match here shows coordinates, which are the search's own state.
+export function placeForSearch(history, definition, { place = null } = {}) {
+  if (place) return storedPlaceMetadata(place);
+  if (!definition || !Array.isArray(history)) return null;
+  const key = searchDefinitionKey(definition);
+  const match = history.find(entry => {
+    const remembered = storedDefinition(entry);
+    return remembered && searchDefinitionKey(remembered) === key;
+  });
+  return match ? storedPlaceMetadata(match.place) : null;
 }
 
 // The first selection of a session. Precedence is explicit: a URL search, then the search this device last ran,

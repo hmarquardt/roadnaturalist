@@ -565,6 +565,13 @@ a network call. The last chosen search and up to eight recent searches the devic
 small versioned localStorage entries (`src/discovery/persistence.js`), normalized on read with the same rules
 as typed input. Nothing here is an account, a cloud state, or a saved trip.
 
+The centre can also be **named**: `data/places/or-sw-wa-portland-places.json` is a 57 KB gazetteer of 387
+Census places, reduced offline from the pinned 2025 Census Gazetteer file to the published region and the
+places within 50 miles of it (`scripts/build-places.py`, `src/discovery/place-gazetteer.js`). Typing a name
+resolves locally to a centre and produces the same definition the coordinates do — same expression of the
+radius, same cell selection, same exact-radius test. See [discovery](DISCOVERY.md) for the source digests,
+classes, matching rules and limitations.
+
 `npm run benchmark:search` measures the generalized input at the committed reference sizes, one page per
 scenario so each cold pass pays the engine initialisation, and prints a `SEARCH_BENCHMARK` JSON line per
 scenario (centre/radius parsing, cell selection, transfer, the derived query, the bounded table, the map):

@@ -82,6 +82,136 @@ FULL discovery coverage. A corridor whose 1 km buffer leaves the window reports 
 distance, and a corridor whose geometry the analysis engine cannot buffer reports UNKNOWN. Missing
 coverage is never rendered as zero habitat.
 
+## Finding a place by name
+
+The centre can also be named. Typing a place into **Find a place** resolves it to a centre and hands that
+centre to the same search definition a map click or a typed coordinate produces:
+
+```
+"Hillsboro"  ->  local gazetteer  ->  Hillsboro, OR (45.5268, -122.93539)  ->  the radius control  ->  derived discovery
+```
+
+It is a lookup, not a geocoder. There is no street-address search, no live geocoding service, no browser
+location permission, and no landmark or feature search: a few hundred named places are matched in the
+browser, in a fraction of a millisecond, and nothing leaves the page.
+
+### Source
+
+| | |
+| --- | --- |
+| Agency | U.S. Census Bureau |
+| Dataset | 2025 Gazetteer Files — Places (national) |
+| Source archive | `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_Gaz_place_national.zip` |
+| Published | 2025-09-10 (member file date 2025-09-08) |
+| Archive digest | 1,214,053 bytes, SHA-256 `49644173a453469d9bd77fb7a493b027f87567e209edaf2078aac7543ac2ee29` |
+| Member | `2025_Gaz_place_national.txt`, 3,288,984 bytes, SHA-256 `15f4977a010cc42308f4d5ddc5e19f26ef63fc035f20745333a14b78aa08d3fa` |
+| Licence | Public domain (U.S. Government work) |
+| Vintage | The same Census vintage the pinned TIGER/Line 2025 road geometry comes from |
+
+### What a place is here
+
+Places are the Census Bureau's own legal and statistical places, by LSAD code, and nothing else:
+
+| LSAD | Class | Shown as |
+| --- | --- | --- |
+| 25 | `city` | City |
+| 43 | `town` | Town |
+| 57 | `cdp` | Census-designated place |
+
+The build refuses to guess: a row is kept only when the published `NAME` carries exactly the class suffix
+its LSAD implies, and when `FUNCSTAT` matches that class's status (active legal entity for a city or town,
+statistical entity for a CDP). Unincorporated communities, post-office names, streams, peaks, schools,
+churches, roads and buildings are **not** in this dataset and are not searched.
+
+### Scope
+
+The gazetteer covers the published regional coverage plus a margin wide enough for the largest search the
+interface offers (50 statute miles):
+
+| | |
+| --- | --- |
+| Published region | `[-124.05, 44.75, -121.77, 46.42]` |
+| Window rectangle | `[-125.11284, 44.02205, -120.70716, 47.14795]` (published region ± 0.727946° latitude, ± 1.062840° longitude, evaluated at the window's most poleward latitude) |
+| Inclusion rule | inside the rectangle **and** within 50 miles of the published region |
+| Places | 387 (234 Oregon, 153 Washington: 172 cities, 9 towns, 206 CDPs) |
+| Artifact | `data/places/or-sw-wa-portland-places.json`, 57,249 bytes, SHA-256 `7c07b18b686896683abee953f482f41ac545663f7c975c9792ee74298f744d24` |
+
+The rectangle is only the outer bound; the rule is the distance, so every place in the artifact can reach
+published coverage with a search of at most 50 miles. A place whose own search could never reach the region
+is not offered at all — it could not return a corridor at any radius, and the interface does not present dead
+ends. A place outside the published region is deliberately **kept** when it can reach it: the search is
+reported PARTIAL and the outside is never read as empty.
+
+### Identity and disambiguation
+
+The place id is the Census Bureau's own 7-digit place GEOID, which encodes the state FIPS prefix; a name is
+never an identifier. Two places can share a name, and the result list shows what separates them:
+
+```
+Toledo, OR            Toledo, WA            Fairview, OR                Fairview, OR
+City                  City                  City                        Census-designated place
+```
+
+### Matching
+
+Normalization is deterministic and applied identically to a query and to every stored name: Unicode NFKD
+with combining marks removed, case folded, periods, apostrophes, hyphens and slashes treated as separators,
+remaining punctuation dropped, whitespace collapsed, and two documented abbreviation folds (`st` → `saint`,
+`mt` → `mount`) so that "St. Helens" and "Saint Helens" are the same query and the same place. Nothing else
+is rewritten, and no alias list is invented.
+
+Matching runs in tiers, in this order, and stops at the first tier that matches:
+
+1. **exact** normalized name
+2. **prefix** of the name (`hills` → Hillsboro)
+3. **word prefix** of any later word (`grove` → Forest Grove, Oak Grove)
+4. **one typo** — a single insertion, deletion or substitution, only for queries of at least five characters
+   and only when the first character already matches (`hilsboro` → Hillsboro; `millboro` → nothing)
+
+A trailing state qualifier (`toledo wa`, `toledo, washington`, `toledo oregon`) narrows the match instead of
+being part of the name. A query shorter than **three characters** is refused rather than guessed at; the
+minimum is measured against this list (at two characters five prefixes already fill the capped list and the
+mean result count is 3.2; at three characters no prefix exceeds six and the mean is 1.4). At most eight
+results are returned, ordered by name length and then alphabetically — there is no score, no popularity
+ranking, and no wild guess for a short or unrelated query. An address-shaped query matches nothing and says so
+plainly.
+
+### Behaviour
+
+* Selecting a result sets the **centre** and nothing else: the radius control keeps the radius it had, the map
+  moves its centre marker and radius preview, the coordinate fields and the coverage line update, and the URL
+  is rewritten.
+* Selecting a place never starts a search. Choose the radius, then press **Discover roads**.
+* The search a place produces is the search its coordinates produce: the definition centre is the published
+  five-decimal interior point, the bounds come from the same `radiusBounds`, the same metric cells are
+  selected, and the same exact-radius test decides which corridors are results
+  (`tests/place-gazetteer.test.js` asserts the derived result rows are equal).
+* The URL stays coordinate-based (`?lat=…&lon=…&r=…`). A place is presentation: a recent search may be
+  labelled `Hillsboro, OR · 25 mi` and falls back to `45.5268, -122.9354 · 25 mi` when no label is available.
+  Nothing about running or sharing a search depends on the gazetteer.
+* Coverage semantics are unchanged: a place outside the published region reports PARTIAL or NONE exactly as a
+  typed coordinate there does, and the radius is never reduced to fit the data.
+* The field is a labelled combobox with a listbox of options: mouse and touch select, ArrowDown/ArrowUp move
+  the active option, Enter chooses it, Escape closes the list and keeps the text, and Tab closes it. It is
+  usable without the map at all.
+
+### Commands
+
+```
+npm run build:places                # fetch the pinned archive and rebuild the artifact (stdlib Python, no GIS stack)
+npm run check:places                # re-derive from the cached archive and compare bytes with the committed artifact
+npm run verify:places               # offline: source, window, ids, classes, counts and the places the tests use
+npm run verify:places:production    # opt-in: the deployed place search, promotion, PARTIAL/NONE, zero external calls
+```
+
+### Known limitations
+
+* Only incorporated places and census-designated places are searchable. A named community that is not a
+  Census place is not found, and the interface says so rather than guessing at a nearby name.
+* The centre is the published **interior point**: a search centre, not a road, an entrance or a parking place.
+* The list is regional and versioned. It is rebuilt from a new pinned vintage by changing the digests in
+  `scripts/build-places.py`, never by hand-editing the artifact.
+
 ## Road eligibility
 
 Eligibility is an explicit, reviewable table (`src/discovery/eligibility.js`) built from Appendix E of

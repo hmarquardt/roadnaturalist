@@ -2,6 +2,7 @@ import { setCandidateStatus, setCandidateCoverage } from '../domain/corridor.js'
 import { DEFAULT_FILTERS, DEFAULT_SORT } from '../discovery/filter.js';
 import { DISCOVERY_STATUS, markDiscovery } from '../discovery/lifecycle.js';
 import { CUSTOM_SEARCH_AREA_ID } from '../discovery/search-definition.js';
+import { storedPlaceMetadata } from '../discovery/place-gazetteer.js';
 
 export function createStore() {
   const initialQuery = Object.freeze({ status: 'idle', coverage: null, reason: null, provenance: null, missingRoadIds: [], note: null });
@@ -9,10 +10,10 @@ export function createStore() {
     eligibility: Object.freeze([]), searchArea: null, selectedId: null, marks: Object.freeze({}), error: null,
     filters: DEFAULT_FILTERS, sort: DEFAULT_SORT, raw: null });
   // The search definition is its own slice: which declared window (or custom centre and radius) a run would
-  // survey, the centre and radius themselves, whether the map is waiting for a centre, and the short list of
-  // searches this device ran. It is separate from the results so changing the input can never look like a
-  // result, and the panel can say plainly that the results on screen belong to the previous search.
-  const initialSearch = Object.freeze({ areaId: null, definition: null, picking: false, history: Object.freeze([]), error: null });
+  // survey, the centre and radius themselves, whether the map is waiting for a centre, the short list of
+  // searches this device ran, and - as a label only - the place those coordinates came from. `place` is
+  // presentation: it never reaches the run, and a search works exactly the same without it.
+  const initialSearch = Object.freeze({ areaId: null, definition: null, picking: false, history: Object.freeze([]), place: null, error: null });
   let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, discovery: initialDiscovery, search: initialSearch });
   const listeners = new Set();
   const publish = next => { state = Object.freeze(next); for (const listener of listeners) listener(state); };
@@ -52,12 +53,16 @@ export function createStore() {
     setDiscoverySort(sort) { publishDiscovery({ sort }); },
     // SEARCH DEFINITION. One selection, one definition, one run: a declared window and a custom radius are two
     // values of the same field, so nothing downstream can tell an arbitrary search from a committed preset.
-    setSearchSelection({ areaId, definition, picking = false }) {
-      publishSearch({ areaId: areaId ?? null, definition: definition ?? null, picking: Boolean(picking) });
+    setSearchSelection({ areaId, definition, picking = false, place = null }) {
+      publishSearch({ areaId: areaId ?? null, definition: definition ?? null, picking: Boolean(picking),
+        place: storedPlaceMetadata(place) });
     },
     setSearchArea(areaId) { publishSearch({ areaId, picking: false }); },
-    setSearchDefinition(definition, { picking = false } = {}) {
-      publishSearch({ definition: definition ?? null, areaId: CUSTOM_SEARCH_AREA_ID, picking: Boolean(picking) });
+    setSearchDefinition(definition, { picking = false, place = null } = {}) {
+      // The place label travels with the centre it describes: a new centre means a new label or none, while a
+      // radius change keeps the label because the centre did not move.
+      publishSearch({ definition: definition ?? null, areaId: CUSTOM_SEARCH_AREA_ID, picking: Boolean(picking),
+        place: storedPlaceMetadata(place) });
     },
     setSearchPicking(picking) { publishSearch({ picking: Boolean(picking) }); },
     setSearchHistory(history) { publishSearch({ history: Object.freeze([...(history ?? [])]) }); },

@@ -28,8 +28,9 @@ import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, wr
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDiscoveryResult } from '../discovery/lifecycle.js';
 import { defaultSearchArea, searchAreaBounds, validateSearchAreas } from '../discovery/search-area.js';
 import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiveSearchArea,
-  definitionFromSearchArea, formatRadius, initialSearchSelection, radiusPresets, radiusTemplate,
-  readSearchDefinition, searchIsRunnable, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
+  definitionFromSearchArea, formatRadius, initialSearchSelection, placeForSearch, radiusPresets, radiusTemplate,
+  readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
+import { placeMetadata, validatePlaceGazetteer } from '../discovery/place-gazetteer.js';
 import { filterAndSort } from '../discovery/filter.js';
 import { MAX_RESULT_ROWS } from '../discovery/constants.js';
 
@@ -37,6 +38,10 @@ const PILOT_URL = new URL('../../data/roads/or-roads-pilot.json', import.meta.ur
 // Declared discovery search areas. The loader refuses an area that is not inside every dataset it
 // requires, so the workspace can never offer a survey the loaded data cannot cover.
 const SEARCH_AREAS_URL = new URL('../../data/discovery/search-areas.json', import.meta.url);
+// The regional place-name gazetteer: a small static artifact reduced offline from the pinned U.S. Census
+// Bureau Gazetteer file (scripts/build-places.py). It answers "where is Hillsboro?" and nothing else - no
+// address, no landmark, no runtime geocoder - and it is validated against the published region on load.
+const PLACES_URL = new URL('../../data/places/or-sw-wa-portland-places.json', import.meta.url);
 // The reviewed operator capture of official-source research, replayed offline. The browser cannot crawl county
 // sites (they send no CORS header) and must not depend on a live Overpass mirror, so it replays this record and
 // offers a live OpenStreetMap re-check as an explicit, separate action.
@@ -74,6 +79,7 @@ let searchAreas = [];
 let publishedRegion = null;
 let declaredRadiusPresets = [];
 let radiusSearchTemplate = null;
+let places = null;
 const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverlay: null, resolvedId: null,
   discoveryNodes: null, discoverySignature: null, searchKey: null };
 
@@ -93,13 +99,28 @@ async function loadSearchAreas() {
   const initial = initialSearchSelection({ search: globalThis.location?.search ?? '',
     stored: readDiscoverySearch(), history: readDiscoverySearchHistory(), presets: declaredRadiusPresets,
     declaredAreaId: searchAreas[0]?.id ?? null, region: publishedRegion });
+  // A search this device ran before carries its place label beside its coordinates, so a reload shows
+  // "Hillsboro, OR · 25 mi" when it can and coordinates when it cannot.
+  const remembered = placeForSearch(initial.history, initial.selection.definition);
   store.setSearchHistory(initial.history);
-  store.setSearchSelection(initial.selection);
+  store.setSearchSelection({ ...initial.selection, place: remembered });
   if (initial.problems.length) {
     store.setSearchError('The search parameters in this link were ignored: '
       + initial.problems.map(entry => entry.message).join(' '));
   }
   return searchAreas;
+}
+
+// The place gazetteer is static, small, and loaded once. A missing or inconsistent artifact costs the
+// place-name field (the panel says so) and nothing else: coordinates remain the search.
+async function loadPlaces() {
+  try {
+    places = validatePlaceGazetteer(await fetchJson(PLACES_URL), { region: publishedRegion });
+  } catch (error) {
+    places = null;
+    if (!store.getState().search.error) store.setSearchError(`Place names are unavailable: ${error.message}`);
+  }
+  return places;
 }
 
 // The search area a run would survey. A declared window and a custom centre are two values of one field, and
@@ -155,11 +176,32 @@ async function discoverRoads() {
 // shared URL. Whichever produced it, the definition is validated here, the URL is updated so the search is
 // shareable, and the search is remembered on this device.
 
-function applySearchDefinition(definition, { picking = false } = {}) {
+// One path into the store, so what the store holds is always a definition this build validated: the bounds
+// and the metre radius are re-derived from the centre and radius here rather than trusted from the caller. A
+// definition assembled by spreading an older one (a changed radius on a stale box) cannot reach the run.
+function applySearchDefinition(definition, { picking = false, place = null } = {}) {
+  const result = readSearchDefinition({ lat: definition?.center?.[1], lon: definition?.center?.[0],
+    radiusMiles: definition?.radiusMiles }, { region: publishedRegion });
+  if (!result.ok) {
+    store.setSearchError(result.problems.map(entry => entry.message).join(' '));
+    return null;
+  }
+  const clean = result.definition;
   store.setSearchError(null);
-  store.setSearchDefinition(definition, { picking });
-  store.setSearchHistory(writeDiscoverySearchHistory(addSearchHistory(activeSearch().history, definition)));
-  writeSearchUrl(definition);
+  store.setSearchDefinition(clean, { picking, place });
+  store.setSearchHistory(writeDiscoverySearchHistory(addSearchHistory(activeSearch().history, clean, { place })));
+  writeSearchUrl(clean);
+  return clean;
+}
+
+// Choosing a place sets the centre and leaves the radius exactly as it was: the place answers "where", the
+// radius control keeps answering "how far", and nothing here starts a search.
+function selectPlace(selected) {
+  const current = activeSearch().definition;
+  const result = readSearchDefinition({ lat: selected.center[1], lon: selected.center[0],
+    radiusMiles: current?.radiusMiles ?? undefined }, { region: publishedRegion });
+  if (!result.ok) { store.setSearchError(result.problems.map(entry => entry.message).join(' ')); return; }
+  applySearchDefinition(result.definition, { place: placeMetadata(selected) });
 }
 
 function selectSearchCenter(center) {
@@ -180,7 +222,8 @@ function rememberSearch(searchArea) {
   const coverage = searchRegionCoverage(result.definition, publishedRegion);
   if (!searchIsRunnable({ ok: true, coverage })) return;
   writeDiscoverySearch(result.definition);
-  store.setSearchHistory(writeDiscoverySearchHistory(addSearchHistory(activeSearch().history, result.definition)));
+  store.setSearchHistory(writeDiscoverySearchHistory(addSearchHistory(activeSearch().history, result.definition,
+    { place: activeSearch().place })));
 }
 
 function writeSearchUrl(definition) {
@@ -199,17 +242,19 @@ function searchPreview(state) {
   const bounds = area ? searchAreaBounds(area) : (definition?.bounds ?? null);
   const coverage = active.coverage ?? null;
   const radius = area?.kind === 'radius' && definition;
+  const place = state.search.place;
+  const status = `${coverage?.coverage ?? COVERAGE.UNKNOWN}`;
   return { kind: radius ? 'radius' : 'bbox', center: radius ? definition.center : null,
     radiusMiles: definition?.radiusMiles ?? null, bounds,
     coverage: coverage?.coverage ?? COVERAGE.UNKNOWN, regionBounds: publishedRegion?.bounds ?? null,
-    label: radius ? `${formatRadius(definition.radiusMiles)} · ${coverage?.coverage ?? COVERAGE.UNKNOWN}`
-      : area ? `${area.name} · ${coverage?.coverage ?? COVERAGE.UNKNOWN}` : null };
+    label: radius ? `${formatRadius(definition.radiusMiles)} · ${status}${place ? ` · ${place.label}` : ''}`
+      : area ? `${area.name} · ${status}` : null };
 }
 
 function updateSearchPreview(state) {
   const preview = searchPreview(state);
   const key = [preview.kind, preview.center?.join(','), preview.radiusMiles, preview.coverage,
-    preview.bounds?.join(','), preview.regionBounds?.join(','), state.search.picking].join('|');
+    preview.bounds?.join(','), preview.regionBounds?.join(','), preview.label, state.search.picking].join('|');
   if (drawn.searchKey === key) return;
   drawn.searchKey = key;
   map.setSearchPreview(preview.bounds ? preview : null);
@@ -581,7 +626,7 @@ store.subscribe(state => {
     onReviewAccess: review => recordAccessReview(review), recordedCaptureAt: accessRecord?.capturedAt ?? null, liveOsm: state.liveOsm,
     workerStatus: state.workerStatus, workerUrl: INVESTIGATOR_WORKER_URL,
     declaredSourceCount: (PILOT_PROBES_BY_CORRIDOR[selected?.id] ?? []).length });
-  renderContext(nodes.context, { manifest, pilotLoaded: state.pilotLoaded, error: manifestError, coverage: selected?.coverage, roadQuery: state.roadQuery });
+  renderContext(nodes.context, { manifest, pilotLoaded: state.pilotLoaded, error: manifestError, coverage: selected?.coverage, roadQuery: state.roadQuery, places });
   // The discovery workspace renders from its own state slice, so a candidate interaction never
   // rebuilds a bounded result table.
   renderDiscoveryPanel(state);
@@ -621,13 +666,15 @@ function renderDiscoveryPanel(state) {
   const discovery = { ...state.discovery, results: applyMarks(state.discovery.results, state.discovery.marks) };
   renderDiscovery(nodes.discovery, {
     discovery, searchAreas, searchAreaId: state.search.areaId, search: state.search,
-    presets: declaredRadiusPresets, region: publishedRegion,
+    presets: declaredRadiusPresets, region: publishedRegion, gazetteer: places,
     onDiscover: () => { discoverRoads().catch(error => store.failDiscovery({ error: error.message, marks: state.discovery.marks })); },
     onSelect: id => store.selectDiscovery(id),
     onPromote: id => promoteDiscoveryCorridor(id),
     onDismiss: id => markDiscoveryCorridor(id),
     onFilters: filters => store.setDiscoveryFilters(filters),
     onSort: sort => store.setDiscoverySort(sort),
+    // A selected place is the same input a map click or a typed coordinate produces; only the label differs.
+    onSelectPlace: selected => selectPlace(selected),
     // A declared radius scenario is a preset, not a second kind of search: choosing one fills the centre and
     // radius and nothing else about the run changes.
     onSearchArea: id => {
@@ -638,13 +685,16 @@ function renderDiscoveryPanel(state) {
     },
     onSearchDefinition: (definition, options = {}) => {
       if (options.source === 'coordinate') store.setSearchError(null);
-      applySearchDefinition(definition);
+      // Presets and coordinates carry no place; a recent search carries the label it was remembered with.
+      applySearchDefinition(definition, { place: options.place ?? null });
     },
     onSearchRadius: radiusMiles => {
       if (typeof radiusMiles !== 'number') return;
       const current = state.search.definition;
       if (!current) return;
-      applySearchDefinition({ ...current, radiusMiles });
+      // A radius change is a new definition, so the bounds are derived again: the search box always matches
+      // the radius on screen. The place label stays, because the centre did not move.
+      applySearchDefinition(searchDefinitionOf(current.center, radiusMiles), { place: state.search.place });
     },
     onSearchPicking: picking => store.setSearchPicking(picking),
     onPreview: patch => previewSearch(patch),
@@ -756,9 +806,10 @@ document.getElementById('close-about').addEventListener('click', () => dialog.cl
 loadManifest().then(async value => {
   manifest = value;
   const state = store.getState();
-  renderContext(nodes.context, { manifest, pilotLoaded: state.pilotLoaded, coverage: state.candidates.find(candidate => candidate.id === state.selectedId)?.coverage, roadQuery: state.roadQuery });
+  renderContext(nodes.context, { manifest, pilotLoaded: state.pilotLoaded, coverage: state.candidates.find(candidate => candidate.id === state.selectedId)?.coverage, roadQuery: state.roadQuery, places });
   try {
     await loadSearchAreas();
+    await loadPlaces();
   } catch (error) {
     // A search area that the loaded datasets cannot cover is a declaration problem, not a survey.
     store.failDiscovery({ error: `Discovery search areas are unavailable: ${error.message}`, marks: readDiscoveryMarks() });
