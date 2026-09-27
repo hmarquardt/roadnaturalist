@@ -2,6 +2,8 @@ import { COVERAGE, COVERAGE_DATASET, createCandidate, createCoverage, setDataset
 import { corridorRoad, createRoad, groupRoadFeatures } from '../roads/road.js';
 import { DEFAULT_TOLERANCE_M } from '../roads/normalize.js';
 import { coverageFlag } from './filter.js';
+import { PROMOTION_MAX_DRIFT_M } from './promotion.js';
+import { verifyPromotionSearchContext } from './search-context.js';
 
 // Discovery lifecycle: a discovered candidate is either left alone, promoted into the ordinary
 // candidate pipeline, or dismissed. Promotion is a real promotion: it builds the same road records and
@@ -37,7 +39,7 @@ export function markDiscovery(marks, id, status) {
 }
 
 export function promoteDiscoveryResult(result, { features = [], provenance = null, toleranceM = DEFAULT_TOLERANCE_M,
-  dataCatalogUrl = null, corridor = null } = {}) {
+  dataCatalogUrl = null, corridor = null, searchContext = null } = {}) {
   const members = features.filter(feature => result.road.sourceFeatureIds.includes(String(feature.sourceFeatureId)));
   if (!members.length) throw new TypeError(`Promotion needs the source features of ${result.id}`);
   const groups = groupRoadFeatures(members);
@@ -61,7 +63,7 @@ export function promoteDiscoveryResult(result, { features = [], provenance = nul
     [COVERAGE_DATASET.ACCESS_VERIFICATION, { coverage: COVERAGE.NONE, reason: 'No access verification has been performed for this candidate.' }],
   ];
   for (const [datasetId, entry] of entries) coverage = setDatasetCoverage(coverage, datasetId, entry);
-  return createCandidate({
+  const candidate = createCandidate({
     id: result.id, name: result.name, status: 'discovered', roads, coverage, dataCatalogUrl,
     summary: promotionSummary(result, roads),
     evidence: [
@@ -77,6 +79,18 @@ export function promoteDiscoveryResult(result, { features = [], provenance = nul
     ],
     questions: ['Is this road publicly accessible, and under what restrictions?'],
   });
+  // SEARCH CONTEXT. Two steps, deliberately: the discovered relationship is verified against the corridor this
+  // promotion actually publishes, and the values that are kept are re-derived from that corridor. A context
+  // that disagrees beyond the corridor tolerance fails the promotion closed (the caller reports why) rather
+  // than being silently carried or silently dropped; a run with no centre carries no context at all.
+  //
+  // The tolerance is the promotion geometry tolerance: a derived row is verified to within a metre of the raw
+  // corridor it was reconstructed from, and the minimum distance from a point to a line is 1-Lipschitz in that
+  // drift, so a legitimate promotion can never fail this check.
+  const verified = verifyPromotionSearchContext(searchContext, candidate.geometry, { toleranceM: PROMOTION_MAX_DRIFT_M });
+  if (!verified.ok) throw new Error(`search context: ${verified.reason}`);
+  if (verified.context) return createCandidate({ ...candidate, searchContext: verified.context });
+  return candidate;
 }
 
 function signalNote(result) {

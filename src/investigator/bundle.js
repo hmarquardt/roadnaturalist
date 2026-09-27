@@ -11,6 +11,12 @@
 //   * unqualified conclusions — every finding carries its rule, its date, its unresolved items, and its
 //     contradictions. An interpretation may be attached as `interpretation`, which cannot set the finding.
 //
+// A promoted candidate may carry a search context: the centre of the search that surfaced it, how that centre
+// was named, and the straight-line distance and direction to the corridor. The bundle deliberately does **not**
+// export it. It is device-local browsing history — where a person happened to search — rather than a fact about
+// the corridor, and a recipient of a bundle has no search to place it in; the corridor's own identity, geometry
+// reference and measured evidence say everything the bundle is for. Nothing here reads candidate.searchContext.
+//
 // Corridor coordinates are omitted by default: a consumer that needs them can pass includeGeometry, and the
 // bundle then records that it decided to carry them.
 import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';

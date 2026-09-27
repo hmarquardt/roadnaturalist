@@ -53,6 +53,11 @@ export function createCandidate(raw) {
     geometry: corridor.geometry,
     access: Object.freeze({ ...access }),
     roads: Object.freeze([...roads]),
+    // SEARCH CONTEXT is optional presentation metadata: where the search was when this corridor was chosen. It
+    // is not evidence, it is not required, and a candidate without one (a pilot corridor, a promotion from a
+    // declared window) is exactly as valid as a candidate with one. The shape is owned by
+    // src/discovery/search-context.js, which builds and verifies it at promotion time.
+    searchContext: raw.searchContext ?? null,
     evidence: evidence.map(item => Object.freeze({ ...item, provenance: Object.freeze({ ...item.provenance }) })),
     corridor: Object.freeze({
       lengthM: corridor.lengthM,

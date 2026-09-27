@@ -32,7 +32,7 @@ import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiv
   readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
 import { placeMetadata, validatePlaceGazetteer } from '../discovery/place-gazetteer.js';
 import { nearestPlace } from '../discovery/place-gazetteer.js';
-import { centerPresentation, formatContextDirection } from '../discovery/search-context.js';
+import { centerPresentation, formatContextDirection, pendingSearchContext, runCenterPresentation, storedSearchContext } from '../discovery/search-context.js';
 import { filterAndSort } from '../discovery/filter.js';
 import { MAX_RESULT_ROWS } from '../discovery/constants.js';
 
@@ -297,36 +297,58 @@ async function reconstructDerivedCorridor(result) {
   return { unit: verified.unit, corridor: verified.corridor, features: verified.features };
 }
 
+// The search context a promotion carries: the run's own centre, how that centre was named, the run's radius, and
+// the measured relationship between the centre and the corridor that was chosen. It is read from the *run* (its
+// centre, its radius) rather than from the draft controls, so promoting a result after the centre has moved
+// still describes the search that produced it. No centre (a declared box search) means no context.
+function promotionSearchContext(result) {
+  const state = store.getState();
+  const area = state.discovery.searchArea ?? null;
+  const center = area?.kind === 'radius' ? area.center : null;
+  if (!Array.isArray(center) || result.distanceFromCenterM == null) return null;
+  const presentation = runCenterPresentation({ center, place: state.search.place, near: state.search.near,
+    definitionCenter: state.search.definition?.center ?? null, gazetteer: places });
+  return pendingSearchContext({ center, radiusMiles: area.radiusMiles ?? null,
+    centerLabel: presentation?.label ?? null, centerLabelKind: presentation?.kind ?? null, placeId: presentation?.placeId ?? null,
+    distanceFromCenterM: result.distanceFromCenterM, nearestCenterPoint: result.nearestCenterPoint,
+    bearingFromCenterDeg: result.bearingFromCenterDeg, cardinalFromCenter: result.cardinalFromCenter });
+}
+
 async function promoteDiscoveryCorridor(id) {
   const state = store.getState();
   const result = state.discovery.results.find(entry => entry.id === id);
   if (!result) return;
-  if (result.derived) {
-    store.clearDiscoveryPromotion();
-    let rebuilt;
-    try {
-      rebuilt = await reconstructDerivedCorridor(result);
-    } catch (error) {
-      store.noteDiscoveryPromotion(id, `promotion verification failed: ${error.message}`);
-      return;
-    }
-    // The raw corridor is what becomes the candidate, so the detailed panel measures reconstructed source
-    // geometry and reads raw regional habitat data - precomputed values never stand in for detailed evidence.
-    const rebuiltCandidate = promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor,
-      provenance: state.discovery.raw?.provenance ?? null, dataCatalogUrl: state.discovery.searchArea?.catalogUrl ?? null });
-    store.promoteDiscoveryCandidate(rebuiltCandidate, id);
+  const searchContext = promotionSearchContext(result);
+  store.clearDiscoveryPromotion();
+  try {
+    // Both promotion paths are wrapped the same way: a reconstruction or search-context verification that fails
+    // creates no candidate and says why, rather than publishing a candidate whose geometry or orientation
+    // cannot be reproduced.
+    const candidate = result.derived
+      ? await promoteDerivedResult(result, searchContext, state)
+      : promoteRawResult(result, searchContext, state);
+    store.promoteDiscoveryCandidate(candidate, id);
     writeDiscoveryMarks(store.getState().discovery.marks);
     nodes.list.scrollIntoView({ block: 'nearest' });
-    return;
+  } catch (error) {
+    store.noteDiscoveryPromotion(id, `promotion verification failed: ${error.message}`);
   }
+}
+
+async function promoteDerivedResult(result, searchContext, state) {
+  const rebuilt = await reconstructDerivedCorridor(result);
+  // The raw corridor is what becomes the candidate, so the detailed panel measures reconstructed source
+  // geometry and reads raw regional habitat data - precomputed values never stand in for detailed evidence.
+  return promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor, searchContext,
+    provenance: state.discovery.raw?.provenance ?? null, dataCatalogUrl: state.discovery.searchArea?.catalogUrl ?? null });
+}
+
+function promoteRawResult(result, searchContext, state) {
   // The corridor object carries the canonical geometry of the row the person selected; the candidate is
   // built from it so the detailed panel measures the corridor that was promoted, not the whole road group.
-  const corridor = state.discovery.raw?.corridors?.find(entry => entry.corridor?.id === id)?.corridor ?? null;
-  const candidate = promoteDiscoveryResult(result, { features: state.discovery.raw?.features ?? [], corridor,
+  const corridor = state.discovery.raw?.corridors?.find(entry => entry.corridor?.id === result.id)?.corridor ?? null;
+  return promoteDiscoveryResult(result, { features: state.discovery.raw?.features ?? [], corridor, searchContext,
     provenance: state.discovery.raw?.provenance ?? null, dataCatalogUrl: state.discovery.searchArea?.catalogUrl ?? null });
-  store.promoteDiscoveryCandidate(candidate, id);
-  writeDiscoveryMarks(store.getState().discovery.marks);
-  nodes.list.scrollIntoView({ block: 'nearest' });
 }
 
 function markDiscoveryCorridor(id, status) {
@@ -597,7 +619,11 @@ const OCCURRENCE_MAP_LIMIT = 300;
 function corridorDescriptors(state) {
   return state.candidates.map(candidate => {
     const roads = state.roadsByCandidate[candidate.id] ?? [];
+    // Where the corridor was found, for a candidate that came out of a radius search: the map draws the search
+    // centre and the nearest point of the selected corridor so the orientation in the panel is visible.
+    const context = storedSearchContext(candidate.searchContext);
     return { id: candidate.id, name: candidate.name, geometry: candidate.geometry,
+      searchCenter: context?.center ?? null, nearestCenterPoint: context?.nearestCenterPoint ?? null,
       badge: roads.length ? badgeText(roads) : 'CORRIDOR GEOMETRY UNAVAILABLE' };
   });
 }
