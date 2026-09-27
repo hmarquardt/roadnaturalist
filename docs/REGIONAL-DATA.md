@@ -522,6 +522,8 @@ The rebuilt artifacts passed `verify:derived` (including 96 distinct PARTIAL-cov
 capture compares only corridors whose full 1 km analysis bounds fit the raw survey's selected habitat cells;
 raw survey cells around a search box do not cover a long road corridor that continues beyond that box.
 Promotion and detailed analysis select raw habitat around the chosen corridor itself.
+The committed capture also checks two northern edge corridors against raw detailed GIS: one FULL (with matching
+1 km wetland area and hydrography length) and one PARTIAL (with matching coverage at the boundary).
 
 ### Derived radius benchmark
 

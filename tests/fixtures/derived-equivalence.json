@@ -11,7 +11,7 @@
   ],
   "kind": "bbox"
  },
- "capturedAt": "2026-09-27T15:08:46.309Z",
+ "capturedAt": "2026-09-27T15:55:29.337Z",
  "derivedDiagnostics": {
   "analysisFingerprint": "41b574f0651a22e00fc505cf4c41c87800065fdc1b7ff6e20e70ea6002895b5f",
   "selection": {
@@ -76,10 +76,10 @@
   "timing": {
    "manifestMs": 3,
    "selectionMs": 7,
-   "totalPreparationMs": 2270,
-   "fetchMs": 25,
+   "totalPreparationMs": 2169,
+   "fetchMs": 24,
    "verifyMs": 1,
-   "registerMs": 19,
+   "registerMs": 22,
    "downloadedBytes": 1406578,
    "cacheHits": 0,
    "registeredCells": 4
@@ -96,10 +96,10 @@
    "repairedCorridors": 0
   },
   "note": "Discovery read precomputed deterministic metrics (verified on load); the detailed panel still reads the raw regional partitions.",
-  "totalMs": 2798
+  "totalMs": 2701
  },
  "rawDiagnostics": {
-  "totalMs": 61473,
+  "totalMs": 63553,
   "counts": {
    "features": 54734,
    "eligibleUnits": 3567,
@@ -33895,6 +33895,56 @@
      "partCountBefore": 2,
      "partCountAfter": 2
     }
+   }
+  }
+ ],
+ "edgeCases": [
+  {
+   "id": "drv1-4900-rd-c1-s1",
+   "expected": "FULL",
+   "bounds": [
+    -123.674236,
+    46.394032,
+    -123.652414,
+    46.402616
+   ],
+   "declared": {
+    "wetlands": "FULL",
+    "hydrography": "FULL"
+   },
+   "detailed": {
+    "wetlands": "FULL",
+    "hydrography": "FULL"
+   },
+   "metrics": {
+    "wetlandArea1000": 413022.76,
+    "detailedWetlandArea1000": 413022.76,
+    "hydroLength1000": 48387.869,
+    "detailedHydroLength1000": 48387.869
+   }
+  },
+  {
+   "id": "drv1-550-rd-s1",
+   "expected": "PARTIAL",
+   "bounds": [
+    -123.415653,
+    46.41003,
+    -123.399032,
+    46.418431
+   ],
+   "declared": {
+    "wetlands": "PARTIAL",
+    "hydrography": "PARTIAL"
+   },
+   "detailed": {
+    "wetlands": "PARTIAL",
+    "hydrography": "PARTIAL"
+   },
+   "metrics": {
+    "wetlandArea1000": 261205.504,
+    "detailedWetlandArea1000": 261205.504,
+    "hydroLength1000": 28898.116,
+    "detailedHydroLength1000": 28898.116
    }
   }
  ]

@@ -231,6 +231,42 @@ test('capture the derived-versus-raw corridor comparison', async ({ page }) => {
         && bounds[1] <= searchArea.bbox[3] && bounds[3] >= searchArea.bbox[1]);
     });
     for (const id of outsideBox) note(id, 'presenceOutsideSearchBox', true, false);
+    // A second, tiny real sample exercises the published north edge. One corridor's full 1 km halo fits
+    // the region; the other reaches the boundary and must report PARTIAL. Detailed GIS is loaded around
+    // each whole corridor, as promotion does, so the FULL metric comparison is meaningful at this edge.
+    const edgeCases = [];
+    for (const edge of [
+      { id: 'drv1-4900-rd-c1-s1', bbox: [-123.68, 46.39, -123.65, 46.41], expected: 'FULL' },
+      { id: 'drv1-550-rd-s1', bbox: [-123.42, 46.40, -123.39, 46.42], expected: 'PARTIAL' },
+    ]) {
+      const derivedScope = await gis.prepareDerivedSearch({ bbox: edge.bbox, catalogUrl: area.catalogUrl });
+      const row = (await derivedScope.queryDerivedCorridors()).rows.find(item => item.corridor_id === edge.id);
+      if (!row) { note(edge.id, 'edgePresence', false, true); continue; }
+      const scope = await gis.prepareRegionalSearch({ bbox: [row.min_lon, row.min_lat, row.max_lon, row.max_lat],
+        catalogUrl: area.catalogUrl });
+      const context = await scope.getHabitatContext(row.geometry, { corridorId: edge.id });
+      const actual = { wetlands: context.wetlands.coverage, hydrography: context.hydrography.coverage };
+      const declared = { wetlands: row.coverage_wetlands_1000, hydrography: row.coverage_hydro_1000 };
+      for (const kind of ['wetlands', 'hydrography']) {
+        if (declared[kind] !== edge.expected || actual[kind] !== edge.expected) {
+          note(edge.id, `${kind}EdgeCoverage`, declared[kind], actual[kind]);
+        }
+      }
+      const metrics = { wetlandArea1000: Number(row.wetland_area_1000_m2),
+        detailedWetlandArea1000: context.wetlands.buffers[1000].areaM2,
+        hydroLength1000: Number(row.hydro_flowline_length_1000_m),
+        detailedHydroLength1000: context.hydrography.buffers[1000].lengthM };
+      if (edge.expected === 'FULL') {
+        if (!close(metrics.wetlandArea1000, metrics.detailedWetlandArea1000, 1)) {
+          note(edge.id, 'edgeWetlandArea1000', metrics.wetlandArea1000, metrics.detailedWetlandArea1000);
+        }
+        if (!close(metrics.hydroLength1000, metrics.detailedHydroLength1000, 1)) {
+          note(edge.id, 'edgeHydroLength1000', metrics.hydroLength1000, metrics.detailedHydroLength1000);
+        }
+      }
+      edgeCases.push({ id: edge.id, expected: edge.expected, bounds: [row.min_lon, row.min_lat, row.max_lon, row.max_lat],
+        declared, detailed: actual, metrics });
+    }
     return {
       area: searchArea, capturedAt: new Date().toISOString(),
       derivedDiagnostics: { analysisFingerprint: derivedDiagnostics?.analysisFingerprint ?? null,
@@ -247,7 +283,7 @@ test('capture the derived-versus-raw corridor comparison', async ({ page }) => {
         derivedOnlyOutsideSearchBox: outsideBox.length, derivedOnlyIds: derivedOnly.slice(0, 20),
         rule: 'derived keeps a corridor inside the search region; raw keeps every corridor of a composed unit '
           + 'whose bounds reach it' },
-      repairEngineDifferences, divergences, comparisons, detailed,
+      repairEngineDifferences, divergences, comparisons, detailed, edgeCases,
     };
   }, AREA);
   writeFileSync(OUT, JSON.stringify(report, null, 1) + '\n');

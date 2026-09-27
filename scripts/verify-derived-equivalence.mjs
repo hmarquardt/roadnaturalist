@@ -100,6 +100,22 @@ if (!existsSync(fixturePath)) {
     partial: (fixture.comparisons ?? []).filter(item => item.derived?.coverage?.wetlands === 'PARTIAL' || item.derived?.coverage?.hydrography === 'PARTIAL').length,
     repaired: (fixture.comparisons ?? []).filter(item => item.derived?.geometryRepaired).length,
   };
+  const edgeCases = fixture.edgeCases ?? [];
+  if (edgeCases.length !== 2 || !edgeCases.some(item => item.expected === 'FULL')
+    || !edgeCases.some(item => item.expected === 'PARTIAL')) {
+    problems.push('the committed sample must contain real near-edge FULL and PARTIAL corridors');
+  }
+  for (const item of edgeCases) {
+    if (item.declared?.wetlands !== item.expected || item.declared?.hydrography !== item.expected
+      || item.detailed?.wetlands !== item.expected || item.detailed?.hydrography !== item.expected) {
+      problems.push(`${item.id}: near-edge derived/detailed coverage differs`);
+    }
+    if (item.expected === 'FULL' && (Math.abs(item.metrics.wetlandArea1000 - item.metrics.detailedWetlandArea1000) > 1
+      || Math.abs(item.metrics.hydroLength1000 - item.metrics.detailedHydroLength1000) > 1)) {
+      problems.push(`${item.id}: near-edge FULL habitat metrics differ from raw detailed GIS`);
+    }
+  }
+  sections.edgeCases = edgeCases.map(item => ({ id: item.id, coverage: item.expected }));
 }
 
 // The published manifest must carry the current analysis fingerprint, and every declared artifact must be
