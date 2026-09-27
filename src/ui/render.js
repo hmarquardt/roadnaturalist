@@ -43,18 +43,40 @@ export function renderCandidates(container, state, onSelect) {
   if (state.roadQuery?.missingRoadIds?.length) {
     container.append(el('p', 'small muted', `Partial road coverage: ${state.roadQuery.missingRoadIds.join(', ')} ${state.roadQuery.missingRoadIds.length === 1 ? 'is' : 'are'} absent from this bounded extract.`));
   }
+  // A stored *entry* this build cannot read (a future schema version, a hand edit) is reported too, not silently
+  // treated as an empty list.
+  const storageProblem = state.candidateStorage?.reason;
+  if (storageProblem && !['full', 'unavailable'].includes(state.candidateStorage.status)) {
+    container.append(el('p', 'small muted candidate-storage-note', `Saved candidates: ${storageProblem}`));
+  }
+  // A stored candidate that could not be read is reported where the candidates are, with its reason, rather
+  // than taking the rest of the collection down with it.
+  const skipped = state.candidateStorage?.skipped ?? [];
+  if (skipped.length) {
+    const details = el('details', 'candidate-storage-note');
+    details.id = 'candidate-storage-skipped';
+    details.append(el('summary', null, `${skipped.length} stored candidate record(s) could not be read and were left out`));
+    for (const entry of skipped) details.append(el('p', 'small muted', `${entry.id ?? 'a record without an id'}: ${entry.reason}`));
+    container.append(details);
+  }
 }
 
 export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null, occurrence = null, onQueryOccurrence = null,
   investigation = null, access = null, onRunAccess = null, onExportBundle = null, onReviewAccess = null, recordedCaptureAt = null, liveOsm = false,
-  workerStatus = null, workerUrl = '', declaredSourceCount = null } = {}) {
+  workerStatus = null, workerUrl = '', declaredSourceCount = null, restored = false, persisted = false, storage = null,
+  onRunAnalysis = null, onRemove = null } = {}) {
   container.replaceChildren();
   if (!candidate) { container.append(empty('Investigation starts with a road', 'Open the pilot and select a corridor to inspect its geometry source, evidence, missing data, and research questions.')); return; }
-  container.append(el('h3', 'detail-title', candidate.name), el('p', 'detail-lede', candidate.summary ?? ''), el('span', `tag ${candidate.status === 'rejected' ? 'warn' : ''}`, candidate.status));
+  const status = el('span', `tag ${candidate.status === 'rejected' ? 'warn' : ''}`, candidate.status);
+  status.id = 'candidate-status';
+  container.append(el('h3', 'detail-title', candidate.name), el('p', 'detail-lede', candidate.summary ?? ''), status);
   // Orientation first, evidence after: where the search was when this corridor was chosen. A candidate with no
   // search context (a pilot corridor, a promotion from a declared window) renders exactly as before.
   const searchContext = storedSearchContext(candidate.searchContext);
   if (searchContext) container.append(searchContextSection(searchContext));
+  // Where this candidate lives, said once: kept on this device or not, and - for a candidate that came back
+  // from storage - that its detailed analysis is this session's to run.
+  container.append(persistenceSection({ restored, persisted, storage, habitat, onRunAnalysis }));
   if (roads.length) container.append(roadSection(candidate, roads));
   container.append(ecologySection(ecology));
   container.append(habitatSection(habitat));
@@ -97,6 +119,7 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
     actions.append(button);
   }
   decisionSection.append(actions);
+  if (onRemove) decisionSection.append(removalControl(candidate.id, onRemove));
   container.append(decisionSection);
 }
 
@@ -121,6 +144,62 @@ function searchContextSection(context) {
   node.append(dl);
   node.append(el('p', 'small', SEARCH_CONTEXT_NOTE));
   return node;
+}
+
+// WHERE THIS CANDIDATE LIVES. A promoted corridor is written to this device, so a reload finds it again; the
+// panel says so once, and says when a candidate could not be saved rather than implying that it was. A restored
+// candidate also says plainly that its detailed analysis has not run in this session: the corridor, its coverage,
+// its evidence and its search context came back - the measurements did not - and running them is a control, never
+// a boot step.
+function persistenceSection({ restored = false, persisted = false, storage = null, habitat = null, onRunAnalysis = null }) {
+  const node = el('section', 'detail-section candidate-persistence');
+  node.id = 'candidate-persistence';
+  if (persisted) {
+    node.append(el('p', 'small muted', restored
+      ? 'Saved on this device — this corridor came back from local storage.'
+      : 'Saved on this device — it will still be here after a reload.'));
+  } else if (storage?.status === 'full' || storage?.status === 'unavailable') {
+    node.append(el('p', 'small', `Not saved on this device — ${storage.reason ?? 'local storage is unavailable.'}`));
+  } else {
+    node.append(el('p', 'small muted', 'Not saved on this device — only promoted discovery corridors are kept.'));
+  }
+  if (restored && !habitat) {
+    node.append(el('p', 'small', 'Detailed ecology and habitat measurements are not stored on this device: this session has not measured this corridor yet.'));
+    if (onRunAnalysis) {
+      const run = el('button', 'quiet-button', 'Run detailed analysis');
+      run.type = 'button';
+      run.id = 'candidate-run-analysis';
+      run.addEventListener('click', () => onRunAnalysis());
+      node.append(run);
+    }
+  }
+  return node;
+}
+
+// REMOVAL. One restrained control with a confirmation step: taking a candidate off this device is not something a
+// stray click should do, and it removes this device's copy of the candidate - nothing else.
+function removalControl(id, onRemove) {
+  const block = el('div', 'candidate-removal');
+  block.id = 'candidate-removal';
+  const note = el('p', 'small muted', 'Removing takes this candidate off this device. The source data, the discovery results and every other candidate are untouched.');
+  const ask = el('button', 'quiet-button', 'Remove candidate');
+  ask.type = 'button';
+  ask.id = 'candidate-remove';
+  ask.addEventListener('click', () => {
+    const row = el('div', 'decision-actions');
+    const yes = el('button', 'quiet-button warn', 'Confirm removal');
+    yes.type = 'button';
+    yes.id = 'candidate-remove-confirm';
+    yes.addEventListener('click', () => onRemove(id));
+    const no = el('button', 'quiet-button', 'Keep candidate');
+    no.type = 'button';
+    no.id = 'candidate-remove-cancel';
+    no.addEventListener('click', () => block.replaceChildren(ask, note));
+    row.append(yes, no);
+    block.replaceChildren(row, note);
+  });
+  block.append(ask, note);
+  return block;
 }
 
 export function renderContext(container, { manifest, pilotLoaded, error, coverage, roadQuery, places = null } = {}) {

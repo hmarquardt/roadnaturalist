@@ -107,6 +107,24 @@ test('deployed place search, the edge, a refusal, promotion and zero external ca
   report.promotion = { discoveryArea, discoveryContext, detailArea, partitionsRead: partitions.length - partitionsBefore,
     r2Host: partitions.length ? new URL(partitions[0]).host : null };
   log(report.promotion);
+
+  // Kept on this device: a reload restores the same candidate with the same context, without reading anything.
+  const promotedHeadline = await candidateContext.locator('.search-context-headline').innerText();
+  await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+  const derivedBeforeReload = derivedCells.length;
+  const partitionsBeforeReload = partitions.length;
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const restoredDetail = page.locator('#candidate-detail');
+  await expect(restoredDetail.locator('.detail-title')).toHaveText(/./, { timeout: 120000 });
+  await expect(restoredDetail.locator('#candidate-search-context .search-context-headline')).toHaveText(promotedHeadline, { timeout: 120000 });
+  await expect(restoredDetail.locator('#candidate-persistence')).toContainText('came back from local storage');
+  await expect(restoredDetail.locator('#candidate-search-context')).toContainText('Hillsboro, OR · 45.5268, -122.9354');
+  report.restore = { headline: promotedHeadline, derivedReads: derivedCells.length - derivedBeforeReload,
+    partitionReads: partitions.length - partitionsBeforeReload, restoredTitle: await restoredDetail.locator('.detail-title').innerText() };
+  log(report.restore);
+  // Restoring is a local read: no derived plane, no raw partitions.
+  expect(report.restore.derivedReads).toBe(0);
+  expect(report.restore.partitionReads).toBe(0);
   expect(report.promotion.partitionsRead).toBeGreaterThan(0);
   expect(report.promotion.r2Host).toBe('data.roadnaturalist.com');
   if (discoveryArea !== 'None mapped' && discoveryArea !== 'Unknown') expect(detailArea).toContain(discoveryArea);
@@ -154,6 +172,20 @@ test('deployed place search, the edge, a refusal, promotion and zero external ca
   report.none = { place: 'Chehalis, WA', refused: true, cellsRead: derivedCells.length - noneBefore };
   log(report.none);
   expect(report.none.cellsRead).toBe(0);
+
+  // 6. The promoted candidate can be taken off this device, and stays off after a reload.
+  await page.locator('#candidate-list .candidate-card').first().click();
+  await expect(page.locator('#candidate-remove')).toBeVisible({ timeout: 60000 });
+  const removedTitle = await page.locator('#candidate-detail .detail-title').innerText();
+  await page.locator('#candidate-remove').click();
+  await page.locator('#candidate-remove-confirm').click();
+  await expect(page.locator('#candidate-list .candidate-card')).toHaveCount(0, { timeout: 120000 });
+  report.removal = { removed: removedTitle, remaining: await page.locator('#candidate-list .candidate-card').count() };
+  log(report.removal);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
+  await expect(page.locator('#candidate-list .candidate-card')).toHaveCount(0);
+  report.removal.stillGoneAfterReload = true;
 
   expect(outside, 'a place search must reach no geocoder, occurrence source or Investigator endpoint').toEqual([]);
   expect(failures).toEqual([]);

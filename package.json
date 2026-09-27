@@ -36,6 +36,7 @@
     "verify:derived": "uv run --python 3.12 --with duckdb --with shapely python3 scripts/verify-derived.py",
     "capture:derived-equivalence": "RUN_DERIVED_EQUIVALENCE_CAPTURE=1 playwright test tests/derived-equivalence.capture.spec.js --reporter=line --retries=0",
     "benchmark:derived": "RUN_DERIVED_BENCHMARK=1 playwright test tests/derived-benchmark.spec.js --reporter=line --retries=0",
+    "benchmark:candidates": "RUN_CANDIDATE_STORAGE_BENCHMARK=1 playwright test tests/candidate-storage-benchmark.spec.js --reporter=line --retries=0",
     "benchmark:search": "RUN_SEARCH_BENCHMARK=1 playwright test tests/search-benchmark.spec.js --reporter=line --retries=0"
   },
   "devDependencies": {

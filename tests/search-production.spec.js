@@ -189,6 +189,20 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   expect(report.promotion.partitionsRead).toBeGreaterThan(0);
   expect(report.promotion.r2Host).toBe('data.roadnaturalist.com');
   if (discoveryArea !== 'None mapped' && discoveryArea !== 'Unknown') expect(detailArea).toContain(discoveryArea);
+  // A promoted corridor is kept on this device: the reload restores it with the same context and reads nothing.
+  const promotedHeadline = await candidateContext.locator('.search-context-headline').innerText();
+  await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
+  const partitionsBeforeRestore = partitions.length;
+  const derivedBeforeRestore = derivedCells.length;
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const restored = page.locator('#candidate-detail');
+  await expect(restored.locator('#candidate-search-context .search-context-headline')).toHaveText(promotedHeadline, { timeout: 120000 });
+  await expect(restored.locator('#candidate-persistence')).toContainText('came back from local storage');
+  report.restore = { headline: promotedHeadline, partitionReads: partitions.length - partitionsBeforeRestore,
+    derivedReads: derivedCells.length - derivedBeforeRestore };
+  log(report.restore);
+  expect(report.restore.partitionReads).toBe(0);
+  expect(report.restore.derivedReads).toBe(0);
   expect(outside, 'a search must reach no occurrence, Investigator or Overpass endpoint').toEqual([]);
   expect(failures).toEqual([]);
   report.externalRequests = outside.length;

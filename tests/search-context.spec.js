@@ -260,12 +260,14 @@ test('a promoted corridor keeps the search context from the row through to the c
   await expect(page.locator('#map svg .candidate-context-line')).toHaveCount(1);
   await expect(page.locator('#map svg .candidate-context-center')).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
-  // A candidate created by a search keeps the mark that promotion recorded, and a reload invents no context.
+  // A candidate created by a search keeps the mark that promotion recorded, and a promoted corridor is kept on
+  // this device: the reload restores the candidate *with* the context it was promoted with, and invents nothing.
   const marks = await page.evaluate(() => JSON.parse(localStorage.getItem('roadnaturalist.discovery.marks.v1') ?? '{}'));
   expect(Object.values(marks.marks ?? {}).filter(status => status === 'PROMOTED').length).toBe(1);
   await page.reload();
   await expect(page.locator('#candidate-detail')).toBeVisible({ timeout: 60000 });
-  await expect(page.locator('#candidate-detail #candidate-search-context')).toHaveCount(0);
+  await expect(page.locator('#candidate-detail #candidate-search-context')).toHaveCount(1);
+  await expect(page.locator('#candidate-detail #candidate-search-context .search-context-headline')).toHaveText(`${rowCell} of Near Forest Grove, OR`);
   await expect(page.locator('#discovery')).not.toContainText('promotion verification failed');
   expect(external).toEqual([]);
 });

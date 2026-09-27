@@ -309,6 +309,9 @@ Straight-line distance from the search centre to the nearest point of this corri
 * **Optional.** A candidate promoted from a declared window (no centre), a pilot corridor, and any candidate built
   before this feature simply carry no search context and render exactly as before: the field is `null`, not a
   guess. A search context is only ever built when a centre actually measured the corridor.
+* **Kept with the candidate.** A promoted corridor is written to this device, so its search context comes back
+  after a reload — the same centre, the same label, the same measurement. See
+  [Candidates are kept on this device](#candidates-are-kept-on-this-device).
 * **Not exported.** The evidence bundle deliberately excludes it — see
   [below](#why-the-evidence-bundle-carries-no-search-context).
 * **On the map.** Selecting a promoted candidate draws its search centre, the nearest point of that corridor and
@@ -339,6 +342,49 @@ and `tests/promotion-context.test.js` pins it.
 * **Sorting** — `Distance from center` is an explicit sort beside the others, ascending, with an unmeasured
   distance sorted last. It is not the default and not a recommendation; the display default of the table is
   unchanged.
+
+### Candidates are kept on this device
+
+A corridor a person promotes is something they keep, so it is written to this device and still there after a
+reload: the same candidate, the same corridor, the same verified search context, the same status. No account, no
+server, no cloud state, no cross-device sync.
+
+One versioned `localStorage` entry (`roadnaturalist.candidates.v1`) holds the durable candidate state and is
+written only when a person promotes, decides, re-measures or removes a candidate:
+
+| Persisted | Not persisted |
+| --- | --- |
+| candidate id, name, status, summary | the per-candidate analysis results: ecology, habitat, occurrence, the access investigation and a human review (owned by their own store slices, re-derived by explicit actions) |
+| road records (with their provenance and source feature ids) and the corridor geometry | discovery state: candidates, marks, the last search (each has its own entry) |
+| coverage per dataset, and the candidate's own evidence and questions | interface state: selection, filters, overlays, transient errors |
+| the verified search context (centre, label, place id, radius, distance, bearing) | the pilot corridors themselves (they come back from their own button) |
+
+* **Validated on read.** `localStorage` is untrusted: every record is re-validated through the same domain
+  constructor that built it, coverage is rebuilt through the domain validator, and the search context goes
+  through `storedSearchContext`. A record that cannot be read is left out **on its own** with its reason — the
+  candidate list reports how many and why — while the rest load. The entry is never silently rewritten by a read.
+* **Versioned from day one.** An entry with a different `kind`, an unparsable entry, or a future schema version is
+  ignored and left byte-for-byte untouched, with the reason shown in the candidate list. A migration is written
+  explicitly when the model changes, never guessed.
+* **Capped.** 100 candidates (~0.9 MB with measured records; worst case ~2.8 MB). At the cap the next save is
+  **refused** with the reason in the panel — nothing a person chose to keep is evicted to make room. The remedy
+  is removal.
+* **Removable.** `Remove candidate` (with a confirmation step) takes the candidate and its session results off
+  this device and rewrites the entry without it. It removes this device's copy of the candidate and nothing else:
+  not the source data, not the discovery artefacts, not another candidate.
+* **Honest about failure.** A blocked browser, a full quota or a failed write never fails a promotion: the
+  candidate is real in this session and the panel says it was not saved on this device, with the reason.
+* **Analysis is explicit after a restore.** A restored candidate comes back with its corridor, coverage, evidence
+  and search context — not with measurements. Its panel says so and offers **Run detailed analysis**; boot never
+  reads the ecoregion extract, the raw regional partitions or anything else on its own.
+* **Kept local.** The search centre a stored candidate carries is the search centre the person chose; it stays in
+  this browser's storage, is never sent anywhere, and is **never** written into the evidence bundle that exists
+  for sharing corridor evidence (see
+  [Why the evidence bundle carries no search context](#why-the-evidence-bundle-carries-no-search-context)).
+
+Measured cost (Chromium, real records of 9–10 KB): 10 candidates — 92 KB, 0.5 ms to parse and validate; 50 —
+460 KB, 2.3 ms; 100 — 919 KB, 4.2 ms, with the boot-to-rendered time unchanged within noise (31–39 ms across all
+sizes).
 
 ## Road eligibility
 
@@ -628,6 +674,12 @@ promoted corridor (`src/discovery/search-context.js`). It is snapshot presentati
 verified against the promoted corridor at promotion time — and it is not an input to anything measured. See
 [Promotion keeps the orientation](#promotion-keeps-the-orientation).
 
+A promoted corridor is also **written to this device** (`src/state/candidate-persistence.js`, one versioned
+entry): identity, roads and geometry, coverage, status, the candidate's own evidence and the verified search
+context. The pilot corridors are not written — they come back from their own button — and the per-candidate
+analysis results are not written either, because they are owned by their own slices and re-derived by explicit
+actions. See [Candidates are kept on this device](#candidates-are-kept-on-this-device).
+
 A promoted corridor is the **corridor**, not the road group it belongs to. A long named road becomes several
 contiguous analysis corridors, so promotion hands `promoteDiscoveryResult` the corridor that was selected and
 the candidate's road record takes that corridor's canonical geometry (`corridorRoad` in `src/roads/road.js`)
@@ -716,6 +768,12 @@ browser storage, derived metrics and Worker-side GIS remain unimplemented and re
   sort and the 390 px layout
 * `tests/promotion-context.test.js` — the promotion search context: the snapshot, the derived-versus-raw
   verification, the refusals, the optional/absent cases, and the bundle exclusion
+* `src/state/candidate-persistence.js`, `tests/candidate-persistence.test.js`,
+  `tests/candidate-persistence.spec.js` — the device-local candidate store: the versioned entry, per-record
+  validation and isolation, the cap and the refusals, removal, and the promote → reload → restore loop in a
+  browser
+* `src/discovery/persistence.js` — the other device-local entries: discovery marks, the last search, the search
+  history
 * `assets/css/discovery.css`, `src/ui/discovery.js` — the discovery workspace
 
 See also [docs/ROADS.md](ROADS.md) for the road sources, [docs/HABITAT.md](HABITAT.md) for the habitat
