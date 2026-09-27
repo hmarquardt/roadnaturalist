@@ -1,16 +1,23 @@
 import { setCandidateStatus, setCandidateCoverage } from '../domain/corridor.js';
 import { DEFAULT_FILTERS, DEFAULT_SORT } from '../discovery/filter.js';
 import { DISCOVERY_STATUS, markDiscovery } from '../discovery/lifecycle.js';
+import { CUSTOM_SEARCH_AREA_ID } from '../discovery/search-definition.js';
 
 export function createStore() {
   const initialQuery = Object.freeze({ status: 'idle', coverage: null, reason: null, provenance: null, missingRoadIds: [], note: null });
   const initialDiscovery = Object.freeze({ status: 'idle', results: Object.freeze([]), coverage: null, diagnostics: null, promotionError: null,
     eligibility: Object.freeze([]), searchArea: null, selectedId: null, marks: Object.freeze({}), error: null,
     filters: DEFAULT_FILTERS, sort: DEFAULT_SORT, raw: null });
-  let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, discovery: initialDiscovery });
+  // The search definition is its own slice: which declared window (or custom centre and radius) a run would
+  // survey, the centre and radius themselves, whether the map is waiting for a centre, and the short list of
+  // searches this device ran. It is separate from the results so changing the input can never look like a
+  // result, and the panel can say plainly that the results on screen belong to the previous search.
+  const initialSearch = Object.freeze({ areaId: null, definition: null, picking: false, history: Object.freeze([]), error: null });
+  let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, discovery: initialDiscovery, search: initialSearch });
   const listeners = new Set();
   const publish = next => { state = Object.freeze(next); for (const listener of listeners) listener(state); };
   const publishDiscovery = patch => publish({ ...state, discovery: Object.freeze({ ...state.discovery, ...patch }) });
+  const publishSearch = patch => publish({ ...state, search: Object.freeze({ ...state.search, ...patch }) });
   return {
     getState: () => state,
     subscribe(listener) { listeners.add(listener); listener(state); return () => listeners.delete(listener); },
@@ -43,6 +50,18 @@ export function createStore() {
     clearDiscoveryPromotion() { publishDiscovery({ promotionError: null }); },
     setDiscoveryFilters(filters) { publishDiscovery({ filters: Object.freeze({ ...DEFAULT_FILTERS, ...filters }) }); },
     setDiscoverySort(sort) { publishDiscovery({ sort }); },
+    // SEARCH DEFINITION. One selection, one definition, one run: a declared window and a custom radius are two
+    // values of the same field, so nothing downstream can tell an arbitrary search from a committed preset.
+    setSearchSelection({ areaId, definition, picking = false }) {
+      publishSearch({ areaId: areaId ?? null, definition: definition ?? null, picking: Boolean(picking) });
+    },
+    setSearchArea(areaId) { publishSearch({ areaId, picking: false }); },
+    setSearchDefinition(definition, { picking = false } = {}) {
+      publishSearch({ definition: definition ?? null, areaId: CUSTOM_SEARCH_AREA_ID, picking: Boolean(picking) });
+    },
+    setSearchPicking(picking) { publishSearch({ picking: Boolean(picking) }); },
+    setSearchHistory(history) { publishSearch({ history: Object.freeze([...(history ?? [])]) }); },
+    setSearchError(error) { publishSearch({ error: error ?? null }); },
     // Promotion appends the discovered corridor to the normal candidate list, exactly like the pilot
     // candidates: same domain object, same detail pipeline, same evidence workflow.
     promoteDiscoveryCandidate(candidate, discoveryId) {

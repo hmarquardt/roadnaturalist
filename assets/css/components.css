@@ -7,3 +7,13 @@
 .map-controls{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
 .map-toggle{display:flex;align-items:center;gap:.35rem;font:700 .68rem/1 ui-monospace,SFMono-Regular,monospace;text-transform:uppercase;letter-spacing:.06em;color:#4c6a5c}
 .map-toggle input{accent-color:#205646;margin:0}
+.map .search-layer{pointer-events:none}
+.map .map-placeholder{pointer-events:none}
+.map svg.picking{cursor:crosshair}
+.map .search-region{fill:none;stroke:#7d8f83;stroke-width:1.6;stroke-dasharray:10 6;opacity:.7}
+.map .search-area{fill:#2d6fa01f;stroke:#2d6fa0;stroke-width:2;stroke-dasharray:6 4}
+.map .search-box{fill:none;stroke:#2d6fa0;stroke-width:1;stroke-dasharray:3 5;opacity:.45}
+.map .search-disk{fill:#2d6fa01a;stroke:#2d6fa0;stroke-width:2;stroke-dasharray:5 4}
+.map .search-center{fill:none;stroke:#17466b;stroke-width:3}
+.map .search-center-cross{fill:none;stroke:#17466b;stroke-width:2}
+.map .search-label{font:700 12px ui-sans-serif,system-ui;fill:#17466b;paint-order:stroke;stroke:#fffef9;stroke-width:3}

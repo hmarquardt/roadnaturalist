@@ -9,6 +9,15 @@ export function contains(outer, inner) {
   return inner[0] >= outer[0] && inner[1] >= outer[1] && inner[2] <= outer[2] && inner[3] <= outer[3];
 }
 
+// One classification of a search box against a published region. The raw regional reader, the derived
+// corridor-metrics reader, and the interface that tells a person what will happen all ask the same question,
+// so they must answer it identically: a box that misses the region entirely is NONE, a box inside it is FULL,
+// and a box that crosses the edge is PARTIAL - never "nothing is there".
+export function boundsCoverage(bounds, region) {
+  if (!intersects(region, bounds)) return COVERAGE.NONE;
+  return contains(region, bounds) ? COVERAGE.FULL : COVERAGE.PARTIAL;
+}
+
 export function validateRegionalCatalog(catalog) {
   if (catalog?.schemaVersion !== 2 || catalog.project !== 'roadnaturalist' || !catalog.version
     || !Array.isArray(catalog.region?.bounds) || catalog.region.bounds.length !== 4

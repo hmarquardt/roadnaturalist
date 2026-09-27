@@ -2,6 +2,17 @@
   "kind": "road-discovery-search-areas",
   "version": 1,
   "note": "Bounded areas candidate discovery can survey. A search area must lie inside the loaded road-network extract and the loaded habitat extracts; discovery reports PARTIAL coverage rather than guessing when it does not. This is a pilot window, not national coverage.",
+  "publishedRegion": {
+    "id": "or-sw-wa-portland",
+    "name": "Greater Portland region (Oregon and south-west Washington)",
+    "bounds": [
+      -124.05,
+      44.75,
+      -121.77,
+      46.42
+    ],
+    "note": "The published regional coverage the derived corridor-metrics plane covers. It is declared here so the interface can classify a search centre as FULL, PARTIAL or NONE before any data is fetched; tests/discovery.test.js asserts it still equals the bounds of published regional/manifest.json and of the derived manifest, which are the authorities."
+  },
   "searchAreas": [
     {
       "id": "or-pilot-window",

@@ -70,6 +70,19 @@ export function validateSearchAreas(declaration, manifest) {
       if (!inside) throw new TypeError(`Search area ${area.id} extends outside ${key}: a search area must lie inside every dataset it requires`);
     }
   }
+  // The published region the declared areas live in. It is declared here so the interface can say what a
+  // search centre will do before any data is fetched; a test asserts it still agrees with the published
+  // regional catalog and the derived manifest, which are the authorities for what is actually published.
+  if (declaration.publishedRegion != null) {
+    const region = declaration.publishedRegion;
+    if (typeof region.id !== 'string' || !region.id || typeof region.name !== 'string' || !region.name) {
+      throw new TypeError('The published region needs an id and a name');
+    }
+    const bounds = region.bounds;
+    if (!Array.isArray(bounds) || bounds.length !== 4 || !bounds.every(Number.isFinite) || bounds[0] >= bounds[2] || bounds[1] >= bounds[3]) {
+      throw new TypeError('The published region needs ordered finite bounds');
+    }
+  }
   return declaration;
 }
 

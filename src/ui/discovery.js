@@ -3,22 +3,33 @@ import { DEFAULT_SORT_NOTE, SORT_OPTIONS, WETLAND_FILTERS, coverageFlag, ecoregi
 import { DISCOVERY_STATUS } from '../discovery/lifecycle.js';
 import { DISCOVERY_DISPOSITION } from '../discovery/eligibility.js';
 import { MAX_RESULT_ROWS, SEGMENTED_ROAD_NOTE } from '../discovery/constants.js';
+import { CUSTOM_SEARCH_AREA_ID, DEFAULT_RADIUS_MILES, MAX_RADIUS_MILES, MIN_RADIUS_MILES, RADIUS_STOPS_MILES,
+  areaCoverage, formatCenter, formatRadius, radiusNumber, readSearchDefinition, searchIsRunnable,
+  searchRefusal, searchRegionCoverage, storedDefinition } from '../discovery/search-definition.js';
 import { formatArea, formatDistance, formatLength } from './render.js';
 
 // The discovery workspace: choose a bounded area, run the deterministic survey, filter and sort the
 // measured facts, inspect one corridor, and promote what deserves a closer look. It never runs
 // occurrence queries or access research, and it never shows a score: every column is a measured value.
+//
+// A search is either a declared window or a centre and radius a person chose. Both are the same thing to the
+// run - a search area - so the panel never offers two ways to discover roads, only two ways to say where.
 
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 
 const CLASS_LABELS = Object.freeze({ S1200: 'Secondary road', S1400: 'Local road' });
 
-export function renderDiscovery(container, { discovery, searchAreas = [], searchAreaId = null, onDiscover, onSelect, onPromote, onDismiss,
-  onFilters, onSort, onSearchArea } = {}) {
+export function renderDiscovery(container, { discovery, searchAreas = [], searchAreaId = null, search = null,
+  presets = [], region = null, onDiscover, onSelect, onPromote, onDismiss, onFilters, onSort, onSearchArea,
+  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview } = {}) {
   container.replaceChildren();
-  container.append(controls({ discovery, searchAreas, searchAreaId, onDiscover, onSearchArea }));
+  container.append(controls({ discovery, searchAreas, searchAreaId, search, presets, region, onDiscover, onSearchArea,
+    onSearchDefinition, onSearchRadius, onSearchPicking, onPreview }));
   if (discovery.error) container.append(el('p', 'discovery-error', discovery.error));
-  if (discovery.coverage) container.append(coverageBanner(discovery.coverage, discovery.diagnostics));
+  if (search?.error) container.append(el('p', 'discovery-error', search.error));
+  if (discovery.coverage) container.append(coverageBanner(discovery.coverage, discovery.diagnostics, discovery.searchArea));
+  const stale = staleResults({ discovery, search, searchAreaId });
+  if (stale) container.append(el('p', 'discovery-note', stale));
   const selected = discovery.selectedId ? discovery.results.find(result => result.id === discovery.selectedId) : null;
   if (discovery.status === 'ready' && discovery.results.length) {
     const view = filterAndSort(discovery.results, discovery.filters, discovery.sort);
@@ -33,12 +44,32 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
   return container;
 }
 
-function controls({ discovery, searchAreas, searchAreaId, onDiscover, onSearchArea }) {
+// Changing the search does not silently re-run it: the results stay on screen, marked as belonging to the
+// search that produced them, until a person starts the new one.
+function staleResults({ discovery, search, searchAreaId }) {
+  const area = discovery.searchArea;
+  if (!area || discovery.status !== 'ready') return null;
+  const activeId = searchAreaId ?? null;
+  const draft = search?.definition ?? null;
+  const sameDefinition = activeId !== CUSTOM_SEARCH_AREA_ID ? (area.id ?? null) === activeId
+    : Boolean(draft && area.center && draft.radiusMiles === area.radiusMiles
+      && draft.center[0] === area.center[0] && draft.center[1] === area.center[1]);
+  if (sameDefinition) return null;
+  const previous = area.radiusMiles ? `${area.radiusMiles}-mile search at ${formatCenter(area.center)}` : `search area ${area.name ?? area.id}`;
+  return `These results are from the previous search (${previous}). Choose a centre and radius, then search again to replace them.`;
+}
+
+function controls({ discovery, searchAreas, searchAreaId, search, presets, region, onDiscover, onSearchArea,
+  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview }) {
   const block = el('div', 'discovery-controls');
   if (searchAreas.length > 1) {
     const label = el('label', 'discovery-field', 'Search area');
     const select = el('select', 'discovery-select');
     select.id = 'discovery-area';
+    const custom = el('option', null, 'Custom radius search (centre + radius)');
+    custom.value = CUSTOM_SEARCH_AREA_ID;
+    if (searchAreaId === CUSTOM_SEARCH_AREA_ID) custom.selected = true;
+    select.append(custom);
     for (const area of searchAreas) {
       const option = el('option', null, area.name);
       option.value = area.id;
@@ -51,15 +82,23 @@ function controls({ discovery, searchAreas, searchAreaId, onDiscover, onSearchAr
   } else if (searchAreas.length === 1) {
     block.append(el('p', 'discovery-area', `Search area: ${searchAreas[0].name}`));
   }
+  block.append(searchControls({ search, searchAreas, searchAreaId, presets, region, onSearchDefinition,
+    onSearchRadius, onSearchPicking, onPreview }));
+  const customSearch = searchAreaId === CUSTOM_SEARCH_AREA_ID;
+  const coverage = coverageOf({ search, searchAreas, searchAreaId, region });
+  const runnable = customSearch ? Boolean(search?.definition) && searchIsRunnable({ ok: true, coverage }) : true;
   const button = el('button', 'primary-button', discovery.status === 'running' ? 'Discovering…' : 'Discover roads');
   button.type = 'button';
   button.id = 'discover-roads';
-  // The button is created together with its listener, so it never needs a pre-attach disabled state. It
-  // does stay disabled until the search-area declaration has loaded: a survey cannot run without one.
-  button.disabled = discovery.status === 'running' || !searchAreas.length;
+  // The button is created together with its listener, so it never needs a pre-attach disabled state. It does
+  // stay disabled until the search-area declaration has loaded, and while the chosen centre and radius cannot
+  // overlap the published coverage at all: a search that cannot be answered is refused, not answered emptily.
+  button.disabled = discovery.status === 'running' || !searchAreas.length || !runnable;
+  if (!runnable) button.setAttribute('aria-describedby', 'discovery-search-status');
   button.addEventListener('click', () => onDiscover?.());
   block.append(button);
   if (!searchAreas.length) block.append(el('p', 'discovery-status', 'Loading the discovery search-area declaration…'));
+  else if (!runnable) block.append(el('p', 'discovery-status', 'Cannot search: this centre and radius do not overlap the published regional coverage.'));
   if (discovery.status === 'running') {
     block.append(el('p', 'discovery-status', discovery.phase || 'Preparing search…'));
   } else if (discovery.status === 'unavailable' && !discovery.error) {
@@ -68,11 +107,185 @@ function controls({ discovery, searchAreas, searchAreaId, onDiscover, onSearchAr
   return block;
 }
 
+function coverageOf({ search, searchAreas, searchAreaId, region }) {
+  if (searchAreaId !== CUSTOM_SEARCH_AREA_ID) {
+    const declared = searchAreas.find(area => area.id === searchAreaId) ?? null;
+    return declared ? areaCoverage(declared, region) : null;
+  }
+  return search?.definition ? searchRegionCoverage(search.definition, region) : null;
+}
 
-function coverageBanner(coverage, diagnostics) {
+// The centre and the radius. Every control here produces the same plain value, and a map pick, a preset, a
+// shared URL and a remembered search are all just other ways of arriving at it.
+function searchControls({ search, searchAreas, searchAreaId, presets, region, onSearchDefinition, onSearchRadius,
+  onSearchPicking, onPreview }) {
+  const block = el('div', 'discovery-search');
+  const draft = search?.definition ?? null;
+  const custom = searchAreaId === CUSTOM_SEARCH_AREA_ID;
+  const coverage = coverageOf({ search, searchAreas, searchAreaId, region });
+  const radiusMiles = draft?.radiusMiles ?? DEFAULT_RADIUS_MILES;
+  const picking = Boolean(search?.picking);
+  const active = custom
+    ? (draft ? `Custom radius search · ${formatRadius(draft.radiusMiles)} at ${formatCenter(draft.center)}` : 'Custom radius search · no centre chosen yet')
+    : `Declared search area · ${searchAreas.find(area => area.id === searchAreaId)?.name ?? searchAreaId ?? 'none selected'}`;
+  const status = el('div', 'discovery-coverage-status');
+  status.id = 'discovery-search-status';
+  status.setAttribute('aria-live', 'polite');
+  status.append(el('p', 'small', custom ? `Active search: ${active}` : `Active search: ${active} (the centre and radius below define a custom search)`));
+  status.append(el('p', `small discovery-coverage-line ${(coverage?.coverage ?? COVERAGE.UNKNOWN).toLowerCase()}`,
+    `Coverage: ${coverage?.coverage ?? COVERAGE.UNKNOWN}${coverage?.reason ? ` — ${coverage.reason}` : ''}`));
+  block.append(status);
+
+  const form = el('form', 'discovery-search-fields');
+  form.id = 'discovery-search-fields';
+  const latInput = textField('discovery-center-lat', 'Latitude', draft ? draft.center[1].toFixed(4) : '');
+  const lonInput = textField('discovery-center-lon', 'Longitude', draft ? draft.center[0].toFixed(4) : '');
+  const apply = el('button', 'quiet-button', 'Set centre');
+  apply.type = 'submit';
+  apply.id = 'discovery-center-apply';
+  const applied = el('p', 'discovery-error');
+  applied.id = 'discovery-center-error';
+  applied.setAttribute('role', 'status');
+  // A centre that is not a coordinate, or a radius outside the declared range, is refused here and never
+  // becomes a definition. A centre whose search cannot overlap the published coverage is accepted as a
+  // definition, so that state stays visible and shareable, and refused as a search by the button below.
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    const result = readSearchDefinition({ lat: latInput.value, lon: lonInput.value, radiusMiles }, { region });
+    if (!result.ok) { applied.textContent = searchRefusal(result); return; }
+    applied.textContent = '';
+    onSearchDefinition?.(result.definition, { source: 'coordinate' });
+  });
+  const pick = el('button', 'quiet-button', picking ? 'Stop choosing on the map' : 'Set centre on map');
+  pick.type = 'button';
+  pick.id = 'discovery-center-pick';
+  pick.setAttribute('aria-pressed', String(picking));
+  pick.addEventListener('click', () => onSearchPicking?.(!picking));
+  const row = el('div', 'discovery-search-row');
+  row.append(latInput.closest('label'), lonInput.closest('label'), apply, pick);
+  form.append(row, applied);
+  block.append(form);
+
+  const radiusField = el('label', 'discovery-field', `Search radius (miles, ${MIN_RADIUS_MILES}–${MAX_RADIUS_MILES})`);
+  const radiusRow = el('div', 'discovery-radius-row');
+  const slider = el('input', 'discovery-range');
+  slider.type = 'range';
+  slider.id = 'discovery-radius';
+  slider.min = String(MIN_RADIUS_MILES);
+  slider.max = String(MAX_RADIUS_MILES);
+  slider.step = '1';
+  slider.value = String(radiusMiles);
+  const readout = el('span', 'discovery-radius-value', formatRadius(radiusMiles));
+  readout.id = 'discovery-radius-value';
+  // Dragging previews the disk on the map and never starts a search; releasing commits the radius.
+  slider.addEventListener('input', () => { readout.textContent = `${slider.value} mi`; onPreview?.({ radiusMiles: radiusNumber(slider.value) }); });
+  slider.addEventListener('change', () => onSearchRadius?.(radiusNumber(slider.value)));
+  const number = el('input', 'discovery-input');
+  number.type = 'number';
+  number.id = 'discovery-radius-input';
+  number.min = String(MIN_RADIUS_MILES);
+  number.max = String(MAX_RADIUS_MILES);
+  number.step = '1';
+  number.value = String(radiusMiles);
+  number.addEventListener('input', () => { readout.textContent = `${number.value || '—'} mi`; onPreview?.({ radiusMiles: radiusNumber(number.value) }); });
+  number.addEventListener('change', () => onSearchRadius?.(radiusNumber(number.value)));
+  radiusRow.append(slider, number, readout);
+  radiusField.append(radiusRow);
+  const stops = el('div', 'discovery-presets');
+  for (const stop of RADIUS_STOPS_MILES) {
+    const chip = el('button', 'quiet-button', formatRadius(stop));
+    chip.type = 'button';
+    chip.id = `discovery-radius-${stop}`;
+    chip.setAttribute('aria-label', `Search a ${stop}-mile radius`);
+    chip.addEventListener('click', () => onSearchRadius?.(stop));
+    stops.append(chip);
+  }
+  block.append(radiusField, stops);
+
+  if (presets.length) {
+    const presetBlock = el('div', 'discovery-presets');
+    presetBlock.id = 'discovery-presets';
+    presetBlock.append(el('span', 'eyebrow', 'Benchmark presets'));
+    for (const preset of presets) {
+      const definition = storedDefinition({ center: preset.center, radiusMiles: preset.radiusMiles });
+      if (!definition) continue;
+      const chip = el('button', 'quiet-button', preset.name);
+      chip.type = 'button';
+      chip.id = `discovery-preset-${preset.id}`;
+      chip.setAttribute('aria-label', `${preset.name}: ${formatRadius(definition.radiusMiles)} at ${formatCenter(definition.center)}`);
+      chip.addEventListener('click', () => onSearchDefinition?.(definition, { source: 'preset' }));
+      presetBlock.append(chip);
+    }
+    block.append(presetBlock);
+  }
+
+  const history = (search?.history ?? []).map(entry => storedDefinition(entry)).filter(Boolean);
+  if (history.length) {
+    const recent = el('div', 'discovery-presets');
+    recent.id = 'discovery-recent';
+    recent.append(el('span', 'eyebrow', 'Recent searches'));
+    history.forEach((definition, index) => {
+      const chip = el('button', 'quiet-button', `${formatCenter(definition.center)} · ${formatRadius(definition.radiusMiles)}`);
+      chip.type = 'button';
+      chip.id = `discovery-recent-${index}`;
+      chip.addEventListener('click', () => onSearchDefinition?.(definition, { source: 'recent' }));
+      recent.append(chip);
+    });
+    block.append(recent);
+  }
+  return block;
+}
+
+function textField(id, label, value) {
+  const field = el('label', 'discovery-field', label);
+  const input = el('input', 'discovery-input');
+  input.type = 'text';
+  input.inputMode = 'decimal';
+  input.autocomplete = 'off';
+  input.id = id;
+  input.value = value;
+  field.append(input);
+  return input;
+}
+
+
+// The run's own summary: what was asked for, what came back, and how long each stage took. It reports the
+// search that produced these results, not the search currently typed into the controls above.
+function searchSummary(diagnostics, searchArea) {
+  const shape = diagnostics?.searchShape;
+  if (!shape || shape.kind !== 'radius' || !Array.isArray(shape.center)) return null;
+  const derivedSelection = diagnostics.derivedSelection ?? null;
+  const timing = diagnostics.derivedTimingMs ?? diagnostics.partitionTimingMs ?? {};
+  const block = el('div', 'discovery-summary');
+  block.id = 'discovery-summary';
+  block.append(el('span', 'eyebrow', 'Search summary'));
+  block.append(el('p', 'small', `${shape.radiusMiles}-mile radius search · centre ${formatCenter(shape.center)}`
+    + `${searchArea?.id === CUSTOM_SEARCH_AREA_ID ? ' (custom search centre)' : ''}`));
+  const parts = [`${diagnostics.counts?.corridors ?? 0} corridor(s) found`];
+  if (derivedSelection) {
+    parts.push(`${derivedSelection.cells.present} metric cell(s) loaded (${derivedSelection.cells.empty} declared empty)`);
+    parts.push(`${(derivedSelection.bytes / 1048576).toFixed(1)} MiB`);
+  } else if (diagnostics.partitionSelection) {
+    const selected = Object.values(diagnostics.partitionSelection.counts ?? {}).reduce((sum, value) => sum + value, 0);
+    parts.push(`${selected} partition(s)`);
+    parts.push(`${(diagnostics.partitionSelection.bytes / 1048576).toFixed(1)} MiB`);
+  }
+  block.append(el('p', 'small', parts.join(' · ')));
+  const stages = [`search ${((diagnostics.totalMs ?? 0) / 1000).toFixed(1)} s`];
+  if (timing.totalPreparationMs != null) stages.push(`data ${(timing.totalPreparationMs / 1000).toFixed(1)} s`);
+  if (diagnostics.selectionMs != null) stages.push(`selection ${(diagnostics.selectionMs / 1000).toFixed(1)} s`);
+  if (diagnostics.queryMs != null) stages.push(`query ${(diagnostics.queryMs / 1000).toFixed(1)} s`);
+  if (diagnostics.buildMs != null) stages.push(`build ${(diagnostics.buildMs / 1000).toFixed(1)} s`);
+  block.append(el('p', 'small muted', stages.join(' · ')));
+  return block;
+}
+
+function coverageBanner(coverage, diagnostics, searchArea = null) {
   const block = el('div', `discovery-coverage ${coverage.coverage === COVERAGE.FULL ? 'ok' : 'caution'}`);
   block.append(el('span', 'eyebrow', 'Discovery coverage'));
   block.append(el('strong', null, `Discovery coverage ${coverage.coverage}`));
+  const summary = searchSummary(diagnostics, searchArea);
+  if (summary) block.append(summary);
   const counts = coverage.counts ?? {};
   block.append(el('p', 'small', `${counts.corridors ?? 0} discovery corridor(s) proposed in this area · `
     + `${counts.fullHabitat ?? 0} with full wetland and hydrography coverage · `

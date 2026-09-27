@@ -7,7 +7,7 @@ Road Naturalist finds **road corridors** worth researching for wildlife explorat
 | Layer | Owns | Current state |
 | --- | --- | --- |
 | `src/app`, `src/state`, `src/ui` | Bootstrap, selection/decisions, coverage tracking, DOM rendering, and the discovery workspace | Real-road pilot slice plus a bounded candidate-discovery workspace |
-| `src/discovery` | Candidate generation: search areas, TIGER road eligibility, named-road units, contiguous segmentation, discovery signals, filters/sorts, coverage, lifecycle and promotion, discovery marks | Discovered corridors from the bounded road-network extract; promotion into the ordinary candidate pipeline |
+| `src/discovery` | Candidate generation: search areas, the interactive **search definition** (a chosen centre and radius, its coverage classification, URL state and recent searches), TIGER road eligibility, named-road units, contiguous segmentation, discovery signals, filters/sorts, coverage, lifecycle and promotion, discovery marks | Discovered corridors for any bounded radius search inside published coverage; promotion into the ordinary candidate pipeline |
 | `src/map` | Corridor geometry display and map interaction | Dependency-free schematic map; replaceable adapter |
 | `src/domain` | Candidate, coverage dimensions, attribute states, evidence contracts, and the point-preserving line-repair ladder with its impact and acceptance policy (`line-repair.js`, `analytical-geometry.js`) | Validated model and status transitions; geometry repair decisions that are pure, deterministic, and engine-free |
 | `src/roads` | Source road features → normalized roads → road provenance | TIGER/Line composition with reported gaps |

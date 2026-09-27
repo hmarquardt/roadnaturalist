@@ -109,7 +109,8 @@ modules; `stage:pages` refuses to stage a payload without them. Catalog validati
 
 The discovery workspace adds three payloads of its own: the bounded road-network extract
 (`data/gis/or-roads-network-2025.parquet`, a manifest dataset like the others), the declared search areas
-(`data/discovery/search-areas.json`), and the discovery modules under `src/discovery/`. `stage:pages` refuses to stage
+(`data/discovery/search-areas.json`, which also declares the published region a chosen search centre is
+classified against), and the discovery modules under `src/discovery/`. `stage:pages` refuses to stage
 a payload without the search-area declaration, and the manifest byte check covers the extract.
 
 `stage:pages` fails the deployment rather than shipping a broken payload: every stylesheet/icon/script referenced by

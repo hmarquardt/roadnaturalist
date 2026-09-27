@@ -1,6 +1,5 @@
 import { COVERAGE } from '../domain/corridor.js';
-import { intersects, contains } from './regional-catalog.js';
-import { paddedBounds } from '../gis/habitat-result.js';
+import { boundsCoverage, intersects } from './regional-catalog.js';
 
 // The derived corridor-metrics catalog.
 //
@@ -57,8 +56,7 @@ export function selectDerivedCells(manifest, bounds) {
   const region = manifest.region.bounds;
   // The corridor row already carries complete metrics for its whole corridor, so selection is the search box
   // itself: no analysis halo is needed here (raw detailed promotion keeps its own halo rules).
-  const coverage = !intersects(region, bounds) ? COVERAGE.NONE
-    : contains(region, bounds) ? COVERAGE.FULL : COVERAGE.PARTIAL;
+  const coverage = boundsCoverage(bounds, region);
   const cells = manifest.cells.filter(cell => intersects(cell.bounds, bounds));
   const present = cells.filter(cell => cell.state === 'present');
   return Object.freeze({ coverage,

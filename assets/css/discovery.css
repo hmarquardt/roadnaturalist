@@ -39,4 +39,25 @@
 .discovery-not-run p{margin:.15rem 0}
 .discovery-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.75rem}
 .discovery-eligible{margin:.5rem 0 0;font-size:.74rem;color:#63746a}
-@media(max-width:700px){.discovery-panel .discovery-body{padding:.85rem}.discovery-filters{flex-direction:column;align-items:stretch}.discovery-input,.discovery-select{width:100%}.discovery-table-wrap{max-height:none}.discovery-table th:nth-child(5),.discovery-table td:nth-child(5){display:none}}
+/* Interactive search: a centre a person chose and a radius they chose. The controls stay ordinary form
+   controls, and the coverage line states the FULL/PARTIAL/NONE answer in words as well as in colour. */
+.discovery-search{display:flex;flex-direction:column;gap:.6rem;margin:.85rem 0 .1rem;padding:.8rem .85rem;border:1px solid #d2dbd0;border-radius:6px;background:#fbfcf8;flex:1 1 100%;min-width:0}
+.discovery-coverage-status p{margin:0}
+.discovery-coverage-status{padding-left:.6rem;border-left:3px solid #c8d3c6}
+.discovery-coverage-status .discovery-coverage-line{font-weight:600;color:#22322c}
+.discovery-coverage-status .discovery-coverage-line.full{border-left-color:#4d7f5b;color:#2f6a43}
+.discovery-coverage-status .discovery-coverage-line.partial{color:#785222}
+.discovery-coverage-status .discovery-coverage-line.none{color:#8a3324}
+.discovery-coverage-status .discovery-coverage-line.full{color:#2f6a43}
+.discovery-search-fields{margin:0}
+.discovery-search-row{display:flex;flex-wrap:wrap;gap:.6rem .9rem;align-items:end}
+.discovery-search-row .discovery-input{min-width:7.5rem}
+.discovery-radius-row{display:flex;flex-wrap:wrap;gap:.5rem .7rem;align-items:center}
+.discovery-range{width:min(220px,100%);flex:1 1 140px;accent-color:#205646;margin:0}
+.discovery-radius-value{font-size:.82rem;font-weight:600;color:#22322c;text-transform:none;letter-spacing:0}
+.discovery-presets{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+.discovery-presets .eyebrow{margin:0 .2rem 0 0}
+.discovery-presets .quiet-button{padding:.34rem .5rem;font-size:.76rem}
+.discovery-summary{margin:.55rem 0 0;padding:.5rem .6rem;border:1px solid #dce3d9;border-radius:5px;background:#fff}
+.discovery-summary p{margin:.25rem 0 0}
+@media(max-width:700px){.discovery-panel .discovery-body{padding:.85rem}.discovery-filters{flex-direction:column;align-items:stretch}.discovery-input,.discovery-select{width:100%}.discovery-table-wrap{max-height:none}.discovery-table th:nth-child(5),.discovery-table td:nth-child(5){display:none}.discovery-search{padding:.7rem}.discovery-search-row,.discovery-radius-row{flex-direction:column;align-items:stretch}.discovery-range{width:100%}}

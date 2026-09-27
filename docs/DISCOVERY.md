@@ -35,6 +35,48 @@ ecoregion levels); the loader fails closed otherwise (`src/discovery/search-area
 is `-123.07, 45.505, -122.75, 45.67`: the same bounded window the road, wetland, hydrography, and
 ecoregion extracts were built for, about 25 km by 18 km west of Portland, Oregon.
 
+The same declaration carries the **published region** (`publishedRegion`), the bounds the derived
+corridor-metrics plane covers, so the interface can say what a centre will do before anything is fetched.
+
+## Interactive search: choose a centre, choose a radius
+
+Discovery is not limited to the declared windows. The search area control offers a **custom radius search**
+alongside them, and its definition is a plain value: a centre and a radius in whole statute miles from 1 to 50.
+
+```
+choose a centre                    choose a radius                 search
+map click / tap  ─┐
+lat, lon fields  ─┼─► { center, radiusMiles } ─► radius search area ─► derived discovery
+preset / recent  ─┤        (validated)            (same catalog and
+shared URL       ─┘                               required datasets)
+```
+
+* **Centre.** `Set centre on map` turns the map into a picker: a click or tap places the centre (a drag still
+  pans, and a road click is still a road click), and Enter with the map focused places it at the middle of the
+  current view. The labelled **Latitude**/**Longitude** fields are the non-map alternative and take the same
+  input the URL does. A chosen centre can always be changed by choosing again.
+* **Radius.** A slider and a number field (both labelled), with 5/10/25/50-mile stops. Moving the slider
+  previews the disk and starts nothing; releasing it commits a radius. There is no continuous search: changing
+  the centre or the radius marks the results on screen as belonging to the previous search, and a person
+  starts the next one.
+* **Preview.** The map draws the chosen centre, the requested radius, the bounding box the cells are selected
+  with, and the published region outline. It is a visual aid only: inclusion stays the exact geographic radius
+  test in `src/discovery/run.js`, and no geometry is read from the drawing.
+* **Coverage.** `FULL`, `PARTIAL`, `NONE`, or `UNKNOWN` is stated on screen (as text, and before the search
+  runs) from the published region. PARTIAL is a warning about where the data reaches, never a claim that
+  nothing is there; NONE disables the search with the reason rather than answering it emptily. The radius is
+  never silently shrunk to fit the available data.
+* **Presets and recents.** Selecting a declared radius scenario, or one of the last searches, simply fills the
+  centre and radius and uses the same path; there is no separate preset discovery logic.
+* **Sharing.** The definition is written to the URL as `?lat=…&lon=…&r=…`, so a link reloads the same search;
+  a link never runs one by itself. Invalid parameters are reported and ignored rather than executed.
+* **Remembering.** The last chosen search and up to eight recent searches live in two small versioned
+  localStorage entries on this device. No account, no cloud state, no saved trips.
+
+The summary under the coverage banner reports the search that produced the results: its radius and centre, the
+corridors found, the metric cells loaded and their bytes, and the stage timings. Coordinates are shown; there
+is no reverse geocoding, no place names, no browser location permission, and no address search in this pass.
+
 Because the road window and the habitat window are the same rectangle, a corridor inside it can reach
 FULL discovery coverage. A corridor whose 1 km buffer leaves the window reports PARTIAL for that
 distance, and a corridor whose geometry the analysis engine cannot buffer reports UNKNOWN. Missing
@@ -383,7 +425,8 @@ browser storage, derived metrics and Worker-side GIS remain unimplemented and re
 ## Files
 
 * `src/discovery/` — constants, eligibility, units, segment, coverage, signals, filter, lifecycle,
-  persistence, search-area, run
+  persistence, search-area, **search-definition** (the centre/radius model, coverage classification, URL
+  state and recent searches), run
 * `src/domain/line-repair.js`, `src/domain/analytical-geometry.js` — the point-preserving repair ladder and
   its impact/acceptance policy
 * `src/gis/analytical-geometry.js` — the shared preparation boundary used by the survey, detailed habitat
@@ -391,10 +434,12 @@ browser storage, derived metrics and Worker-side GIS remain unimplemented and re
 * `src/gis/discovery-query.js` — the set-oriented batch analysis
 * `scripts/verify-geometry.mjs`, `tests/geometry-repair.test.js`,
   `tests/fixtures/discovery-geometry-failures.json` — the offline geometry check and its regression record
-* `data/discovery/search-areas.json` — declared search areas
+* `data/discovery/search-areas.json` — declared search areas and the published region
 * `data/gis/or-roads-network-2025.parquet` — the bounded road-network extract
 * `scripts/build-road-network.py`, `scripts/tiger_sources.py` — the offline extraction
 * `tests/discovery.test.js`, `tests/discovery.spec.js`, `tests/fixtures/or-roads-network.summary.json`
+* `tests/search-definition.test.js`, `tests/search-center.spec.js`, `tests/search-production.spec.js` — the
+  interactive centre/radius model, its browser interaction, and the deployed search verification
 * `assets/css/discovery.css`, `src/ui/discovery.js` — the discovery workspace
 
 See also [docs/ROADS.md](ROADS.md) for the road sources, [docs/HABITAT.md](HABITAT.md) for the habitat

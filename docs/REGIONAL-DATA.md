@@ -525,6 +525,61 @@ Promotion and detailed analysis select raw habitat around the chosen corridor it
 The committed capture also checks two northern edge corridors against raw detailed GIS: one FULL (with matching
 1 km wetland area and hydrography length) and one PARTIAL (with matching coverage at the boundary).
 
+### Arbitrary search: a centre a person chooses
+
+A search no longer has to be one of the committed scenarios. The interface offers a **custom radius search**
+whose centre is chosen on the map, typed into latitude/longitude fields, filled from a benchmark preset, or
+restored from a shared URL, and whose radius is a whole number of statute miles from 1 to 50
+(`src/discovery/search-definition.js`).
+
+The generalized input is exactly one object:
+
+```js
+{ center: [lon, lat], radiusMiles }
+```
+
+It is validated (numeric decimal coordinates, latitude ±90, longitude ±180, whole-mile radius in range), the
+bounding box is derived with `radiusBounds` — the same derivation the committed benchmark boxes are asserted
+against — and it is converted into an **ordinary radius search area** by taking the first declared radius
+scenario as a template: same `catalogUrl`, same required datasets, only the centre and radius replaced
+(`createInteractiveSearchArea`). Everything after that is the runtime path above, unchanged: no second
+discovery implementation, no second data plane, and promotion keeps its raw reconstruction and verification.
+
+Coverage is classified before a search runs, from the published region the search-area declaration carries:
+
+| State | Meaning | Behaviour |
+| --- | --- | --- |
+| `FULL` | the search box lies inside the published region | the search runs |
+| `PARTIAL` | the search box crosses the published edge | the search runs; corridors near the edge keep their own coverage, and the outside is never read as empty |
+| `NONE` | the search box does not overlap the published region | the search button is disabled with the reason, and the derived reader refuses the box without fetching a cell |
+
+The classification uses the **bounding box the cells are selected with**, which is the same question the
+derived reader answers, so the preview and the run agree; it is therefore conservative (a disk that is inside
+but whose box crosses the edge reports PARTIAL before and after). `data/discovery/search-areas.json` declares
+that region so the answer needs no fetch, and `tests/search-definition.test.js` asserts the declaration still
+equals the region bounds of the published catalog and of the derived manifest.
+
+The search definition is reproducible through the URL (`?lat=45.595&lon=-122.92&r=25`): a link restores the
+definition, states any parameters it had to ignore, and **waits for the search button** — a URL never implies
+a network call. The last chosen search and up to eight recent searches the device actually ran are kept in two
+small versioned localStorage entries (`src/discovery/persistence.js`), normalized on read with the same rules
+as typed input. Nothing here is an account, a cloud state, or a saved trip.
+
+`npm run benchmark:search` measures the generalized input at the committed reference sizes, one page per
+scenario so each cold pass pays the engine initialisation, and prints a `SEARCH_BENCHMARK` JSON line per
+scenario (centre/radius parsing, cell selection, transfer, the derived query, the bounded table, the map):
+
+| Radius | Cold (interactive) | Cold (committed preset baseline) | Warm (interactive) | Warm (baseline) | Corridors | Classification |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| 10 mi | 2,964 ms | 2,790 ms | 141 ms | 129 ms | 368 | COMFORTABLE |
+| 25 mi | 1,467 ms | 1,375 ms | 382 ms | 355 ms | 2,238 | COMFORTABLE |
+| 50 mi | 2,059 ms | 1,929 ms | 867 ms | 810 ms | 5,158 | COMFORTABLE |
+
+Parsing and validating the definition is below the measurement floor (< 1 ms), and the table plus search
+controls render in 4–13 ms, so generalizing the input costs nothing measurable. The corridor counts are
+identical to the committed benchmark's at the same centre and radius, which is the point of the design: a
+chosen centre and a preset are the same search.
+
 ### Derived radius benchmark
 
 The committed `data/regional/derived-benchmarks.json` measures each radius in a fresh browser page with HTTP
@@ -586,6 +641,7 @@ npm run verify:derived-equivalence     # offline: manifest + fingerprint + captu
 npm run verify:regional-equivalence    # unchanged: batch vs detailed
 npm run capture:derived-equivalence    # opt-in: capture a real derived-vs-raw comparison
 npm run benchmark:derived              # opt-in: 10/25/50-mile derived benchmarks
+npm run verify:search:production       # opt-in: deployed arbitrary-radius search, PARTIAL/NONE and promotion
 ```
 
 ### How the offline build stays the runtime's own queries

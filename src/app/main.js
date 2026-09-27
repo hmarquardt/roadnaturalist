@@ -23,9 +23,13 @@ import { verifyDerivedPromotion } from '../discovery/promotion.js';
 import { eligibleClasses } from '../discovery/eligibility.js';
 import { ANALYSIS_DISTANCES_M } from '../gis/habitat-result.js';
 import { renderDiscovery, eligibilityNote } from '../ui/discovery.js';
-import { readDiscoveryMarks, writeDiscoveryMarks } from '../discovery/persistence.js';
+import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, writeDiscoveryMarks,
+  writeDiscoverySearch, writeDiscoverySearchHistory } from '../discovery/persistence.js';
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDiscoveryResult } from '../discovery/lifecycle.js';
-import { defaultSearchArea, validateSearchAreas } from '../discovery/search-area.js';
+import { defaultSearchArea, searchAreaBounds, validateSearchAreas } from '../discovery/search-area.js';
+import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiveSearchArea,
+  definitionFromSearchArea, formatRadius, initialSearchSelection, radiusPresets, radiusTemplate,
+  readSearchDefinition, searchIsRunnable, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
 import { filterAndSort } from '../discovery/filter.js';
 import { MAX_RESULT_ROWS } from '../discovery/constants.js';
 
@@ -55,7 +59,8 @@ async function defaultInaturalistTransport(url, { timeoutMs = 20000, headers = {
     signal: typeof AbortSignal?.timeout === 'function' ? AbortSignal.timeout(timeoutMs) : undefined,
   });
 }
-const map = createCorridorMap(document.getElementById('map'), { onSelect: id => store.select(id) });
+const map = createCorridorMap(document.getElementById('map'), { onSelect: id => store.select(id),
+  onPickCoordinate: center => selectSearchCenter(center) });
 const nodes = {
   list: document.getElementById('candidate-list'), detail: document.getElementById('candidate-detail'),
   context: document.getElementById('data-context'), count: document.getElementById('candidate-count'),
@@ -66,9 +71,13 @@ const nodes = {
 let manifest = null;
 let manifestError = null;
 let searchAreas = [];
-let searchAreaId = null;
+let publishedRegion = null;
+let declaredRadiusPresets = [];
+let radiusSearchTemplate = null;
 const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverlay: null, resolvedId: null,
-  discoveryNodes: null, discoverySignature: null };
+  discoveryNodes: null, discoverySignature: null, searchKey: null };
+
+function activeSearch() { return store.getState().search; }
 
 // DISCOVERY WORKSPACE. Discovery reads only the bounded road-network extract and the bounded habitat and
 // ecoregion extracts through the GIS service: it never calls an occurrence API and never calls the
@@ -76,14 +85,53 @@ const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverla
 async function loadSearchAreas() {
   const declaration = validateSearchAreas(await fetchJson(SEARCH_AREAS_URL), manifest);
   searchAreas = [...declaration.searchAreas];
-  searchAreaId = searchAreas[0]?.id ?? null;
+  publishedRegion = declaration.publishedRegion ?? null;
+  declaredRadiusPresets = [...radiusPresets(declaration)];
+  radiusSearchTemplate = radiusTemplate(declaration);
+  // Precedence is explicit and testable: a URL search, then the search this device last chose, then a
+  // committed preset while the declared window stays the active search. Nothing here runs a search.
+  const initial = initialSearchSelection({ search: globalThis.location?.search ?? '',
+    stored: readDiscoverySearch(), history: readDiscoverySearchHistory(), presets: declaredRadiusPresets,
+    declaredAreaId: searchAreas[0]?.id ?? null, region: publishedRegion });
+  store.setSearchHistory(initial.history);
+  store.setSearchSelection(initial.selection);
+  if (initial.problems.length) {
+    store.setSearchError('The search parameters in this link were ignored: '
+      + initial.problems.map(entry => entry.message).join(' '));
+  }
   return searchAreas;
+}
+
+// The search area a run would survey. A declared window and a custom centre are two values of one field, and
+// both end up as an ordinary search area for the same derived discovery pipeline.
+function resolveActiveSearchArea() {
+  const search = activeSearch();
+  if (search.areaId !== CUSTOM_SEARCH_AREA_ID) {
+    const area = searchAreas.find(entry => entry.id === search.areaId) ?? defaultSearchArea({ searchAreas });
+    if (!area) return { error: 'No discovery search area is declared in this build.' };
+    return { area, coverage: areaCoverage(area, publishedRegion) };
+  }
+  const definition = search.definition;
+  if (!definition) return { error: 'Choose a search centre and radius before searching.' };
+  const coverage = searchRegionCoverage(definition, publishedRegion);
+  if (!searchIsRunnable({ ok: true, coverage })) return { error: coverage.reason, coverage };
+  try {
+    return { area: createInteractiveSearchArea(definition, { template: radiusSearchTemplate }), coverage };
+  } catch (error) {
+    return { error: error.message, coverage };
+  }
 }
 
 async function discoverRoads() {
   const state = store.getState();
-  const searchArea = searchAreas.find(area => area.id === searchAreaId) ?? defaultSearchArea({ searchAreas });
+  const resolved = resolveActiveSearchArea();
   const marks = state.discovery.marks ?? readDiscoveryMarks();
+  if (resolved.error) {
+    store.failDiscovery({ error: resolved.error, marks, coverage: resolved.coverage ?? null,
+      searchArea: resolved.area ?? state.discovery.searchArea ?? null });
+    return;
+  }
+  const searchArea = resolved.area;
   store.startDiscovery(searchArea, marks);
   try {
     const run = await runDiscovery({ gis, searchArea, marks, onProgress: phase => store.setDiscoveryPhase(phase) });
@@ -94,11 +142,80 @@ async function discoverRoads() {
     }
     store.finishDiscovery({ results: run.results, coverage: run.coverage, diagnostics: run.diagnostics,
       eligibility: run.eligibility, raw: { ...run.raw, provenance: run.roadQuery.provenance }, searchArea, marks });
+    rememberSearch(run.searchArea);
   } catch (error) {
     store.failDiscovery({ searchArea, marks, error: error.message,
       coverage: { coverage: error.coverage ?? COVERAGE.UNKNOWN, reason: error.message, counts: {} } });
   }
 }
+
+// ------------------------------------------------------------------ the search definition
+//
+// One path in, four ways to produce it: the map, the coordinate fields, a preset or a recent search, and a
+// shared URL. Whichever produced it, the definition is validated here, the URL is updated so the search is
+// shareable, and the search is remembered on this device.
+
+function applySearchDefinition(definition, { picking = false } = {}) {
+  store.setSearchError(null);
+  store.setSearchDefinition(definition, { picking });
+  store.setSearchHistory(writeDiscoverySearchHistory(addSearchHistory(activeSearch().history, definition)));
+  writeSearchUrl(definition);
+}
+
+function selectSearchCenter(center) {
+  const current = activeSearch().definition;
+  const result = readSearchDefinition({ lat: center[1], lon: center[0],
+    radiusMiles: current?.radiusMiles ?? undefined }, { region: publishedRegion });
+  if (!result.ok) { store.setSearchError(result.problems.map(entry => entry.message).join(' ')); return; }
+  applySearchDefinition(result.definition);
+}
+
+// Only a search that can actually run is remembered as "the last search" on this device; a definition that
+// does not overlap the published coverage stays visible in the controls and in the URL until it is changed.
+function rememberSearch(searchArea) {
+  if (searchArea?.kind !== 'radius' || !Array.isArray(searchArea.center)) return;
+  const result = readSearchDefinition({ lat: searchArea.center[1], lon: searchArea.center[0],
+    radiusMiles: searchArea.radiusMiles }, { region: publishedRegion });
+  if (!result.ok) return;
+  const coverage = searchRegionCoverage(result.definition, publishedRegion);
+  if (!searchIsRunnable({ ok: true, coverage })) return;
+  writeDiscoverySearch(result.definition);
+  store.setSearchHistory(writeDiscoverySearchHistory(addSearchHistory(activeSearch().history, result.definition)));
+}
+
+function writeSearchUrl(definition) {
+  const location = globalThis.location;
+  if (!location || typeof globalThis.history?.replaceState !== 'function') return;
+  const query = withSearchQuery(location.search, definition);
+  globalThis.history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}${location.hash}`);
+}
+
+// The map preview is a view of the current draft, never an input to analysis: it shows where the centre and
+// the requested radius are, and which part of that reaches published coverage.
+function searchPreview(state) {
+  const active = resolveActiveSearchArea();
+  const area = active.area ?? null;
+  const definition = area ? definitionFromSearchArea(area) : (state.search.definition ?? null);
+  const bounds = area ? searchAreaBounds(area) : (definition?.bounds ?? null);
+  const coverage = active.coverage ?? null;
+  const radius = area?.kind === 'radius' && definition;
+  return { kind: radius ? 'radius' : 'bbox', center: radius ? definition.center : null,
+    radiusMiles: definition?.radiusMiles ?? null, bounds,
+    coverage: coverage?.coverage ?? COVERAGE.UNKNOWN, regionBounds: publishedRegion?.bounds ?? null,
+    label: radius ? `${formatRadius(definition.radiusMiles)} · ${coverage?.coverage ?? COVERAGE.UNKNOWN}`
+      : area ? `${area.name} · ${coverage?.coverage ?? COVERAGE.UNKNOWN}` : null };
+}
+
+function updateSearchPreview(state) {
+  const preview = searchPreview(state);
+  const key = [preview.kind, preview.center?.join(','), preview.radiusMiles, preview.coverage,
+    preview.bounds?.join(','), preview.regionBounds?.join(','), state.search.picking].join('|');
+  if (drawn.searchKey === key) return;
+  drawn.searchKey = key;
+  map.setSearchPreview(preview.bounds ? preview : null);
+  map.setPickMode(state.search.picking);
+}
+
 
 // Promotion reuses the ordinary road/candidate builders, so a discovered corridor becomes a normal
 // candidate: same detail pipeline, same evidence workflow, and no Investigator probe entry required.
@@ -468,6 +585,9 @@ store.subscribe(state => {
   // The discovery workspace renders from its own state slice, so a candidate interaction never
   // rebuilds a bounded result table.
   renderDiscoveryPanel(state);
+  // The search preview follows the search definition, not the discovery run: it is on screen while a centre
+  // is being chosen, and it stays after a search so the results can be read against the area they came from.
+  updateSearchPreview(state);
   nodes.fit.disabled = !selected;
   nodes.caption.textContent = caption(state);
   const overlay = state.habitatOverlay && state.habitatOverlay.candidateId === selected?.id ? state.habitatOverlay : null;
@@ -487,7 +607,7 @@ store.subscribe(state => {
 
 function signature(state) {
   const discovery = state.discovery;
-  return `${discovery.status}|${discovery.results.length}|${discovery.selectedId}|${Object.keys(discovery.marks).length}|${discovery.sort}|${JSON.stringify(discovery.filters)}|${discovery.error ?? ''}`;
+  return `${discovery.status}|${discovery.results.length}|${discovery.selectedId}|${Object.keys(discovery.marks).length}|${discovery.sort}|${JSON.stringify(discovery.filters)}|${discovery.error ?? ''}|${JSON.stringify(state.search)}`;
 }
 
 // The discovery panel is rendered only when its own state changed: selecting a candidate must not
@@ -500,19 +620,56 @@ function renderDiscoveryPanel(state) {
   // the map layer, and the persisted record in step with each other after a promotion.
   const discovery = { ...state.discovery, results: applyMarks(state.discovery.results, state.discovery.marks) };
   renderDiscovery(nodes.discovery, {
-    discovery, searchAreas, searchAreaId,
+    discovery, searchAreas, searchAreaId: state.search.areaId, search: state.search,
+    presets: declaredRadiusPresets, region: publishedRegion,
     onDiscover: () => { discoverRoads().catch(error => store.failDiscovery({ error: error.message, marks: state.discovery.marks })); },
     onSelect: id => store.selectDiscovery(id),
     onPromote: id => promoteDiscoveryCorridor(id),
     onDismiss: id => markDiscoveryCorridor(id),
     onFilters: filters => store.setDiscoveryFilters(filters),
     onSort: sort => store.setDiscoverySort(sort),
-    onSearchArea: id => { searchAreaId = id; },
+    // A declared radius scenario is a preset, not a second kind of search: choosing one fills the centre and
+    // radius and nothing else about the run changes.
+    onSearchArea: id => {
+      const area = searchAreas.find(entry => entry.id === id) ?? null;
+      const definition = definitionFromSearchArea(area);
+      if (definition) { applySearchDefinition(definition); return; }
+      store.setSearchArea(id);
+    },
+    onSearchDefinition: (definition, options = {}) => {
+      if (options.source === 'coordinate') store.setSearchError(null);
+      applySearchDefinition(definition);
+    },
+    onSearchRadius: radiusMiles => {
+      if (typeof radiusMiles !== 'number') return;
+      const current = state.search.definition;
+      if (!current) return;
+      applySearchDefinition({ ...current, radiusMiles });
+    },
+    onSearchPicking: picking => store.setSearchPicking(picking),
+    onPreview: patch => previewSearch(patch),
   });
   const note = eligibilityNote(state.discovery.eligibility);
   if (note) nodes.discovery.append(el('p', 'discovery-eligible', note));
   nodes.discoveryCount.textContent = state.discovery.results.length ? String(state.discovery.results.length) : '0';
 }
+
+// A live preview while a radius changes. It only moves the map's search layer: it publishes nothing, runs
+// nothing, and never touches the results.
+function previewSearch(patch) {
+  const current = activeSearch().definition;
+  if (!current) return;
+  const merged = { ...current, ...patch };
+  const result = readSearchDefinition({ lat: merged.center[1], lon: merged.center[0], radiusMiles: merged.radiusMiles },
+    { region: publishedRegion });
+  if (!result.ok) return;
+  const coverage = result.coverage;
+  map.setSearchPreview({ kind: 'radius', center: result.definition.center,
+    radiusMiles: result.definition.radiusMiles, bounds: result.definition.bounds,
+    coverage: coverage?.coverage ?? COVERAGE.UNKNOWN, regionBounds: publishedRegion?.bounds ?? null,
+    label: `${formatRadius(result.definition.radiusMiles)} · ${coverage?.coverage ?? COVERAGE.UNKNOWN}` });
+}
+
 
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 
@@ -607,6 +764,7 @@ loadManifest().then(async value => {
     store.failDiscovery({ error: `Discovery search areas are unavailable: ${error.message}`, marks: readDiscoveryMarks() });
   }
   renderDiscoveryPanel(store.getState());
+  updateSearchPreview(store.getState());
   const discovery = store.getState().discovery;
   if (discovery.status === 'idle') store.setDiscoveryMarks(readDiscoveryMarks());
 }).catch(error => {
