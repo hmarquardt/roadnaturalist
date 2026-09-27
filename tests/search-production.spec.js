@@ -11,8 +11,23 @@ import { test, expect } from '@playwright/test';
 // verified against the precomputed row, and reach no external evidence source at all.
 const BASE = process.env.PRODUCTION_BASE_URL ?? 'https://roadnaturalist.pages.dev';
 const EVIDENCE = /api\.inaturalist|api\.ebird|overpass|api\.roadnaturalist\.com/;
-const CENTER = { lat: 45.51, lon: -123.12 };
-const SCENARIOS = [10, 25, 50];
+// The committed benchmark centre, for a like-for-like comparison with the published derived baseline.
+const BENCHMARK_CENTER = { lat: 45.595, lon: -122.92 };
+// A centre that is not a committed scenario, which is the point of this check.
+const ARBITRARY_CENTER = { lat: 45.51, lon: -123.12 };
+const SCENARIOS = [{ radius: 10, center: BENCHMARK_CENTER, coverage: 'FULL' },
+  { radius: 25, center: BENCHMARK_CENTER, coverage: 'FULL' },
+  { radius: 50, center: BENCHMARK_CENTER, coverage: 'FULL' },
+  { radius: 25, center: ARBITRARY_CENTER, coverage: 'FULL' }];
+
+async function setSearch(page, { lat, lon, radius }) {
+  await page.locator('#discovery-center-lat').fill(String(lat));
+  await page.locator('#discovery-center-lon').fill(String(lon));
+  await page.locator('#discovery-center-apply').click();
+  await page.locator('#discovery-radius-input').fill(String(radius));
+  await page.locator('#discovery-radius-input').press('Enter');
+  await expect(page.locator('#discovery-search-status')).toContainText(`${radius} mi at`);
+}
 
 test.skip(!process.env.RUN_SEARCH_PRODUCTION, 'set RUN_SEARCH_PRODUCTION=1 to verify the deployed arbitrary-search path');
 
@@ -32,14 +47,11 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   const report = { base: BASE, searches: [], edge: null, promotion: null, externalRequests: 0, pageErrors: 0 };
   const log = value => console.log('SEARCH_PRODUCTION ' + JSON.stringify(value));
 
-  for (const radius of SCENARIOS) {
+  for (const scenario of SCENARIOS) {
+    const { radius, center, coverage } = scenario;
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
-    await page.locator('#discovery-center-lat').fill(String(CENTER.lat));
-    await page.locator('#discovery-center-lon').fill(String(CENTER.lon));
-    await page.locator('#discovery-center-apply').click();
-    await page.locator('#discovery-radius-input').fill(String(radius));
-    await page.locator('#discovery-radius-input').press('Enter');
+    await setSearch(page, { lat: center.lat, lon: center.lon, radius });
     const cellsBefore = derivedCells.length;
     const started = Date.now();
     await page.locator('#discover-roads').click();
@@ -48,8 +60,9 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 120000 });
     const elapsedMs = Date.now() - started;
     const banner = await page.locator('#discovery').innerText();
-    const entry = { radiusMiles: radius, elapsedMs, corridors: Number(await page.locator('#discovery-count').innerText()),
-      cellsRead: derivedCells.length - cellsBefore, summary: (await page.locator('#discovery-summary').innerText()).replace(/\n+/g, ' · '),
+    const entry = { center: [center.lon, center.lat], radiusMiles: radius, elapsedMs,
+      corridors: Number(await page.locator('#discovery-count').innerText()), cellsRead: derivedCells.length - cellsBefore,
+      summary: (await page.locator('#discovery-summary').innerText()).replace(/\n+/g, ' · '),
       coverage: /Discovery coverage (FULL|PARTIAL|NONE|UNKNOWN)/.exec(banner)?.[1] ?? null,
       rawPartitionsBeforePromotion: partitions.length };
     report.searches.push(entry);
@@ -58,17 +71,13 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
     expect(entry.cellsRead).toBeGreaterThan(0);
     expect(new URL(derivedCells[cellsBefore]).host).toBe('data.roadnaturalist.com');
     expect(partitions).toEqual([]);
-    expect(entry.coverage).toBe('FULL');
+    expect(entry.coverage).toBe(coverage);
   }
 
   // PARTIAL: a centre north of the published edge whose circle reaches back into it.
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
-  await page.locator('#discovery-center-lat').fill('46.30');
-  await page.locator('#discovery-center-lon').fill('-122.90');
-  await page.locator('#discovery-center-apply').click();
-  await page.locator('#discovery-radius-input').fill('25');
-  await page.locator('#discovery-radius-input').press('Enter');
+  await setSearch(page, { lat: 46.30, lon: -122.90, radius: 25 });
   await expect(page.locator('#discovery-search-status')).toContainText('Coverage: PARTIAL', { timeout: 60000 });
   const edgeBefore = derivedCells.length;
   await page.locator('#discover-roads').click();
@@ -92,11 +101,7 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   // precomputed row, and the detailed panel measures it from the raw regional partitions.
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
-  await page.locator('#discovery-center-lat').fill(String(CENTER.lat));
-  await page.locator('#discovery-center-lon').fill(String(CENTER.lon));
-  await page.locator('#discovery-center-apply').click();
-  await page.locator('#discovery-radius-input').fill('10');
-  await page.locator('#discovery-radius-input').press('Enter');
+  await setSearch(page, { lat: ARBITRARY_CENTER.lat, lon: ARBITRARY_CENTER.lon, radius: 10 });
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 300000 });
   const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:nth-child(6):text-is("FULL")') }).first();
