@@ -2,7 +2,7 @@ import { setCandidateStatus, setCandidateCoverage } from '../domain/corridor.js'
 import { DEFAULT_FILTERS, DEFAULT_SORT } from '../discovery/filter.js';
 import { DISCOVERY_STATUS, markDiscovery } from '../discovery/lifecycle.js';
 import { CUSTOM_SEARCH_AREA_ID } from '../discovery/search-definition.js';
-import { storedPlaceMetadata } from '../discovery/place-gazetteer.js';
+import { nearPlaceMetadata, storedPlaceMetadata } from '../discovery/place-gazetteer.js';
 
 export function createStore() {
   const initialQuery = Object.freeze({ status: 'idle', coverage: null, reason: null, provenance: null, missingRoadIds: [], note: null });
@@ -11,9 +11,11 @@ export function createStore() {
     filters: DEFAULT_FILTERS, sort: DEFAULT_SORT, raw: null });
   // The search definition is its own slice: which declared window (or custom centre and radius) a run would
   // survey, the centre and radius themselves, whether the map is waiting for a centre, the short list of
-  // searches this device ran, and - as a label only - the place those coordinates came from. `place` is
-  // presentation: it never reaches the run, and a search works exactly the same without it.
-  const initialSearch = Object.freeze({ areaId: null, definition: null, picking: false, history: Object.freeze([]), place: null, error: null });
+  // searches this device ran, and - as labels only - the place those coordinates came from and the nearest
+  // published place when nobody chose one. `place` (explicit) and `near` (inferred) are presentation: they
+  // never reach the run, they are never persisted as fact, and a search works exactly the same without them.
+  const initialSearch = Object.freeze({ areaId: null, definition: null, picking: false, history: Object.freeze([]),
+    place: null, near: null, error: null });
   let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, discovery: initialDiscovery, search: initialSearch });
   const listeners = new Set();
   const publish = next => { state = Object.freeze(next); for (const listener of listeners) listener(state); };
@@ -53,16 +55,17 @@ export function createStore() {
     setDiscoverySort(sort) { publishDiscovery({ sort }); },
     // SEARCH DEFINITION. One selection, one definition, one run: a declared window and a custom radius are two
     // values of the same field, so nothing downstream can tell an arbitrary search from a committed preset.
-    setSearchSelection({ areaId, definition, picking = false, place = null }) {
+    setSearchSelection({ areaId, definition, picking = false, place = null, near = null }) {
       publishSearch({ areaId: areaId ?? null, definition: definition ?? null, picking: Boolean(picking),
-        place: storedPlaceMetadata(place) });
+        place: storedPlaceMetadata(place), near: nearPlaceMetadata(near) });
     },
     setSearchArea(areaId) { publishSearch({ areaId, picking: false }); },
-    setSearchDefinition(definition, { picking = false, place = null } = {}) {
+    setSearchDefinition(definition, { picking = false, place = null, near = null } = {}) {
       // The place label travels with the centre it describes: a new centre means a new label or none, while a
-      // radius change keeps the label because the centre did not move.
+      // radius change keeps the label because the centre did not move. The inferred label is regenerated from
+      // the gazetteer for every centre, so it can never outlive the centre it describes.
       publishSearch({ definition: definition ?? null, areaId: CUSTOM_SEARCH_AREA_ID, picking: Boolean(picking),
-        place: storedPlaceMetadata(place) });
+        place: storedPlaceMetadata(place), near: nearPlaceMetadata(near) });
     },
     setSearchPicking(picking) { publishSearch({ picking: Boolean(picking) }); },
     setSearchHistory(history) { publishSearch({ history: Object.freeze([...(history ?? [])]) }); },

@@ -57,6 +57,8 @@ test('deployed place search, the edge, a refusal, promotion and zero external ca
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await expect(page.locator('#discovery-place')).toBeVisible({ timeout: 120000 });
   expect(await choosePlace('Hillsboro')).toEqual(['Hillsboro, OR · City']);
+  // The chosen place is the label, not an inference about it, and the coordinates stay beside it.
+  await expect(page.locator('#discovery-center-label')).toHaveText('Hillsboro, OR · 45.5268, -122.9354');
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5268');
   await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL', { timeout: 60000 });
   const before = derivedCells.length;
@@ -80,7 +82,7 @@ test('deployed place search, the edge, a refusal, promotion and zero external ca
   await expect(page.locator('#data-context')).toContainText('U.S. Census Bureau');
 
   // 2. Promotion of a place-search corridor, from the raw regional partitions.
-  const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:nth-child(6):text-is("FULL")') }).first();
+  const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:text-is("FULL")') }).first();
   await expect(fullRow).toBeVisible({ timeout: 120000 });
   await fullRow.locator('.discovery-row').click();
   const selected = page.locator('#discovery-selected');

@@ -146,6 +146,28 @@ export function createCorridorMap(container, { onSelect, onPickCoordinate } = {}
       searchLayer.append(cross);
     }
     searchLayer.append(text('search-label', cx + 12, Math.max(16, cy - 12), search.label ?? ''));
+    drawCenterToSelection([cx, cy]);
+  }
+
+  // One line, and only for the selected corridor: from the search centre to the nearest point of that road.
+  // It is the same measured fact the result panel reports, drawn so the direction is visible. Thousands of
+  // distance lines would say something else entirely, so nothing else on the map gets one.
+  function drawCenterToSelection([cx, cy]) {
+    const selected = (discovery?.corridors ?? []).find(entry => entry.id === discovery.selectedId);
+    const target = selected?.nearestCenterPoint;
+    if (!Array.isArray(target)) return;
+    const [tx, ty] = projection.point(target);
+    if (![tx, ty].every(Number.isFinite)) return;
+    const path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('class', 'search-center-line');
+    path.setAttribute('d', `M ${cx.toFixed(2)} ${cy.toFixed(2)} L ${tx.toFixed(2)} ${ty.toFixed(2)}`);
+    searchLayer.append(path);
+    const dot = document.createElementNS(SVG_NS, 'circle');
+    dot.setAttribute('class', 'search-center-point');
+    dot.setAttribute('cx', tx.toFixed(2));
+    dot.setAttribute('cy', ty.toFixed(2));
+    dot.setAttribute('r', '3.5');
+    searchLayer.append(dot);
   }
 
   function rectangle(bounds, className) {

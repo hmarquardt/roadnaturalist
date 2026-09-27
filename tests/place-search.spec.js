@@ -57,7 +57,8 @@ test('typing a place name sets the centre, keeps the radius, and searches the sa
   await expect(page.locator('#discovery-center-lon')).toHaveValue('-122.9354');
   await expect(page.locator('#discovery-radius-input')).toHaveValue('25');
   await expect(page.locator('#discovery-radius-value')).toHaveText('25 mi');
-  await expect(page.locator('#discovery-search-status')).toContainText('Hillsboro, OR (45.5268, -122.9354)');
+  await expect(page.locator('#discovery-search-status')).toContainText('Hillsboro, OR · 45.5268, -122.9354');
+  await expect(page.locator('#discovery-center-label')).toHaveText('Hillsboro, OR · 45.5268, -122.9354');
   await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
   await expect(page.locator('#map .search-center')).toHaveCount(1);
   await expect(page.locator('#map .map-key')).toContainText('Hillsboro, OR');

@@ -15,10 +15,10 @@ const EVIDENCE = /api\.inaturalist|api\.ebird|overpass|api\.roadnaturalist\.com/
 const BENCHMARK_CENTER = { lat: 45.595, lon: -122.92 };
 // A centre that is not a committed scenario, which is the point of this check.
 const ARBITRARY_CENTER = { lat: 45.51, lon: -123.12 };
-const SCENARIOS = [{ radius: 10, center: BENCHMARK_CENTER, coverage: 'FULL' },
-  { radius: 25, center: BENCHMARK_CENTER, coverage: 'FULL' },
-  { radius: 50, center: BENCHMARK_CENTER, coverage: 'FULL' },
-  { radius: 25, center: ARBITRARY_CENTER, coverage: 'FULL' }];
+const SCENARIOS = [{ radius: 10, center: BENCHMARK_CENTER, coverage: 'FULL', label: 'Near North Plains, OR' },
+  { radius: 25, center: BENCHMARK_CENTER, coverage: 'FULL', label: 'Near North Plains, OR' },
+  { radius: 50, center: BENCHMARK_CENTER, coverage: 'FULL', label: 'Near North Plains, OR' },
+  { radius: 25, center: ARBITRARY_CENTER, coverage: 'FULL', label: 'Near Forest Grove, OR' }];
 
 async function setSearch(page, { lat, lon, radius }) {
   await page.locator('#discovery-center-lat').fill(String(lat));
@@ -26,7 +26,34 @@ async function setSearch(page, { lat, lon, radius }) {
   await page.locator('#discovery-center-apply').click();
   await page.locator('#discovery-radius-input').fill(String(radius));
   await page.locator('#discovery-radius-input').press('Enter');
-  await expect(page.locator('#discovery-search-status')).toContainText(`${radius} mi at`);
+  await expect(page.locator('#discovery-search-status')).toContainText(`Custom radius search · ${radius} mi`);
+  // The centre line names the search the way the panel does, and always keeps the coordinates beside it.
+  await expect(page.locator('#discovery-center-label')).toContainText(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+}
+
+async function distanceCells(page) {
+  return page.locator('#discovery-results tbody tr')
+    .evaluateAll(nodes => nodes.map(node => node.children[2].textContent.trim()));
+}
+
+function milesOf(text) {
+  return text.startsWith('<') ? 0.05 : Number(text.replace(/[^0-9.]/g, ''));
+}
+
+async function checkSearchContext(page, { radius, label }) {
+  await expect(page.locator('#discovery-results thead')).toContainText('From center');
+  await expect(page.locator('#discovery-summary')).toContainText(label);
+  const cells = await distanceCells(page);
+  expect(cells.length).toBeGreaterThan(0);
+  for (const cell of cells) expect(cell).toMatch(/^(?:<0\.1|\d+\.\d) mi(?: (?:N|NE|E|SE|S|SW|W|NW))?$/);
+  for (const cell of cells) expect(milesOf(cell)).toBeLessThanOrEqual(radius + 0.05);
+  expect(cells.some(cell => / (?:N|NE|E|SE|S|SW|W|NW)$/.test(cell))).toBe(true);
+  // The distance sort is explicit, ascending, and orders by the value the column shows.
+  await page.locator('#discovery-sort').selectOption('distanceFromCenter');
+  const sorted = (await distanceCells(page)).map(milesOf);
+  expect(sorted).toEqual([...sorted].sort((left, right) => left - right));
+  await page.locator('#discovery-sort').selectOption('wetlandArea250');
+  return { firstCell: cells[0], nearestMi: sorted[0], farthestMi: sorted[sorted.length - 1] };
 }
 
 test.skip(!process.env.RUN_SEARCH_PRODUCTION, 'set RUN_SEARCH_PRODUCTION=1 to verify the deployed arbitrary-search path');
@@ -48,7 +75,7 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   const log = value => console.log('SEARCH_PRODUCTION ' + JSON.stringify(value));
 
   for (const scenario of SCENARIOS) {
-    const { radius, center, coverage } = scenario;
+    const { radius, center, coverage, label } = scenario;
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
     await setSearch(page, { lat: center.lat, lon: center.lon, radius });
@@ -60,8 +87,12 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 120000 });
     const elapsedMs = Date.now() - started;
     const banner = await page.locator('#discovery').innerText();
-    const entry = { center: [center.lon, center.lat], radiusMiles: radius, elapsedMs,
+    // The deployed app labels this centre from the committed gazetteer and measures every corridor it returns.
+    await expect(page.locator('#discovery-center-label')).toContainText(label);
+    const context = await checkSearchContext(page, { radius, label });
+    const entry = { center: [center.lon, center.lat], radiusMiles: radius, elapsedMs, centreLabel: label,
       corridors: Number(await page.locator('#discovery-count').innerText()), cellsRead: derivedCells.length - cellsBefore,
+      nearestDistance: context.nearestMi, farthestDistance: context.farthestMi, firstRowDistance: context.firstCell,
       summary: (await page.locator('#discovery-summary').innerText()).replace(/\n+/g, ' · '),
       coverage: /Discovery coverage (FULL|PARTIAL|NONE|UNKNOWN)/.exec(banner)?.[1] ?? null,
       rawPartitionsBeforePromotion: partitions.length };
@@ -97,6 +128,26 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   log(report.none);
   expect(report.none.cellsRead).toBe(0);
 
+  // A map-picked centre: the deployed app labels it from the same local gazetteer, keeps the coordinate the
+  // click landed on, and still runs a search from it.
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
+  await page.locator('#discovery-center-pick').click();
+  await page.locator('#map svg').click({ position: { x: 200, y: 200 } });
+  await expect(page.locator('#discovery-center-pick')).toHaveAttribute('aria-pressed', 'false');
+  const pickedLat = await page.locator('#discovery-center-lat').inputValue();
+  const pickedLon = await page.locator('#discovery-center-lon').inputValue();
+  const pickedLabel = await page.locator('#discovery-center-label').innerText();
+  report.picked = { lat: pickedLat, lon: pickedLon, label: pickedLabel, url: page.url() };
+  log(report.picked);
+  // The label is an inference about the coordinates or nothing at all, and the coordinates are the search.
+  expect(pickedLabel).toMatch(/^(?:Near .+, (?:OR|WA)|Centre: -?\d)/);
+  expect(pickedLabel).toContain(`${pickedLat}, ${pickedLon}`);
+  const pickedUrl = new URL(page.url());
+  expect(Number(pickedUrl.searchParams.get('lat'))).toBeCloseTo(Number(pickedLat), 4);
+  expect(Number(pickedUrl.searchParams.get('lon'))).toBeCloseTo(Number(pickedLon), 4);
+  expect(pickedUrl.searchParams.get('place')).toBeNull();
+
   // Promotion of an arbitrary-search corridor: the raw corridor is reconstructed and verified against the
   // precomputed row, and the detailed panel measures it from the raw regional partitions.
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
@@ -104,11 +155,16 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   await setSearch(page, { lat: ARBITRARY_CENTER.lat, lon: ARBITRARY_CENTER.lon, radius: 10 });
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 300000 });
-  const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:nth-child(6):text-is("FULL")') }).first();
+  const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:text-is("FULL")') }).first();
   await expect(fullRow).toBeVisible({ timeout: 120000 });
   await fullRow.locator('.discovery-row').click();
   const selected = page.locator('#discovery-selected');
   await expect(selected).toContainText('Mapped wetland within 250 m');
+  // The promoted corridor keeps its search context: measured distance, direction, and the line on the map that
+  // says which part of the road that distance is to.
+  await expect(selected).toContainText('From search center');
+  await expect(selected).toContainText('Straight-line distance from the search centre to the nearest point on this road');
+  await expect(page.locator('#map svg .search-center-line')).toHaveCount(1);
   const discoveryArea = await selected.locator('.discovery-facts div', { hasText: 'Mapped wetland within 250 m' }).locator('dd').innerText();
   const partitionsBefore = partitions.length;
   await page.locator('#discovery-promote').click();

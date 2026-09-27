@@ -45,7 +45,8 @@ async function setCenter(page, lat, lon) {
 }
 
 async function search(page, { radius, timeout = 180000 } = {}) {
-  await expect(page.locator('#discovery-search-status')).toContainText(`${radius} mi at`);
+  await expect(page.locator('#discovery-search-status')).toContainText(`Custom radius search · ${radius} mi`);
+  await expect(page.locator('#discovery-center-label')).not.toBeEmpty();
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery')).toContainText('Discovery coverage', { timeout });
   await expect(page.locator('#discovery-summary')).toContainText(`${radius}-mile radius search`, { timeout });
@@ -152,7 +153,7 @@ test('promotion of an arbitrary-search corridor reconstructs and verifies the ra
   expect(partitions).toEqual([]);
   // A corridor with FULL habitat coverage is the strongest case: the detailed panel must measure the same
   // corridor the search row described, from the raw regional partitions.
-  const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:nth-child(6):text-is("FULL")') }).first();
+  const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:text-is("FULL")') }).first();
   await expect(fullRow).toBeVisible({ timeout: 60000 });
   await fullRow.locator('.discovery-row').click();
   const selected = page.locator('#discovery-selected');
@@ -196,7 +197,7 @@ test('a shared link restores the search without running it, and the last search 
   await page.reload();
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   await expect(page.locator('#discovery-radius-input')).toHaveValue('15');
-  await expect(page.locator('#discovery-recent')).toContainText('45.5100, -123.1200 · 15 mi');
+  await expect(page.locator('#discovery-recent')).toContainText('Near Forest Grove, OR · 15 mi');
   await page.waitForTimeout(300);
   expect(derivedRequests.length).toBe(read);
   // A malformed link fails safely: the problem is stated, the parameters are ignored, and nothing runs.
@@ -234,7 +235,7 @@ test('the search workflow stays usable at 390px', async ({ page }) => {
   await slider.press('ArrowRight');
   await slider.press('ArrowRight');
   await expect(page.locator('#discovery-radius-value')).toHaveText('3 mi');
-  await expect(page.locator('#discovery-search-status')).toContainText('3 mi at');
+  await expect(page.locator('#discovery-search-status')).toContainText('Custom radius search · 3 mi');
   await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   await search(page, { radius: 3 });

@@ -40,7 +40,7 @@ test('deployed regional discovery verifies coverage, promotion identity and zero
   const corridorCount = Number(await page.locator('#discovery-count').innerText());
   const banner = await page.locator('#discovery').innerText();
   const selected = page.locator('#discovery-selected');
-  const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:nth-child(6):text-is("FULL")') }).first();
+  const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:text-is("FULL")') }).first();
   await expect(fullRow).toBeVisible();
   await fullRow.locator('.discovery-row').click();
   await expect(selected).toContainText('Mapped wetland within 250 m');

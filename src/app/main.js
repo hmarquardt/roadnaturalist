@@ -31,6 +31,8 @@ import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiv
   definitionFromSearchArea, formatRadius, initialSearchSelection, placeForSearch, radiusPresets, radiusTemplate,
   readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
 import { placeMetadata, validatePlaceGazetteer } from '../discovery/place-gazetteer.js';
+import { nearestPlace } from '../discovery/place-gazetteer.js';
+import { centerPresentation, formatContextDirection } from '../discovery/search-context.js';
 import { filterAndSort } from '../discovery/filter.js';
 import { MAX_RESULT_ROWS } from '../discovery/constants.js';
 
@@ -106,7 +108,10 @@ async function loadSearchAreas() {
   // "Hillsboro, OR · 25 mi" when it can and coordinates when it cannot.
   const remembered = placeForSearch(initial.history, initial.selection.definition);
   store.setSearchHistory(initial.history);
-  store.setSearchSelection({ ...initial.selection, place: remembered });
+  store.setSearchSelection({ ...initial.selection, place: remembered,
+    // A restored centre is labelled from the gazetteer the same way a picked one is: the URL and the stored
+    // definition carry coordinates only, and the label is derived here.
+    near: nearestPlace(initial.selection.definition?.center, places) });
   if (initial.problems.length) {
     store.setSearchError('The search parameters in this link were ignored: '
       + initial.problems.map(entry => entry.message).join(' '));
@@ -182,6 +187,10 @@ async function discoverRoads() {
 // One path into the store, so what the store holds is always a definition this build validated: the bounds
 // and the metre radius are re-derived from the centre and radius here rather than trusted from the caller. A
 // definition assembled by spreading an older one (a changed radius on a stale box) cannot reach the run.
+//
+// The nearest published place is looked up here, for every centre, and kept beside the definition as an
+// inferred label. It never moves the centre: the coordinates stay exact, the URL stays coordinate-based, and
+// the label is presence only.
 function applySearchDefinition(definition, { picking = false, place = null } = {}) {
   const result = readSearchDefinition({ lat: definition?.center?.[1], lon: definition?.center?.[0],
     radiusMiles: definition?.radiusMiles }, { region: publishedRegion });
@@ -190,8 +199,9 @@ function applySearchDefinition(definition, { picking = false, place = null } = {
     return null;
   }
   const clean = result.definition;
+  const near = nearestPlace(clean.center, places);
   store.setSearchError(null);
-  store.setSearchDefinition(clean, { picking, place });
+  store.setSearchDefinition(clean, { picking, place, near });
   store.setSearchHistory(writeDiscoverySearchHistory(addSearchHistory(activeSearch().history, clean, { place })));
   writeSearchUrl(clean);
   return clean;
@@ -245,12 +255,15 @@ function searchPreview(state) {
   const bounds = area ? searchAreaBounds(area) : (definition?.bounds ?? null);
   const coverage = active.coverage ?? null;
   const radius = area?.kind === 'radius' && definition;
-  const place = state.search.place;
+  // The label is the same presentation every surface uses: an explicitly chosen place, otherwise the nearest
+  // published place, otherwise the coordinates that are the search.
+  const presentation = centerPresentation({ place: state.search.place, near: state.search.near,
+    center: radius ? definition.center : null });
   const status = `${coverage?.coverage ?? COVERAGE.UNKNOWN}`;
   return { kind: radius ? 'radius' : 'bbox', center: radius ? definition.center : null,
     radiusMiles: definition?.radiusMiles ?? null, bounds,
     coverage: coverage?.coverage ?? COVERAGE.UNKNOWN, regionBounds: publishedRegion?.bounds ?? null,
-    label: radius ? `${formatRadius(definition.radiusMiles)} · ${status}${place ? ` · ${place.label}` : ''}`
+    label: radius ? `${formatRadius(definition.radiusMiles)} · ${status} · ${presentation.label}`
       : area ? `${area.name} · ${status}` : null };
 }
 
@@ -733,8 +746,16 @@ function discoveryDescriptors(state) {
   if (discovery.status !== 'ready' || !discovery.results.length) return null;
   const results = applyMarks(discovery.results, discovery.marks);
   const view = filterAndSort(results, discovery.filters, discovery.sort).slice(0, MAX_RESULT_ROWS);
+  const search = state.search;
   return {
-    corridors: view.map(result => ({ id: result.id, name: result.name, geometry: result.geometry })),
+    // Where the search was made and where the nearest part of every drawn corridor is: the selected corridor
+    // gets one line from the centre, and nothing else on the map is drawn from this.
+    center: search.areaId === CUSTOM_SEARCH_AREA_ID ? (search.definition?.center ?? null) : null,
+    centerLabel: centerPresentation({ place: search.place, near: search.near, center: search.definition?.center ?? null }).label,
+    corridors: view.map(result => ({ id: result.id, name: result.name, geometry: result.geometry,
+      nearestCenterPoint: result.nearestCenterPoint ?? null,
+      distanceLabel: result.distanceFromCenterM == null ? null
+        : formatContextDirection({ distanceM: result.distanceFromCenterM, cardinal: result.cardinalFromCenter }) })),
     selectedId: discovery.selectedId,
     promotedIds: view.filter(result => result.status === DISCOVERY_STATUS.PROMOTED).map(result => result.id),
     badge: `DISCOVERY ${discovery.coverage?.coverage ?? COVERAGE.UNKNOWN} · ${view.length} OF ${results.length} CORRIDORS · ACCESS UNVERIFIED`,

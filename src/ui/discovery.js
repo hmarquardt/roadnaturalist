@@ -6,7 +6,8 @@ import { MAX_RESULT_ROWS, SEGMENTED_ROAD_NOTE } from '../discovery/constants.js'
 import { CUSTOM_SEARCH_AREA_ID, DEFAULT_RADIUS_MILES, MAX_RADIUS_MILES, MIN_RADIUS_MILES, RADIUS_STOPS_MILES,
   areaCoverage, formatCenter, formatRadius, radiusNumber, readSearchDefinition, searchIsRunnable,
   searchRefusal, searchRegionCoverage, storedDefinition } from '../discovery/search-definition.js';
-import { placeLabel, placeTypeLabel, searchPlaces } from '../discovery/place-gazetteer.js';
+import { placeLabel, placeTypeLabel, searchPlaces, nearestPlace } from '../discovery/place-gazetteer.js';
+import { CENTER_LABEL_KIND, CONTEXT_NOTE, centerPresentation, formatContextDistance, formatContextDirection } from '../discovery/search-context.js';
 import { formatArea, formatDistance, formatLength } from './render.js';
 
 // The discovery workspace: choose a bounded area, run the deterministic survey, filter and sort the
@@ -28,7 +29,8 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
     onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace }));
   if (discovery.error) container.append(el('p', 'discovery-error', discovery.error));
   if (search?.error) container.append(el('p', 'discovery-error', search.error));
-  if (discovery.coverage) container.append(coverageBanner(discovery.coverage, discovery.diagnostics, discovery.searchArea));
+  if (discovery.coverage) container.append(coverageBanner(discovery.coverage, discovery.diagnostics, discovery.searchArea,
+    runCenterLabel({ discovery, search, gazetteer })));
   const stale = staleResults({ discovery, search, searchAreaId });
   if (stale) container.append(el('p', 'discovery-note', stale));
   const selected = discovery.selectedId ? discovery.results.find(result => result.id === discovery.selectedId) : null;
@@ -108,6 +110,19 @@ function controls({ discovery, searchAreas, searchAreaId, search, presets, regio
   return block;
 }
 
+// What the panel calls the current centre: the label first, then the coordinates it is only a label for, plus
+// how far the inferred place is. The coordinates are always shown, because they are the search.
+function centerLabelText(presentation) {
+  if (presentation.kind === CENTER_LABEL_KIND.EXPLICIT_PLACE) {
+    return presentation.coordinates ? `${presentation.label} · ${presentation.coordinates}` : presentation.label;
+  }
+  if (presentation.kind === CENTER_LABEL_KIND.NEAR_PLACE) {
+    const away = presentation.distanceM == null ? '' : ` (${formatContextDistance(presentation.distanceM)} away)`;
+    return presentation.coordinates ? `${presentation.label} · ${presentation.coordinates}${away}` : `${presentation.label}${away}`;
+  }
+  return `Centre: ${presentation.label}`;
+}
+
 function coverageOf({ search, searchAreas, searchAreaId, region }) {
   if (searchAreaId !== CUSTOM_SEARCH_AREA_ID) {
     const declared = searchAreas.find(area => area.id === searchAreaId) ?? null;
@@ -127,13 +142,21 @@ function searchControls({ search, searchAreas, searchAreaId, presets, region, ga
   const radiusMiles = draft?.radiusMiles ?? DEFAULT_RADIUS_MILES;
   const picking = Boolean(search?.picking);
   const place = search?.place ?? null;
+  const near = search?.near ?? null;
+  const presentation = centerPresentation({ place, near, center: draft?.center ?? null });
   const active = custom
-    ? (draft ? `Custom radius search · ${formatRadius(draft.radiusMiles)} at ${place ? `${place.label} (${formatCenter(draft.center)})` : formatCenter(draft.center)}` : 'Custom radius search · no centre chosen yet')
+    ? (draft ? `Custom radius search · ${formatRadius(draft.radiusMiles)}` : 'Custom radius search · no centre chosen yet')
     : `Declared search area · ${searchAreas.find(area => area.id === searchAreaId)?.name ?? searchAreaId ?? 'none selected'}`;
   const status = el('div', 'discovery-coverage-status');
   status.id = 'discovery-search-status';
   status.setAttribute('aria-live', 'polite');
-  status.append(el('p', 'small', custom ? `Active search: ${active}` : `Active search: ${active} (the centre and radius below define a custom search)`));
+  status.append(el('p', 'small', `Active search: ${active}${custom ? '' : ' (the centre and radius below define a custom search)'}`));
+  // Where the search is, in the one vocabulary every surface uses: a place a person chose, otherwise the
+  // nearest published place ("Near Vernonia, OR"), otherwise the coordinates. The coordinates stay visible in
+  // every case, because they are the search.
+  const centreLine = el('p', 'small discovery-center-label', centerLabelText(presentation));
+  centreLine.id = 'discovery-center-label';
+  status.append(centreLine);
   status.append(el('p', `small discovery-coverage-line ${(coverage?.coverage ?? COVERAGE.UNKNOWN).toLowerCase()}`,
     `Coverage: ${coverage?.coverage ?? COVERAGE.UNKNOWN}${coverage?.reason ? ` — ${coverage.reason}` : ''}`));
   block.append(status);
@@ -229,9 +252,11 @@ function searchControls({ search, searchAreas, searchAreaId, presets, region, ga
     recent.append(el('span', 'eyebrow', 'Recent searches'));
     history.forEach((entry, index) => {
       const definition = storedDefinition(entry);
-      // A remembered place is a label, not the search: without one the coordinates are shown instead.
-      const chip = el('button', 'quiet-button',
-        `${entry.place?.label ?? formatCenter(definition.center)} · ${formatRadius(definition.radiusMiles)}`);
+      // The same precedence as everywhere else: the place a person chose, otherwise the nearest published
+      // place (regenerated from the gazetteer, never stored), otherwise the coordinates.
+      const label = entry.place?.label
+        ?? (nearestPlace(entry.center, gazetteer)?.label ?? formatCenter(entry.center));
+      const chip = el('button', 'quiet-button', `${label} · ${formatRadius(definition.radiusMiles)}`);
       chip.type = 'button';
       chip.id = `discovery-recent-${index}`;
       chip.addEventListener('click', () => onSearchDefinition?.(definition, { source: 'recent', place: entry.place ?? null }));
@@ -373,7 +398,7 @@ function textField(id, label, value) {
 
 // The run's own summary: what was asked for, what came back, and how long each stage took. It reports the
 // search that produced these results, not the search currently typed into the controls above.
-function searchSummary(diagnostics, searchArea) {
+function searchSummary(diagnostics, searchArea, centerLabel = null) {
   const shape = diagnostics?.searchShape;
   if (!shape || shape.kind !== 'radius' || !Array.isArray(shape.center)) return null;
   const derivedSelection = diagnostics.derivedSelection ?? null;
@@ -381,7 +406,9 @@ function searchSummary(diagnostics, searchArea) {
   const block = el('div', 'discovery-summary');
   block.id = 'discovery-summary';
   block.append(el('span', 'eyebrow', 'Search summary'));
-  block.append(el('p', 'small', `${shape.radiusMiles}-mile radius search · centre ${formatCenter(shape.center)}`
+  block.append(el('p', 'small', `${shape.radiusMiles}-mile radius search · ${centerLabel ?? formatCenter(shape.center)}`));
+  // The coordinates stay in the summary as the search's own state, whatever the label says.
+  block.append(el('p', 'small muted', `centre ${formatCenter(shape.center)}`
     + `${searchArea?.id === CUSTOM_SEARCH_AREA_ID ? ' (custom search centre)' : ''}`));
   const parts = [`${diagnostics.counts?.corridors ?? 0} corridor(s) found`];
   if (derivedSelection) {
@@ -402,11 +429,23 @@ function searchSummary(diagnostics, searchArea) {
   return block;
 }
 
-function coverageBanner(coverage, diagnostics, searchArea = null) {
+// The summary describes the search that produced the results, so it is labelled from that search's own centre:
+// the place a person chose when it still describes that centre, otherwise the nearest published place to it,
+// otherwise the coordinates. A newer centre can never relabel an older run.
+function runCenterLabel({ discovery, search, gazetteer }) {
+  const area = discovery.searchArea;
+  if (!area?.center || area.kind !== 'radius') return null;
+  const draft = search?.definition ?? null;
+  const sameCentre = Boolean(draft && draft.center[0] === area.center[0] && draft.center[1] === area.center[1]);
+  if (sameCentre) return centerPresentation({ place: search.place, near: search.near, center: area.center }).label;
+  return nearestPlace(area.center, gazetteer)?.label ?? formatCenter(area.center);
+}
+
+function coverageBanner(coverage, diagnostics, searchArea = null, centerLabel = null) {
   const block = el('div', `discovery-coverage ${coverage.coverage === COVERAGE.FULL ? 'ok' : 'caution'}`);
   block.append(el('span', 'eyebrow', 'Discovery coverage'));
   block.append(el('strong', null, `Discovery coverage ${coverage.coverage}`));
-  const summary = searchSummary(diagnostics, searchArea);
+  const summary = searchSummary(diagnostics, searchArea, centerLabel);
   if (summary) block.append(summary);
   const counts = coverage.counts ?? {};
   block.append(el('p', 'small', `${counts.corridors ?? 0} discovery corridor(s) proposed in this area · `
@@ -570,7 +609,7 @@ function resultTable(results, discovery, onSelect) {
   table.id = 'discovery-results';
   const head = el('thead');
   const headRow = el('tr');
-  for (const label of ['Road', 'Length', 'Wetland ≤250 m', 'Crossings', 'Ecoregion', 'Coverage', 'Status']) headRow.append(el('th', null, label));
+  for (const label of ['Road', 'Length', 'From center', 'Wetland ≤250 m', 'Crossings', 'Ecoregion', 'Coverage', 'Status']) headRow.append(el('th', null, label));
   head.append(headRow);
   table.append(head);
   const body = el('tbody');
@@ -587,6 +626,12 @@ function resultTable(results, discovery, onSelect) {
       + (result.road.segmentation.count > 1 ? ` · segment ${result.road.segmentation.index}/${result.road.segmentation.count}` : '')));
     row.append(nameCell);
     row.append(el('td', null, `${(result.lengthM / 1609.344).toFixed(1)} mi`));
+    // Straight-line distance from the search centre to the nearest point of this road, with the 8-point
+    // direction it lies in. A declared box search has no centre to measure from, so the cell stays empty.
+    const fromCenter = el('td', null, result.distanceFromCenterM == null ? '—'
+      : `${formatContextDistance(result.distanceFromCenterM)}${result.cardinalFromCenter ? ` ${result.cardinalFromCenter}` : ''}`);
+    fromCenter.title = CONTEXT_NOTE;
+    row.append(fromCenter);
     row.append(el('td', null, result.signals.wetlands.area250M2 > 0 ? formatArea(result.signals.wetlands.area250M2) : '0'));
     row.append(el('td', null, String(result.signals.hydrography.crossingCount)));
     row.append(el('td', null, result.ecology.level3?.primary ? `${result.ecology.level3.primary.name} (${result.ecology.level3.primary.code})` : 'Unknown'));
@@ -621,6 +666,11 @@ function selectedResult(result, { onPromote, onDismiss, onSelect }) {
   const facts = el('dl', 'coverage-list discovery-facts');
   const rows = [
     ['Length', `${(result.lengthM / 1609.344).toFixed(2)} mi · ${Math.round(result.lengthM).toLocaleString('en-US')} m`],
+    // Orientation, not recommendation: where the nearest part of this road lies relative to the centre the
+    // person chose. The measurement is the same one the exact-radius search used to include the corridor.
+    ['From search center', result.distanceFromCenterM == null ? 'Not measured (no search center)'
+      : `${formatContextDistance(result.distanceFromCenterM)}${result.cardinalFromCenter ? ` ${result.cardinalFromCenter}` : ''}`
+        + ` (bearing ${result.bearingFromCenterDeg == null ? 'not applicable' : `${result.bearingFromCenterDeg.toFixed(0)}°`})`],
     ['Road class', result.road.classes.join(' · ') || 'Not provided by this source'],
     ['Counties', result.road.counties.join(' · ') || 'Not recorded'],
     ['Source features', `${result.road.sourceFeatureCount} feature(s)`],
@@ -642,6 +692,7 @@ function selectedResult(result, { onPromote, onDismiss, onSelect }) {
     facts.append(row);
   }
   block.append(facts);
+  if (result.distanceFromCenterM != null) block.append(el('p', 'discovery-note', CONTEXT_NOTE));
   const coverageList = el('dl', 'coverage-list discovery-coverage-list');
   const labels = { [COVERAGE_DATASET.ROAD_NETWORK]: 'Road network', [COVERAGE_DATASET.WETLANDS]: 'Wetlands', [COVERAGE_DATASET.HYDROGRAPHY]: 'Hydrography' };
   for (const [datasetId, entry] of Object.entries(result.coverage)) {

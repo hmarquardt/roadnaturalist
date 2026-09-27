@@ -38,7 +38,7 @@ test('regional discovery reads precomputed metrics, and promotion verifies the r
   console.log('REGIONAL_DERIVED', JSON.stringify({ elapsedMs, corridorCount: count,
     derivedObjects: derivedCells.length, rawPartitions: partitions.length, engineInitMs: engine.initMs,
     jsHeapBytes: await page.evaluate(() => performance.memory?.usedJSHeapSize ?? null) }));
-  const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:nth-child(6):text-is("FULL")') }).first();
+  const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:text-is("FULL")') }).first();
   await expect(fullRow).toBeVisible();
   await fullRow.locator('.discovery-row').click();
   const selected = page.locator('#discovery-selected');

@@ -187,8 +187,9 @@ plainly.
   selected, and the same exact-radius test decides which corridors are results
   (`tests/place-gazetteer.test.js` asserts the derived result rows are equal).
 * The URL stays coordinate-based (`?lat=…&lon=…&r=…`). A place is presentation: a recent search may be
-  labelled `Hillsboro, OR · 25 mi` and falls back to `45.5268, -122.9354 · 25 mi` when no label is available.
-  Nothing about running or sharing a search depends on the gazetteer.
+  labelled `Hillsboro, OR · 25 mi`, `Near Forest Grove, OR · 10 mi` for a centre that was picked or typed, or
+  `45.5268, -122.9354 · 25 mi` when no published place is close enough. Nothing about running or sharing a
+  search depends on the gazetteer.
 * Coverage semantics are unchanged: a place outside the published region reports PARTIAL or NONE exactly as a
   typed coordinate there does, and the radius is never reduced to fit the data.
 * The field is a labelled combobox with a listbox of options: mouse and touch select, ArrowDown/ArrowUp move
@@ -211,6 +212,82 @@ npm run verify:places:production    # opt-in: the deployed place search, promoti
 * The centre is the published **interior point**: a search centre, not a road, an entrance or a parking place.
 * The list is regional and versioned. It is rebuilt from a new pinned vintage by changing the digests in
   `scripts/build-places.py`, never by hand-editing the artifact.
+
+## Search context: the centre's name, and where each road lies
+
+Two presentation facts are derived from the centre a person chose. Both are measured, both are local, and
+neither can change what a search returns (`src/discovery/search-context.js`).
+
+### The centre's label
+
+| Priority | What the panel shows | Where it comes from |
+| --- | --- | --- |
+| 1 | `Hillsboro, OR` | the place a person chose from the gazetteer (explicit, authoritative) |
+| 2 | `Near Vernonia, OR` | the nearest published place, when one is within 10 miles (inferred) |
+| 3 | `Centre: 46.2800, -121.8800` | the coordinates, which are the search |
+
+* The wording is deliberately modest: the gazetteer holds Census **interior points**, not downtown addresses,
+  entrances or population centres, so a picked centre is **near** a place, never inside it.
+* The inferred label is only attached when a place is close. Against the committed artifact (387 places,
+  median nearest-neighbour spacing 3.0 mi, p90 6.9 mi) a uniform grid inside the published region is 5.2 mi
+  from its nearest place at the median, 9.4 mi at p75, 14.4 mi at p90 and 24.6 mi at worst, so **10 miles**
+  labels about 77% of in-region centres and leaves the rest to their coordinates. A centre 25 miles from a
+  town is never described as "near" it.
+* The centre is never moved. A map pick keeps the coordinate the click landed on, a typed coordinate keeps
+  what was typed, the URL stays `?lat=…&lon=…&r=…`, and the place never snaps a search or appears in a link.
+* `place` (explicit) and `near` (inferred) are stored separately beside the definition. Only `place` is
+  written to the recent-search list; `near` is regenerated from the gazetteer on every render, so a stale
+  label can never describe a search it does not belong to.
+* The lookup is a linear scan over a few hundred places (~0.03 ms per query, measured). No index, no network,
+  no reverse geocoding, no location permission, no popularity weighting, and ties resolve by name, then state,
+  then Census GEOID, so the same centre always produces the same label.
+
+### Distance and direction from the centre
+
+Every result of a radius search carries four measured values:
+
+| Field | Meaning |
+| --- | --- |
+| `distanceFromCenterM` | straight-line metres from the centre to the nearest point of this corridor |
+| `nearestCenterPoint` | that point, as `[longitude, latitude]` |
+| `bearingFromCenterDeg` | initial great-circle bearing from the centre to that point, in `[0, 360)` |
+| `cardinalFromCenter` | the 8-point compass direction of that bearing (`N`, `NE`, …) |
+
+* The distance is the minimum over the corridor's segments and vertices — not the centroid, the midpoint, the
+  first coordinate or the bounding-box centre. A road running through the centre reports `<0.1 mi`.
+* It is the **same measurement the exact-radius search decided with**: `closestPointOnLineM` returns the
+  distance and the point in one pass, `minDistanceToLineM` is that value, and the run keeps a corridor when
+  `distanceFromCenterM <= radiusM`. There is no second geometry implementation for display, so a shown
+  distance can never disagree with the radius that admitted the corridor.
+* The bearing runs from the centre to the nearest point, so it describes the direction of the nearest part of
+  the road, not a heading along it. Below 10 m the direction is not meaningful and is left out rather than
+  invented; the distance still shows.
+* The compass is a sector rule, not a tuning: `N` is `[337.5°, 22.5°)`, `NE` is `[22.5°, 67.5°)`, and so on.
+* Statute miles, the unit the radius is chosen in: `0.8 mi`, `4.2 mi`, `8.4 mi NW`, `17.6 mi`, `<0.1 mi`.
+* This is **straight-line distance and orientation: not driving distance, and not a ranking**. No route
+  distance, no travel time, no road-quality measure, no recommendation.
+* A declared box search has no centre, so all four fields are `null` and the column shows `—`.
+* The raw path keeps its pre-existing unit rule for inclusion (a corridor of an admitted composed unit is
+  present even when that corridor lies beyond the disk — the difference the equivalence capture records), so a
+  raw result may report a distance larger than the requested radius. The derived plane, which is what
+  production runs, selects per corridor, and its reported distance is always within the radius.
+
+### Where it appears
+
+* **Result table** — a `From center` column beside `Length` with the distance and compass point
+  (`8.4 mi NW`), carrying the straight-line explanation as its tooltip. It survives at 390 px, where the
+  ecoregion column is the one that collapses.
+* **Selected corridor** — a `From search center` row with the distance, the compass point and the numeric
+  bearing, followed by the sentence that says what it is not.
+* **Search summary** — the radius line names the centre the way the panel does
+  (`25-mile radius search · Near Vernonia, OR`), and the run's own centre stays in the quiet line below it as
+  `centre 45.5400, -123.1700`. A summary that outlives its search is labelled from *that* run's centre, never
+  from a newer draft centre.
+* **Map** — selecting a corridor draws one dashed line from the centre to the nearest point of that road.
+  Only the selected corridor gets one: thousands of distance lines would say something else entirely.
+* **Sorting** — `Distance from center` is an explicit sort beside the others, ascending, with an unmeasured
+  distance sorted last. It is not the default and not a recommendation; the display default of the table is
+  unchanged.
 
 ## Road eligibility
 
@@ -448,15 +525,19 @@ npm run verify:geometry -- --json  # the same facts, machine-readable
 Every result carries raw measured values with their units (`src/discovery/signals.js`):
 
 * **road** — length, TIGER class, counties, source feature count, composition, segmentation
+* **from the centre** (radius searches only) — the straight-line distance to the nearest point of the
+  corridor, that point, and the bearing and 8-point compass direction toward it. Null for a declared box
+  search. See [search context](#search-context-the-centres-name-and-where-each-road-lies).
 * **ecology** — primary Level III and IV, distinct ecoregion codes, transitions, coverage
 * **wetlands** — intersects the corridor, nearest, area within 250 m / 500 m / 1 km, feature counts, types
 * **hydrography** — mapped crossings, nearest flowing and standing water, flowline length and waterbody
   area within 1 km, named waters
 
-Sorts are explicit: road name, length, nearest wetland, wetland area within 250 m, wetland area within
-1 km, mapped crossings, ecoregion transitions, distinct ecoregions. The default order (wetland area
-within 250 m, descending) is a **display default**, labelled as such in the interface: it is not a
-ranking and not a statement that the first road is better than the last. Filters are a length range,
+Sorts are explicit: road name, length, distance from the center, nearest wetland, wetland area within 250 m,
+wetland area within 1 km, mapped crossings, ecoregion transitions, distinct ecoregions. The default order
+(wetland area within 250 m, descending) is a **display default**, labelled as such in the interface: it is not
+a ranking and not a statement that the first road is better than the last — and neither is sorting by
+distance, which orders by one measured value like every other sort. Filters are a length range,
 road class, mapped-wetland relation, maximum nearest-wetland distance, minimum mapped crossings, and
 ecoregion. Everything filters and sorts locally after one discovery run.
 
@@ -556,7 +637,10 @@ browser storage, derived metrics and Worker-side GIS remain unimplemented and re
 
 * `src/discovery/` — constants, eligibility, units, segment, coverage, signals, filter, lifecycle,
   persistence, search-area, **search-definition** (the centre/radius model, coverage classification, URL
-  state and recent searches), run
+  state and recent searches), **place-gazetteer** (the local name lookup and the nearest-place inference),
+  **search-context** (the centre's label, and the distance/bearing of a corridor from the centre), run
+* `src/domain/geometry.js` — `closestPointOnLineM` / `minDistanceToLineM` (the one distance primitive the
+  radius test and the reported context share), `initialBearingDeg`, `cardinalDirection`
 * `src/domain/line-repair.js`, `src/domain/analytical-geometry.js` — the point-preserving repair ladder and
   its impact/acceptance policy
 * `src/gis/analytical-geometry.js` — the shared preparation boundary used by the survey, detailed habitat
@@ -570,6 +654,9 @@ browser storage, derived metrics and Worker-side GIS remain unimplemented and re
 * `tests/discovery.test.js`, `tests/discovery.spec.js`, `tests/fixtures/or-roads-network.summary.json`
 * `tests/search-definition.test.js`, `tests/search-center.spec.js`, `tests/search-production.spec.js` — the
   interactive centre/radius model, its browser interaction, and the deployed search verification
+* `tests/search-context.test.js`, `tests/search-context.spec.js` — the nearest-place inference, the distance
+  and bearing geometry, the exact-radius invariant, and the browser behaviour of the labels, the column, the
+  sort and the 390 px layout
 * `assets/css/discovery.css`, `src/ui/discovery.js` — the discovery workspace
 
 See also [docs/ROADS.md](ROADS.md) for the road sources, [docs/HABITAT.md](HABITAT.md) for the habitat
