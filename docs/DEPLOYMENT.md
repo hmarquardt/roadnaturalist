@@ -178,6 +178,33 @@ window.ROADNATURALIST_WORKER_URL = 'http://127.0.0.1:8787';
 The local origin is already in the Worker's allow-list. `npm test` and `npm run test:e2e` never contact Cloudflare or a
 county site: the Worker is exercised in-process with a stubbed fetch, and the browser tests stub the boundary.
 
+### The browser-test server
+
+`npm run test:e2e` serves the repository root from a threaded Python HTTP server on `127.0.0.1:8000`, started by the
+Playwright configuration. Three details make that server's lifecycle deterministic, because a browser test that
+runs against a half-dead origin fails as a mystery rather than as an error:
+
+* **Threaded.** The application fetches many files at once (modules, GeoParquet extracts, regional partitions), and
+  `python3 -m http.server` answers one request at a time: a page that navigates away mid-download leaves it writing
+  to a dead socket, and every later request waits behind that one. `ThreadingHTTPServer` serves each connection on
+  its own thread, as the real host does.
+* **Its log goes to a file** (`test-server.log`, not committed), not to the runner's pipe. A run that is killed
+  leaves the server alive, and a server whose stdout is a dead pipe raises `BrokenPipeError` on every log line -
+  which is what turned an orphan into one that answered `ERR_EMPTY_RESPONSE` to everything, including the module
+  requests a page needs to boot.
+* **Health is checked with a URL, not a port.** `port: 8000` only asks whether something is listening, so a stale
+  server that accepted connections and answered nothing was silently reused and every test then failed later as
+  "element not found". The configuration waits for `http://127.0.0.1:8000/data/manifest.json`, so an unhealthy
+  server stops the run before the first test:
+
+  ```text
+  Error: Process from config.webServer was not able to start. Exit code: 1
+  ```
+
+  A stale server is therefore never silently accepted. Kill it (`pkill -f ThreadingHTTPServer`) and run again, or
+  inspect `test-server.log` to see what it was asked for.
+
+
 ## 7. Runtime behaviour in production
 
 * Official-source research goes to the Worker; the browser never reads a county page directly.

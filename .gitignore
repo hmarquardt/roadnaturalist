@@ -19,3 +19,6 @@ data/regional/partitions/or-sw-wa-portland-v2/
 
 # DuckDB spill files from offline builds
 .tmp/
+
+# Browser-test server log (see docs/DEPLOYMENT.md, "The browser-test server")
+test-server.log
