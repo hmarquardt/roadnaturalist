@@ -359,6 +359,18 @@ function markDiscoveryCorridor(id, status) {
   store.setDiscoveryMarks(writeDiscoveryMarks(markDiscovery(state.discovery.marks, id, next)));
 }
 
+// The explicit run behind the restored candidate's panel: the same two analyses a newly selected corridor gets,
+// asked for by a person instead of by boot.
+async function runCandidateAnalysis(id) {
+  if (!id) return;
+  try {
+    await resolveEcology(id);
+    await resolveHabitat(id);
+  } catch (error) {
+    store.setRoadQuery({ ...store.getState().roadQuery, reason: error.message });
+  }
+}
+
 async function resolveEcology(id) {
   const state = store.getState();
   if (state.ecologyByCandidate[id]) return;
@@ -653,7 +665,10 @@ store.subscribe(state => {
   const roads = selected ? state.roadsByCandidate[selected.id] ?? [] : [];
   // Each corridor resolves its own ecological and habitat analysis when it is first selected.
   // Occurrence evidence is never fetched automatically: only the explicit button triggers it.
-  if (selected && drawn.resolvedId !== selected.id) {
+  // A candidate restored from this device is the exception: its analysis is an explicit request, so a reload
+  // never turns boot into a GIS read of the raw partitions.
+  const restored = Boolean(selected && state.restoredCandidateIds.includes(selected.id));
+  if (selected && !restored && drawn.resolvedId !== selected.id) {
     drawn.resolvedId = selected.id;
     resolveEcology(selected.id)
       .then(() => resolveHabitat(selected.id))
@@ -663,6 +678,13 @@ store.subscribe(state => {
   renderCandidates(nodes.list, state, id => store.select(id));
   renderDetail(nodes.detail, selected, (id, status) => store.decide(id, status), { ecology, roads, habitat, occurrence: occurrenceEvidence,
     onQueryOccurrence: () => requestOccurrence({ refresh: true }),
+    // A candidate this device kept comes back without its detailed analysis: running it again is this control,
+    // never a boot step.
+    restored,
+    persisted: Boolean(selected && state.durableCandidateIds.includes(selected.id)),
+    storage: state.candidateStorage,
+    onRunAnalysis: () => runCandidateAnalysis(selected?.id),
+    onRemove: id => store.removeCandidate(id),
     investigation, access: investigation && accessReview ? { ...investigation.access, human: accessReview } : investigation?.access ?? null,
     onRunAccess: options => requestAccess(options), onExportBundle: () => { exportBundle().catch(error => reportAccessNote(error.message)); },
     onReviewAccess: review => recordAccessReview(review), recordedCaptureAt: accessRecord?.capturedAt ?? null, liveOsm: state.liveOsm,
@@ -863,6 +885,10 @@ loadManifest().then(async value => {
     // A search area that the loaded datasets cannot cover is a declaration problem, not a survey.
     store.failDiscovery({ error: `Discovery search areas are unavailable: ${error.message}`, marks: readDiscoveryMarks() });
   }
+  // Candidates this device kept come back before the first render, so a reload lands on the workspace a person
+  // left: no discovery run, no analysis, and no network read. A record that cannot be read is left out with its
+  // reason (reported under the candidate list), and the rest still load.
+  store.restoreCandidates();
   renderDiscoveryPanel(store.getState());
   updateSearchPreview(store.getState());
   const discovery = store.getState().discovery;
