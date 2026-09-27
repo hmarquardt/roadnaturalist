@@ -7,7 +7,7 @@ import { CUSTOM_SEARCH_AREA_ID, DEFAULT_RADIUS_MILES, MAX_RADIUS_MILES, MIN_RADI
   areaCoverage, formatCenter, formatRadius, radiusNumber, readSearchDefinition, searchIsRunnable,
   searchRefusal, searchRegionCoverage, storedDefinition } from '../discovery/search-definition.js';
 import { placeLabel, placeTypeLabel, searchPlaces, nearestPlace } from '../discovery/place-gazetteer.js';
-import { CENTER_LABEL_KIND, CONTEXT_NOTE, centerPresentation, formatContextDistance, formatContextDirection } from '../discovery/search-context.js';
+import { CENTER_LABEL_KIND, CONTEXT_NOTE, centerPresentation, formatContextDistance, formatContextDirection, runCenterPresentation } from '../discovery/search-context.js';
 import { formatArea, formatDistance, formatLength } from './render.js';
 
 // The discovery workspace: choose a bounded area, run the deterministic survey, filter and sort the
@@ -431,14 +431,13 @@ function searchSummary(diagnostics, searchArea, centerLabel = null) {
 
 // The summary describes the search that produced the results, so it is labelled from that search's own centre:
 // the place a person chose when it still describes that centre, otherwise the nearest published place to it,
-// otherwise the coordinates. A newer centre can never relabel an older run.
+// otherwise the coordinates. A newer centre can never relabel an older run. The label comes from the same helper
+// a promotion uses, so the summary, the discovery row and a promoted candidate cannot disagree.
 function runCenterLabel({ discovery, search, gazetteer }) {
   const area = discovery.searchArea;
   if (!area?.center || area.kind !== 'radius') return null;
-  const draft = search?.definition ?? null;
-  const sameCentre = Boolean(draft && draft.center[0] === area.center[0] && draft.center[1] === area.center[1]);
-  if (sameCentre) return centerPresentation({ place: search.place, near: search.near, center: area.center }).label;
-  return nearestPlace(area.center, gazetteer)?.label ?? formatCenter(area.center);
+  return runCenterPresentation({ center: area.center, place: search?.place ?? null, near: search?.near ?? null,
+    definitionCenter: search?.definition?.center ?? null, gazetteer })?.label ?? null;
 }
 
 function coverageBanner(coverage, diagnostics, searchArea = null, centerLabel = null) {

@@ -243,7 +243,33 @@ export function createCorridorMap(container, { onSelect, onPickCoordinate } = {}
     }
   }
 
+  // The centre a promoted corridor was found from, and the nearest point of that corridor: the same two points
+  // the panel names, drawn for the selected candidate only. A pilot corridor (no search context) and a
+  // promotion from a declared window (no centre) draw nothing.
+  function drawCandidateContext(corridor) {
+    if (!Array.isArray(corridor.searchCenter) || !Array.isArray(corridor.nearestCenterPoint)) return;
+    const [sx, sy] = projection.point(corridor.searchCenter);
+    const [tx, ty] = projection.point(corridor.nearestCenterPoint);
+    if (![sx, sy, tx, ty].every(Number.isFinite)) return;
+    line('candidate-context-line', `M ${sx.toFixed(2)} ${sy.toFixed(2)} L ${tx.toFixed(2)} ${ty.toFixed(2)}`);
+    const center = document.createElementNS(SVG_NS, 'circle');
+    center.setAttribute('class', 'candidate-context-center');
+    center.setAttribute('cx', sx.toFixed(2));
+    center.setAttribute('cy', sy.toFixed(2));
+    center.setAttribute('r', '5');
+    content.append(center);
+    const nearest = document.createElementNS(SVG_NS, 'circle');
+    nearest.setAttribute('class', 'candidate-context-nearest');
+    nearest.setAttribute('cx', tx.toFixed(2));
+    nearest.setAttribute('cy', ty.toFixed(2));
+    nearest.setAttribute('r', '3.5');
+    content.append(nearest);
+  }
+
   function drawSelected(corridor) {
+    // Where the search centre was, for a corridor that came out of a radius search: the same measured
+    // relationship the panel states, drawn under the road so the road stays the subject.
+    drawCandidateContext(corridor);
     const d = pathData(corridor.geometry);
     line('road-shadow', d);
     const road = line('road', d);

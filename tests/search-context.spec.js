@@ -228,3 +228,68 @@ test('at 390px the context stays readable without widening the page', async ({ p
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   expect(external).toEqual([]);
 });
+
+test('a promoted corridor keeps the search context from the row through to the candidate', async ({ page }) => {
+  test.slow();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const external = await watchExternal(page);
+  await boot(page);
+  // A typed centre near Forest Grove: an inferred label, a real measured relationship, and a short search.
+  await applyCoordinates(page, { lat: 45.54, lon: -123.17 }, 5);
+  await page.locator('#discover-roads').click();
+  await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
+  const rowCell = (await distanceCells(page))[0];
+  expect(rowCell).toMatch(DISTANCE_CELL);
+  await page.locator('#discovery-results tbody tr button').first().click();
+  const panelFact = await page.locator('#discovery-selected .discovery-facts div', { hasText: 'From search center' }).locator('dd').innerText();
+  expect(panelFact).toContain(rowCell.split(' ')[0]);
+  await page.locator('#discovery-promote').click();
+  const detail = page.locator('#candidate-detail');
+  const context = detail.locator('#candidate-search-context');
+  await expect(context).toBeVisible({ timeout: 180000 });
+  // The promoted candidate states the same relationship the row and the panel stated, in the same words.
+  await expect(context).toContainText('Where this corridor was found');
+  await expect(context.locator('.search-context-headline')).toHaveText(`${rowCell} of Near Forest Grove, OR`);
+  await expect(context).toContainText('45.5400, -123.1700');
+  await expect(context).toContainText('5 mi radius search');
+  await expect(context).toContainText('° true');
+  await expect(context).toContainText('Straight-line distance from the search centre to the nearest point of this corridor');
+  await expect(context).toContainText('not a driving distance, and not a ranking');
+  await expect(context).not.toContainText('travel distance');
+  // The map draws the search centre and the nearest point of the selected corridor (and only that corridor).
+  await expect(page.locator('#map svg .candidate-context-line')).toHaveCount(1);
+  await expect(page.locator('#map svg .candidate-context-center')).toHaveCount(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  // A candidate created by a search keeps the mark that promotion recorded, and a reload invents no context.
+  const marks = await page.evaluate(() => JSON.parse(localStorage.getItem('roadnaturalist.discovery.marks.v1') ?? '{}'));
+  expect(Object.values(marks.marks ?? {}).filter(status => status === 'PROMOTED').length).toBe(1);
+  await page.reload();
+  await expect(page.locator('#candidate-detail')).toBeVisible({ timeout: 60000 });
+  await expect(page.locator('#candidate-detail #candidate-search-context')).toHaveCount(0);
+  await expect(page.locator('#discovery')).not.toContainText('promotion verification failed');
+  expect(external).toEqual([]);
+});
+
+test('a corridor promoted from a chosen place keeps the place name, not an inference about it', async ({ page }) => {
+  test.slow();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const external = await watchExternal(page);
+  await boot(page);
+  await page.locator('#discovery-place').fill('Hillsboro');
+  await expect(page.locator('#discovery-place-results')).toBeVisible();
+  await page.locator('#discovery-place-results .discovery-place-option').first().click();
+  await page.locator('#discovery-radius-input').fill('5');
+  await page.locator('#discovery-radius-input').press('Enter');
+  await page.locator('#discover-roads').click();
+  await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
+  const rowCell = (await distanceCells(page))[0];
+  await page.locator('#discovery-results tbody tr button').first().click();
+  await page.locator('#discovery-promote').click();
+  const context = page.locator('#candidate-detail #candidate-search-context');
+  await expect(context).toBeVisible({ timeout: 180000 });
+  // The explicit place stays explicit: the candidate says where the search was, not what the nearest place was.
+  await expect(context.locator('.search-context-headline')).toHaveText(`${rowCell} of Hillsboro, OR`);
+  await expect(context).toContainText('Hillsboro, OR · 45.5268, -122.9354');
+  await expect(context).not.toContainText('Near Hillsboro');
+  expect(external).toEqual([]);
+});

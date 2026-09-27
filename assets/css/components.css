@@ -19,3 +19,6 @@
 .map .search-label{font:700 12px ui-sans-serif,system-ui;fill:#17466b;paint-order:stroke;stroke:#fffef9;stroke-width:3}
 .map .search-center-line{fill:none;stroke:#17466b;stroke-width:1.6;stroke-dasharray:5 4;opacity:.75}
 .map .search-center-point{fill:#17466b;stroke:#fffef9;stroke-width:1.5}
+.map .candidate-context-line{fill:none;stroke:#7a4b12;stroke-width:1.6;stroke-dasharray:5 4;opacity:.8}
+.map .candidate-context-center{fill:#7a4b12;stroke:#fffef9;stroke-width:1.5}
+.map .candidate-context-nearest{fill:#fffef9;stroke:#7a4b12;stroke-width:1.5}

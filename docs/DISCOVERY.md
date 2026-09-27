@@ -272,8 +272,59 @@ Every result of a radius search carries four measured values:
   raw result may report a distance larger than the requested radius. The derived plane, which is what
   production runs, selects per corridor, and its reported distance is always within the radius.
 
-### Where it appears
+### Promotion keeps the orientation
 
+A corridor promoted out of a radius search keeps the centre it was found from, named as it was named at the time,
+and the measured relationship between that centre and the nearest point of the promoted corridor. The candidate
+detail panel shows it beside the corridor identity, before any evidence section:
+
+```text
+Where this corridor was found
+4.2 mi NW of Near Vernonia, OR
+  Search centre        Near Vernonia, OR · 45.5400, -123.1700
+  Distance from centre 4.2 mi NW straight line
+  Found in             25 mi radius search
+  Bearing from centre  315° true
+Straight-line distance from the search centre to the nearest point of this corridor — not a driving distance, and not a ranking.
+```
+
+* **Historical, not live.** The context is a snapshot taken when the road was promoted
+  (`candidate.searchContext`). Moving the search centre, changing the radius, choosing another place, or running a
+  new search never rewrites a candidate that was already promoted, and a promotion reads the *run's* centre and
+  radius rather than whatever the controls say later.
+* **Presentation, not evidence.** It is not a GIS input: it changes no metric, no coverage state, no occurrence or
+  access behaviour, and the analysis fingerprint cannot depend on it. `tests/promotion-context.test.js` asserts
+  that a promotion carrying a context and a promotion without one differ by exactly that one field.
+* **Labelled the way it was labelled.** An explicit choice stays explicit (`Hillsboro, OR`), an inferred label
+  stays inferred (`Near Vernonia, OR`, with the Census place id kept as presentation provenance), and a centre no
+  published place is near is described by its coordinates. The coordinates remain the authoritative centre and are
+  always shown beside the label.
+* **Verified against the promoted corridor.** Promotion already reconstructs the raw corridor and verifies the row
+  against it; the same check is repeated for the context. The distance, the nearest point and the bearing are
+  re-derived from the corridor that is about to be published — with the same geometry primitive the search used —
+  and the discovery row's values are what they are checked against. A disagreement beyond the corridor tolerance
+  (1 m, the same `PROMOTION_MAX_DRIFT_M` the geometry check uses) **fails the promotion closed** with the reason in
+  the panel, rather than carrying an orientation that describes some other road. The values that are kept are the
+  re-derived ones, so a candidate always describes the corridor it carries.
+* **Optional.** A candidate promoted from a declared window (no centre), a pilot corridor, and any candidate built
+  before this feature simply carry no search context and render exactly as before: the field is `null`, not a
+  guess. A search context is only ever built when a centre actually measured the corridor.
+* **Not exported.** The evidence bundle deliberately excludes it — see
+  [below](#why-the-evidence-bundle-carries-no-search-context).
+* **On the map.** Selecting a promoted candidate draws its search centre, the nearest point of that corridor and
+  the dashed line between them, for that corridor only.
+
+### Why the evidence bundle carries no search context
+
+The corridor evidence bundle carries corridor facts and their provenance: identity, geometry reference, measured
+ecology/habitat/occurrence summaries, access evidence, the qualified finding. The search centre is device-local
+browsing history — where a person happened to search — not a fact about the corridor, and a recipient of a bundle
+has no search to place it in. Adding it would also put a location claim into a document that deliberately
+minimizes coordinates (corridor coordinates are opt-in via `includeGeometry`). The bundle therefore exports
+nothing about the search that found the corridor, `src/investigator/bundle.js` says so where the decision lives,
+and `tests/promotion-context.test.js` pins it.
+
+### Where it appears
 * **Result table** — a `From center` column beside `Length` with the distance and compass point
   (`8.4 mi NW`), carrying the straight-line explanation as its tooltip. It survives at 390 px, where the
   ecoregion column is the one that collapses.
@@ -571,6 +622,12 @@ device-local, discarded when unreadable or blocked). Promotion rebuilds the corr
 ecology, habitat, occurrence, access, and evidence-bundle behaviour, and no second kind of detailed
 candidate.
 
+Promotion also carries the **search context** when the corridor came from a radius search: the centre it was found
+from, how that centre was named, and the straight-line distance and direction from it to the nearest point of the
+promoted corridor (`src/discovery/search-context.js`). It is snapshot presentation metadata — historical, optional,
+verified against the promoted corridor at promotion time — and it is not an input to anything measured. See
+[Promotion keeps the orientation](#promotion-keeps-the-orientation).
+
 A promoted corridor is the **corridor**, not the road group it belongs to. A long named road becomes several
 contiguous analysis corridors, so promotion hands `promoteDiscoveryResult` the corridor that was selected and
 the candidate's road record takes that corridor's canonical geometry (`corridorRoad` in `src/roads/road.js`)
@@ -657,6 +714,8 @@ browser storage, derived metrics and Worker-side GIS remain unimplemented and re
 * `tests/search-context.test.js`, `tests/search-context.spec.js` — the nearest-place inference, the distance
   and bearing geometry, the exact-radius invariant, and the browser behaviour of the labels, the column, the
   sort and the 390 px layout
+* `tests/promotion-context.test.js` — the promotion search context: the snapshot, the derived-versus-raw
+  verification, the refusals, the optional/absent cases, and the bundle exclusion
 * `assets/css/discovery.css`, `src/ui/discovery.js` — the discovery workspace
 
 See also [docs/ROADS.md](ROADS.md) for the road sources, [docs/HABITAT.md](HABITAT.md) for the habitat

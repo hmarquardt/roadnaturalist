@@ -88,15 +88,23 @@ test('deployed place search, the edge, a refusal, promotion and zero external ca
   const selected = page.locator('#discovery-selected');
   await expect(selected).toContainText('Mapped wetland within 250 m');
   const discoveryArea = await selected.locator('.discovery-facts div', { hasText: 'Mapped wetland within 250 m' }).locator('dd').innerText();
+  const discoveryContext = await selected.locator('.discovery-facts div', { hasText: 'From search center' }).locator('dd').innerText();
   const partitionsBefore = partitions.length;
   await page.locator('#discovery-promote').click();
   const habitat = page.locator('.habitat-section');
   await expect(habitat).toContainText('PHYSICAL HABITAT EVIDENCE', { timeout: 300000 });
   await expect(habitat).toContainText('Detailed GIS', { timeout: 300000 });
+  // The promoted candidate keeps the orientation of the search that found it, named the way the person chose it.
+  const candidateContext = page.locator('#candidate-detail #candidate-search-context');
+  await expect(candidateContext).toBeVisible({ timeout: 300000 });
+  await expect(candidateContext.locator('.search-context-headline')).toHaveText(/^(?:<0\.1|\d+\.\d) mi(?: [NSEW]{1,2})? of Hillsboro, OR$/);
+  await expect(candidateContext).toContainText('Hillsboro, OR · 45.5268, -122.9354');
+  await expect(candidateContext).toContainText('10 mi radius search');
+  await expect(candidateContext).toContainText('not a driving distance, and not a ranking');
   const wetlandFacts = habitat.locator('.habitat-block').first();
   await expect(wetlandFacts).toContainText('Within 250 m', { timeout: 300000 });
   const detailArea = await wetlandFacts.locator('dl div', { hasText: /^Within 250 m/ }).first().locator('dd').innerText();
-  report.promotion = { discoveryArea, detailArea, partitionsRead: partitions.length - partitionsBefore,
+  report.promotion = { discoveryArea, discoveryContext, detailArea, partitionsRead: partitions.length - partitionsBefore,
     r2Host: partitions.length ? new URL(partitions[0]).host : null };
   log(report.promotion);
   expect(report.promotion.partitionsRead).toBeGreaterThan(0);

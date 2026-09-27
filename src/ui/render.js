@@ -3,6 +3,8 @@ import { ATTRIBUTE_STATE } from '../domain/attributes.js';
 import { roadEvidenceSummary } from '../roads/road.js';
 import { roadSourceLabel } from '../roads/pilot.js';
 import { taxaForLens } from '../occurrence/summary.js';
+import { formatCenter, formatRadius } from '../discovery/search-definition.js';
+import { SEARCH_CONTEXT_NOTE, contextDirection, searchContextLine, storedSearchContext } from '../discovery/search-context.js';
 
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 
@@ -49,6 +51,10 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
   container.replaceChildren();
   if (!candidate) { container.append(empty('Investigation starts with a road', 'Open the pilot and select a corridor to inspect its geometry source, evidence, missing data, and research questions.')); return; }
   container.append(el('h3', 'detail-title', candidate.name), el('p', 'detail-lede', candidate.summary ?? ''), el('span', `tag ${candidate.status === 'rejected' ? 'warn' : ''}`, candidate.status));
+  // Orientation first, evidence after: where the search was when this corridor was chosen. A candidate with no
+  // search context (a pilot corridor, a promotion from a declared window) renders exactly as before.
+  const searchContext = storedSearchContext(candidate.searchContext);
+  if (searchContext) container.append(searchContextSection(searchContext));
   if (roads.length) container.append(roadSection(candidate, roads));
   container.append(ecologySection(ecology));
   container.append(habitatSection(habitat));
@@ -92,6 +98,29 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
   }
   decisionSection.append(actions);
   container.append(decisionSection);
+}
+
+// WHERE THIS CORRIDOR WAS FOUND. Historical orientation from the search that surfaced it: the centre as it was
+// named when the road was chosen, and the straight-line distance and direction to the nearest point of this
+// corridor. It sits beside the corridor identity, never inside habitat, occurrence, or access evidence, and it
+// is presentation rather than a finding: nothing here measures the road, and nothing here ranks it.
+function searchContextSection(context) {
+  const node = section('Where this corridor was found');
+  node.id = 'candidate-search-context';
+  node.append(el('p', 'search-context-headline', searchContextLine(context)));
+  const dl = el('dl', 'coverage-list search-context-facts');
+  const rows = [
+    ['Search centre', `${context.centerLabel} · ${formatCenter(context.center)}`],
+    ['Distance from centre', `${contextDirection(context)} straight line`],
+    ['Bearing from centre', context.bearingFromCenterDeg == null
+      ? 'Not applicable (the road is at the search centre)' : `${context.bearingFromCenterDeg.toFixed(0)}° true`],
+  ];
+  // The radius is historical context: it says which search found this road, not where the road has to be.
+  if (context.radiusMiles != null) rows.splice(2, 0, ['Found in', `${formatRadius(context.radiusMiles)} radius search`]);
+  for (const [label, value] of rows) { const row = el('div'); row.append(el('dt', '', label), el('dd', '', value)); dl.append(row); }
+  node.append(dl);
+  node.append(el('p', 'small', SEARCH_CONTEXT_NOTE));
+  return node;
 }
 
 export function renderContext(container, { manifest, pilotLoaded, error, coverage, roadQuery, places = null } = {}) {
