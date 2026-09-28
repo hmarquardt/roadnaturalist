@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { COVERAGE, COVERAGE_DATASET, createCandidate, setCandidateCoverage } from '../src/domain/corridor.js';
 import { CANDIDATES_KEY, CANDIDATES_KIND, CANDIDATES_SCHEMA_VERSION, CANDIDATE_STORAGE_STATUS,
-  MAX_PERSISTED_CANDIDATES, PERSISTED_CANDIDATE_FIELDS, persistedCandidateRecord, readStoredCandidates,
+  MAX_PERSISTED_CANDIDATES, PERSISTED_CANDIDATE_FIELDS, PERSISTED_RECORD_FIELDS, persistedCandidateRecord, readStoredCandidates,
   restoreCandidateRecord, writeStoredCandidates } from '../src/state/candidate-persistence.js';
 import { createStore } from '../src/state/store.js';
 import { buildDiscoveryResult } from '../src/discovery/signals.js';
@@ -117,7 +117,10 @@ test('a promoted candidate round-trips through one versioned entry', () => {
 test('the record carries exactly the durable candidate fields and nothing else', () => {
   const { candidate } = promotedCandidate({});
   const record = persistedCandidateRecord(candidate);
-  assert.deepEqual(Object.keys(record).sort(), [...PERSISTED_CANDIDATE_FIELDS].sort());
+  assert.deepEqual(Object.keys(record).sort(), [...PERSISTED_RECORD_FIELDS].sort());
+  // The annotation rides beside the candidate and never inside it.
+  assert.deepEqual(Object.keys(record.userMeta).sort(), ['favorite', 'note', 'savedAt', 'updatedAt']);
+  assert.equal(restoreCandidateRecord(record).candidate.userMeta, undefined);
   assert.equal(JSON.stringify(persistedCandidateRecord(candidate)), JSON.stringify(record),
     'the same candidate serializes to the same bytes');
   const storage = fakeStorage();
@@ -211,7 +214,7 @@ test('a foreign or future entry is ignored, and never rewritten', () => {
   const cases = [
     ['{ not json', /could not be read/],
     [JSON.stringify({ kind: 'something-else', version: 1, candidates: [record] }), /not a candidate record/],
-    [JSON.stringify({ kind: CANDIDATES_KIND, version: 2, candidates: [record] }), /version 2/],
+    [JSON.stringify({ kind: CANDIDATES_KIND, version: CANDIDATES_SCHEMA_VERSION + 1, candidates: [record] }), new RegExp(`version ${CANDIDATES_SCHEMA_VERSION + 1}`)],
     [JSON.stringify({ kind: CANDIDATES_KIND, version: CANDIDATES_SCHEMA_VERSION, candidates: 'many' }), null],
   ];
   for (const [text, pattern] of cases) {
@@ -223,7 +226,7 @@ test('a foreign or future entry is ignored, and never rewritten', () => {
     assert.equal(storage.getItem(CANDIDATES_KEY), text, 'an entry this build does not read is left exactly as it was');
   }
   // A supported version with no readable candidates at all is empty, not unsupported.
-  const storage = fakeStorage({ [CANDIDATES_KEY]: JSON.stringify({ kind: CANDIDATES_KIND, version: 1, candidates: [] }) });
+  const storage = fakeStorage({ [CANDIDATES_KEY]: JSON.stringify({ kind: CANDIDATES_KIND, version: CANDIDATES_SCHEMA_VERSION, candidates: [] }) });
   assert.equal(readStoredCandidates(storage).status, CANDIDATE_STORAGE_STATUS.EMPTY);
 });
 

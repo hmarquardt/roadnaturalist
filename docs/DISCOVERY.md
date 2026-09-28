@@ -130,6 +130,58 @@ else about a search:
   write and the accuracy line - is about **0.05 ms** (2 000 iterations of the whole post-fix path, 93 ms total,
   real 387-place gazetteer). The wait for a fix is the browser's, and is never reported as application time.
 
+### Saved roads: the collection a person keeps
+
+A promoted corridor is saved on this device. **Saved roads** is where that collection lives, and where a person
+arranges it: a favorite flag, a note in their own words, a deterministic order, and a fact-by-fact comparison of
+two or three roads. None of it is evidence, and none of it changes a measurement.
+
+```
+promote a corridor  ->  Saved roads: favorite · note · sort · filter  ->  compare two or three  ->  remove
+```
+
+* **One annotation per saved road.** `userMeta` is stored *beside* the candidate record, never inside the
+  candidate: `{ favorite, note, savedAt, updatedAt }`. The candidate model built by the domain stays exactly what
+  it was, so nothing downstream - a filter, a sort, a finding, the evidence bundle - can mistake a note for a
+  fact. A note is labelled *My notes*, and the panel says plainly that it is the person's own annotation and not
+  evidence.
+* **Favorite** is one boolean, one word, one meaning: keep this road near the top of the saved list. It is not a
+  rating, a tier, or a score, and it never affects discovery or a candidate's facts.
+* **Notes** are bounded at 2 000 characters, keep their line breaks, drop control characters, and are rendered as
+  text - never as markup. They are written on a short debounce (600 ms) and flushed on blur, so typing is not a
+  write per keystroke; the status line says `Saved on this device` only when the write happened, and says
+  `Not saved on this device: …` when it did not.
+* **Saved date.** A road saved for the first time records when it was saved; re-promoting the same road keeps the
+  original date and the annotation, and a road kept from an earlier version of the storage format shows
+  `Saved date unknown` rather than a date invented during migration.
+* **Migration.** The candidate entry is versioned. This build writes version 2 (candidate facts plus `userMeta`)
+  and reads version 1 as well: a version 1 collection migrates in memory with default metadata, is never rewritten
+  by a read, and is written in the current format on the next durable change - favoriting, noting, saving or
+  removing a road. A version this build does not know is left untouched on disk, and a record that cannot be read
+  is still discarded on its own.
+* **Sorting and filters.** Name, saved date (newest first, an unknown date last), favorites first, and distance
+  from the road's own original search centre (nearest first, and a road with no centre last). Filters: all,
+  favorites, has notes. There is no "best" sort, because Road Naturalist does not rank roads.
+* **Comparison.** Two or three saved roads, as a table of facts: road, length, road class, status, favorite,
+  saved date, a note preview, durable coverage, and the row that matters most here - **From original search
+  centre** - because two saved roads may have been found from different centres and their distances do not share
+  an origin. Session measurements (ecoregion, wetlands, hydrography, occurrence, access) appear only when this
+  session actually measured them; otherwise the cell says `Not measured this session`, `Unknown` or `None mapped`.
+  A restored candidate is not a candidate with zeros. The selection is interface state, never persisted, at most
+  three, and a fourth attempt is refused with the reason shown. Nothing in the table is a verdict: no winner, no
+  score, no colour that means better.
+* **Removal.** Removing a saved road removes its card, its note, its favorite flag and its comparison slot, and
+  rewrites the entry without it. The annotation belongs to the road, so there are no orphan metadata keys.
+* **Device-local, and quiet.** Notes and favorites never leave this device: not to R2, not to the Investigator,
+  not to an occurrence source, not to a geocoder, and not into the evidence bundle, which stays a record of
+  evidence and provenance. Opening the saved collection - including after a reload - reads nothing: 0 R2, 0
+  derived cells, 0 raw partitions, 0 external calls. Detailed analysis is still an explicit action for a restored
+  road, and a comparison says so until it runs.
+* **Measured size.** A published record is 7-28 KB (mean ~11 KB) and a 2 000-character note adds about 2 KB, so a
+  hundred roads each carrying a maximum-length note is roughly 1.1-1.5 MB on top of the entry's own overhead -
+  inside a localStorage budget, which is why the cap stays at 100 saved roads. The Node suite prints the measured
+  figures (`SAVED_ROADS_SIZE`) for sets of 10, 50 and 100 with and without notes.
+
 ## Finding a place by name
 The centre can also be named. Typing a place into **Find a place** resolves it to a centre and hands that
 centre to the same search definition a map click or a typed coordinate produces:

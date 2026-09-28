@@ -5,6 +5,7 @@ import { roadSourceLabel } from '../roads/pilot.js';
 import { taxaForLens } from '../occurrence/summary.js';
 import { formatCenter, formatRadius } from '../discovery/search-definition.js';
 import { SEARCH_CONTEXT_NOTE, contextDirection, searchContextLine, storedSearchContext } from '../discovery/search-context.js';
+import { DEFAULT_USER_META, NOTE_MAX_LENGTH, savedDateLabel, storedUserMeta } from '../state/user-meta.js';
 
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 
@@ -61,10 +62,29 @@ export function renderCandidates(container, state, onSelect) {
   }
 }
 
+// Typing a note must survive the panel being rebuilt underneath it. The draft, the caret and the focus are
+// taken before the panel is replaced and put back afterwards, so a debounced save cannot interrupt a person.
+function captureNoteDraft() {
+  const active = document.activeElement;
+  if (!active || active.id !== 'candidate-note' || typeof active.value !== 'string') return null;
+  return { value: active.value, start: active.selectionStart, end: active.selectionEnd };
+}
+
+function restoreNoteDraft(draft) {
+  if (!draft) return;
+  const area = document.getElementById('candidate-note');
+  if (!area) return;
+  area.value = draft.value;
+  area.focus();
+  try { area.setSelectionRange(draft.start, draft.end); } catch { /* a selection is a convenience, not a promise */ }
+}
+
 export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null, occurrence = null, onQueryOccurrence = null,
   investigation = null, access = null, onRunAccess = null, onExportBundle = null, onReviewAccess = null, recordedCaptureAt = null, liveOsm = false,
   workerStatus = null, workerUrl = '', declaredSourceCount = null, restored = false, persisted = false, storage = null,
-  onRunAnalysis = null, onRemove = null } = {}) {
+  userMeta = null, onRunAnalysis = null, onRemove = null, onFavorite = null, onNote = null } = {}) {
+  // The note draft (text, caret and focus) is taken before the panel is replaced and put back afterwards.
+  const noteDraft = captureNoteDraft();
   container.replaceChildren();
   if (!candidate) { container.append(empty('Investigation starts with a road', 'Open the pilot and select a corridor to inspect its geometry source, evidence, missing data, and research questions.')); return; }
   const status = el('span', `tag ${candidate.status === 'rejected' ? 'warn' : ''}`, candidate.status);
@@ -77,6 +97,13 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
   // Where this candidate lives, said once: kept on this device or not, and - for a candidate that came back
   // from storage - that its detailed analysis is this session's to run.
   container.append(persistenceSection({ restored, persisted, storage, habitat, onRunAnalysis }));
+  // A saved road also carries the person's own annotation, kept apart from every measured thing above it.
+  if (persisted) {
+    const meta = storedUserMeta(userMeta ?? DEFAULT_USER_META);
+    container.append(userSection({ candidate, meta, storage, noteDirty: Boolean(noteDraft && noteDraft.value !== meta.note),
+      onFavorite, onNote }));
+    restoreNoteDraft(noteDraft);
+  }
   if (roads.length) container.append(roadSection(candidate, roads));
   container.append(ecologySection(ecology));
   container.append(habitatSection(habitat));
@@ -173,6 +200,49 @@ function persistenceSection({ restored = false, persisted = false, storage = nul
       node.append(run);
     }
   }
+  return node;
+}
+
+// MY NOTES AND FAVORITES. The person's own annotation on a road they chose to keep. It is labelled as theirs,
+// rendered as text (never as markup), and it is not evidence: it changes no measurement, no finding, no ranking
+// and no candidate fact, and it never enters an evidence bundle. The status line says where the annotation
+// actually is - saved on this device, still being written, or not saved at all - and never claims durability it
+// does not have.
+function userSection({ candidate, meta, storage, noteDirty = false, onFavorite = null, onNote = null }) {
+  const node = el('section', 'detail-section candidate-user');
+  node.id = 'candidate-user';
+  node.append(el('h3', null, 'My notes and favorites'));
+  node.append(el('p', 'small muted candidate-user-note', 'Your own annotation on this saved road. It is not evidence, it is not part of the corridor record, and it never leaves this device.'));
+  const favorite = el('button', 'quiet-button', meta.favorite ? 'Favorite ✓' : 'Favorite');
+  favorite.type = 'button';
+  favorite.id = 'candidate-favorite';
+  favorite.setAttribute('aria-pressed', String(meta.favorite));
+  favorite.title = meta.favorite ? 'Remove this favorite' : 'Keep this road near the top of the saved list';
+  favorite.addEventListener('click', () => onFavorite?.(candidate.id, !meta.favorite));
+  node.append(favorite);
+  const label = el('label', 'detail-field', `My notes (up to ${NOTE_MAX_LENGTH} characters)`);
+  const area = el('textarea', 'note-input');
+  area.id = 'candidate-note';
+  area.rows = 4;
+  area.maxLength = NOTE_MAX_LENGTH;
+  area.value = meta.note;
+  area.setAttribute('aria-describedby', 'candidate-note-status');
+  const status = el('p', 'small muted');
+  status.id = 'candidate-note-status';
+  label.append(area);
+  node.append(label, status);
+  const describe = () => {
+    if (noteDirty) return 'Saving…';
+    if (storage?.status === 'unavailable' || storage?.status === 'full') return `Not saved on this device: ${storage.reason ?? 'local storage is unavailable.'}`;
+    return `Saved on this device · ${savedDateLabel(meta)}`;
+  };
+  status.textContent = describe();
+  area.addEventListener('input', () => {
+    // Immediate local feedback; the write itself is debounced by the app so a note is not written on every keystroke.
+    if (status.textContent !== 'Saving…') status.textContent = 'Saving…';
+    onNote?.(candidate.id, area.value, { immediate: false });
+  });
+  area.addEventListener('blur', () => onNote?.(candidate.id, area.value, { immediate: true }));
   return node;
 }
 

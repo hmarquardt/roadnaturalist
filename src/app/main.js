@@ -23,6 +23,8 @@ import { verifyDerivedPromotion } from '../discovery/promotion.js';
 import { eligibleClasses } from '../discovery/eligibility.js';
 import { ANALYSIS_DISTANCES_M } from '../gis/habitat-result.js';
 import { renderDiscovery, eligibilityNote } from '../ui/discovery.js';
+import { renderSavedRoads } from '../ui/saved-roads.js';
+import { comparisonIds, savedCounts } from '../state/saved-roads.js';
 import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, writeDiscoveryMarks,
   writeDiscoverySearch, writeDiscoverySearchHistory } from '../discovery/persistence.js';
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDiscoveryResult } from '../discovery/lifecycle.js';
@@ -79,6 +81,7 @@ const nodes = {
   caption: document.getElementById('map-caption'), fit: document.getElementById('fit-map'),
   load: document.getElementById('load-pilot'), overlayNote: document.getElementById('habitat-layers-note'),
   discovery: document.getElementById('discovery'), discoveryCount: document.getElementById('discovery-count'),
+  savedRoads: document.getElementById('saved-roads'), savedCount: document.getElementById('saved-count'),
 };
 let manifest = null;
 let manifestError = null;
@@ -88,6 +91,7 @@ let declaredRadiusPresets = [];
 let radiusSearchTemplate = null;
 let places = null;
 const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverlay: null, resolvedId: null,
+  savedRoads: null, savedMeta: null, savedDurable: null, savedStorage: null, savedEcology: null, savedHabitat: null,
   discoveryNodes: null, discoverySignature: null, searchKey: null };
 
 function activeSearch() { return store.getState().search; }
@@ -683,6 +687,51 @@ function caption(state) {
   return `${parts.join(' · ')} · no basemap; ecological context is listed in the evidence panel.`;
 }
 
+// NOTES ARE WRITTEN ON A SHORT DEBOUNCE, not on every keystroke: typing stays smooth, and the write either lands
+// or says it did not. The panel keeps the draft either way.
+const noteTimers = new Map();
+const NOTE_DEBOUNCE_MS = 600;
+function saveCandidateNote(id, value, { immediate = false } = {}) {
+  if (!id) return;
+  clearTimeout(noteTimers.get(id));
+  if (immediate) { noteTimers.delete(id); store.setCandidateNote(id, value); return; }
+  noteTimers.set(id, setTimeout(() => { noteTimers.delete(id); store.setCandidateNote(id, value); }, NOTE_DEBOUNCE_MS));
+}
+
+// What this session has measured for the candidates being compared. A candidate with no entry here is not a
+// candidate with zeros: the comparison says "not measured this session" instead.
+function comparisonMeasurements(state) {
+  const measurements = {};
+  for (const id of comparisonIds(state)) {
+    measurements[id] = { ecology: state.ecologyByCandidate[id] ?? null, habitat: state.habitatByCandidate[id] ?? null,
+      occurrence: state.occurrenceByCandidate[id] ?? null, access: state.investigationByCandidate[id] ?? null };
+  }
+  return measurements;
+}
+
+// The saved-roads panel is rebuilt only when the collection, the annotations or the session measurements it
+// shows actually change: typing a note must not rebuild a list of a hundred cards on every publish.
+function renderSavedRoadsPanel(state) {
+  if (drawn.savedRoads === state.savedRoads && drawn.savedMeta === state.userMetaById
+    && drawn.savedDurable === state.durableCandidateIds && drawn.savedStorage === state.candidateStorage
+    && drawn.savedEcology === state.ecologyByCandidate && drawn.savedHabitat === state.habitatByCandidate) return;
+  drawn.savedRoads = state.savedRoads;
+  drawn.savedMeta = state.userMetaById;
+  drawn.savedDurable = state.durableCandidateIds;
+  drawn.savedStorage = state.candidateStorage;
+  drawn.savedEcology = state.ecologyByCandidate;
+  drawn.savedHabitat = state.habitatByCandidate;
+  const counts = savedCounts(state);
+  nodes.savedCount.textContent = String(counts.total);
+  renderSavedRoads(nodes.savedRoads, state, { measurements: comparisonMeasurements(state),
+    onSelect: id => store.select(id),
+    onFavorite: (id, favorite) => store.setCandidateFavorite(id, favorite),
+    onToggleCompare: id => store.toggleSavedRoadCompare(id),
+    onClearCompare: () => store.clearSavedRoadCompare(),
+    onSort: sort => store.setSavedRoadsSort(sort),
+    onFilter: filter => store.setSavedRoadsFilter(filter) });
+}
+
 store.subscribe(state => {
   const selected = state.candidates.find(candidate => candidate.id === state.selectedId) ?? null;
   const ecology = selected ? state.ecologyByCandidate[selected.id] : null;
@@ -711,6 +760,9 @@ store.subscribe(state => {
     restored,
     persisted: Boolean(selected && state.durableCandidateIds.includes(selected.id)),
     storage: state.candidateStorage,
+    userMeta: selected ? state.userMetaById[selected.id] ?? null : null,
+    onFavorite: (id, favorite) => store.setCandidateFavorite(id, favorite),
+    onNote: (id, value, options) => saveCandidateNote(id, value, options),
     onRunAnalysis: () => runCandidateAnalysis(selected?.id),
     onRemove: id => store.removeCandidate(id),
     investigation, access: investigation && accessReview ? { ...investigation.access, human: accessReview } : investigation?.access ?? null,
@@ -722,6 +774,8 @@ store.subscribe(state => {
   // The discovery workspace renders from its own state slice, so a candidate interaction never
   // rebuilds a bounded result table.
   renderDiscoveryPanel(state);
+  // The saved-roads workspace renders from its own state slice, and never asks for data to do it.
+  renderSavedRoadsPanel(state);
   // The search preview follows the search definition, not the discovery run: it is on screen while a centre
   // is being chosen, and it stays after a search so the results can be read against the area they came from.
   updateSearchPreview(state);

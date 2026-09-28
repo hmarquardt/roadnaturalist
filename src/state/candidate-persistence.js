@@ -1,5 +1,6 @@
 import { COVERAGE, CANDIDATE_STATUS, COVERAGE_DATASET, createCandidate, createCoverage, setDatasetCoverage } from '../domain/corridor.js';
 import { storedSearchContext } from '../discovery/search-context.js';
+import { DEFAULT_USER_META, storedUserMeta, userMetaRecord } from './user-meta.js';
 
 // CANDIDATE PERSISTENCE (device-local).
 //
@@ -21,7 +22,13 @@ import { storedSearchContext } from '../discovery/search-context.js';
 // that fails is discarded on its own - one unreadable candidate never costs the rest of the collection.
 export const CANDIDATES_KEY = 'roadnaturalist.candidates.v1';
 export const CANDIDATES_KIND = 'roadnaturalist-candidates';
-export const CANDIDATES_SCHEMA_VERSION = 1;
+// VERSION 2 adds one thing: `userMeta`, the person's own annotation on a road they chose to keep (favorite,
+// note, and when they first saved it). Version 1 records are read and migrated in memory - their metadata
+// starts at its defaults, and a saved date that was never recorded stays `null` rather than being invented -
+// and the next durable write is written in the current format. A version this build does not know is still left
+// untouched on disk.
+export const CANDIDATES_SCHEMA_VERSION = 2;
+export const CANDIDATES_SCHEMA_MIN_READ = 1;
 // Measured on real promoted corridors: a record is 7-28 KB (mean ~11 KB, 40-489 vertices), so 100 candidates is
 // about 1.1 MB - inside a typical 5 MB localStorage budget with room for the other entries, and parsed and
 // validated in a couple of milliseconds. Reaching the cap refuses further saves (see writeStoredCandidates)
@@ -33,6 +40,10 @@ export const MAX_PERSISTED_CANDIDATES = 100;
 // by naming it here.
 export const PERSISTED_CANDIDATE_FIELDS = Object.freeze(['id', 'name', 'status', 'summary', 'dataCatalogUrl',
   'geometry', 'roads', 'coverage', 'evidence', 'access', 'questions', 'searchContext']);
+// User metadata is stored beside the candidate facts, never inside them: `candidate` stays exactly what the
+// domain built, and a note can never be mistaken for evidence. `PERSISTED_CANDIDATE_FIELDS` deliberately does
+// not include it, so a hand-edited record cannot smuggle a field into the candidate model either.
+export const PERSISTED_RECORD_FIELDS = Object.freeze([...PERSISTED_CANDIDATE_FIELDS, 'userMeta']);
 
 export const CANDIDATE_STORAGE_STATUS = Object.freeze({
   EMPTY: 'empty', SAVED: 'saved', RESTORED: 'restored', FULL: 'full', UNAVAILABLE: 'unavailable', UNSUPPORTED: 'unsupported',
@@ -51,10 +62,10 @@ function pick(value, fields) {
 }
 
 // Only the fields a stored candidate is allowed to carry, in a stable order, so identical state serializes to
-// identical bytes.
-export function persistedCandidateRecord(candidate) {
+// identical bytes. `userMeta` rides beside the candidate fields and never inside them.
+export function persistedCandidateRecord(candidate, userMeta = DEFAULT_USER_META) {
   const record = pick(candidate, PERSISTED_CANDIDATE_FIELDS);
-  return { ...record, searchContext: storedSearchContext(record.searchContext) };
+  return { ...record, searchContext: storedSearchContext(record.searchContext), userMeta: userMetaRecord(userMeta) };
 }
 
 // A coverage map from storage, rebuilt through the domain validator: an unknown dataset or an unknown coverage
@@ -101,7 +112,8 @@ export function restoreCandidateRecord(record) {
     return { ok: false, reason: error.message };
   }
   if (candidate.id !== record.id) return { ok: false, reason: 'the candidate id changed while it was rebuilt' };
-  return { ok: true, candidate };
+  // A version 1 record has no metadata at all: it migrates to the defaults, with no saved date invented for it.
+  return { ok: true, candidate, meta: storedUserMeta(record.userMeta) };
 }
 
 // The whole entry, validated: a supported version, an array of candidates, and the ones that cannot be read left
@@ -125,11 +137,14 @@ export function readStoredCandidates(storage = defaultStorage()) {
     return Object.freeze({ candidates: Object.freeze([]), savedAt: null, skipped: Object.freeze([]), bytes: raw.length,
       status: CANDIDATE_STORAGE_STATUS.UNSUPPORTED, reason: 'The stored candidates are not a candidate record and were ignored.' });
   }
-  if (parsed.version !== CANDIDATES_SCHEMA_VERSION) {
+  if (!Number.isInteger(parsed.version) || parsed.version < CANDIDATES_SCHEMA_MIN_READ || parsed.version > CANDIDATES_SCHEMA_VERSION) {
     return Object.freeze({ candidates: Object.freeze([]), savedAt: null, skipped: Object.freeze([]), bytes: raw.length,
       status: CANDIDATE_STORAGE_STATUS.UNSUPPORTED,
       reason: `Stored candidates use version ${JSON.stringify(parsed.version)}, which this build does not read; they were left untouched.` });
   }
+  // An older, readable version is migrated in memory and written in the current format on the next durable
+  // write; nothing about the stored entry is changed by reading it.
+  const migrated = parsed.version < CANDIDATES_SCHEMA_VERSION;
   const records = Array.isArray(parsed.candidates) ? parsed.candidates : null;
   if (!records) {
     return Object.freeze({ candidates: Object.freeze([]), savedAt: null, skipped: Object.freeze([]), bytes: raw.length,
@@ -137,6 +152,7 @@ export function readStoredCandidates(storage = defaultStorage()) {
       reason: 'The stored candidate list is not a list and was ignored; it was left untouched.' });
   }
   const candidates = [];
+  const userMetaById = {};
   const skipped = [];
   const seen = new Set();
   for (const record of records) {
@@ -145,16 +161,19 @@ export function readStoredCandidates(storage = defaultStorage()) {
     if (seen.has(restored.candidate.id)) { skipped.push(Object.freeze({ id: restored.candidate.id, reason: 'the same candidate id appears twice' })); continue; }
     seen.add(restored.candidate.id);
     candidates.push(restored.candidate);
+    if (restored.meta) userMetaById[restored.candidate.id] = restored.meta;
   }
-  return Object.freeze({ candidates: Object.freeze(candidates), savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : null,
-    skipped: Object.freeze(skipped), bytes: raw.length, status: candidates.length ? CANDIDATE_STORAGE_STATUS.RESTORED : CANDIDATE_STORAGE_STATUS.EMPTY,
-    reason: null });
+  return Object.freeze({ candidates: Object.freeze(candidates), userMetaById: Object.freeze(userMetaById),
+    version: parsed.version, migrated, savedAt: typeof parsed.savedAt === 'string' ? parsed.savedAt : null,
+    skipped: Object.freeze(skipped), bytes: raw.length,
+    status: candidates.length ? CANDIDATE_STORAGE_STATUS.RESTORED : CANDIDATE_STORAGE_STATUS.EMPTY, reason: null });
 }
 
 // Write the durable candidates. Over the cap nothing is written and nothing is evicted: the caller is told, and
 // the remedy is the person's - remove a candidate they no longer want.
-export function writeStoredCandidates(candidates, { storage = defaultStorage(), savedAt = new Date().toISOString() } = {}) {
-  const records = (candidates ?? []).map(persistedCandidateRecord);
+export function writeStoredCandidates(candidates, { storage = defaultStorage(), savedAt = new Date().toISOString(),
+  userMetaById = {} } = {}) {
+  const records = (candidates ?? []).map(candidate => persistedCandidateRecord(candidate, userMetaById[candidate.id] ?? DEFAULT_USER_META));
   if (records.length > MAX_PERSISTED_CANDIDATES) {
     return Object.freeze({ ok: false, count: 0, bytes: 0, savedAt: null, status: CANDIDATE_STORAGE_STATUS.FULL,
       reason: `This device holds the maximum of ${MAX_PERSISTED_CANDIDATES} saved candidates. Remove one to save another.` });

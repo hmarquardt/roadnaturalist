@@ -28,6 +28,7 @@
     "verify:regional:remote": "RUN_REGIONAL_REMOTE=1 playwright test tests/regional-remote.spec.js --reporter=line --retries=0",
     "verify:search:production": "RUN_SEARCH_PRODUCTION=1 playwright test tests/search-production.spec.js --reporter=line --retries=0",
     "verify:geolocation:production": "RUN_GEOLOCATION_PRODUCTION=1 playwright test tests/geolocation-production.spec.js --reporter=line --retries=0",
+    "verify:saved-roads:production": "RUN_SAVED_ROADS_PRODUCTION=1 playwright test tests/saved-roads-production.spec.js --reporter=line --retries=0",
     "benchmark:geolocation": "RUN_GEOLOCATION_BENCHMARK=1 playwright test tests/geolocation.spec.js --reporter=line --retries=0 -g benchmark",
     "build:derived": "uv run --python 3.12 --with duckdb --with shapely --with pyarrow --with pyproj python3 scripts/build-derived.py",
     "build:places": "python3 scripts/build-places.py --download",

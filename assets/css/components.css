@@ -22,3 +22,36 @@
 .map .candidate-context-line{fill:none;stroke:#7a4b12;stroke-width:1.6;stroke-dasharray:5 4;opacity:.8}
 .map .candidate-context-center{fill:#7a4b12;stroke:#fffef9;stroke-width:1.5}
 .map .candidate-context-nearest{fill:#fffef9;stroke:#7a4b12;stroke-width:1.5}
+
+/* The saved-roads collection: cards that carry a person's own favorite flag and notes beside the facts, and a
+   fact-by-fact comparison that scrolls sideways on a phone instead of squeezing three columns into it. */
+.saved-roads{padding:1rem}
+.saved-counts{margin:0 0 .6rem}
+.saved-migration{margin:.2rem 0 .6rem}
+.saved-controls{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:end;margin-bottom:.5rem}
+.saved-field{display:flex;flex-direction:column;gap:.25rem;font-size:.72rem;letter-spacing:.03em;text-transform:uppercase;color:#5b6d61}
+.saved-filters{display:flex;flex-wrap:wrap;gap:.4rem}
+.saved-filter{font-size:.76rem}
+.saved-filter[aria-pressed="true"]{background:#205646;color:#fff;border-color:#205646}
+.saved-note{margin:.2rem 0 .8rem;max-width:60rem}
+.saved-list{display:grid;gap:.6rem}
+@media(min-width:900px){.saved-list{grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))}}
+.saved-card{border:1px solid #cbd8cd;border-left:4px solid #6e9580;border-radius:5px;background:#f9faf5;padding:.8rem;min-width:0}
+.saved-card-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:.5rem}
+.saved-name{border:0;background:none;padding:0;font-family:Georgia,serif;font-size:1.04rem;color:#21392f;text-align:left;cursor:pointer}
+.saved-name:hover{text-decoration:underline}
+.saved-card-facts{margin:.4rem 0 0}
+.saved-card-origin{margin:.35rem 0 0}
+.saved-card-note{margin:.45rem 0 0;font-size:.84rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.saved-compare-toggle{margin-top:.55rem;display:inline-flex;gap:.35rem;align-items:center;font-size:.78rem}
+.saved-compare{margin-top:1.2rem;border-top:1px solid #dce3d9;padding-top:1rem}
+.saved-compare h3{font-size:1rem;margin:0 0 .5rem}
+.saved-compare-scroll{overflow-x:auto;max-width:100%}
+.saved-compare-table{border-collapse:collapse;width:100%;min-width:36rem;font-size:.82rem}
+.saved-compare-table th,.saved-compare-table td{border-bottom:1px solid #e5ebe4;padding:.4rem .6rem;text-align:left;vertical-align:top}
+.saved-compare-table thead th{color:#2c5141}
+.saved-compare-table tbody th{color:#526b5d;font-weight:600;white-space:nowrap}
+.saved-compare-session td{background:#f6f8f2;color:#4b5c51}
+.saved-compare-note{margin:.7rem 0 .5rem}
+.candidate-user .note-input{width:100%;font:inherit;font-size:.86rem;padding:.5rem;border:1px solid #c8d3c6;border-radius:5px;background:#fffef9;color:#21392f;resize:vertical;margin-top:.35rem}
+.candidate-user .detail-field{display:block;font-size:.78rem;color:#526b5d;margin-top:.7rem}

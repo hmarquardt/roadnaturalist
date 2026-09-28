@@ -4,6 +4,8 @@ import { DISCOVERY_STATUS, markDiscovery } from '../discovery/lifecycle.js';
 import { CUSTOM_SEARCH_AREA_ID } from '../discovery/search-definition.js';
 import { nearPlaceMetadata, storedPlaceMetadata } from '../discovery/place-gazetteer.js';
 import { IDLE_LOCATION } from '../discovery/geolocation.js';
+import { DEFAULT_USER_META, favoritedUserMeta, notedUserMeta, savedUserMeta, storedUserMeta } from './user-meta.js';
+import { SAVED_FILTERS, SAVED_SORTS, nextComparison, savedRoadRows } from './saved-roads.js';
 import { CANDIDATE_STORAGE_STATUS, readStoredCandidates, writeStoredCandidates } from './candidate-persistence.js';
 
 export function createStore({ storage } = {}) {
@@ -21,9 +23,15 @@ export function createStore({ storage } = {}) {
   // CANDIDATE STORAGE. `durableCandidateIds` are the candidates this device keeps on disk; `restoredCandidateIds`
   // are the ones that came back from disk at boot (so the panel can say its detailed analysis has not run in this
   // session). The storage slice reports what the last read or write did, including a refused save.
+  // The saved-roads workspace: how the collection a person kept is ordered, filtered and (at most three at a
+  // time) selected for comparison. Interface state only - never persisted, never part of a candidate.
+  const initialSavedRoads = Object.freeze({ sort: SAVED_SORTS.SAVED, filter: SAVED_FILTERS.ALL,
+    compare: Object.freeze([]), note: null });
   const initialCandidateStorage = Object.freeze({ status: CANDIDATE_STORAGE_STATUS.EMPTY, savedAt: null,
     persisted: 0, bytes: 0, skipped: Object.freeze([]), reason: null });
-  let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, durableCandidateIds: Object.freeze([]), restoredCandidateIds: Object.freeze([]), candidateStorage: initialCandidateStorage, discovery: initialDiscovery, search: initialSearch });
+  let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, durableCandidateIds: Object.freeze([]), restoredCandidateIds: Object.freeze([]),
+    userMetaById: Object.freeze({}), savedRoads: initialSavedRoads, candidateStorage: initialCandidateStorage,
+    discovery: initialDiscovery, search: initialSearch });
   const listeners = new Set();
   const publish = next => { state = Object.freeze(next); for (const listener of listeners) listener(state); };
   const publishDiscovery = patch => publish({ ...state, discovery: Object.freeze({ ...state.discovery, ...patch }) });
@@ -32,12 +40,17 @@ export function createStore({ storage } = {}) {
   // disk). A pilot corridor is not written - it is always one click away in its own button - and an in-memory
   // candidate that was never promoted is not written either.
   const durableCandidates = from => from.candidates.filter(candidate => from.durableCandidateIds.includes(candidate.id));
-  const saveCandidates = from => writeStoredCandidates(durableCandidates(from), { storage });
+  const saveCandidates = from => writeStoredCandidates(durableCandidates(from), { storage,
+    userMetaById: from.userMetaById });
+  // An annotation is durable state of its own: it is saved when a person favorites, notes or unsaves a road,
+  // and the write either succeeded (and says so) or is reported honestly as not saved on this device.
+  const metaOf = (from, id) => storedUserMeta(from.userMetaById[id] ?? DEFAULT_USER_META);
+  const withUserMeta = (from, id, meta) => ({ ...from, userMetaById: Object.freeze({ ...from.userMetaById, [id]: meta }) });
   // The storage slice reports what the last read or write did. A refused write never claims the extra candidate
   // was persisted: `persisted` stays on the number the device actually holds.
   const storageAfterSave = (from, written, skipped = Object.freeze([])) => Object.freeze({ status: written.status,
     savedAt: written.savedAt, persisted: written.ok ? written.count : state.candidateStorage.persisted,
-    bytes: written.bytes, skipped, reason: written.reason });
+    bytes: written.bytes, skipped, migrated: false, reason: written.reason });
   const dropEntries = (map, ids) => Object.fromEntries(Object.entries(map).filter(([key]) => !ids.has(key)));
   return {
     getState: () => state,
@@ -49,18 +62,22 @@ export function createStore({ storage } = {}) {
       const stored = readStoredCandidates(storage);
       if (!stored.candidates.length) {
         publish({ ...state, candidateStorage: Object.freeze({ status: stored.status, savedAt: stored.savedAt,
-          persisted: 0, bytes: stored.bytes ?? 0, skipped: stored.skipped, reason: stored.reason }) });
+          persisted: 0, bytes: stored.bytes ?? 0, skipped: stored.skipped, migrated: Boolean(stored.migrated),
+          reason: stored.reason }) });
         return stored;
       }
       const roadsByCandidate = { ...state.roadsByCandidate };
       for (const candidate of stored.candidates) roadsByCandidate[candidate.id] = candidate.roads;
       const restoredIds = stored.candidates.map(candidate => candidate.id);
+      // The person's own annotations come back with the candidates they belong to, and never enter the
+      // candidate itself: favorites and notes are not evidence, and nothing downstream can mistake them.
       publish({ ...state, candidates: [...state.candidates, ...stored.candidates],
         selectedId: state.selectedId ?? restoredIds[0] ?? null, roadsByCandidate,
         durableCandidateIds: Object.freeze([...new Set([...state.durableCandidateIds, ...restoredIds])]),
         restoredCandidateIds: Object.freeze(restoredIds),
+        userMetaById: Object.freeze({ ...state.userMetaById, ...stored.userMetaById }),
         candidateStorage: Object.freeze({ status: stored.status, savedAt: stored.savedAt, persisted: stored.candidates.length,
-          bytes: stored.bytes ?? 0, skipped: stored.skipped, reason: stored.reason }) });
+          bytes: stored.bytes ?? 0, skipped: stored.skipped, migrated: Boolean(stored.migrated), reason: stored.reason }) });
       return stored;
     },
     loadPilot({ pilotId, candidates: loaded = [], roadsByCandidate = {}, roadQuery = initialQuery }) {
@@ -135,7 +152,11 @@ export function createStore({ storage } = {}) {
     // corridor replaces it rather than adding a second copy.
     promoteDiscoveryCandidate(candidate, discoveryId) {
       const others = state.candidates.filter(item => item.id !== candidate.id);
-      const next = { ...state, candidates: [...others, candidate],
+      // Re-promoting the same corridor is the same candidate: the annotation a person wrote about it is not
+      // theirs to lose. A candidate saved for the first time gets the moment it was saved; one kept from an
+      // earlier version keeps its unknown saved date rather than being given a fabricated one.
+      const meta = savedUserMeta(metaOf(state, candidate.id), { at: new Date().toISOString() });
+      const next = { ...withUserMeta(state, candidate.id, meta), candidates: [...others, candidate],
         durableCandidateIds: Object.freeze([...new Set([...state.durableCandidateIds, candidate.id])]),
         selectedId: candidate.id,
         discovery: Object.freeze({ ...state.discovery, selectedId: null,
@@ -149,7 +170,12 @@ export function createStore({ storage } = {}) {
       if (!state.candidates.some(candidate => candidate.id === id)) return null;
       const droppedIds = new Set([id]);
       const candidates = state.candidates.filter(candidate => candidate.id !== id);
-      const next = { ...state, candidates,
+      // The annotation belongs to the candidate: removing the road removes its favorite flag and its notes
+      // with it, and drops it from the comparison rather than leaving a stale column behind.
+      const userMetaById = Object.fromEntries(Object.entries(state.userMetaById).filter(([candidateId]) => candidateId !== id));
+      const next = { ...state, candidates, userMetaById: Object.freeze(userMetaById),
+        savedRoads: Object.freeze({ ...state.savedRoads,
+          compare: Object.freeze(state.savedRoads.compare.filter(entry => entry !== id)) }),
         durableCandidateIds: Object.freeze(state.durableCandidateIds.filter(candidateId => candidateId !== id)),
         restoredCandidateIds: Object.freeze(state.restoredCandidateIds.filter(candidateId => candidateId !== id)),
         selectedId: state.selectedId === id ? (candidates[0]?.id ?? null) : state.selectedId,
@@ -185,6 +211,37 @@ export function createStore({ storage } = {}) {
       // with the status it was left in.
       publish(state.durableCandidateIds.includes(id)
         ? { ...next, candidateStorage: storageAfterSave(next, saveCandidates(next)) } : next);
+    },
+    // SAVED ROADS. One annotation per saved candidate, and the arrangement of the collection. A favorite or a
+    // note is written when it changes, with the same honest reporting as every other durable write: the panel
+    // says "saved on this device" only when the write actually happened, and the annotation itself is never
+    // evidence, never part of the candidate, and never part of an evidence bundle.
+    setCandidateFavorite(id, favorite) {
+      if (!state.durableCandidateIds.includes(id)) return null;
+      const meta = favoritedUserMeta(metaOf(state, id), favorite);
+      const next = withUserMeta(state, id, meta);
+      publish({ ...next, candidateStorage: storageAfterSave(next, saveCandidates(next)) });
+      return meta;
+    },
+    setCandidateNote(id, note) {
+      if (!state.durableCandidateIds.includes(id)) return null;
+      const meta = notedUserMeta(metaOf(state, id), note);
+      const next = withUserMeta(state, id, meta);
+      publish({ ...next, candidateStorage: storageAfterSave(next, saveCandidates(next)) });
+      return meta;
+    },
+    setSavedRoadsSort(sort) { publish({ ...state, savedRoads: Object.freeze({ ...state.savedRoads, sort }) }); },
+    setSavedRoadsFilter(filter) { publish({ ...state, savedRoads: Object.freeze({ ...state.savedRoads, filter }) }); },
+    // Comparison is interface state: at most three, never persisted, and always reconciled with what is saved.
+    // A refusal to add a fourth is a reason the panel can show, not a silent no-op.
+    toggleSavedRoadCompare(id) {
+      const savedIds = savedRoadRows(state).map(row => row.candidate.id);
+      const outcome = nextComparison(state.savedRoads.compare, id, { savedIds });
+      publish({ ...state, savedRoads: Object.freeze({ ...state.savedRoads, compare: outcome.compare, note: outcome.reason }) });
+      return outcome;
+    },
+    clearSavedRoadCompare() {
+      publish({ ...state, savedRoads: Object.freeze({ ...state.savedRoads, compare: Object.freeze([]), note: null }) });
     },
     setEcologyResult(id, result) { if (!state.candidates.some(candidate => candidate.id === id)) return; publish({ ...state, ecologyByCandidate: { ...state.ecologyByCandidate, [id]: result } }); },
     setCoverage(id, datasetId, entry) {

@@ -10,3 +10,9 @@
 @media(max-width:1050px){.workspace{grid-template-rows:auto auto auto auto}.discovery-panel{grid-column:1 / 3;grid-row:1}.map-panel{grid-row:2 / 4}.results-panel{grid-row:2}.context-panel{grid-row:3}.detail-panel{grid-row:4}}
 @media(max-width:700px){.discovery-panel{order:1}.map-panel{order:2}.results-panel{order:3}.detail-panel{order:4}.context-panel{order:5}}
 
+
+/* The saved-roads collection sits below the working panels: it is a place to keep and arrange what a person
+   chose, and it stays out of the way of finding the next one. */
+.saved-panel{grid-column:1 / -1;grid-row:5}
+@media(max-width:1050px){.saved-panel{grid-column:1 / -1;grid-row:5}}
+@media(max-width:700px){.saved-panel{order:6}}

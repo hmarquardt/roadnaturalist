@@ -28,6 +28,8 @@ async function boot(page) {
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
 }
 
+test.skip(!process.env.RUN_GEOLOCATION_PRODUCTION, 'The deployed geolocation check is opt-in: it drives a real browser location in production');
+
 test('a deployed location fix becomes a search centre, a candidate, a durable record and a removal', async ({ page, context }) => {
   test.slow();
   page.setDefaultTimeout(180000);
