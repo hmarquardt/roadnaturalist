@@ -6,6 +6,8 @@ import { nearPlaceMetadata, storedPlaceMetadata } from '../discovery/place-gazet
 import { IDLE_LOCATION } from '../discovery/geolocation.js';
 import { DEFAULT_USER_META, favoritedUserMeta, notedUserMeta, savedUserMeta, storedUserMeta } from './user-meta.js';
 import { SAVED_FILTERS, SAVED_SORTS, nextComparison, savedRoadRows } from './saved-roads.js';
+import { MAX_OUTINGS, OUTING_STATUS, OUTING_STORAGE_STATUS, createOuting, moveRoad, outingsUsingRoad,
+  readStoredOutings, removeRoadEverywhere, updateOuting, withoutRoad, withRoad, writeStoredOutings } from './outings.js';
 import { CANDIDATE_STORAGE_STATUS, readStoredCandidates, writeStoredCandidates } from './candidate-persistence.js';
 
 export function createStore({ storage } = {}) {
@@ -27,10 +29,16 @@ export function createStore({ storage } = {}) {
   // time) selected for comparison. Interface state only - never persisted, never part of a candidate.
   const initialSavedRoads = Object.freeze({ sort: SAVED_SORTS.SAVED, filter: SAVED_FILTERS.ALL,
     compare: Object.freeze([]), note: null });
+  // OUTINGS: plans a person made from saved roads. Their own device-local entry, their own lifecycle. The
+  // selection used to create one is interface state, and is deliberately not the comparison selection.
+  const initialOutings = Object.freeze([]);
+  const initialOutingStorage = Object.freeze({ status: OUTING_STORAGE_STATUS.EMPTY, savedAt: null, persisted: 0,
+    bytes: 0, skipped: Object.freeze([]), reason: null });
   const initialCandidateStorage = Object.freeze({ status: CANDIDATE_STORAGE_STATUS.EMPTY, savedAt: null,
     persisted: 0, bytes: 0, skipped: Object.freeze([]), reason: null });
   let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, durableCandidateIds: Object.freeze([]), restoredCandidateIds: Object.freeze([]),
     userMetaById: Object.freeze({}), savedRoads: initialSavedRoads, candidateStorage: initialCandidateStorage,
+    outings: initialOutings, outingStorage: initialOutingStorage, outingSelection: Object.freeze([]), selectedOutingId: null,
     discovery: initialDiscovery, search: initialSearch });
   const listeners = new Set();
   const publish = next => { state = Object.freeze(next); for (const listener of listeners) listener(state); };
@@ -52,6 +60,10 @@ export function createStore({ storage } = {}) {
     savedAt: written.savedAt, persisted: written.ok ? written.count : state.candidateStorage.persisted,
     bytes: written.bytes, skipped, migrated: false, reason: written.reason });
   const dropEntries = (map, ids) => Object.fromEntries(Object.entries(map).filter(([key]) => !ids.has(key)));
+  const saveOutings = from => writeStoredOutings(from.outings, { storage });
+  const storageAfterOutingWrite = (written, skipped = Object.freeze([])) => Object.freeze({ status: written.status,
+    savedAt: written.savedAt, persisted: written.ok ? written.count : state.outingStorage.persisted,
+    bytes: written.bytes, skipped, reason: written.reason });
   return {
     getState: () => state,
     subscribe(listener) { listeners.add(listener); listener(state); return () => listeners.delete(listener); },
@@ -166,14 +178,24 @@ export function createStore({ storage } = {}) {
     // REMOVAL. Taking a candidate off this device removes the candidate and its session results, and rewrites the
     // stored set without it. It touches nothing else: not the discovery artefacts, not the other candidates, and
     // never the source data.
-    removeCandidate(id) {
+    // REMOVAL. `removeFromOutings` is the caller's explicit decision: the workspace asks first, and only then
+    // passes true. Plans are never silently damaged, and removing an outing never removes a road.
+    removeCandidate(id, { removeFromOutings = false } = {}) {
       if (!state.candidates.some(candidate => candidate.id === id)) return null;
+      const used = outingsUsingRoad(state.outings, id);
+      if (used.length && !removeFromOutings) {
+        publish({ ...state, outingStorage: Object.freeze({ ...state.outingStorage,
+          reason: `This road is used in ${used.length} outing${used.length === 1 ? '' : 's'}. Remove it from those outings as well, or keep it.` }) });
+        return null;
+      }
       const droppedIds = new Set([id]);
       const candidates = state.candidates.filter(candidate => candidate.id !== id);
       // The annotation belongs to the candidate: removing the road removes its favorite flag and its notes
       // with it, and drops it from the comparison rather than leaving a stale column behind.
       const userMetaById = Object.fromEntries(Object.entries(state.userMetaById).filter(([candidateId]) => candidateId !== id));
+      const outings = used.length ? removeRoadEverywhere(state.outings, id) : state.outings;
       const next = { ...state, candidates, userMetaById: Object.freeze(userMetaById),
+        ...(used.length ? { outings: Object.freeze(outings) } : {}),
         savedRoads: Object.freeze({ ...state.savedRoads,
           compare: Object.freeze(state.savedRoads.compare.filter(entry => entry !== id)) }),
         durableCandidateIds: Object.freeze(state.durableCandidateIds.filter(candidateId => candidateId !== id)),
@@ -187,7 +209,10 @@ export function createStore({ storage } = {}) {
         occurrenceOverlay: state.occurrenceOverlay?.candidateId === id ? null : state.occurrenceOverlay,
         investigationByCandidate: dropEntries(state.investigationByCandidate, droppedIds),
         accessReviewByCandidate: dropEntries(state.accessReviewByCandidate, droppedIds) };
-      publish({ ...next, candidateStorage: storageAfterSave(next, saveCandidates(next)) });
+      const written = saveCandidates(next);
+      const outingWritten = used.length ? saveOutings(next) : null;
+      publish({ ...next, candidateStorage: storageAfterSave(next, written),
+        ...(outingWritten ? { outingStorage: storageAfterOutingWrite(outingWritten) } : {}) });
       return next.selectedId;
     },
     setRoadQuery(roadQuery) { publish({ ...state, roadQuery }); },
@@ -230,6 +255,85 @@ export function createStore({ storage } = {}) {
       publish({ ...next, candidateStorage: storageAfterSave(next, saveCandidates(next)) });
       return meta;
     },
+    // OUTINGS. Every action writes the whole plan set, exactly like the candidate store: the entry stays
+    // consistent, and a failure is reported with the same honest vocabulary. Outings never touch candidates.
+    restoreOutings() {
+      const stored = readStoredOutings(storage);
+      publish({ ...state, outings: stored.outings, outingStorage: Object.freeze({ status: stored.status,
+        savedAt: null, persisted: stored.outings.length, bytes: stored.bytes ?? 0, skipped: stored.skipped,
+        reason: stored.reason }) });
+      return stored;
+    },
+    setOutingStorage(note) { publish({ ...state, outingStorage: Object.freeze({ ...state.outingStorage, ...note }) }); },
+    // Only roads that are saved on this device can join a plan: an outing references saved candidates, it never
+    // creates a hidden copy of one.
+    createOutingFromRoads(roadIds, { title = '', date = null, notes = '' } = {}) {
+      const savedIds = savedRoadRows(state).map(row => row.candidate.id);
+      const usable = [...new Set((roadIds ?? []).filter(id => savedIds.includes(id)))];
+      if (!usable.length) return Object.freeze({ ok: false, reason: 'Choose at least one saved road for the outing.' });
+      if (state.outings.length >= MAX_OUTINGS) return Object.freeze({ ok: false,
+        reason: `This device holds the maximum of ${MAX_OUTINGS} outings. Remove one to plan another.` });
+      const outing = createOuting({ title, date, roadIds: usable, notes }, { existing: state.outings.map(entry => entry.id) });
+      const next = { ...state, outings: Object.freeze([...state.outings, outing]), selectedOutingId: outing.id,
+        outingSelection: Object.freeze([]) };
+      const written = saveOutings(next);
+      publish({ ...next, outingStorage: storageAfterOutingWrite(written) });
+      return Object.freeze({ ok: written.ok, outing, reason: written.reason });
+    },
+    updateOuting(id, patch) {
+      if (!state.outings.some(outing => outing.id === id)) return null;
+      const next = { ...state, outings: Object.freeze(state.outings.map(outing => outing.id === id ? updateOuting(outing, patch) : outing)) };
+      publish({ ...next, outingStorage: storageAfterOutingWrite(saveOutings(next)) });
+      return next.outings.find(outing => outing.id === id);
+    },
+    moveOutingRoad(id, roadId, direction) {
+      if (!state.outings.some(outing => outing.id === id)) return null;
+      const next = { ...state, outings: Object.freeze(state.outings.map(outing => outing.id === id ? moveRoad(outing, roadId, direction) : outing)) };
+      publish({ ...next, outingStorage: storageAfterOutingWrite(saveOutings(next)) });
+      return next.outings.find(outing => outing.id === id);
+    },
+    addRoadToOuting(id, roadId) {
+      const savedIds = savedRoadRows(state).map(row => row.candidate.id);
+      const outing = state.outings.find(entry => entry.id === id) ?? null;
+      if (!outing) return Object.freeze({ changed: false, reason: 'That outing is not here.' });
+      const outcome = withRoad(outing, savedIds.includes(roadId) ? roadId : '');
+      if (!outcome.changed) { publish({ ...state, outingStorage: Object.freeze({ ...state.outingStorage, reason: outcome.reason }) }); return outcome; }
+      const next = { ...state, outings: Object.freeze(state.outings.map(entry => entry.id === id ? outcome.outing : entry)) };
+      publish({ ...next, outingStorage: storageAfterOutingWrite(saveOutings(next)) });
+      return outcome;
+    },
+    removeRoadFromOuting(id, roadId) {
+      if (!state.outings.some(outing => outing.id === id)) return null;
+      const next = { ...state, outings: Object.freeze(state.outings.map(outing => outing.id === id ? withoutRoad(outing, roadId) : outing)) };
+      publish({ ...next, outingStorage: storageAfterOutingWrite(saveOutings(next)) });
+      return next.outings.find(outing => outing.id === id);
+    },
+    removeOuting(id) {
+      if (!state.outings.some(outing => outing.id === id)) return null;
+      const outings = state.outings.filter(outing => outing.id !== id);
+      const next = { ...state, outings: Object.freeze(outings),
+        selectedOutingId: state.selectedOutingId === id ? (outings[0]?.id ?? null) : state.selectedOutingId,
+        outingSelection: Object.freeze(state.outingSelection.filter(entry => entry !== id)) };
+      publish({ ...next, outingStorage: storageAfterOutingWrite(saveOutings(next)) });
+      return next.selectedOutingId;
+    },
+    selectOuting(id) {
+      if (id == null) { publish({ ...state, selectedOutingId: null }); return null; }
+      if (!state.outings.some(outing => outing.id === id)) return null;
+      publish({ ...state, selectedOutingId: id });
+      return id;
+    },
+    // The roads chosen for a new outing: interface state, separate from the comparison selection.
+    toggleOutingSelection(roadId) {
+      const savedIds = savedRoadRows(state).map(row => row.candidate.id);
+      const current = state.outingSelection;
+      const selection = current.includes(roadId) ? current.filter(entry => entry !== roadId)
+        : savedIds.includes(roadId) ? [...current, roadId] : current;
+      publish({ ...state, outingSelection: Object.freeze(selection) });
+      return Object.freeze([...selection]);
+    },
+    clearOutingSelection() { publish({ ...state, outingSelection: Object.freeze([]) }); },
+    outingsUsingCandidate(id) { return outingsUsingRoad(state.outings, id); },
     setSavedRoadsSort(sort) { publish({ ...state, savedRoads: Object.freeze({ ...state.savedRoads, sort }) }); },
     setSavedRoadsFilter(filter) { publish({ ...state, savedRoads: Object.freeze({ ...state.savedRoads, filter }) }); },
     // Comparison is interface state: at most three, never persisted, and always reconciled with what is saved.

@@ -208,3 +208,18 @@ test('real Oregon road pilot resolves through DuckDB Spatial into EPA ecology', 
   expect(api.diagnostics.firstHabitatQueryMs).toBeGreaterThan(0);
   console.log('Road pilot GIS performance:', api);
 });
+
+test('a page that cannot load its application script says so instead of looking empty', async ({ page }) => {
+  // This is the failure mode behind every "the page never booted" browser flake: the module request itself never
+  // arrives, so no application code runs and every panel keeps its static heading. The page must explain that
+  // rather than leave a reader wondering what the data says.
+  await page.route('**/src/app/main.js', route => route.abort());
+  await page.goto('/');
+  const note = page.locator('#boot-note');
+  await expect(note).toBeVisible({ timeout: 30000 });
+  await expect(note).toContainText('could not load its application script');
+  await expect(note).toContainText('Reload the page');
+  // The rest of the shell is still there and honest: no discovery controls, no invented candidate rows.
+  await expect(page.locator('#discover-roads')).toHaveCount(0);
+  await expect(page.locator('#candidate-list')).toBeEmpty();
+});

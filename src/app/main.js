@@ -24,6 +24,7 @@ import { eligibleClasses } from '../discovery/eligibility.js';
 import { ANALYSIS_DISTANCES_M } from '../gis/habitat-result.js';
 import { renderDiscovery, eligibilityNote } from '../ui/discovery.js';
 import { renderSavedRoads } from '../ui/saved-roads.js';
+import { renderOutings } from '../ui/outings.js';
 import { comparisonIds, savedCounts } from '../state/saved-roads.js';
 import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, writeDiscoveryMarks,
   writeDiscoverySearch, writeDiscoverySearchHistory } from '../discovery/persistence.js';
@@ -82,6 +83,7 @@ const nodes = {
   load: document.getElementById('load-pilot'), overlayNote: document.getElementById('habitat-layers-note'),
   discovery: document.getElementById('discovery'), discoveryCount: document.getElementById('discovery-count'),
   savedRoads: document.getElementById('saved-roads'), savedCount: document.getElementById('saved-count'),
+  outings: document.getElementById('outings'), outingCount: document.getElementById('outing-count'),
 };
 let manifest = null;
 let manifestError = null;
@@ -92,6 +94,7 @@ let radiusSearchTemplate = null;
 let places = null;
 const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverlay: null, resolvedId: null,
   savedRoads: null, savedMeta: null, savedDurable: null, savedStorage: null, savedEcology: null, savedHabitat: null,
+  outings: null, outingStorage: null, outingSelection: null, selectedOuting: null,
   discoveryNodes: null, discoverySignature: null, searchKey: null };
 
 function activeSearch() { return store.getState().search; }
@@ -687,6 +690,48 @@ function caption(state) {
   return `${parts.join(' · ')} · no basemap; ecological context is listed in the evidence panel.`;
 }
 
+// OUTING NOTES use the same debounce as candidate notes: a plan's prose is written once a person pauses, not on
+// every keystroke, and the panel says where the note actually is.
+const outingNoteTimers = new Map();
+function saveOutingNotes(id, value, { immediate = false } = {}) {
+  if (!id) return;
+  clearTimeout(outingNoteTimers.get(id));
+  if (immediate) { outingNoteTimers.delete(id); store.updateOuting(id, { notes: value }); return; }
+  outingNoteTimers.set(id, setTimeout(() => { outingNoteTimers.delete(id); store.updateOuting(id, { notes: value }); }, NOTE_DEBOUNCE_MS));
+}
+
+// The outings panel is rebuilt only when the plans, the selection or the roads they point at change.
+function renderOutingsPanel(state) {
+  if (drawn.outings === state.outings && drawn.outingStorage === state.outingStorage
+    && drawn.outingSelection === state.outingSelection && drawn.selectedOuting === state.selectedOutingId
+    && drawn.outingRoads === state.userMetaById && drawn.outingDurable === state.durableCandidateIds) return;
+  drawn.outings = state.outings;
+  drawn.outingStorage = state.outingStorage;
+  drawn.outingSelection = state.outingSelection;
+  drawn.selectedOuting = state.selectedOutingId;
+  drawn.outingRoads = state.userMetaById;
+  drawn.outingDurable = state.durableCandidateIds;
+  nodes.outingCount.textContent = String((state.outings ?? []).length);
+  renderOutings(nodes.outings, state, {
+    onOpenOuting: id => store.selectOuting(id),
+    // A road in a plan opens the ordinary saved-candidate detail: there is no second road page.
+    onSelectRoad: id => store.select(id),
+    onRename: (id, title) => store.updateOuting(id, { title }),
+    onDate: (id, date) => store.updateOuting(id, { date }),
+    onStatus: (id, status) => store.updateOuting(id, { status }),
+    onMove: (id, roadId, direction) => store.moveOutingRoad(id, roadId, direction),
+    onRemoveRoad: (id, roadId) => store.removeRoadFromOuting(id, roadId),
+    onAddRoad: (id, roadId) => store.addRoadToOuting(id, roadId),
+    onNotes: (id, value, options) => saveOutingNotes(id, value, options),
+    onAddItem: (id, text) => { const outing = (store.getState().outings ?? []).find(entry => entry.id === id);
+      store.updateOuting(id, { checklist: [...(outing?.checklist ?? []), { text, checked: false }] }); },
+    onToggleItem: (id, itemId) => { const outing = (store.getState().outings ?? []).find(entry => entry.id === id);
+      store.updateOuting(id, { checklist: (outing?.checklist ?? []).map(item => item.id === itemId ? { ...item, checked: !item.checked } : item) }); },
+    onRemoveItem: (id, itemId) => { const outing = (store.getState().outings ?? []).find(entry => entry.id === id);
+      store.updateOuting(id, { checklist: (outing?.checklist ?? []).filter(item => item.id !== itemId) }); },
+    onRemoveOuting: id => store.removeOuting(id) });
+}
+
 // NOTES ARE WRITTEN ON A SHORT DEBOUNCE, not on every keystroke: typing stays smooth, and the write either lands
 // or says it did not. The panel keeps the draft either way.
 const noteTimers = new Map();
@@ -728,6 +773,9 @@ function renderSavedRoadsPanel(state) {
     onFavorite: (id, favorite) => store.setCandidateFavorite(id, favorite),
     onToggleCompare: id => store.toggleSavedRoadCompare(id),
     onClearCompare: () => store.clearSavedRoadCompare(),
+    onTogglePlan: id => store.toggleOutingSelection(id),
+    onCreateOuting: roadIds => { const outcome = store.createOutingFromRoads(roadIds);
+      if (!outcome.ok) store.setOutingStorage({ status: 'unavailable', reason: outcome.reason }); },
     onSort: sort => store.setSavedRoadsSort(sort),
     onFilter: filter => store.setSavedRoadsFilter(filter) });
 }
@@ -764,7 +812,9 @@ store.subscribe(state => {
     onFavorite: (id, favorite) => store.setCandidateFavorite(id, favorite),
     onNote: (id, value, options) => saveCandidateNote(id, value, options),
     onRunAnalysis: () => runCandidateAnalysis(selected?.id),
-    onRemove: id => store.removeCandidate(id),
+    // The workspace checks first: a road used by a plan is removed from it only when a person says so.
+    outingsUsing: selected ? store.outingsUsingCandidate(selected.id).length : 0,
+    onRemove: (id, options) => store.removeCandidate(id, options),
     investigation, access: investigation && accessReview ? { ...investigation.access, human: accessReview } : investigation?.access ?? null,
     onRunAccess: options => requestAccess(options), onExportBundle: () => { exportBundle().catch(error => reportAccessNote(error.message)); },
     onReviewAccess: review => recordAccessReview(review), recordedCaptureAt: accessRecord?.capturedAt ?? null, liveOsm: state.liveOsm,
@@ -776,6 +826,7 @@ store.subscribe(state => {
   renderDiscoveryPanel(state);
   // The saved-roads workspace renders from its own state slice, and never asks for data to do it.
   renderSavedRoadsPanel(state);
+  renderOutingsPanel(state);
   // The search preview follows the search definition, not the discovery run: it is on screen while a centre
   // is being chosen, and it stays after a search so the results can be read against the area they came from.
   updateSearchPreview(state);
@@ -974,6 +1025,8 @@ loadManifest().then(async value => {
   // left: no discovery run, no analysis, and no network read. A record that cannot be read is left out with its
   // reason (reported under the candidate list), and the rest still load.
   store.restoreCandidates();
+  // Outings are a second device-local entry, restored the same way and with the same zero-network promise.
+  store.restoreOutings();
   renderDiscoveryPanel(store.getState());
   updateSearchPreview(store.getState());
   const discovery = store.getState().discovery;

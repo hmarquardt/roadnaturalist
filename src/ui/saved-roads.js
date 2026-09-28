@@ -1,6 +1,7 @@
 import { searchContextLine } from '../discovery/search-context.js';
 import { COMPARISON_LIMIT_REASON, COMPARISON_NOTE, MIN_COMPARISON, MAX_COMPARISON, SAVED_FILTER_OPTIONS, SAVED_NOTE, SAVED_SORT_OPTIONS,
   comparisonDimensions, comparisonIds, notePreview, savedCounts, savedRoadRowsFor } from '../state/saved-roads.js';
+import { MAX_OUTING_ROADS } from '../state/outings.js';
 import { savedDateLabel } from '../state/user-meta.js';
 
 // THE SAVED ROADS WORKSPACE.
@@ -13,7 +14,7 @@ import { savedDateLabel } from '../state/user-meta.js';
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 
 export function renderSavedRoads(container, state, { measurements = {}, onSelect, onFavorite, onToggleCompare,
-  onClearCompare, onSort, onFilter } = {}) {
+  onClearCompare, onSort, onFilter, onTogglePlan, onCreateOuting } = {}) {
   container.replaceChildren();
   const counts = savedCounts(state);
   const compare = comparisonIds(state);
@@ -35,10 +36,12 @@ export function renderSavedRoads(container, state, { measurements = {}, onSelect
     return;
   }
   container.append(controls({ state, onSort, onFilter, counts }));
+  container.append(planning({ state, rows, onCreateOuting, onTogglePlan }));
   container.append(el('p', 'small muted saved-note', SAVED_NOTE));
   const list = el('div', 'saved-list');
   list.id = 'saved-list';
-  for (const row of rows) list.append(savedCard(row, { compare, onSelect, onFavorite, onToggleCompare }));
+  for (const row of rows) list.append(savedCard(row, { compare, plan: state.outingSelection ?? [], outings: state.outings ?? [],
+    onSelect, onFavorite, onToggleCompare, onTogglePlan }));
   container.append(list);
   container.append(comparison({ state, compare, measurements, onSelect, onClearCompare }));
 }
@@ -75,7 +78,7 @@ function controls({ state, onSort, onFilter, counts }) {
   return block;
 }
 
-function savedCard(row, { compare, onSelect, onFavorite, onToggleCompare }) {
+function savedCard(row, { compare, plan = [], outings = [], onSelect, onFavorite, onToggleCompare, onTogglePlan }) {
   const { candidate, meta } = row;
   const card = el('article', 'saved-card');
   card.dataset.candidateId = candidate.id;
@@ -114,6 +117,17 @@ function savedCard(row, { compare, onSelect, onFavorite, onToggleCompare }) {
   box.addEventListener('change', () => onToggleCompare?.(candidate.id));
   compareLabel.append(box, document.createTextNode(' Compare'));
   card.append(compareLabel);
+  // Planning is a separate choice from comparing: the plan selection is what an outing is created from.
+  const planLabel = el('label', 'saved-compare-toggle');
+  const planBox = el('input');
+  planBox.type = 'checkbox';
+  planBox.dataset.plan = candidate.id;
+  planBox.checked = plan.includes(candidate.id);
+  planBox.addEventListener('change', () => onTogglePlan?.(candidate.id));
+  planLabel.append(planBox, document.createTextNode(' Add to an outing'));
+  card.append(planLabel);
+  const used = outings.filter(outing => outing.roadIds.includes(candidate.id)).length;
+  if (used) card.append(el('p', 'small muted saved-card-outings', `In ${used} outing${used === 1 ? '' : 's'}`));
   return card;
 }
 
@@ -175,5 +189,32 @@ function comparison({ state, compare, measurements, onSelect, onClearCompare }) 
   const noteNode = el('p', 'small muted saved-compare-note', COMPARISON_NOTE);
   noteNode.id = 'saved-compare-note';
   block.append(noteNode, clear);
+  return block;
+}
+
+
+// PLANNING. The roads chosen here are the ones an outing is created from, in the order they are listed; the
+// order inside the outing is then changed by hand. Nothing about this choice is a comparison or a ranking.
+function planning({ state, rows, onCreateOuting, onTogglePlan }) {
+  const selected = rows.filter(row => (state.outingSelection ?? []).includes(row.candidate.id));
+  const block = el('div', 'saved-planning');
+  block.id = 'saved-planning';
+  const status = el('p', 'small muted saved-planning-status');
+  status.id = 'saved-planning-status';
+  status.setAttribute('role', 'status');
+  const button = el('button', 'quiet-button', 'Create outing');
+  button.type = 'button';
+  button.id = 'saved-create-outing';
+  button.disabled = selected.length === 0 || selected.length > MAX_OUTING_ROADS;
+  button.addEventListener('click', () => onCreateOuting?.(selected.map(row => row.candidate.id)));
+  const clear = el('button', 'quiet-button', 'Clear selection');
+  clear.type = 'button';
+  clear.id = 'saved-planning-clear';
+  clear.disabled = selected.length === 0;
+  clear.addEventListener('click', () => (state.outingSelection ?? []).forEach(id => onTogglePlan?.(id)));
+  block.append(button, clear, status);
+  status.textContent = selected.length === 0
+    ? `Tick "Add to an outing" on the roads you want to plan with, then create the outing (up to ${MAX_OUTING_ROADS} roads).`
+    : `${selected.length} road${selected.length === 1 ? '' : 's'} chosen: ${selected.map(row => row.candidate.name).join(', ')}`;
   return block;
 }

@@ -17,7 +17,9 @@ import { defineConfig } from '@playwright/test';
 //     With `url`, an unhealthy server fails the run before the first test, loudly.
 export const TEST_SERVER_LOG = 'test-server.log';
 export default defineConfig({ testDir: './tests', testMatch: '*.spec.js', workers: 1, timeout: 120000, retries: 1,
-  use: { baseURL: 'http://127.0.0.1:8000', browserName: 'chromium' },
+  // Bounded actions. Without a bound, one selector that the current screen state does not render - a detail panel with nothing selected, a count line on an empty workspace - makes a run wait for ever instead of reporting what it could not find. That single omission is the whole of the ‘the suite hung after a reload’ class: a test-side wait, not the application. This is a bound, not a retry.
+  use: {
+    actionTimeout: 90000, baseURL: 'http://127.0.0.1:8000', browserName: 'chromium' },
   webServer: { command: "python3 -c \"import http.server; http.server.ThreadingHTTPServer(('127.0.0.1', 8000), http.server.SimpleHTTPRequestHandler).serve_forever()\" >> test-server.log 2>&1",
     url: 'http://127.0.0.1:8000/data/manifest.json', timeout: 30000,
     reuseExistingServer: !process.env.CI }, reporter: 'line' });

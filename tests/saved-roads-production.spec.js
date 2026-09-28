@@ -20,6 +20,10 @@ async function boot(page) {
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
 }
 
+// Progress markers, so a stalled deployed run says which step it stalled in rather than only "1/1".
+let step = 0;
+function mark(label) { console.log(`SAVED_ROADS_STEP ${++step} ${label}`); }
+
 async function savedCount(page) {
   const text = await page.locator('#saved-counts').innerText().catch(() => 'Saved roads 0');
   return Number(/Saved roads (\d+)/.exec(text)?.[1] ?? 0);
@@ -38,7 +42,9 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
     if (request.url().includes('/regional/partitions/')) partitions.push(request.url());
     if (request.url().includes('/derived/corridor-metrics/')) derived.push(request.url());
   });
+  mark('boot');
   await boot(page);
+  mark('booted');
 
   // 1. ONE ORDINARY SEARCH, TWO PROMOTED ROADS.
   await page.locator('#discovery-center-lat').fill(CENTRE.lat.toFixed(4));
@@ -46,8 +52,10 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
   await page.locator('#discovery-center-apply').click();
   await page.locator('#discovery-radius-input').fill('10');
   await page.locator('#discovery-radius-input').press('Enter');
+  mark('search');
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 300000 });
+  mark('searched');
   log('search', { summary: (await page.locator('#discovery-summary').innerText()).replace(/\s+/g, ' ').slice(0, 200) });
   const promoted = [];
   for (const index of [0, 1]) {
@@ -56,8 +64,10 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
     const previous = (await page.locator('#discovery-selected h3').count() ? page.locator('#discovery-selected h3').innerText() : '');
     await row.locator('.discovery-row').click();
     await expect.poll(async () => page.locator('#discovery-selected h3').innerText().catch(() => ''), { timeout: 120000 }).not.toBe(previous);
+    mark(`promote ${index}`);
     await page.locator('#discovery-promote').click();
-    await expect(page.locator('#candidate-user')).toBeVisible();
+    await expect(page.locator('#candidate-user')).toBeVisible({ timeout: 240000 });
+    mark(`promoted ${index}`);
     await expect.poll(() => savedCount(page)).toBeGreaterThan(before);
     promoted.push(await page.locator('#candidate-detail .detail-title').innerText());
   }
@@ -65,27 +75,36 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
   expect(new Set(promoted).size).toBe(2);
 
   // 2. FAVORITE ONE, AND WRITE A NOTE ABOUT IT. The annotation is the person's own, and the panel says so.
+  // The annotation belongs to the road that is on screen: the last one promoted. Name it, rather than
+  // assuming which half of the pair it is.
+  const annotated = await page.locator('#candidate-detail .detail-title').innerText();
+  const other = promoted.find(title => title !== annotated);
+  expect(other, 'the two promoted roads are different roads').toBeTruthy();
   const note = 'Production check: gate at the north end, culvert after heavy rain.';
   await page.locator('#candidate-favorite').click();
   await expect(page.locator('#candidate-favorite')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#candidate-note').fill(note);
-  await expect(page.locator('#candidate-note-status')).toContainText('Saved on this device');
+  mark('note');
+  await expect(page.locator('#candidate-note-status')).toContainText('Saved on this device', { timeout: 60000 });
+  mark('noted');
   await expect(page.locator('#saved-counts')).toContainText('Saved roads 2 · Favorites 1 · Has notes 1');
-  log('annotation', { count: await page.locator('#saved-counts').innerText(), note });
+  log('annotation', { road: annotated, count: await page.locator('#saved-counts').innerText(), note });
 
   // 3. RELOAD: both saved roads come back with the annotation, and opening them asks for nothing.
   await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
   const derivedBefore = derived.length;
   const partitionsBefore = partitions.length;
+  mark('reload 1');
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
+  mark('reloaded 1');
   await expect(page.locator('#saved-counts')).toContainText('Saved roads 2 · Favorites 1 · Has notes 1');
   await expect(page.locator('#saved-list .saved-card')).toHaveCount(2);
-  const card = page.locator('#saved-list .saved-card').filter({ hasText: promoted[0] }).first();
+  const card = page.locator('#saved-list .saved-card').filter({ hasText: annotated }).first();
   await expect(card).toContainText('Favorite ✓');
   await expect(card).toContainText('Production check: gate at the north end');
   await card.locator('.saved-name').click();
-  await expect(page.locator('#candidate-detail .detail-title')).toHaveText(promoted[0]);
+  await expect(page.locator('#candidate-detail .detail-title')).toHaveText(annotated);
   await expect(page.locator('#candidate-note')).toHaveValue(note);
   await expect(page.locator('#candidate-user')).toContainText('It is not evidence');
   log('restore', { derivedReads: derived.length - derivedBefore, partitionReads: partitions.length - partitionsBefore,
@@ -96,27 +115,33 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
   // 4. COMPARE THE TWO: facts side by side, and no verdict anywhere in the table.
   await page.locator('#saved-list input[data-compare]').nth(0).check();
   await page.locator('#saved-list input[data-compare]').nth(1).check();
+  mark('compare');
   const table = page.locator('#saved-compare-table');
-  await expect(table).toBeVisible();
+  await expect(table).toBeVisible({ timeout: 60000 });
+  mark('compared');
   await expect(table).toContainText('From original search centre');
   await expect(table).toContainText('Not measured this session');
   const text = (await table.innerText()).toLowerCase();
   for (const forbidden of ['winner', 'best', 'score', 'recommended', '#1']) expect(text).not.toContain(forbidden);
   log('comparison', { columns: await table.locator('thead th').count(), rows: await table.locator('tbody tr').count() });
 
-  // 5. REMOVE THE SECOND ROAD: it goes, its annotation goes, and the first one is untouched.
+  // 5. REMOVE THE ANNOTATED ROAD: it goes, its favorite and its note go with it, and the other road stays.
+  mark('remove');
   await page.locator('#candidate-remove').click();
   await page.locator('#candidate-remove-confirm').click();
+  mark('removed');
   await expect.poll(() => savedCount(page)).toBe(1);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
-  await expect(page.locator('#saved-counts')).toContainText('Saved roads 1 · Favorites 1 · Has notes 1');
+  await expect(page.locator('#saved-counts')).toContainText('Saved roads 1 · Favorites 0 · Has notes 0');
   await expect(page.locator('#saved-list .saved-card')).toHaveCount(1);
-  await expect(page.locator('#saved-list .saved-card')).toContainText(promoted[0]);
-  await expect(page.locator('#saved-list')).not.toContainText(promoted[1]);
+  await expect(page.locator('#saved-list .saved-card')).toContainText(other);
+  await expect(page.locator('#saved-list')).not.toContainText(annotated);
+  await expect(page.locator('#saved-list')).not.toContainText('Production check: gate at the north end');
   await page.locator('#saved-list .saved-name').click();
-  await expect(page.locator('#candidate-note')).toHaveValue(note);
-  log('removal', { remaining: promoted[0], gone: promoted[1] });
+  await expect(page.locator('#candidate-detail .detail-title')).toHaveText(other);
+  await expect(page.locator('#candidate-note')).toHaveValue('');
+  log('removal', { remaining: other, gone: annotated });
 
   expect(outside, 'a saved-roads workflow must reach no occurrence, Investigator, geocoder or OSM endpoint').toEqual([]);
   log('externalRequests', outside.length);

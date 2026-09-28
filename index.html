@@ -14,6 +14,17 @@
   <link rel="stylesheet" href="assets/css/discovery.css">
   <link rel="stylesheet" href="assets/css/occurrence.css">
   <link rel="stylesheet" href="assets/css/investigator.css">
+  <script>
+    // If this page cannot load its application module - a dropped connection, a blocked script, a proxy in the
+    // way - say so where the workspace would have been, instead of leaving a page of headings that looks like a
+    // finding about the data. A resource error does not bubble, so the listener runs in the capture phase.
+    window.addEventListener('error', event => {
+      const target = event.target;
+      if (!target || target.tagName !== 'SCRIPT') return;
+      const note = document.getElementById('boot-note');
+      if (note) note.hidden = false;
+    }, true);
+  </script>
   <script type="module" src="src/app/main.js"></script>
 </head>
 <body>
@@ -27,11 +38,13 @@
       <div><p class="eyebrow">Explore with evidence</p><h1 id="page-title">Find the roads worth a closer look.</h1><p>Discover road corridors in a bounded area from real road geometry and mapped habitat, compare them through ecology, mapped habitat, observations, and access evidence, and keep unanswered questions visible. Discovery is a screening step: it proposes candidates and measures facts, it never ranks roads or claims wildlife value.</p></div>
       <div class="intro-action"><button id="load-pilot" class="primary-button" type="button" disabled>Open Oregon road pilot <span aria-hidden="true">↗</span></button><span>Real road, habitat, and occurrence data · access unverified</span></div>
     </section>
+    <p class="boot-note" id="boot-note" role="alert" hidden>The workspace could not load its application script, so nothing here is live. Reload the page; if it keeps failing, check the connection.</p>
     <section class="workspace" aria-label="Investigation workspace">
       <section class="discovery-panel panel" aria-labelledby="discovery-title"><div class="panel-heading"><div><p class="eyebrow">01 / Discovery</p><h2 id="discovery-title">Discover roads</h2></div><span class="count" id="discovery-count">0</span></div><div id="discovery" class="discovery-body"></div></section>
       <section class="map-panel panel" aria-labelledby="map-title"><div class="panel-heading"><div><p class="eyebrow">02 / Geography</p><h2 id="map-title">Corridor map</h2></div><div class="map-controls"><label class="map-toggle"><input type="checkbox" id="habitat-layers"> Habitat layers</label><label class="map-toggle"><input type="checkbox" id="occurrence-layer"> Occurrence points</label><button class="quiet-button" id="fit-map" type="button" disabled>Fit corridor</button></div></div><div id="map" class="map" aria-label="Interactive corridor map"></div><p class="map-caption" id="map-caption">Select a candidate to see its mapped geometry. Geometry is evidence, not an invented route. No basemap is connected.</p><p class="map-caption" id="habitat-layers-note"></p><p class="map-caption" id="occurrence-note"></p><label class="map-toggle"><input type="checkbox" id="access-live-osm"> Query OpenStreetMap live for access evidence</label><p class="map-caption" id="access-note"></p></section>
       <section class="results-panel panel" aria-labelledby="results-title"><div class="panel-heading"><div><p class="eyebrow">03 / Candidates</p><h2 id="results-title">Road corridors</h2></div><span id="candidate-count" class="count">0</span></div><div id="candidate-list" class="candidate-list"></div></section>
       <section class="saved-panel panel" aria-labelledby="saved-title"><div class="panel-heading"><div><p class="eyebrow">06 / Saved</p><h2 id="saved-title">Saved roads</h2></div><span id="saved-count" class="count">0</span></div><div id="saved-roads" class="saved-roads"></div></section>
+      <section class="outings-panel panel" aria-labelledby="outings-title"><div class="panel-heading"><div><p class="eyebrow">07 / Outings</p><h2 id="outings-title">Outings</h2></div><span id="outing-count" class="count">0</span></div><div id="outings" class="outings"></div></section>
       <section class="detail-panel panel" aria-labelledby="detail-title"><div class="panel-heading"><div><p class="eyebrow">04 / Investigator</p><h2 id="detail-title">Evidence &amp; questions</h2></div></div><div id="candidate-detail" class="detail-content"></div></section>
       <aside class="context-panel panel" aria-labelledby="context-title"><div class="panel-heading"><div><p class="eyebrow">05 / Context</p><h2 id="context-title">Data coverage</h2></div></div><div id="data-context" class="context-content"></div></aside>
     </section>

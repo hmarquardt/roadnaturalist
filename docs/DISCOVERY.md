@@ -882,3 +882,7 @@ browser storage, derived metrics and Worker-side GIS remain unimplemented and re
 See also [docs/ROADS.md](ROADS.md) for the road sources, [docs/HABITAT.md](HABITAT.md) for the habitat
 extracts and buffered definitions, [docs/ECOREGIONS.md](ECOREGIONS.md) for the ecoregion layers, and
 [docs/INVESTIGATOR.md](INVESTIGATOR.md) for the access workflow a promoted corridor enters.
+
+## Outings: a plan made from saved roads
+
+Saved roads can be gathered into an **outing** - an ordered plan with a title, an optional date, your own note, a checklist and a status. The order is the sequence the person chose with *Move up* / *Move down*; nothing is optimised, ranked, routed, or given a travel time, and the map draws no connecting line. An outing holds references to saved candidates rather than copies of road facts, so a favorite or a note changed here is what a plan shows. Plans live in their own versioned device-local entry (`roadnaturalist.outings.v1`), capped at 50 plans of 10 roads, restored with zero network requests, and removed without touching a single saved road. Full detail: `docs/OUTINGS.md`.

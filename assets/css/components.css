@@ -55,3 +55,39 @@
 .saved-compare-note{margin:.7rem 0 .5rem}
 .candidate-user .note-input{width:100%;font:inherit;font-size:.86rem;padding:.5rem;border:1px solid #c8d3c6;border-radius:5px;background:#fffef9;color:#21392f;resize:vertical;margin-top:.35rem}
 .candidate-user .detail-field{display:block;font-size:.78rem;color:#526b5d;margin-top:.7rem}
+.boot-note{margin:0 0 1rem;padding:.85rem 1rem;border:1px solid #d9b48a;border-left:4px solid #bd7b36;border-radius:5px;background:#fdf6ec;color:#6a4212;font-size:.86rem}
+.outings-panel{grid-column:1 / -1;grid-row:6}
+.outings{padding:1rem}
+.outings-counts{margin:0 0 .4rem}
+.outings-note{margin:.2rem 0 .8rem;max-width:60rem}
+.outings-storage-note{margin:.2rem 0 .6rem;color:#6a4212}
+.outing-list{display:grid;gap:.5rem}
+@media(min-width:900px){.outing-list{grid-template-columns:repeat(auto-fill,minmax(19rem,1fr))}}
+.outing-card{border:1px solid #cbd8cd;border-left:4px solid #577469;border-radius:5px;background:#f9faf5;padding:.7rem;min-width:0}
+.outing-name{border:0;background:none;padding:0;font-family:Georgia,serif;font-size:1.02rem;color:#21392f;text-align:left;cursor:pointer}
+.outing-name:hover{text-decoration:underline}
+.outing-card-facts,.outing-card-roads{margin:.3rem 0 0}
+.outing-detail{margin-top:1.2rem;border-top:1px solid #dce3d9;padding-top:1rem}
+.outing-detail h3{font-size:.98rem;margin:1rem 0 .5rem}
+.outing-fields{display:flex;flex-wrap:wrap;gap:.6rem 1rem}
+.outing-field{display:flex;flex-direction:column;gap:.25rem;font-size:.75rem;color:#526b5d}
+.outing-input,.outing-notes{font:inherit;font-size:.86rem;padding:.45rem;border:1px solid #c8d3c6;border-radius:5px;background:#fffef9;color:#21392f;max-width:100%}
+.outing-notes{width:100%;resize:vertical;white-space:pre-wrap}
+.outing-status{display:flex;gap:.4rem;margin-top:.7rem}
+.outing-status button[aria-pressed="true"]{background:#205646;color:#fff;border-color:#205646}
+.outing-roads{list-style:none;margin:0;padding:0;display:grid;gap:.5rem}
+.outing-road{border:1px solid #dbe4d8;border-radius:5px;padding:.55rem .6rem;background:#fcfdf8;min-width:0}
+.outing-position{color:#527364;font-weight:700;margin-right:.35rem}
+.outing-road-name{border:0;background:none;padding:0;font-family:Georgia,serif;font-size:.98rem;color:#21392f;cursor:pointer;text-align:left}
+.outing-road-name:hover{text-decoration:underline}
+.outing-road-facts{margin:.3rem 0 .45rem}
+.outing-road-controls{display:flex;flex-wrap:wrap;gap:.4rem}
+.outing-road-controls button,.outing-add-road button,.outing-add-item button{font-size:.76rem}
+.outing-add-road,.outing-add-item{display:flex;flex-wrap:wrap;gap:.5rem;align-items:end;margin-top:.6rem}
+.outing-checklist{list-style:none;margin:0;padding:0;display:grid;gap:.4rem}
+.checklist-item{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:.86rem}
+.checklist-item input[type="checkbox"]{width:1rem;height:1rem}
+.checklist-item button{font-size:.72rem}
+.outing-plan{max-width:44rem}
+.outing-remove{margin-top:1rem}
+@media(max-width:700px){.outings-panel{order:7}.outing-fields,.outing-add-road,.outing-add-item{flex-direction:column;align-items:stretch}.outing-road-controls{flex-direction:column;align-items:stretch}}

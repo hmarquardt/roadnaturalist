@@ -248,19 +248,24 @@ function userSection({ candidate, meta, storage, noteDirty = false, onFavorite =
 
 // REMOVAL. One restrained control with a confirmation step: taking a candidate off this device is not something a
 // stray click should do, and it removes this device's copy of the candidate - nothing else.
-function removalControl(id, onRemove) {
+function removalControl(id, onRemove, { outingsUsing = 0 } = {}) {
   const block = el('div', 'candidate-removal');
   block.id = 'candidate-removal';
-  const note = el('p', 'small muted', 'Removing takes this candidate off this device. The source data, the discovery results and every other candidate are untouched.');
+  // A road that a plan points at is not removed silently: the question names the plans, and the answer is one
+  // explicit choice rather than a mystery about why a saved road vanished from an outing.
+  const note = el('p', 'small muted', outingsUsing
+    ? `Removing takes this candidate off this device. It is used in ${outingsUsing} outing${outingsUsing === 1 ? '' : 's'}, and it will be removed from ${outingsUsing === 1 ? 'that outing' : 'those outings'} as well. The source data, the discovery results and every other candidate are untouched.`
+    : 'Removing takes this candidate off this device. The source data, the discovery results and every other candidate are untouched.');
   const ask = el('button', 'quiet-button', 'Remove candidate');
   ask.type = 'button';
   ask.id = 'candidate-remove';
   ask.addEventListener('click', () => {
     const row = el('div', 'decision-actions');
-    const yes = el('button', 'quiet-button warn', 'Confirm removal');
+    const yes = el('button', 'quiet-button warn', outingsUsing
+      ? 'Remove everywhere' : 'Confirm removal');
     yes.type = 'button';
     yes.id = 'candidate-remove-confirm';
-    yes.addEventListener('click', () => onRemove(id));
+    yes.addEventListener('click', () => onRemove(id, { removeFromOutings: outingsUsing > 0 }));
     const no = el('button', 'quiet-button', 'Keep candidate');
     no.type = 'button';
     no.id = 'candidate-remove-cancel';
