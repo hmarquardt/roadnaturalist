@@ -94,6 +94,7 @@ let radiusSearchTemplate = null;
 let places = null;
 const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverlay: null, resolvedId: null,
   savedRoads: null, savedMeta: null, savedDurable: null, savedStorage: null, savedEcology: null, savedHabitat: null,
+  savedOutingSelection: null, savedOutings: null,
   outings: null, outingStorage: null, outingSelection: null, selectedOuting: null,
   discoveryNodes: null, discoverySignature: null, searchKey: null };
 
@@ -759,13 +760,16 @@ function comparisonMeasurements(state) {
 function renderSavedRoadsPanel(state) {
   if (drawn.savedRoads === state.savedRoads && drawn.savedMeta === state.userMetaById
     && drawn.savedDurable === state.durableCandidateIds && drawn.savedStorage === state.candidateStorage
-    && drawn.savedEcology === state.ecologyByCandidate && drawn.savedHabitat === state.habitatByCandidate) return;
+    && drawn.savedEcology === state.ecologyByCandidate && drawn.savedHabitat === state.habitatByCandidate
+    && drawn.savedOutingSelection === state.outingSelection && drawn.savedOutings === state.outings) return;
   drawn.savedRoads = state.savedRoads;
   drawn.savedMeta = state.userMetaById;
   drawn.savedDurable = state.durableCandidateIds;
   drawn.savedStorage = state.candidateStorage;
   drawn.savedEcology = state.ecologyByCandidate;
   drawn.savedHabitat = state.habitatByCandidate;
+  drawn.savedOutingSelection = state.outingSelection;
+  drawn.savedOutings = state.outings;
   const counts = savedCounts(state);
   nodes.savedCount.textContent = String(counts.total);
   renderSavedRoads(nodes.savedRoads, state, { measurements: comparisonMeasurements(state),

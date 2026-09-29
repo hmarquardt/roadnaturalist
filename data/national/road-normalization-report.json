@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "kind": "conus-road-normalization-report",
+  "sourceVintage": "TIGER2025",
+  "pipelineVersion": "conus-roads-normalize-v1",
+  "gridSha256": "dc0c9a8425d6db3939fe5ba97cb5edc6c45cfd56675f9930ad",
+  "workers": 2,
+  "counties": 3109,
+  "sourceRecords": 16196082,
+  "normalizedRows": 14295702,
+  "classRows": { "S1200": 247343, "S1400": 13755746, "S1500": 292613 },
+  "eligibleS1200S1400Rows": 14003089,
+  "sourceZipBytes": 4033268938,
+  "normalizedGeoParquetBytes": 4887025743,
+  "firstPassWallSeconds": 1430.372,
+  "firstPassStates": { "complete": 3105, "skipped": 3, "failed": 1 },
+  "recovery": { "countyFips": "54039", "reason": "Census CDN returned a cached 608-byte HTML rejection with HTTP 200", "sourceBytes": 5730091, "rows": 19950, "outputBytes": 7264304, "normalizeWallSeconds": 1.556 },
+  "regionalRegression": { "counties": 20, "rows": 115907, "result": "exact keys, road IDs, names, classes, and WKB geometry" },
+  "representativeSlices": [
+    { "region": "West", "countyFips": "41067", "rows": 13408, "sourceBytes": 2905525, "outputBytes": 3788287 },
+    { "region": "Dense East", "countyFips": "36061", "rows": 1393, "sourceBytes": 327473, "outputBytes": 272036 },
+    { "region": "Rural interior", "countyFips": "56001", "rows": 8541, "sourceBytes": 3030034, "outputBytes": 3841730 }
+  ],
+  "measurementLimits": "The first-pass wall time includes one rejected Census response; the recovery download, retries, and checksum are separately recorded. No peak RAM measurement was instrumented."
+}

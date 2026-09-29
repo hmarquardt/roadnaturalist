@@ -692,7 +692,9 @@ def main():
     ordered = sorted(corridors, key=lambda item: (math.floor(item['bounds'][0] / STEP), math.floor(item['bounds'][1] / STEP), item['id']))
     # Chunking is an internal batching detail: the pad proof makes a corridor's metrics identical in any chunk.
     # Keep each chunk's materialised buffers and spatial joins within the 2 GB DuckDB ceiling.
-    chunk_size = 100
+    # Long national-style branch chains can make a nearby hydro join much denser than the old
+    # 100-corridor batches. Keep the same metric statements and bound only the batch size.
+    chunk_size = 25
     rows = []
     chunks = 0
     for start in range(0, len(ordered), chunk_size):

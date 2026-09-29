@@ -1,6 +1,6 @@
 {
  "kind": "road-discovery-analysis-profile",
- "profileVersion": 1,
+ "profileVersion": 2,
  "derivedSchemaVersion": 1,
  "region": {
   "version": "or-sw-wa-portland-v2",
@@ -23,7 +23,8 @@
  },
  "composition": {
   "toleranceM": 150,
-  "reversedLinkLengthRatio": 0.25
+  "reversedLinkLengthRatio": 0.25,
+  "lineConsumption": "remove-selected-source-line-v2"
  },
  "segmentation": {
   "idPrefix": "drv1",
@@ -93,5 +94,5 @@
   "hydroNames": "sorted-distinct-first-40-v1",
   "wetlandDefinition": "sum of each mapped feature's own geometry clipped to the requested buffer (feature-area sum, not a spatial union)"
  },
- "fingerprint": "41b574f0651a22e00fc505cf4c41c87800065fdc1b7ff6e20e70ea6002895b5f"
+ "fingerprint": "40c78440082786507cb63a9e61dd8edd8728f4e364e8455aec5d7cb4736b9b84"
 }

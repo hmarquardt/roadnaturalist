@@ -119,3 +119,38 @@ test('marking an outing complete, and removing it, leaves every road saved', asy
   expect(await page.evaluate(() => localStorage.getItem('roadnaturalist.outings.v1'))).toBe(null);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('roadnaturalist.candidates.v1')).candidates.length)).toBe(2);
 });
+
+test('Remove everywhere updates an outing and preserves unrelated saved roads after reload', async ({ page }) => {
+  test.slow();
+  await boot(page);
+  await saveRoads(page, 3);
+  const names = await page.locator('#saved-list .saved-name').allInnerTexts();
+  await page.locator('#saved-list input[data-plan]').nth(0).check();
+  await expect(page.locator('#saved-planning-status')).toContainText('1 road chosen');
+  await page.locator('#saved-list input[data-plan]').nth(1).check();
+  await expect(page.locator('#saved-planning-status')).toContainText('2 roads chosen');
+  await page.locator('#saved-create-outing').click();
+  await expect(page.locator('#outing-roads li')).toHaveCount(2);
+  await expect(page.locator('#outing-roads')).toContainText(names[0]);
+  await expect(page.locator('#outing-roads')).toContainText(names[1]);
+  const firstRoadId = await page.locator('#saved-list .saved-card').first().getAttribute('data-candidate-id');
+  expect(await page.locator('#outing-roads li').evaluateAll(nodes => nodes.map(node => node.dataset.roadId))).toContain(firstRoadId);
+  await page.locator('#saved-list .saved-card').first().locator('.saved-name').click();
+  await expect(page.locator('#candidate-detail .detail-title')).toHaveText(names[0]);
+  await page.locator('#candidate-remove').click();
+  await expect(page.locator('#candidate-remove-confirm')).toHaveText('Remove everywhere');
+  await page.locator('#candidate-remove-confirm').click();
+  await expect(page.locator('#saved-counts')).toContainText('Saved roads 2');
+  await quiet(page);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
+  await expect(page.locator('#saved-list .saved-card')).toHaveCount(2);
+  await expect(page.locator('#saved-list')).not.toContainText(names[0]);
+  await expect(page.locator('#saved-list')).toContainText(names[1]);
+  await expect(page.locator('#saved-list')).toContainText(names[2]);
+  await expect(page.locator('#outings-counts')).toContainText('Outings 1');
+  await page.locator('.outing-name').first().click();
+  await expect(page.locator('#outing-roads li')).toHaveCount(1);
+  await expect(page.locator('#outing-roads')).toContainText(names[1]);
+  await expect(page.locator('#outing-roads')).not.toContainText(names[0]);
+});

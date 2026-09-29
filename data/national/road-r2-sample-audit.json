@@ -1,0 +1,15 @@
+{
+  "kind": "national-road-r2-sample-audit",
+  "bucket": "roadnaturalist-data",
+  "pathPrefix": "national/roads/tiger2025-county-v1/roads/",
+  "checks": ["public bytes", "SHA-256", "Content-Type", "immutable Cache-Control", "CORS", "HTTP 206 Range"],
+  "cells": [
+    {"id": "x282_y677", "bytes": 603724, "sha256": "423b7532dd0d9f504da43cfe817cca39630b8b174bed9dbba115e36c107b7790"},
+    {"id": "x529_y653", "bytes": 1095849, "sha256": "cd2aee63d1c2acdfc85a0faa93c2fc73a934b7a2ac786cb2c912cd7ec74740a8"},
+    {"id": "x368_y654", "bytes": 195162, "sha256": "9bc28f4aab9d5ae5c633f5ed6cd99a55088b48c798a372e020ce3b9e5b8aecdb"}
+  ],
+  "contentType": "application/vnd.apache.parquet",
+  "cacheControl": "public, max-age=31536000, immutable",
+  "corsOrigin": "https://roadnaturalist.pages.dev",
+  "rangeStatus": 206
+}

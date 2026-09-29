@@ -5891,9 +5891,9 @@
     "cellCount": 130
   },
   "derived": {
-    "manifestUrl": "derived/corridor-metrics/41b574f0651a22e00fc505cf4c41c87800065fdc1b7ff6e20e70ea6002895b5f/manifest.json",
-    "localPath": "derived/corridor-metrics/41b574f0651a22e00fc505cf4c41c87800065fdc1b7ff6e20e70ea6002895b5f/manifest.json",
-    "analysisFingerprint": "41b574f0651a22e00fc505cf4c41c87800065fdc1b7ff6e20e70ea6002895b5f",
+    "manifestUrl": "derived/corridor-metrics/40c78440082786507cb63a9e61dd8edd8728f4e364e8455aec5d7cb4736b9b84/manifest.json",
+    "localPath": "derived/corridor-metrics/40c78440082786507cb63a9e61dd8edd8728f4e364e8455aec5d7cb4736b9b84/manifest.json",
+    "analysisFingerprint": "40c78440082786507cb63a9e61dd8edd8728f4e364e8455aec5d7cb4736b9b84",
     "derivedSchemaVersion": 1,
     "bounds": [
       -124.05,
@@ -5902,13 +5902,13 @@
       46.42
     ],
     "bounded": false,
-    "corridors": 6440,
-    "bytes": 17039103,
+    "corridors": 6244,
+    "bytes": 17288410,
     "cells": 130,
     "presentCells": 118,
     "emptyCells": 12,
-    "storedRows": 8060,
-    "averageRowBytes": 2114.0,
-    "manifestSha256": "961161f30c0dcb9f23472639fe7c666c59bb9fecae27f9287d26b091cab28172"
+    "storedRows": 7875,
+    "averageRowBytes": 2195.4,
+    "manifestSha256": "46a72409c5615753a24a8eced9c78e77f41a25bff8677370e56c989ec3da9bc9"
   }
 }

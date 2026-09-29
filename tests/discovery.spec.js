@@ -15,13 +15,6 @@ const EXTERNAL_HOSTS = /^https?:\/\/(?:[^/]*\.)?(?:inaturalist\.org|ebird\.org|o
 const EXTERNAL_PATTERNS = ['https://api.inaturalist.org/**', 'https://api.ebird.org/**', 'https://ebird.org/**',
   'https://overpass-api.de/**', 'https://overpass.kumi.systems/**', 'https://api.roadnaturalist.com/**'];
 
-// The eight real corridors whose geometry the buffering engine refuses. They are captured in
-// tests/fixtures/discovery-geometry-failures.json and repaired there and here by the shared
-// analytical-geometry boundary. They are named explicitly so a regression cannot hide inside a count.
-const REPAIRED_CORRIDORS = ['drv1-nw-158th-ave-c2-s1', 'drv1-nw-cornelius-pass-rd-s1', 'drv1-nw-jacobson-rd-s1',
-  'drv1-nw-oakhills-dr-s1', 'drv1-sw-brookwood-ave-s1', 'drv1-sw-butner-rd-s1', 'drv1-sw-murray-blvd-s1',
-  'drv1-sw-washington-st-c1-s1'].sort();
-
 async function watchExternal(page) {
   const seen = [];
   page.on('request', request => { if (EXTERNAL_HOSTS.test(request.url())) seen.push(request.url()); });
@@ -173,7 +166,7 @@ test('the discovery workspace stays usable at 390px', async ({ page }) => {
 });
 
 
-test('the survey repairs the corridors the engine refuses, and promotion measures the same geometry', async ({ page }) => {
+test('the corrected survey geometry needs no pilot repair, and promotion measures the same habitat', async ({ page }) => {
   test.slow();
   await page.setViewportSize({ width: 1440, height: 1000 });
   const external = await watchExternal(page);
@@ -181,8 +174,8 @@ test('the survey repairs the corridors the engine refuses, and promotion measure
   const panel = page.locator('#discovery');
   // No corridor is left with UNKNOWN habitat coverage because of its own geometry.
   await expect(panel).not.toContainText('have UNKNOWN habitat coverage');
-  // The eight originally refused corridors remain a regression fixture. The shared preparation rule also
-  // removes doubled traversals before probing, so additional corridors legitimately report a repair.
+  // The old composer repeated source links in this pilot window. The corrected composer consumes each
+  // source link once, so this window now analyzes canonical geometry directly.
   const batch = await page.evaluate(async () => {
     const { createGisService } = await import('/src/gis/service.js');
     const { buildDiscoveryUnits } = await import('/src/discovery/units.js');
@@ -207,23 +200,18 @@ test('the survey repairs the corridors the engine refuses, and promotion measure
       wetlandCoverage: coverage, facts };
   });
   expect(batch.unbufferable).toEqual([]);
-  for (const id of REPAIRED_CORRIDORS) expect(batch.repaired).toContain(id);
-  expect(batch.methods['remove-duplicate-segments']).toBe(batch.repairedCount);
-  expect(batch.repairedCount).toBeGreaterThanOrEqual(REPAIRED_CORRIDORS.length);
+  expect(batch.repaired).toEqual([]);
+  expect(batch.repairedCount).toBe(0);
+  expect(batch.methods['remove-duplicate-segments'] ?? 0).toBe(0);
   expect(batch.maxDisplacement).toBe(0);
   expect(batch.wetlandCoverage.UNKNOWN ?? 0).toBe(0);
-  for (const id of REPAIRED_CORRIDORS) {
-    expect(batch.facts[id].repaired).toBe(true);
-    expect(batch.facts[id].note).toContain('canonical corridor geometry is unchanged');
-    expect(batch.facts[id].removedDuplicateLengthM).toBeGreaterThan(0);
-  }
-  // Selecting and promoting a repaired corridor shows the repair in the interface, and the detailed
+  // Selecting and promoting a corridor shows the geometry decision, and the detailed
   // analysis of the promoted corridor measures the same geometry the survey did.
-  const row = page.locator('.discovery-row', { hasText: 'SW Washington St' }).first();
+  const row = page.locator('.discovery-row').first();
   await row.click();
   const selected = page.locator('#discovery-selected');
   await expect(selected).toContainText('Analytical geometry');
-  await expect(selected).toContainText('Minor topology repair applied (remove-duplicate-segments)');
+  await expect(selected).toContainText('Canonical corridor geometry used directly (no repair needed)');
   const discoveryArea = await selected.locator('.discovery-facts div', { hasText: 'Mapped wetland within 250 m' }).locator('dd').innerText();
   expect(discoveryArea).not.toBe('None mapped');
   await page.locator('#discovery-promote').click();
@@ -231,7 +219,6 @@ test('the survey repairs the corridors the engine refuses, and promotion measure
   await expect(habitat).toContainText('PHYSICAL HABITAT EVIDENCE', { timeout: 60000 });
   const habitatArea = await habitat.locator('.road-facts div', { hasText: /^Within 250 m/ }).first().locator('dd').innerText();
   expect(habitatArea).toContain(discoveryArea);
-  await expect(habitat).toContainText('Analytical geometry: minor topology repair applied');
-  await expect(habitat).toContainText('canonical road geometry preserved');
+  await expect(habitat).toContainText('Analytical geometry: canonical corridor geometry used directly');
   expect(external).toEqual([]);
 });

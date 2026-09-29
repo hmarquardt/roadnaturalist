@@ -40,7 +40,19 @@
     "capture:derived-equivalence": "RUN_DERIVED_EQUIVALENCE_CAPTURE=1 playwright test tests/derived-equivalence.capture.spec.js --reporter=line --retries=0",
     "benchmark:derived": "RUN_DERIVED_BENCHMARK=1 playwright test tests/derived-benchmark.spec.js --reporter=line --retries=0",
     "benchmark:candidates": "RUN_CANDIDATE_STORAGE_BENCHMARK=1 playwright test tests/candidate-storage-benchmark.spec.js --reporter=line --retries=0",
-    "benchmark:search": "RUN_SEARCH_BENCHMARK=1 playwright test tests/search-benchmark.spec.js --reporter=line --retries=0"
+    "benchmark:search": "RUN_SEARCH_BENCHMARK=1 playwright test tests/search-benchmark.spec.js --reporter=line --retries=0",
+    "build:national-grid": "uv run --python 3.12 --with shapely --with pyshp python3 scripts/build-national-grid.py",
+    "freeze:national-roads": "python3 scripts/freeze-national-sources.py",
+    "build:national-roads": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 scripts/build-national-roads.py",
+    "partition:national-roads": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 scripts/partition-national-roads.py",
+    "build:national-components": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 scripts/build-national-components.py",
+    "build:national-segments": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 scripts/build-national-segments.py",
+    "verify:national-roads": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 scripts/verify-national-roads.py",
+    "verify:national-index": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 scripts/verify-national-index.py",
+    "freeze:national-manifest": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 scripts/freeze-national-manifest.py",
+    "test:national-roads": "uv run --python 3.12 --with pytest --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 -m pytest tests/test_national_roads.py -q",
+    "benchmark:national-roads": "python3 scripts/benchmark-national-roads.py",
+    "publish:national-roads": "node scripts/publish-national-roads.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"

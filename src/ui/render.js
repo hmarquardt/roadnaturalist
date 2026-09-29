@@ -82,7 +82,7 @@ function restoreNoteDraft(draft) {
 export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null, occurrence = null, onQueryOccurrence = null,
   investigation = null, access = null, onRunAccess = null, onExportBundle = null, onReviewAccess = null, recordedCaptureAt = null, liveOsm = false,
   workerStatus = null, workerUrl = '', declaredSourceCount = null, restored = false, persisted = false, storage = null,
-  userMeta = null, onRunAnalysis = null, onRemove = null, onFavorite = null, onNote = null } = {}) {
+  userMeta = null, onRunAnalysis = null, onRemove = null, onFavorite = null, onNote = null, outingsUsing = 0 } = {}) {
   // The note draft (text, caret and focus) is taken before the panel is replaced and put back afterwards.
   const noteDraft = captureNoteDraft();
   container.replaceChildren();
@@ -146,7 +146,7 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
     actions.append(button);
   }
   decisionSection.append(actions);
-  if (onRemove) decisionSection.append(removalControl(candidate.id, onRemove));
+  if (onRemove) decisionSection.append(removalControl(candidate.id, onRemove, { outingsUsing }));
   container.append(decisionSection);
 }
 

@@ -20,8 +20,7 @@ export default defineConfig({ testDir: './tests', testMatch: '*.spec.js', worker
   // Bounded actions. Without a bound, one selector that the current screen state does not render - a detail panel with nothing selected, a count line on an empty workspace - makes a run wait for ever instead of reporting what it could not find. That single omission is the whole of the ‘the suite hung after a reload’ class: a test-side wait, not the application. This is a bound, not a retry.
   use: {
     actionTimeout: 90000, baseURL: 'http://127.0.0.1:8000', browserName: 'chromium' },
-  webServer: { command: "python3 -c \"import http.server; http.server.ThreadingHTTPServer(('127.0.0.1', 8000), http.server.SimpleHTTPRequestHandler).serve_forever()\" >> test-server.log 2>&1",
+  webServer: { command: "python3 -c \"import http.server; type('TestServer', (http.server.ThreadingHTTPServer,), {'request_queue_size': 256})(('127.0.0.1', 8000), http.server.SimpleHTTPRequestHandler).serve_forever()\" >> test-server.log 2>&1",
     url: 'http://127.0.0.1:8000/data/manifest.json', timeout: 30000,
     reuseExistingServer: !process.env.CI }, reporter: 'line' });
-
 

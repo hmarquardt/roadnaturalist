@@ -148,23 +148,27 @@ function connectedComponents(lines, toleranceM) {
 function orderComponents(components, toleranceM) {
   return [...components].sort((a, b) => compareLines(representative(a), representative(b))).map(component => {
     const remaining = [...component].sort(compareLines);
-    const chain = [remaining.shift()];
-    let extended = true;
-    while (extended) {
-      extended = false;
-      for (const side of ['end', 'start']) {
-        const next = nearestJoin(remaining, chain, side, toleranceM);
-        if (!next) continue;
-        if (side === 'end') chain.push(next.line); else chain.unshift(next.line);
-        remaining.splice(remaining.indexOf(next.line), 1);
-        extended = true;
+    const chains = [];
+    while (remaining.length) {
+      const chain = [remaining.shift()];
+      let extended = true;
+      while (extended) {
+        extended = false;
+        for (const side of ['end', 'start']) {
+          const next = nearestJoin(remaining, chain, side, toleranceM);
+          if (!next) continue;
+          if (side === 'end') chain.push(next.line); else chain.unshift(next.line);
+          remaining.splice(remaining.indexOf(next.source), 1);
+          extended = true;
+        }
       }
+      chains.push(chain);
     }
     // Exactly coincident junction vertices merge into one canonical line; any real gap stays a
     // separate line and is reported, so no connector geometry is ever invented.
     const lines = [];
     const gapsM = [];
-    for (const line of chain) {
+    for (const line of chains.flat()) {
       const previous = lines.at(-1);
       if (!previous) { lines.push([...line.coordinates]); continue; }
       const gapM = haversineM(previous.at(-1), line.coordinates[0]);
@@ -186,7 +190,7 @@ function nearestJoin(remaining, chain, side, toleranceM) {
     if (gapM > toleranceM) continue;
     if (best && (gapM > best.gapM || (gapM === best.gapM && line.sourceFeatureId >= best.line.sourceFeatureId))) continue;
     const coordinates = backward < forward ? [...line.coordinates].reverse() : line.coordinates;
-    best = { line: { ...line, coordinates }, gapM };
+    best = { line: { ...line, coordinates }, source: line, gapM };
   }
   return best;
 }
@@ -205,4 +209,3 @@ function unresolvedGapM(components) {
   }
   return Number.isFinite(largest) ? largest : null;
 }
-

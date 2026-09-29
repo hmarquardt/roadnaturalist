@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "kind": "national-road-qa-centers",
+  "coverage": "CONUS",
+  "note": "Fixed centers for repeatable source, seam, component, and later raw/derived habitat QA; each uses a 10-mile road sample plus adjacent cells.",
+  "samples": [
+    { "id": "pacific-northwest", "state": "OR", "center": [-122.92, 45.595], "radiusMiles": 10, "regime": "existing production regression and Columbia seam" },
+    { "id": "california", "state": "CA", "center": [-121.49, 38.58], "radiusMiles": 10, "regime": "dense valley roads and foothills" },
+    { "id": "desert-southwest", "state": "AZ", "center": [-111.0, 32.22], "radiusMiles": 10, "regime": "arid urban edge" },
+    { "id": "rockies", "state": "CO", "center": [-107.88, 37.27], "radiusMiles": 10, "regime": "mountain road topology" },
+    { "id": "great-plains", "state": "KS", "center": [-97.6, 38.84], "radiusMiles": 10, "regime": "sparse grid roads" },
+    { "id": "midwest", "state": "IL", "center": [-87.63, 41.88], "radiusMiles": 10, "regime": "dense urban street names" },
+    { "id": "gulf-coast", "state": "TX", "center": [-95.37, 29.76], "radiusMiles": 10, "regime": "coastal water and dense roads" },
+    { "id": "appalachia", "state": "NC", "center": [-82.55, 35.6], "radiusMiles": 10, "regime": "curved mountain roads" },
+    { "id": "northeast", "state": "NY", "center": [-74.0, 40.71], "radiusMiles": 10, "regime": "dense East and cross-water cells" },
+    { "id": "florida", "state": "FL", "center": [-82.46, 27.95], "radiusMiles": 10, "regime": "peninsula and coastal edge" }
+  ]
+}

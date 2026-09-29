@@ -79,6 +79,7 @@ test('segmentation, repair, distances, metric semantics and schema version are a
     metrics: profile => { profile.metrics = { ...profile.metrics, wetlandArea: 'spatial-union-v1' }; },
     schema: profile => { profile.derivedSchemaVersion = DERIVED_SCHEMA_VERSION + 1; },
     composition: profile => { profile.composition = { ...profile.composition, toleranceM: 200 }; },
+    lineConsumption: profile => { profile.composition = { ...profile.composition, lineConsumption: 'old-selection-rule' }; },
   };
   for (const [label, tweak] of Object.entries(tweaks)) {
     const profile = JSON.parse(JSON.stringify(base.profile));

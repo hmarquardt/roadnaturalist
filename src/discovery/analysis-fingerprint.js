@@ -14,7 +14,7 @@ import { REVERSED_LINK_LENGTH_RATIO } from '../roads/normalize.js';
 //
 // The inputs are semantics only. Build timestamps, Pages deployment ids, R2 origins and user state are
 // deliberately absent: rebuilding the same rules from the same data must produce the same fingerprint.
-export const ANALYSIS_PROFILE_VERSION = 1;
+export const ANALYSIS_PROFILE_VERSION = 2;
 // Bumped by hand whenever the derived row shape changes; it is part of the fingerprint, so an old artifact
 // can never be mistaken for a current one.
 export const DERIVED_SCHEMA_VERSION = 1;
@@ -76,7 +76,8 @@ export async function analysisProfile({ regionalCatalog = null, manifest = null,
           multiCellComponents: regionalCatalog.roadComponents?.multiCell ?? null }
       : (roadComponents ? { digest: await sha256Hex(canonicalJson(roadComponents.components ?? [])),
           joinToleranceM: JOIN_TOLERANCE_M, multiCellComponents: roadComponents.components?.length ?? null } : null),
-    composition: { toleranceM: JOIN_TOLERANCE_M, reversedLinkLengthRatio: REVERSED_LINK_LENGTH_RATIO },
+    composition: { toleranceM: JOIN_TOLERANCE_M, reversedLinkLengthRatio: REVERSED_LINK_LENGTH_RATIO,
+      lineConsumption: 'remove-selected-source-line-v2' },
     segmentation: { idPrefix: DISCOVERY_ID_PREFIX, minCorridorM: MIN_CORRIDOR_M,
       targetCorridorM: TARGET_CORRIDOR_M, maxCorridorM: MAX_CORRIDOR_M },
     analyticalGeometry: { methods: Object.values(ANALYSIS_GEOMETRY_METHOD),

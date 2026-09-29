@@ -144,6 +144,21 @@ test('composition is independent of source order and drops repeated or invalid v
   assert.ok(endpointGapM([[0, 0], [0, 0.01]], [[0, 0.0101], [0.01, 0.02]]) < 20);
 });
 
+test('composition consumes the selected source line once at a branching junction', () => {
+  const features = [
+    { sourceFeatureId: 'a', coordinates: [[0, 0], [0.01, 0]] },
+    { sourceFeatureId: 'b', coordinates: [[0.01, 0], [0.02, 0]] },
+    { sourceFeatureId: 'c', coordinates: [[0.01, 0], [0.01, 0.01]] },
+    { sourceFeatureId: 'd', coordinates: [[0.02, 0], [0.03, 0]] },
+  ];
+  const composed = composeRoadLines(features);
+  const all = composed.geometry.type === 'LineString' ? [composed.geometry.coordinates] : composed.geometry.coordinates;
+  const edges = all.flatMap(line => line.slice(1).map((point, index) => [line[index], point]
+    .map(vertex => vertex.join(',')).sort().join('|')));
+  assert.equal(edges.length, 4);
+  assert.equal(new Set(edges).size, 4, 'no source link is repeated or dropped');
+});
+
 test('road provenance and attribute states survive normalization', () => {
   const road = realRoad(CORNELIUS_WA);
   assert.equal(road.name, 'NW Cornelius Pass Rd');
@@ -336,4 +351,3 @@ test('real pilot geometry flows into the EPA ecoregion query unchanged', async (
     assert.equal(summarizeLevel(intersections.l3.map(row => ({ code: row.code, name: row.name, overlapM: row.overlap_m })), routeLengthM).coverage, COVERAGE.FULL);
   });
 });
-

@@ -40,13 +40,13 @@ test('capture the regional batch-versus-detailed habitat comparison', async ({ p
     const { promoteDiscoveryResult } = await import('/src/discovery/lifecycle.js');
     const { HABITAT_METRIC_DEFINITION, clippedAreaExpression, featureCountExpression } = await import('/src/gis/habitat-metrics.js');
     const { corridorGeometry } = await import('/src/domain/geometry.js');
-    const searchArea = { ...area, kind: 'bbox' };
+    const searchArea = { ...area, kind: 'bbox', raw: true };
     const run = await runDiscovery({ gis, searchArea });
     const regionalScope = gis.lastRegionalScope;
     // A second survey along the published north edge, so the sample also carries corridors whose 1 km buffer
     // leaves the published window: those report PARTIAL habitat coverage, and PARTIAL must be compared as
     // PARTIAL rather than as a metric difference.
-    const edgeRun = await runDiscovery({ gis, searchArea: { ...edgeArea, kind: 'bbox' } });
+    const edgeRun = await runDiscovery({ gis, searchArea: { ...edgeArea, kind: 'bbox', raw: true } });
     const edgeScope = gis.lastRegionalScope;
     // Every corridor must be measured through the scope whose partition selection contains it: the two
     // surveys selected different cells, and a corridor outside a scope's selection is not covered by it.

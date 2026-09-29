@@ -125,9 +125,21 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
   for (const forbidden of ['winner', 'best', 'score', 'recommended', '#1']) expect(text).not.toContain(forbidden);
   log('comparison', { columns: await table.locator('thead th').count(), rows: await table.locator('tbody tr').count() });
 
+  // Put both roads in an outing before removing one. The other road must stay in the plan.
+  await page.locator('#saved-list input[data-plan]').nth(0).check();
+  await page.locator('#saved-list input[data-plan]').nth(1).check();
+  await expect(page.locator('#saved-planning-status')).toContainText('2 roads chosen');
+  await page.locator('#saved-create-outing').click();
+  await expect(page.locator('#outings-counts')).toContainText('Outings 1');
+  await expect(page.locator('#outing-roads li')).toHaveCount(2);
+  await expect(page.locator('#outing-roads')).toContainText(annotated);
+  await expect(page.locator('#outing-roads')).toContainText(other);
+  mark('outing created');
+
   // 5. REMOVE THE ANNOTATED ROAD: it goes, its favorite and its note go with it, and the other road stays.
   mark('remove');
   await page.locator('#candidate-remove').click();
+  await expect(page.locator('#candidate-remove-confirm')).toHaveText('Remove everywhere');
   await page.locator('#candidate-remove-confirm').click();
   mark('removed');
   await expect.poll(() => savedCount(page)).toBe(1);
@@ -138,6 +150,11 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
   await expect(page.locator('#saved-list .saved-card')).toContainText(other);
   await expect(page.locator('#saved-list')).not.toContainText(annotated);
   await expect(page.locator('#saved-list')).not.toContainText('Production check: gate at the north end');
+  await expect(page.locator('#outings-counts')).toContainText('Outings 1');
+  await page.locator('.outing-name').first().click();
+  await expect(page.locator('#outing-roads li')).toHaveCount(1);
+  await expect(page.locator('#outing-roads')).toContainText(other);
+  await expect(page.locator('#outing-roads')).not.toContainText(annotated);
   await page.locator('#saved-list .saved-name').click();
   await expect(page.locator('#candidate-detail .detail-title')).toHaveText(other);
   await expect(page.locator('#candidate-note')).toHaveValue('');

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "region": "conus",
+  "coverage": "48 contiguous states plus District of Columbia",
+  "grid": { "kind": "lonlat-grid", "stepLon": 0.2, "stepLat": 0.2, "origin": [-180, -90], "crs": "EPSG:4326" },
+  "sources": {
+    "boundaries": {
+      "agency": "U.S. Census Bureau", "dataset": "TIGER/Line state and county boundaries", "vintage": "2025",
+      "stateUrl": "https://www2.census.gov/geo/tiger/TIGER2025/STATE/tl_2025_us_state.zip",
+      "stateBytes": 9956072, "stateSha256": "59a220888a8d9be8117c4fcd38f542bd02d81abf0d198c78113595ad540dd957",
+      "countyUrl": "https://www2.census.gov/geo/tiger/TIGER2025/COUNTY/tl_2025_us_county.zip",
+      "countyBytes": 83989800, "countySha256": "9c6e9d9076abce2670d1de255de3710c35ecca00a7005d88e012dec52d95f763",
+      "license": "Public domain (U.S. Government work)", "updateCadence": "annual"
+    },
+    "roads": {
+      "agency": "U.S. Census Bureau", "dataset": "TIGER/Line county ROADS", "vintage": "2025",
+      "urlTemplate": "https://www2.census.gov/geo/tiger/TIGER2025/ROADS/tl_2025_{countyFips}_roads.zip",
+      "archiveStructure": "one ZIP per county, SHP/SHX/DBF/PRJ", "digestStrategy": "SHA-256 each downloaded archive against the committed 3,109-county lock; existing Oregon/Washington pins remain authoritative",
+      "sourceUnitCount": 3109, "measuredCompressedBytes": 4033268938,
+      "lockPath": "data/national/tiger2025-county-lock.json",
+      "license": "Public domain (U.S. Government work)", "updateCadence": "annual",
+      "nationalAlternative": {
+        "url": "https://www2.census.gov/geo/tiger/TGRGDB25/tlgdb_2025_a_us_roads.gdb.zip",
+        "advertisedCompressedSize": "2.1 GB (Census listing)",
+        "decision": "Not adopted: the national Roads layer lacks county FIPS provenance required by the current county-scoped normalization; record-level equivalence has not been proven."
+      }
+    },
+    "ecoregions": {
+      "agency": "U.S. Environmental Protection Agency", "dataset": "Level III and IV Ecoregions of the Continental United States",
+      "downloadPage": "https://www.epa.gov/eco-research/level-iii-and-iv-ecoregions-continental-united-states",
+      "archiveStructure": "national Level III and IV shapefiles, with or without state boundaries",
+      "expectedCompressedBytes": { "levelIII": 35000000, "levelIV": 69000000 },
+      "digestStrategy": "pin downloaded archive SHA-256 before conversion", "coverage": "CONUS", "updateCadence": "irregular", "status": "planned"
+    },
+    "wetlands": {
+      "agency": "U.S. Fish and Wildlife Service", "dataset": "National Wetlands Inventory", "vintage": "state download snapshot to be pinned in Phase 2",
+      "downloadPage": "https://www.fws.gov/program/national-wetlands-inventory/download-state-wetlands-data",
+      "archiveStructure": "GeoPackage or file geodatabase by state or HUC8", "digestStrategy": "SHA-256 per state archive",
+      "coverage": "state dependent; explicit coverage required", "updateCadence": "May and October state downloads", "status": "planned"
+    },
+    "hydrography": {
+      "agency": "U.S. Geological Survey", "dataset": "legacy NHD High Resolution", "vintage": "pinned HU8 snapshots in regional build; national vintage to be frozen in Phase 2",
+      "downloadPage": "https://www.usgs.gov/3d-hydrography-program/access-3dhp-data-products",
+      "archiveStructure": "HU8, HU4, state or entire nation", "digestStrategy": "SHA-256 per bounded archive",
+      "coverage": "CONUS", "updateCadence": "legacy product no longer maintained", "status": "planned"
+    }
+  }
+}

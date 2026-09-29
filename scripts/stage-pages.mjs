@@ -18,12 +18,14 @@
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
 const DIST = join(ROOT, 'dist');
 const MARKER = 'deployment.json';
 const SITE_ENTRIES = ['index.html', 'assets', 'src', 'data', 'config/pages-headers'];
+const UNSTAGED_DATA = ['data/national-work', 'data/national', 'data/regional/partitions', 'data/derived']
+  .map(path => join(ROOT, path));
 
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'));
 const sha256 = buffer => createHash('sha256').update(buffer).digest('hex');
@@ -48,12 +50,11 @@ function stage() {
     if (!existsSync(source)) throw new Error(`site entry is missing: ${entry}`);
     const target = join(DIST, entry === 'config/pages-headers' ? '_headers' : entry);
     mkdirSync(dirname(target), { recursive: true });
-    cpSync(source, target, { recursive: statSync(source).isDirectory() });
+    cpSync(source, target, { recursive: statSync(source).isDirectory(),
+      filter: path => !UNSTAGED_DATA.some(directory => path === directory || path.startsWith(`${directory}${sep}`)) });
   }
-  // Regional GeoParquet belongs to R2. Keep its small catalog on Pages, validate every local source
-  // artifact, and remove the bulky files from the staged site before inventorying it. The derived
-  // corridor-metrics plane is published the same way: its manifest is small and stays with the catalog, its
-  // cell objects are validated locally and served from the R2 data origin.
+  // Regional GeoParquet belongs to R2. The copy filter keeps raw, derived, and national build files out
+  // of Pages; validate local regional artifacts against their small catalog before inventorying the site.
   const regionalPath = join(DIST, 'data/regional/manifest.json');
   const regionalProblems = [];
   if (existsSync(regionalPath)) {
@@ -83,8 +84,6 @@ function stage() {
         }
       }
     }
-    rmSync(join(DIST, 'data/regional/partitions'), { recursive: true, force: true });
-    rmSync(join(DIST, 'data/derived'), { recursive: true, force: true });
   }
   // The place gazetteer is path-loaded like the search-area declaration, and it is checked against its own
   // build report: a stale or hand-edited place list must fail the deployment rather than ship quietly.
