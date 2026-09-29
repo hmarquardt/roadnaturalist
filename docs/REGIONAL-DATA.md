@@ -601,12 +601,11 @@ The 25- and 50-mile table and map draw at most 400 corridors, while the total co
 JS heap was 36 MB; the bounded 50-mile table and map remained responsive. The benchmark observed zero
 iNaturalist, eBird, Overpass, or Investigator Worker requests during all six discovery passes.
 
-The archived version-1 production run in `data/regional/derived-production-benchmarks.json` measured 3.47 s,
-3.54 s, and 8.76 s cold at 10, 25, and 50 miles; warm times were 0.13 s, 0.35 s, and 0.81 s. All six passes
-were COMFORTABLE and made zero external evidence requests. A version-2 production benchmark should refresh
-that file after the Pages deployment. The deployed regional preset also promoted a FULL corridor: the 250 m
-wetland area was 618.35 ha in both the derived row and raw detailed GIS, with no raw partition requested before
-promotion.
+The corrected plane's production run in `data/regional/derived-production-benchmarks.json` measured 4.11 s,
+3.47 s, and 11.64 s cold at 10, 25, and 50 miles; warm times were 0.13 s, 0.40 s, and 0.93 s. The 50-mile
+cold pass is USABLE under the fixed 25-second threshold; the other five passes are COMFORTABLE. All six made
+zero external evidence requests. Production promotion of a FULL corridor matched the derived and raw detailed
+250 m wetland area at 618.35 ha, and requested no raw partition before promotion.
 
 ### Runtime path
 
