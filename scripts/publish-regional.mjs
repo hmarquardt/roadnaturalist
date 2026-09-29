@@ -13,6 +13,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { regionalObjectSet } from './regional-objects.mjs';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
@@ -30,28 +31,14 @@ const checkOnly = flag('--check-only');
 const derivedOnly = flag('--derived-only');
 
 const catalog = JSON.parse(readFileSync(catalogPath, 'utf8'));
-const objects = [];
-for (const dataset of derivedOnly ? [] : catalog.datasets) for (const part of dataset.partitions) {
-  if (part.state === 'empty') continue;
-  objects.push({ key: part.url, local: `data/${part.url}`,
-    bytes: part.bytes, sha256: part.sha256, dataset: dataset.id, cell: part.id });
-}
-// The derived corridor-metrics plane is published under the same bucket and the same immutability rule: a
-// fingerprint directory is written once, and a rebuilt plane is a new fingerprint, never an overwrite.
+// One enumeration, shared with the remote audit, so the set that is published is exactly the set the catalog
+// declares and the set the audit checks. The road component index is part of it: a catalog that declares one
+// and a publisher that skips it is a broken regional search that reports success.
+const objects = regionalObjectSet(catalog, { derivedOnly })
+  .map(object => ({ key: object.key, local: object.local, bytes: object.bytes, sha256: object.sha256,
+    dataset: object.dataset, cell: object.cell, contentType: object.type }));
 const derivedManifestPath = catalog.derived ? `data/${catalog.derived.localPath}` : null;
-if (derivedOnly && !derivedManifestPath) throw new Error('the catalog declares no derived plane');
-if (derivedManifestPath) {
-  const manifestBytes = readFileSync(derivedManifestPath);
-  objects.push({ key: catalog.derived.manifestUrl, local: derivedManifestPath, bytes: manifestBytes.length,
-    sha256: createHash('sha256').update(manifestBytes).digest('hex'), dataset: 'derived-corridor-metrics', cell: 'manifest',
-    contentType: 'application/json' });
-  const manifest = JSON.parse(manifestBytes);
-  for (const cell of manifest.cells) {
-    if (cell.state === 'empty') continue;
-    objects.push({ key: cell.url, local: `data/${cell.url}`, bytes: cell.bytes, sha256: cell.sha256,
-      dataset: 'derived-corridor-metrics', cell: cell.id });
-  }
-}
+if (derivedOnly && !catalog.derived) throw new Error('the catalog declares no derived plane');
 const totalBytes = objects.reduce((sum, object) => sum + object.bytes, 0);
 console.log(`${catalog.version}: ${objects.length} objects, ${totalBytes.toLocaleString()} bytes from ${catalogPath}`
   + (derivedManifestPath ? ` (${objects.length - objects.filter(object => object.dataset !== 'derived-corridor-metrics').length} derived)` : ''));

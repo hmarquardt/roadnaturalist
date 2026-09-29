@@ -29,6 +29,14 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
   container.append(controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, onDiscover,
     onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }));
   if (discovery.error) container.append(el('p', 'discovery-error', discovery.error));
+  // A promotion that could not be completed says so, with the reason the application actually hit. It used to
+  // be state that nothing rendered: pressing Promote on a published object that was never uploaded looked
+  // exactly like a page that was still thinking, and no test could tell a refused promotion from a slow one.
+  if (discovery.promotionError) {
+    const note = el('p', 'discovery-error', `Promotion stopped: ${discovery.promotionError.reason}`);
+    note.id = 'discovery-promotion-error';
+    container.append(note);
+  }
   if (search?.error) container.append(el('p', 'discovery-error', search.error));
   if (discovery.coverage) container.append(coverageBanner(discovery.coverage, discovery.diagnostics, discovery.searchArea,
     runCenterLabel({ discovery, search, gazetteer })));

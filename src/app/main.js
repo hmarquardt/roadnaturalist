@@ -367,7 +367,8 @@ async function promoteDiscoveryCorridor(id) {
     writeDiscoveryMarks(store.getState().discovery.marks);
     nodes.list.scrollIntoView({ block: 'nearest' });
   } catch (error) {
-    store.noteDiscoveryPromotion(id, `promotion verification failed: ${error.message}`);
+    store.noteDiscoveryPromotion(id,
+      `the corridor could not be reconstructed from the published data (${error.message})`);
   }
 }
 

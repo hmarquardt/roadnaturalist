@@ -268,7 +268,8 @@ test('a promoted corridor keeps the search context from the row through to the c
   await expect(page.locator('#candidate-detail')).toBeVisible({ timeout: 60000 });
   await expect(page.locator('#candidate-detail #candidate-search-context')).toHaveCount(1);
   await expect(page.locator('#candidate-detail #candidate-search-context .search-context-headline')).toHaveText(`${rowCell} of Near Forest Grove, OR`);
-  await expect(page.locator('#discovery')).not.toContainText('promotion verification failed');
+  // A refused promotion renders its own line; its absence is what "the promotion was accepted" means.
+  await expect(page.locator('#discovery-promotion-error')).toHaveCount(0);
   expect(external).toEqual([]);
 });
 

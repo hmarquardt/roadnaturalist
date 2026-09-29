@@ -121,7 +121,8 @@ test('promotion produces an ordinary candidate whose detailed analysis matches t
   // This corridor came from the declared pilot window, which has no search centre, so the candidate carries no
   // search context: no row, no error, and no invented centre.
   await expect(detail.locator('#candidate-search-context')).toHaveCount(0);
-  await expect(page.locator('#discovery')).not.toContainText('promotion verification failed');
+  // A refused promotion renders its own line; its absence is what "the promotion was accepted" means.
+  await expect(page.locator('#discovery-promotion-error')).toHaveCount(0);
   const habitat = page.locator('.habitat-section');
   await expect(habitat).toContainText('PHYSICAL HABITAT EVIDENCE', { timeout: 60000 });
   const habitatArea = await habitat.locator('.road-facts div', { hasText: /^Within 250 m/ }).first().locator('dd').innerText();

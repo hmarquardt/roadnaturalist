@@ -3,6 +3,7 @@
 // and SHA-256, and browser CORS must allow the Road Naturalist Pages origin.
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { regionalObjectSet } from './regional-objects.mjs';
 
 const PARQUET = 'application/vnd.apache.parquet';
 const JSON_TYPE = 'application/json';
@@ -10,24 +11,10 @@ const derivedOnly = process.argv.includes('--derived-only');
 const catalog = JSON.parse(readFileSync(new URL('../data/regional/manifest.json', import.meta.url)));
 if (catalog.assetBaseUrl !== 'https://data.roadnaturalist.com/') throw new Error('Unexpected regional data origin');
 
-// Both planes on the data origin are audited: the raw regional partitions and the immutable derived
-// corridor-metrics plane (its manifest plus every present cell).
-const objects = [];
-for (const dataset of derivedOnly ? [] : catalog.datasets) for (const part of dataset.partitions) {
-  if (part.state === 'empty') continue;
-  objects.push({ key: part.url, bytes: part.bytes, sha256: part.sha256, type: PARQUET, plane: 'regional' });
-}
-if (derivedOnly && !catalog.derived) throw new Error('the catalog declares no derived plane');
-if (catalog.derived) {
-  const manifestBytes = readFileSync(new URL(`../data/${catalog.derived.localPath}`, import.meta.url));
-  objects.push({ key: catalog.derived.manifestUrl, bytes: manifestBytes.length,
-    sha256: createHash('sha256').update(manifestBytes).digest('hex'), type: JSON_TYPE, plane: 'derived' });
-  const manifest = JSON.parse(manifestBytes);
-  for (const cell of manifest.cells) {
-    if (cell.state === 'empty') continue;
-    objects.push({ key: cell.url, bytes: cell.bytes, sha256: cell.sha256, type: PARQUET, plane: 'derived' });
-  }
-}
+// One enumeration, shared with the publisher: every present raw partition, the road component index the
+// catalog declares, and the immutable derived plane. A declared object that no tool checks is how the version-3
+// component index went missing while this audit still reported success.
+const objects = regionalObjectSet(catalog, { derivedOnly });
 
 let bytes = 0;
 const planes = {};
