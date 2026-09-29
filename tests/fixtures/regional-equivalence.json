@@ -1,5 +1,5 @@
 {
- "catalogVersion": "or-sw-wa-portland-v2",
+ "catalogVersion": "or-sw-wa-portland-v3",
  "catalogAssetBaseUrl": "https://data.roadnaturalist.com/",
  "searchArea": {
   "id": "or-portland-west-regional",
@@ -17,7 +17,7 @@
  "corridorCount": 558,
  "runCoverage": "UNKNOWN",
  "publication": {
-  "version": "or-sw-wa-portland-v2",
+  "version": "or-sw-wa-portland-v3",
   "region": [
    -124.05,
    44.75,
@@ -27,17 +27,17 @@
  },
  "datasetVersions": {
   "roads": {
-   "version": "or-sw-wa-portland-v2",
+   "version": "or-sw-wa-portland-v3",
    "featureCount": 115907,
    "cells": 130
   },
   "wetlands": {
-   "version": "or-sw-wa-portland-v2",
-   "featureCount": 173704,
+   "version": "or-sw-wa-portland-v3",
+   "featureCount": 153853,
    "cells": 130
   },
   "hydrography": {
-   "version": "or-sw-wa-portland-v2",
+   "version": "or-sw-wa-portland-v3",
    "featureCount": 473671,
    "cells": 130
   }
@@ -47,7 +47,7 @@
   "wetlands": 6,
   "hydrography": 6
  },
- "partitionBytes": 66145995,
+ "partitionBytes": 63012877,
  "edgeSurvey": {
   "bbox": [
    -124.05,
@@ -2880,8 +2880,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -2922,8 +2922,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -2964,8 +2964,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -3007,8 +3007,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -3049,8 +3049,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -4744,8 +4744,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -4786,8 +4786,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -4828,8 +4828,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -4871,8 +4871,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -4913,8 +4913,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -7834,11 +7834,11 @@
    "survey": "regional area",
    "runSignals": {
     "wetlands": {
-     "area250M2": 2038204.18,
-     "area500M2": 6774470.236,
-     "area1000M2": 21028630.84,
-     "featureCount250": 140,
-     "featureCount1000": 490,
+     "area250M2": 1326191.162,
+     "area500M2": 4926422.991,
+     "area1000M2": 16302675.454,
+     "featureCount250": 71,
+     "featureCount1000": 246,
      "coverage": "FULL"
     },
     "hydrography": {
@@ -7870,21 +7870,21 @@
     "intersectsCorridor": true,
     "buffers": {
      "250": {
-      "areaM2": 2038204.18,
-      "featureCount": 140
+      "areaM2": 1326191.162,
+      "featureCount": 71
      },
      "500": {
-      "areaM2": 6774470.236,
-      "featureCount": 234
+      "areaM2": 4926422.991,
+      "featureCount": 118
      },
      "1000": {
-      "areaM2": 21028630.84,
-      "featureCount": 490
+      "areaM2": 16302675.454,
+      "featureCount": 246
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -7912,21 +7912,21 @@
     "intersectsCorridor": true,
     "buffers": {
      "250": {
-      "areaM2": 2038204.18,
-      "featureCount": 140
+      "areaM2": 1326191.162,
+      "featureCount": 71
      },
      "500": {
-      "areaM2": 6774470.236,
-      "featureCount": 234
+      "areaM2": 4926422.991,
+      "featureCount": 118
      },
      "1000": {
-      "areaM2": 21028630.84,
-      "featureCount": 490
+      "areaM2": 16302675.454,
+      "featureCount": 246
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -7954,21 +7954,21 @@
     "intersectsCorridor": true,
     "buffers": {
      "250": {
-      "areaM2": 5894571.156,
-      "featureCount": 358
+      "areaM2": 3971845.959,
+      "featureCount": 180
      },
      "500": {
-      "areaM2": 17420389.119,
-      "featureCount": 568
+      "areaM2": 12646021.111,
+      "featureCount": 285
      },
      "1000": {
-      "areaM2": 44367805.497,
-      "featureCount": 1116
+      "areaM2": 33354513.197,
+      "featureCount": 559
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -8010,8 +8010,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -8052,8 +8052,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -11002,2158 +11002,13 @@
       "id": "WA-580470",
       "distanceM": 1000,
       "areaM2": 5788319.621
-     },
-     {
-      "id": "WA-603514",
-      "distanceM": 250,
-      "areaM2": 3211.824
-     },
-     {
-      "id": "WA-603514",
-      "distanceM": 500,
-      "areaM2": 3211.824
-     },
-     {
-      "id": "WA-603514",
-      "distanceM": 1000,
-      "areaM2": 3211.824
-     },
-     {
-      "id": "WA-603596",
-      "distanceM": 250,
-      "areaM2": 9711.114
-     },
-     {
-      "id": "WA-603596",
-      "distanceM": 500,
-      "areaM2": 9711.114
-     },
-     {
-      "id": "WA-603596",
-      "distanceM": 1000,
-      "areaM2": 9711.114
-     },
-     {
-      "id": "WA-603747",
-      "distanceM": 250,
-      "areaM2": 2762.15
-     },
-     {
-      "id": "WA-603747",
-      "distanceM": 500,
-      "areaM2": 2762.15
-     },
-     {
-      "id": "WA-603747",
-      "distanceM": 1000,
-      "areaM2": 2762.15
-     },
-     {
-      "id": "WA-603748",
-      "distanceM": 250,
-      "areaM2": 1391.485
-     },
-     {
-      "id": "WA-603748",
-      "distanceM": 500,
-      "areaM2": 1391.485
-     },
-     {
-      "id": "WA-603748",
-      "distanceM": 1000,
-      "areaM2": 1391.485
-     },
-     {
-      "id": "WA-603785",
-      "distanceM": 250,
-      "areaM2": 53768.235
-     },
-     {
-      "id": "WA-603785",
-      "distanceM": 500,
-      "areaM2": 53768.235
-     },
-     {
-      "id": "WA-603785",
-      "distanceM": 1000,
-      "areaM2": 53768.235
-     },
-     {
-      "id": "WA-603809",
-      "distanceM": 250,
-      "areaM2": 1688.784
-     },
-     {
-      "id": "WA-603809",
-      "distanceM": 500,
-      "areaM2": 1688.784
-     },
-     {
-      "id": "WA-603809",
-      "distanceM": 1000,
-      "areaM2": 1688.784
-     },
-     {
-      "id": "WA-603810",
-      "distanceM": 250,
-      "areaM2": 4607.849
-     },
-     {
-      "id": "WA-603810",
-      "distanceM": 500,
-      "areaM2": 4607.849
-     },
-     {
-      "id": "WA-603810",
-      "distanceM": 1000,
-      "areaM2": 4607.849
-     },
-     {
-      "id": "WA-603836",
-      "distanceM": 250,
-      "areaM2": 1848.622
-     },
-     {
-      "id": "WA-603836",
-      "distanceM": 500,
-      "areaM2": 1848.622
-     },
-     {
-      "id": "WA-603836",
-      "distanceM": 1000,
-      "areaM2": 1848.622
-     },
-     {
-      "id": "WA-603837",
-      "distanceM": 250,
-      "areaM2": 806.516
-     },
-     {
-      "id": "WA-603837",
-      "distanceM": 500,
-      "areaM2": 806.516
-     },
-     {
-      "id": "WA-603837",
-      "distanceM": 1000,
-      "areaM2": 806.516
-     },
-     {
-      "id": "WA-603838",
-      "distanceM": 250,
-      "areaM2": 1600.59
-     },
-     {
-      "id": "WA-603838",
-      "distanceM": 500,
-      "areaM2": 1600.59
-     },
-     {
-      "id": "WA-603838",
-      "distanceM": 1000,
-      "areaM2": 1600.59
-     },
-     {
-      "id": "WA-604117",
-      "distanceM": 250,
-      "areaM2": 9442.19
-     },
-     {
-      "id": "WA-604117",
-      "distanceM": 500,
-      "areaM2": 9442.19
-     },
-     {
-      "id": "WA-604117",
-      "distanceM": 1000,
-      "areaM2": 9442.19
-     },
-     {
-      "id": "WA-604118",
-      "distanceM": 250,
-      "areaM2": 20276.673
-     },
-     {
-      "id": "WA-604118",
-      "distanceM": 500,
-      "areaM2": 20276.673
-     },
-     {
-      "id": "WA-604118",
-      "distanceM": 1000,
-      "areaM2": 20276.673
-     },
-     {
-      "id": "WA-604686",
-      "distanceM": 250,
-      "areaM2": 3262.578
-     },
-     {
-      "id": "WA-604686",
-      "distanceM": 500,
-      "areaM2": 8257.856
-     },
-     {
-      "id": "WA-604686",
-      "distanceM": 1000,
-      "areaM2": 15458.591
-     },
-     {
-      "id": "WA-605359",
-      "distanceM": 1000,
-      "areaM2": 16365.467
-     },
-     {
-      "id": "WA-605360",
-      "distanceM": 1000,
-      "areaM2": 2161.747
-     },
-     {
-      "id": "WA-605389",
-      "distanceM": 1000,
-      "areaM2": 619.512
-     },
-     {
-      "id": "WA-605481",
-      "distanceM": 250,
-      "areaM2": 7420.261
-     },
-     {
-      "id": "WA-605481",
-      "distanceM": 500,
-      "areaM2": 81209.558
-     },
-     {
-      "id": "WA-605481",
-      "distanceM": 1000,
-      "areaM2": 82534.375
-     },
-     {
-      "id": "WA-605482",
-      "distanceM": 1000,
-      "areaM2": 10242.256
-     },
-     {
-      "id": "WA-605483",
-      "distanceM": 1000,
-      "areaM2": 21922.96
-     },
-     {
-      "id": "WA-605484",
-      "distanceM": 500,
-      "areaM2": 6833.844
-     },
-     {
-      "id": "WA-605484",
-      "distanceM": 1000,
-      "areaM2": 49700.475
-     },
-     {
-      "id": "WA-605485",
-      "distanceM": 500,
-      "areaM2": 7075.563
-     },
-     {
-      "id": "WA-605485",
-      "distanceM": 1000,
-      "areaM2": 13839.02
-     },
-     {
-      "id": "WA-605486",
-      "distanceM": 1000,
-      "areaM2": 59518.554
-     },
-     {
-      "id": "WA-605487",
-      "distanceM": 1000,
-      "areaM2": 8028.296
-     },
-     {
-      "id": "WA-605488",
-      "distanceM": 500,
-      "areaM2": 2479.989
-     },
-     {
-      "id": "WA-605488",
-      "distanceM": 1000,
-      "areaM2": 4873.002
-     },
-     {
-      "id": "WA-605489",
-      "distanceM": 500,
-      "areaM2": 38379.539
-     },
-     {
-      "id": "WA-605489",
-      "distanceM": 1000,
-      "areaM2": 38477.831
-     },
-     {
-      "id": "WA-605491",
-      "distanceM": 250,
-      "areaM2": 7688.787
-     },
-     {
-      "id": "WA-605491",
-      "distanceM": 500,
-      "areaM2": 7688.787
-     },
-     {
-      "id": "WA-605491",
-      "distanceM": 1000,
-      "areaM2": 7688.787
-     },
-     {
-      "id": "WA-605492",
-      "distanceM": 1000,
-      "areaM2": 17698.475
-     },
-     {
-      "id": "WA-605493",
-      "distanceM": 1000,
-      "areaM2": 14034.856
-     },
-     {
-      "id": "WA-605494",
-      "distanceM": 1000,
-      "areaM2": 8224.021
-     },
-     {
-      "id": "WA-605495",
-      "distanceM": 1000,
-      "areaM2": 15616.523
-     },
-     {
-      "id": "WA-605496",
-      "distanceM": 1000,
-      "areaM2": 8829.444
-     },
-     {
-      "id": "WA-605497",
-      "distanceM": 1000,
-      "areaM2": 36178.162
-     },
-     {
-      "id": "WA-605499",
-      "distanceM": 1000,
-      "areaM2": 409.767
-     },
-     {
-      "id": "WA-605504",
-      "distanceM": 1000,
-      "areaM2": 92.115
-     },
-     {
-      "id": "WA-605505",
-      "distanceM": 1000,
-      "areaM2": 119.949
-     },
-     {
-      "id": "WA-605506",
-      "distanceM": 1000,
-      "areaM2": 4424.569
-     },
-     {
-      "id": "WA-605509",
-      "distanceM": 1000,
-      "areaM2": 2741.781
-     },
-     {
-      "id": "WA-605510",
-      "distanceM": 1000,
-      "areaM2": 4195.972
-     },
-     {
-      "id": "WA-605519",
-      "distanceM": 1000,
-      "areaM2": 11377.039
-     },
-     {
-      "id": "WA-605846",
-      "distanceM": 1000,
-      "areaM2": 1593.875
-     },
-     {
-      "id": "WA-605847",
-      "distanceM": 1000,
-      "areaM2": 4291.961
-     },
-     {
-      "id": "WA-605848",
-      "distanceM": 1000,
-      "areaM2": 22122.282
-     },
-     {
-      "id": "WA-605849",
-      "distanceM": 1000,
-      "areaM2": 5249.61
-     },
-     {
-      "id": "WA-605850",
-      "distanceM": 1000,
-      "areaM2": 9019.743
-     },
-     {
-      "id": "WA-605851",
-      "distanceM": 500,
-      "areaM2": 6205.701
-     },
-     {
-      "id": "WA-605851",
-      "distanceM": 1000,
-      "areaM2": 6205.701
-     },
-     {
-      "id": "WA-605852",
-      "distanceM": 500,
-      "areaM2": 4321.84
-     },
-     {
-      "id": "WA-605852",
-      "distanceM": 1000,
-      "areaM2": 4321.84
-     },
-     {
-      "id": "WA-605853",
-      "distanceM": 250,
-      "areaM2": 1396.248
-     },
-     {
-      "id": "WA-605853",
-      "distanceM": 500,
-      "areaM2": 5310.519
-     },
-     {
-      "id": "WA-605853",
-      "distanceM": 1000,
-      "areaM2": 5310.519
-     },
-     {
-      "id": "WA-605854",
-      "distanceM": 250,
-      "areaM2": 6326.166
-     },
-     {
-      "id": "WA-605854",
-      "distanceM": 500,
-      "areaM2": 10943.248
-     },
-     {
-      "id": "WA-605854",
-      "distanceM": 1000,
-      "areaM2": 10943.248
-     },
-     {
-      "id": "WA-605855",
-      "distanceM": 500,
-      "areaM2": 1186.565
-     },
-     {
-      "id": "WA-605855",
-      "distanceM": 1000,
-      "areaM2": 7779.805
-     },
-     {
-      "id": "WA-605856",
-      "distanceM": 1000,
-      "areaM2": 5595.027
-     },
-     {
-      "id": "WA-605858",
-      "distanceM": 1000,
-      "areaM2": 7078.983
-     },
-     {
-      "id": "WA-605869",
-      "distanceM": 250,
-      "areaM2": 11463.449
-     },
-     {
-      "id": "WA-605869",
-      "distanceM": 500,
-      "areaM2": 11463.449
-     },
-     {
-      "id": "WA-605869",
-      "distanceM": 1000,
-      "areaM2": 11463.449
-     },
-     {
-      "id": "WA-605870",
-      "distanceM": 250,
-      "areaM2": 705.65
-     },
-     {
-      "id": "WA-605870",
-      "distanceM": 500,
-      "areaM2": 7659.881
-     },
-     {
-      "id": "WA-605870",
-      "distanceM": 1000,
-      "areaM2": 7659.881
-     },
-     {
-      "id": "WA-605871",
-      "distanceM": 500,
-      "areaM2": 977.221
-     },
-     {
-      "id": "WA-605871",
-      "distanceM": 1000,
-      "areaM2": 977.221
-     },
-     {
-      "id": "WA-605872",
-      "distanceM": 500,
-      "areaM2": 39.893
-     },
-     {
-      "id": "WA-605872",
-      "distanceM": 1000,
-      "areaM2": 323.547
-     },
-     {
-      "id": "WA-605873",
-      "distanceM": 500,
-      "areaM2": 298.978
-     },
-     {
-      "id": "WA-605873",
-      "distanceM": 1000,
-      "areaM2": 329.362
-     },
-     {
-      "id": "WA-605874",
-      "distanceM": 500,
-      "areaM2": 1138.98
-     },
-     {
-      "id": "WA-605874",
-      "distanceM": 1000,
-      "areaM2": 4688.91
-     },
-     {
-      "id": "WA-605875",
-      "distanceM": 250,
-      "areaM2": 2153.211
-     },
-     {
-      "id": "WA-605875",
-      "distanceM": 500,
-      "areaM2": 4356.124
-     },
-     {
-      "id": "WA-605875",
-      "distanceM": 1000,
-      "areaM2": 4356.124
-     },
-     {
-      "id": "WA-605876",
-      "distanceM": 250,
-      "areaM2": 7788.331
-     },
-     {
-      "id": "WA-605876",
-      "distanceM": 500,
-      "areaM2": 7788.331
-     },
-     {
-      "id": "WA-605876",
-      "distanceM": 1000,
-      "areaM2": 7788.331
-     },
-     {
-      "id": "WA-605877",
-      "distanceM": 1000,
-      "areaM2": 3258.562
-     },
-     {
-      "id": "WA-605878",
-      "distanceM": 1000,
-      "areaM2": 1751.369
-     },
-     {
-      "id": "WA-605879",
-      "distanceM": 250,
-      "areaM2": 20314.774
-     },
-     {
-      "id": "WA-605879",
-      "distanceM": 500,
-      "areaM2": 20314.774
-     },
-     {
-      "id": "WA-605879",
-      "distanceM": 1000,
-      "areaM2": 20314.774
-     },
-     {
-      "id": "WA-605880",
-      "distanceM": 250,
-      "areaM2": 1097.81
-     },
-     {
-      "id": "WA-605880",
-      "distanceM": 500,
-      "areaM2": 1097.81
-     },
-     {
-      "id": "WA-605880",
-      "distanceM": 1000,
-      "areaM2": 1097.81
-     },
-     {
-      "id": "WA-605881",
-      "distanceM": 250,
-      "areaM2": 4381.224
-     },
-     {
-      "id": "WA-605881",
-      "distanceM": 500,
-      "areaM2": 4381.224
-     },
-     {
-      "id": "WA-605881",
-      "distanceM": 1000,
-      "areaM2": 4381.224
-     },
-     {
-      "id": "WA-605882",
-      "distanceM": 250,
-      "areaM2": 2114.974
-     },
-     {
-      "id": "WA-605882",
-      "distanceM": 500,
-      "areaM2": 2114.974
-     },
-     {
-      "id": "WA-605882",
-      "distanceM": 1000,
-      "areaM2": 2114.974
-     },
-     {
-      "id": "WA-605883",
-      "distanceM": 250,
-      "areaM2": 2801.208
-     },
-     {
-      "id": "WA-605883",
-      "distanceM": 500,
-      "areaM2": 2801.208
-     },
-     {
-      "id": "WA-605883",
-      "distanceM": 1000,
-      "areaM2": 2801.208
-     },
-     {
-      "id": "WA-605884",
-      "distanceM": 250,
-      "areaM2": 16984.19
-     },
-     {
-      "id": "WA-605884",
-      "distanceM": 500,
-      "areaM2": 16984.19
-     },
-     {
-      "id": "WA-605884",
-      "distanceM": 1000,
-      "areaM2": 16984.19
-     },
-     {
-      "id": "WA-605885",
-      "distanceM": 250,
-      "areaM2": 1399.024
-     },
-     {
-      "id": "WA-605885",
-      "distanceM": 500,
-      "areaM2": 1399.024
-     },
-     {
-      "id": "WA-605885",
-      "distanceM": 1000,
-      "areaM2": 1399.024
-     },
-     {
-      "id": "WA-605886",
-      "distanceM": 250,
-      "areaM2": 345.371
-     },
-     {
-      "id": "WA-605886",
-      "distanceM": 500,
-      "areaM2": 345.371
-     },
-     {
-      "id": "WA-605886",
-      "distanceM": 1000,
-      "areaM2": 345.371
-     },
-     {
-      "id": "WA-605887",
-      "distanceM": 250,
-      "areaM2": 12401.003
-     },
-     {
-      "id": "WA-605887",
-      "distanceM": 500,
-      "areaM2": 12401.003
-     },
-     {
-      "id": "WA-605887",
-      "distanceM": 1000,
-      "areaM2": 12401.003
-     },
-     {
-      "id": "WA-605888",
-      "distanceM": 250,
-      "areaM2": 3385.168
-     },
-     {
-      "id": "WA-605888",
-      "distanceM": 500,
-      "areaM2": 3385.168
-     },
-     {
-      "id": "WA-605888",
-      "distanceM": 1000,
-      "areaM2": 3385.168
-     },
-     {
-      "id": "WA-605889",
-      "distanceM": 1000,
-      "areaM2": 35778.983
-     },
-     {
-      "id": "WA-605894",
-      "distanceM": 1000,
-      "areaM2": 1797.228
-     },
-     {
-      "id": "WA-605904",
-      "distanceM": 500,
-      "areaM2": 2288.879
-     },
-     {
-      "id": "WA-605904",
-      "distanceM": 1000,
-      "areaM2": 18302.345
-     },
-     {
-      "id": "WA-605905",
-      "distanceM": 500,
-      "areaM2": 1971.374
-     },
-     {
-      "id": "WA-605905",
-      "distanceM": 1000,
-      "areaM2": 1971.374
-     },
-     {
-      "id": "WA-605906",
-      "distanceM": 250,
-      "areaM2": 23340.741
-     },
-     {
-      "id": "WA-605906",
-      "distanceM": 500,
-      "areaM2": 43635.588
-     },
-     {
-      "id": "WA-605906",
-      "distanceM": 1000,
-      "areaM2": 43635.588
-     },
-     {
-      "id": "WA-605907",
-      "distanceM": 250,
-      "areaM2": 1579.508
-     },
-     {
-      "id": "WA-605907",
-      "distanceM": 500,
-      "areaM2": 6238.975
-     },
-     {
-      "id": "WA-605907",
-      "distanceM": 1000,
-      "areaM2": 6238.975
-     },
-     {
-      "id": "WA-605921",
-      "distanceM": 1000,
-      "areaM2": 9944.472
-     },
-     {
-      "id": "WA-605922",
-      "distanceM": 1000,
-      "areaM2": 2069.98
-     },
-     {
-      "id": "WA-605954",
-      "distanceM": 250,
-      "areaM2": 4527.175
-     },
-     {
-      "id": "WA-605954",
-      "distanceM": 500,
-      "areaM2": 17459.828
-     },
-     {
-      "id": "WA-605954",
-      "distanceM": 1000,
-      "areaM2": 17459.828
-     },
-     {
-      "id": "WA-605955",
-      "distanceM": 500,
-      "areaM2": 6122.802
-     },
-     {
-      "id": "WA-605955",
-      "distanceM": 1000,
-      "areaM2": 6530.637
-     },
-     {
-      "id": "WA-605967",
-      "distanceM": 500,
-      "areaM2": 5241.533
-     },
-     {
-      "id": "WA-605967",
-      "distanceM": 1000,
-      "areaM2": 5328.958
-     },
-     {
-      "id": "WA-605968",
-      "distanceM": 1000,
-      "areaM2": 3573.55
-     },
-     {
-      "id": "WA-605969",
-      "distanceM": 250,
-      "areaM2": 64281.202
-     },
-     {
-      "id": "WA-605969",
-      "distanceM": 500,
-      "areaM2": 82357.298
-     },
-     {
-      "id": "WA-605969",
-      "distanceM": 1000,
-      "areaM2": 118211.359
-     },
-     {
-      "id": "WA-606080",
-      "distanceM": 1000,
-      "areaM2": 4470.961
-     },
-     {
-      "id": "WA-606081",
-      "distanceM": 1000,
-      "areaM2": 4684.397
-     },
-     {
-      "id": "WA-606082",
-      "distanceM": 1000,
-      "areaM2": 98.393
-     },
-     {
-      "id": "WA-606083",
-      "distanceM": 1000,
-      "areaM2": 1292.545
-     },
-     {
-      "id": "WA-606084",
-      "distanceM": 500,
-      "areaM2": 15173.421
-     },
-     {
-      "id": "WA-606084",
-      "distanceM": 1000,
-      "areaM2": 16970.97
-     },
-     {
-      "id": "WA-606086",
-      "distanceM": 500,
-      "areaM2": 102.811
-     },
-     {
-      "id": "WA-606086",
-      "distanceM": 1000,
-      "areaM2": 38183.918
-     },
-     {
-      "id": "WA-606087",
-      "distanceM": 1000,
-      "areaM2": 3288.628
-     },
-     {
-      "id": "WA-606088",
-      "distanceM": 1000,
-      "areaM2": 815.913
-     },
-     {
-      "id": "WA-606089",
-      "distanceM": 1000,
-      "areaM2": 720.376
-     },
-     {
-      "id": "WA-606099",
-      "distanceM": 1000,
-      "areaM2": 501.071
-     },
-     {
-      "id": "WA-606100",
-      "distanceM": 1000,
-      "areaM2": 825.233
-     },
-     {
-      "id": "WA-606101",
-      "distanceM": 250,
-      "areaM2": 1856.907
-     },
-     {
-      "id": "WA-606101",
-      "distanceM": 500,
-      "areaM2": 3294.264
-     },
-     {
-      "id": "WA-606101",
-      "distanceM": 1000,
-      "areaM2": 3294.264
-     },
-     {
-      "id": "WA-606102",
-      "distanceM": 500,
-      "areaM2": 573.139
-     },
-     {
-      "id": "WA-606102",
-      "distanceM": 1000,
-      "areaM2": 573.139
-     },
-     {
-      "id": "WA-606103",
-      "distanceM": 1000,
-      "areaM2": 4521.515
-     },
-     {
-      "id": "WA-606104",
-      "distanceM": 1000,
-      "areaM2": 19973.632
-     },
-     {
-      "id": "WA-606105",
-      "distanceM": 1000,
-      "areaM2": 931.277
-     },
-     {
-      "id": "WA-606106",
-      "distanceM": 1000,
-      "areaM2": 15083.674
-     },
-     {
-      "id": "WA-606107",
-      "distanceM": 1000,
-      "areaM2": 13142.227
-     },
-     {
-      "id": "WA-606108",
-      "distanceM": 1000,
-      "areaM2": 1683.344
-     },
-     {
-      "id": "WA-606109",
-      "distanceM": 1000,
-      "areaM2": 428.782
-     },
-     {
-      "id": "WA-606110",
-      "distanceM": 250,
-      "areaM2": 2795.751
-     },
-     {
-      "id": "WA-606110",
-      "distanceM": 500,
-      "areaM2": 34899.947
-     },
-     {
-      "id": "WA-606110",
-      "distanceM": 1000,
-      "areaM2": 68409.43
-     },
-     {
-      "id": "WA-606111",
-      "distanceM": 1000,
-      "areaM2": 291.154
-     },
-     {
-      "id": "WA-606112",
-      "distanceM": 1000,
-      "areaM2": 264.973
-     },
-     {
-      "id": "WA-606113",
-      "distanceM": 1000,
-      "areaM2": 1417.054
-     },
-     {
-      "id": "WA-606114",
-      "distanceM": 1000,
-      "areaM2": 9831.894
-     },
-     {
-      "id": "WA-606115",
-      "distanceM": 1000,
-      "areaM2": 5473.941
-     },
-     {
-      "id": "WA-606116",
-      "distanceM": 1000,
-      "areaM2": 3409.139
-     },
-     {
-      "id": "WA-606117",
-      "distanceM": 1000,
-      "areaM2": 534.864
-     },
-     {
-      "id": "WA-606118",
-      "distanceM": 1000,
-      "areaM2": 28792.641
-     },
-     {
-      "id": "WA-606119",
-      "distanceM": 1000,
-      "areaM2": 4841.339
-     },
-     {
-      "id": "WA-606121",
-      "distanceM": 1000,
-      "areaM2": 2792.179
-     },
-     {
-      "id": "WA-606122",
-      "distanceM": 1000,
-      "areaM2": 759.905
-     },
-     {
-      "id": "WA-606146",
-      "distanceM": 250,
-      "areaM2": 2526.18
-     },
-     {
-      "id": "WA-606146",
-      "distanceM": 500,
-      "areaM2": 2526.18
-     },
-     {
-      "id": "WA-606146",
-      "distanceM": 1000,
-      "areaM2": 2526.18
-     },
-     {
-      "id": "WA-606147",
-      "distanceM": 250,
-      "areaM2": 825.915
-     },
-     {
-      "id": "WA-606147",
-      "distanceM": 500,
-      "areaM2": 825.915
-     },
-     {
-      "id": "WA-606147",
-      "distanceM": 1000,
-      "areaM2": 825.915
-     },
-     {
-      "id": "WA-606148",
-      "distanceM": 1000,
-      "areaM2": 4279.711
-     },
-     {
-      "id": "WA-606149",
-      "distanceM": 1000,
-      "areaM2": 64439.013
-     },
-     {
-      "id": "WA-606150",
-      "distanceM": 1000,
-      "areaM2": 31609.998
-     },
-     {
-      "id": "WA-606151",
-      "distanceM": 1000,
-      "areaM2": 644.242
-     },
-     {
-      "id": "WA-606152",
-      "distanceM": 500,
-      "areaM2": 978.887
-     },
-     {
-      "id": "WA-606152",
-      "distanceM": 1000,
-      "areaM2": 978.887
-     },
-     {
-      "id": "WA-606164",
-      "distanceM": 1000,
-      "areaM2": 24452.383
-     },
-     {
-      "id": "WA-606165",
-      "distanceM": 500,
-      "areaM2": 1847.079
-     },
-     {
-      "id": "WA-606165",
-      "distanceM": 1000,
-      "areaM2": 11018.599
-     },
-     {
-      "id": "WA-606166",
-      "distanceM": 1000,
-      "areaM2": 2432.684
-     },
-     {
-      "id": "WA-606167",
-      "distanceM": 1000,
-      "areaM2": 2598.954
-     },
-     {
-      "id": "WA-606168",
-      "distanceM": 1000,
-      "areaM2": 1399.339
-     },
-     {
-      "id": "WA-606169",
-      "distanceM": 1000,
-      "areaM2": 914.824
-     },
-     {
-      "id": "WA-606170",
-      "distanceM": 1000,
-      "areaM2": 1530.678
-     },
-     {
-      "id": "WA-606171",
-      "distanceM": 1000,
-      "areaM2": 2325.747
-     },
-     {
-      "id": "WA-606172",
-      "distanceM": 1000,
-      "areaM2": 56597.224
-     },
-     {
-      "id": "WA-606176",
-      "distanceM": 1000,
-      "areaM2": 2877.64
-     },
-     {
-      "id": "WA-606177",
-      "distanceM": 1000,
-      "areaM2": 209.702
-     },
-     {
-      "id": "WA-606179",
-      "distanceM": 1000,
-      "areaM2": 16826.711
-     },
-     {
-      "id": "WA-606180",
-      "distanceM": 250,
-      "areaM2": 4942.583
-     },
-     {
-      "id": "WA-606180",
-      "distanceM": 500,
-      "areaM2": 4942.583
-     },
-     {
-      "id": "WA-606180",
-      "distanceM": 1000,
-      "areaM2": 4942.583
-     },
-     {
-      "id": "WA-606181",
-      "distanceM": 250,
-      "areaM2": 34513.807
-     },
-     {
-      "id": "WA-606181",
-      "distanceM": 500,
-      "areaM2": 45021.842
-     },
-     {
-      "id": "WA-606181",
-      "distanceM": 1000,
-      "areaM2": 45021.842
-     },
-     {
-      "id": "WA-606182",
-      "distanceM": 250,
-      "areaM2": 2445.594
-     },
-     {
-      "id": "WA-606182",
-      "distanceM": 500,
-      "areaM2": 2445.594
-     },
-     {
-      "id": "WA-606182",
-      "distanceM": 1000,
-      "areaM2": 2445.594
-     },
-     {
-      "id": "WA-606183",
-      "distanceM": 250,
-      "areaM2": 5564.366
-     },
-     {
-      "id": "WA-606183",
-      "distanceM": 500,
-      "areaM2": 11893.369
-     },
-     {
-      "id": "WA-606183",
-      "distanceM": 1000,
-      "areaM2": 11893.369
-     },
-     {
-      "id": "WA-606184",
-      "distanceM": 250,
-      "areaM2": 3936.001
-     },
-     {
-      "id": "WA-606184",
-      "distanceM": 500,
-      "areaM2": 3936.001
-     },
-     {
-      "id": "WA-606184",
-      "distanceM": 1000,
-      "areaM2": 3936.001
-     },
-     {
-      "id": "WA-606187",
-      "distanceM": 1000,
-      "areaM2": 13175.568
-     },
-     {
-      "id": "WA-606188",
-      "distanceM": 1000,
-      "areaM2": 2502.406
-     },
-     {
-      "id": "WA-606189",
-      "distanceM": 1000,
-      "areaM2": 7747.501
-     },
-     {
-      "id": "WA-606190",
-      "distanceM": 1000,
-      "areaM2": 1764.265
-     },
-     {
-      "id": "WA-606191",
-      "distanceM": 1000,
-      "areaM2": 4107.105
-     },
-     {
-      "id": "WA-606197",
-      "distanceM": 500,
-      "areaM2": 1869.098
-     },
-     {
-      "id": "WA-606197",
-      "distanceM": 1000,
-      "areaM2": 1869.098
-     },
-     {
-      "id": "WA-606198",
-      "distanceM": 1000,
-      "areaM2": 2570.161
-     },
-     {
-      "id": "WA-606199",
-      "distanceM": 500,
-      "areaM2": 43042.118
-     },
-     {
-      "id": "WA-606199",
-      "distanceM": 1000,
-      "areaM2": 45753.17
-     },
-     {
-      "id": "WA-606206",
-      "distanceM": 250,
-      "areaM2": 5913.659
-     },
-     {
-      "id": "WA-606206",
-      "distanceM": 500,
-      "areaM2": 5913.659
-     },
-     {
-      "id": "WA-606206",
-      "distanceM": 1000,
-      "areaM2": 5913.659
-     },
-     {
-      "id": "WA-606207",
-      "distanceM": 500,
-      "areaM2": 363.548
-     },
-     {
-      "id": "WA-606207",
-      "distanceM": 1000,
-      "areaM2": 363.548
-     },
-     {
-      "id": "WA-606208",
-      "distanceM": 500,
-      "areaM2": 4041.815
-     },
-     {
-      "id": "WA-606208",
-      "distanceM": 1000,
-      "areaM2": 4041.815
-     },
-     {
-      "id": "WA-606209",
-      "distanceM": 500,
-      "areaM2": 1247.258
-     },
-     {
-      "id": "WA-606209",
-      "distanceM": 1000,
-      "areaM2": 1454.06
-     },
-     {
-      "id": "WA-606210",
-      "distanceM": 500,
-      "areaM2": 1548.769
-     },
-     {
-      "id": "WA-606210",
-      "distanceM": 1000,
-      "areaM2": 1548.769
-     },
-     {
-      "id": "WA-606211",
-      "distanceM": 1000,
-      "areaM2": 4087.709
-     },
-     {
-      "id": "WA-606212",
-      "distanceM": 1000,
-      "areaM2": 5688.158
-     },
-     {
-      "id": "WA-606213",
-      "distanceM": 500,
-      "areaM2": 2648.591
-     },
-     {
-      "id": "WA-606213",
-      "distanceM": 1000,
-      "areaM2": 2648.591
-     },
-     {
-      "id": "WA-606214",
-      "distanceM": 250,
-      "areaM2": 1894.873
-     },
-     {
-      "id": "WA-606214",
-      "distanceM": 500,
-      "areaM2": 8016.823
-     },
-     {
-      "id": "WA-606214",
-      "distanceM": 1000,
-      "areaM2": 8016.823
-     },
-     {
-      "id": "WA-606215",
-      "distanceM": 500,
-      "areaM2": 10571.059
-     },
-     {
-      "id": "WA-606215",
-      "distanceM": 1000,
-      "areaM2": 10571.059
-     },
-     {
-      "id": "WA-606216",
-      "distanceM": 1000,
-      "areaM2": 8601.724
-     },
-     {
-      "id": "WA-606217",
-      "distanceM": 1000,
-      "areaM2": 14375.921
-     },
-     {
-      "id": "WA-606218",
-      "distanceM": 500,
-      "areaM2": 43219.67
-     },
-     {
-      "id": "WA-606218",
-      "distanceM": 1000,
-      "areaM2": 43219.67
-     },
-     {
-      "id": "WA-606219",
-      "distanceM": 500,
-      "areaM2": 7791.186
-     },
-     {
-      "id": "WA-606219",
-      "distanceM": 1000,
-      "areaM2": 7791.186
-     },
-     {
-      "id": "WA-606220",
-      "distanceM": 1000,
-      "areaM2": 9841.56
-     },
-     {
-      "id": "WA-606221",
-      "distanceM": 1000,
-      "areaM2": 23553.677
-     },
-     {
-      "id": "WA-606222",
-      "distanceM": 1000,
-      "areaM2": 63749.628
-     },
-     {
-      "id": "WA-606223",
-      "distanceM": 500,
-      "areaM2": 4414.315
-     },
-     {
-      "id": "WA-606223",
-      "distanceM": 1000,
-      "areaM2": 14383.671
-     },
-     {
-      "id": "WA-606224",
-      "distanceM": 1000,
-      "areaM2": 888.905
-     },
-     {
-      "id": "WA-606225",
-      "distanceM": 1000,
-      "areaM2": 20832.803
-     },
-     {
-      "id": "WA-606226",
-      "distanceM": 1000,
-      "areaM2": 1802.681
-     },
-     {
-      "id": "WA-606227",
-      "distanceM": 1000,
-      "areaM2": 2814.846
-     },
-     {
-      "id": "WA-606228",
-      "distanceM": 1000,
-      "areaM2": 379.21
-     },
-     {
-      "id": "WA-606229",
-      "distanceM": 1000,
-      "areaM2": 410.508
-     },
-     {
-      "id": "WA-606230",
-      "distanceM": 1000,
-      "areaM2": 2290.093
-     },
-     {
-      "id": "WA-606231",
-      "distanceM": 1000,
-      "areaM2": 635.559
-     },
-     {
-      "id": "WA-606232",
-      "distanceM": 1000,
-      "areaM2": 283.606
-     },
-     {
-      "id": "WA-606233",
-      "distanceM": 1000,
-      "areaM2": 7023.115
-     },
-     {
-      "id": "WA-606234",
-      "distanceM": 500,
-      "areaM2": 487.654
-     },
-     {
-      "id": "WA-606234",
-      "distanceM": 1000,
-      "areaM2": 487.654
-     },
-     {
-      "id": "WA-606235",
-      "distanceM": 500,
-      "areaM2": 510.408
-     },
-     {
-      "id": "WA-606235",
-      "distanceM": 1000,
-      "areaM2": 510.408
-     },
-     {
-      "id": "WA-606236",
-      "distanceM": 250,
-      "areaM2": 828.012
-     },
-     {
-      "id": "WA-606236",
-      "distanceM": 500,
-      "areaM2": 20278.537
-     },
-     {
-      "id": "WA-606236",
-      "distanceM": 1000,
-      "areaM2": 20278.537
-     },
-     {
-      "id": "WA-606237",
-      "distanceM": 500,
-      "areaM2": 18775.973
-     },
-     {
-      "id": "WA-606237",
-      "distanceM": 1000,
-      "areaM2": 19300.075
-     },
-     {
-      "id": "WA-606238",
-      "distanceM": 500,
-      "areaM2": 6906.9
-     },
-     {
-      "id": "WA-606238",
-      "distanceM": 1000,
-      "areaM2": 32938.845
-     },
-     {
-      "id": "WA-606239",
-      "distanceM": 1000,
-      "areaM2": 178934.401
-     },
-     {
-      "id": "WA-606240",
-      "distanceM": 1000,
-      "areaM2": 3316.386
-     },
-     {
-      "id": "WA-606241",
-      "distanceM": 1000,
-      "areaM2": 706.487
-     },
-     {
-      "id": "WA-606242",
-      "distanceM": 1000,
-      "areaM2": 2330.993
-     },
-     {
-      "id": "WA-606243",
-      "distanceM": 250,
-      "areaM2": 2800.272
-     },
-     {
-      "id": "WA-606243",
-      "distanceM": 500,
-      "areaM2": 2877.353
-     },
-     {
-      "id": "WA-606243",
-      "distanceM": 1000,
-      "areaM2": 2877.353
-     },
-     {
-      "id": "WA-606244",
-      "distanceM": 250,
-      "areaM2": 971.46
-     },
-     {
-      "id": "WA-606244",
-      "distanceM": 500,
-      "areaM2": 971.46
-     },
-     {
-      "id": "WA-606244",
-      "distanceM": 1000,
-      "areaM2": 971.46
-     },
-     {
-      "id": "WA-606245",
-      "distanceM": 250,
-      "areaM2": 291.594
-     },
-     {
-      "id": "WA-606245",
-      "distanceM": 500,
-      "areaM2": 291.594
-     },
-     {
-      "id": "WA-606245",
-      "distanceM": 1000,
-      "areaM2": 291.594
-     },
-     {
-      "id": "WA-606246",
-      "distanceM": 250,
-      "areaM2": 529.436
-     },
-     {
-      "id": "WA-606246",
-      "distanceM": 500,
-      "areaM2": 765.964
-     },
-     {
-      "id": "WA-606246",
-      "distanceM": 1000,
-      "areaM2": 765.964
-     },
-     {
-      "id": "WA-606247",
-      "distanceM": 250,
-      "areaM2": 6216.113
-     },
-     {
-      "id": "WA-606247",
-      "distanceM": 500,
-      "areaM2": 7336.853
-     },
-     {
-      "id": "WA-606247",
-      "distanceM": 1000,
-      "areaM2": 7336.853
-     },
-     {
-      "id": "WA-606248",
-      "distanceM": 250,
-      "areaM2": 8200.184
-     },
-     {
-      "id": "WA-606248",
-      "distanceM": 500,
-      "areaM2": 8200.184
-     },
-     {
-      "id": "WA-606248",
-      "distanceM": 1000,
-      "areaM2": 8200.184
-     },
-     {
-      "id": "WA-606249",
-      "distanceM": 250,
-      "areaM2": 9186.27
-     },
-     {
-      "id": "WA-606249",
-      "distanceM": 500,
-      "areaM2": 9186.27
-     },
-     {
-      "id": "WA-606249",
-      "distanceM": 1000,
-      "areaM2": 9186.27
-     },
-     {
-      "id": "WA-606250",
-      "distanceM": 250,
-      "areaM2": 3381.742
-     },
-     {
-      "id": "WA-606250",
-      "distanceM": 500,
-      "areaM2": 22155.618
-     },
-     {
-      "id": "WA-606250",
-      "distanceM": 1000,
-      "areaM2": 22155.618
-     },
-     {
-      "id": "WA-606251",
-      "distanceM": 500,
-      "areaM2": 341.144
-     },
-     {
-      "id": "WA-606251",
-      "distanceM": 1000,
-      "areaM2": 341.144
-     },
-     {
-      "id": "WA-606252",
-      "distanceM": 1000,
-      "areaM2": 395.161
-     },
-     {
-      "id": "WA-606253",
-      "distanceM": 250,
-      "areaM2": 12791.117
-     },
-     {
-      "id": "WA-606253",
-      "distanceM": 500,
-      "areaM2": 12791.117
-     },
-     {
-      "id": "WA-606253",
-      "distanceM": 1000,
-      "areaM2": 12791.117
-     },
-     {
-      "id": "WA-606282",
-      "distanceM": 250,
-      "areaM2": 2806.296
-     },
-     {
-      "id": "WA-606282",
-      "distanceM": 500,
-      "areaM2": 3445.403
-     },
-     {
-      "id": "WA-606282",
-      "distanceM": 1000,
-      "areaM2": 3445.403
-     },
-     {
-      "id": "WA-606283",
-      "distanceM": 250,
-      "areaM2": 6171.47
-     },
-     {
-      "id": "WA-606283",
-      "distanceM": 500,
-      "areaM2": 6171.47
-     },
-     {
-      "id": "WA-606283",
-      "distanceM": 1000,
-      "areaM2": 6171.47
-     },
-     {
-      "id": "WA-606284",
-      "distanceM": 250,
-      "areaM2": 2524.837
-     },
-     {
-      "id": "WA-606284",
-      "distanceM": 500,
-      "areaM2": 2524.837
-     },
-     {
-      "id": "WA-606284",
-      "distanceM": 1000,
-      "areaM2": 2524.837
-     },
-     {
-      "id": "WA-606285",
-      "distanceM": 250,
-      "areaM2": 21480.269
-     },
-     {
-      "id": "WA-606285",
-      "distanceM": 500,
-      "areaM2": 21480.269
-     },
-     {
-      "id": "WA-606285",
-      "distanceM": 1000,
-      "areaM2": 21480.269
-     },
-     {
-      "id": "WA-606286",
-      "distanceM": 250,
-      "areaM2": 11936.135
-     },
-     {
-      "id": "WA-606286",
-      "distanceM": 500,
-      "areaM2": 11936.135
-     },
-     {
-      "id": "WA-606286",
-      "distanceM": 1000,
-      "areaM2": 11936.135
-     },
-     {
-      "id": "WA-606287",
-      "distanceM": 250,
-      "areaM2": 80677.115
-     },
-     {
-      "id": "WA-606287",
-      "distanceM": 500,
-      "areaM2": 85958.162
-     },
-     {
-      "id": "WA-606287",
-      "distanceM": 1000,
-      "areaM2": 85958.162
-     },
-     {
-      "id": "WA-606289",
-      "distanceM": 500,
-      "areaM2": 2716.83
-     },
-     {
-      "id": "WA-606289",
-      "distanceM": 1000,
-      "areaM2": 2716.83
-     },
-     {
-      "id": "WA-606290",
-      "distanceM": 1000,
-      "areaM2": 1515.883
-     },
-     {
-      "id": "WA-606291",
-      "distanceM": 1000,
-      "areaM2": 2296.371
-     },
-     {
-      "id": "WA-606326",
-      "distanceM": 500,
-      "areaM2": 1117.093
-     },
-     {
-      "id": "WA-606326",
-      "distanceM": 1000,
-      "areaM2": 1117.093
-     },
-     {
-      "id": "WA-606327",
-      "distanceM": 250,
-      "areaM2": 29308.329
-     },
-     {
-      "id": "WA-606327",
-      "distanceM": 500,
-      "areaM2": 63259.668
-     },
-     {
-      "id": "WA-606327",
-      "distanceM": 1000,
-      "areaM2": 63259.668
-     },
-     {
-      "id": "WA-606328",
-      "distanceM": 1000,
-      "areaM2": 2826.843
-     },
-     {
-      "id": "WA-606329",
-      "distanceM": 250,
-      "areaM2": 485.912
-     },
-     {
-      "id": "WA-606329",
-      "distanceM": 500,
-      "areaM2": 12269.598
-     },
-     {
-      "id": "WA-606329",
-      "distanceM": 1000,
-      "areaM2": 12269.598
-     },
-     {
-      "id": "WA-606330",
-      "distanceM": 1000,
-      "areaM2": 10589.51
-     },
-     {
-      "id": "WA-606331",
-      "distanceM": 250,
-      "areaM2": 10189.472
-     },
-     {
-      "id": "WA-606331",
-      "distanceM": 500,
-      "areaM2": 51055.118
-     },
-     {
-      "id": "WA-606331",
-      "distanceM": 1000,
-      "areaM2": 68004.817
-     },
-     {
-      "id": "WA-606332",
-      "distanceM": 1000,
-      "areaM2": 12513.165
-     },
-     {
-      "id": "WA-606343",
-      "distanceM": 1000,
-      "areaM2": 412.727
-     },
-     {
-      "id": "WA-606344",
-      "distanceM": 500,
-      "areaM2": 2344.922
-     },
-     {
-      "id": "WA-606344",
-      "distanceM": 1000,
-      "areaM2": 2344.922
-     },
-     {
-      "id": "WA-606346",
-      "distanceM": 1000,
-      "areaM2": 124.862
-     },
-     {
-      "id": "WA-606347",
-      "distanceM": 1000,
-      "areaM2": 635.149
-     },
-     {
-      "id": "WA-606360",
-      "distanceM": 500,
-      "areaM2": 2865.386
-     },
-     {
-      "id": "WA-606360",
-      "distanceM": 1000,
-      "areaM2": 2865.386
-     },
-     {
-      "id": "WA-606366",
-      "distanceM": 500,
-      "areaM2": 1350.638
-     },
-     {
-      "id": "WA-606366",
-      "distanceM": 1000,
-      "areaM2": 1350.638
-     },
-     {
-      "id": "WA-606766",
-      "distanceM": 1000,
-      "areaM2": 137.292
-     },
-     {
-      "id": "WA-606771",
-      "distanceM": 1000,
-      "areaM2": 210.779
-     },
-     {
-      "id": "WA-606772",
-      "distanceM": 1000,
-      "areaM2": 228.144
-     },
-     {
-      "id": "WA-606776",
-      "distanceM": 1000,
-      "areaM2": 11572.439
-     },
-     {
-      "id": "WA-606783",
-      "distanceM": 1000,
-      "areaM2": 2987.527
-     },
-     {
-      "id": "WA-606784",
-      "distanceM": 1000,
-      "areaM2": 270.95
-     },
-     {
-      "id": "WA-606785",
-      "distanceM": 1000,
-      "areaM2": 36604.583
-     },
-     {
-      "id": "WA-606786",
-      "distanceM": 1000,
-      "areaM2": 22834.875
-     },
-     {
-      "id": "WA-606787",
-      "distanceM": 1000,
-      "areaM2": 673.356
-     },
-     {
-      "id": "WA-606788",
-      "distanceM": 1000,
-      "areaM2": 522.947
-     },
-     {
-      "id": "WA-606789",
-      "distanceM": 1000,
-      "areaM2": 1751.703
-     },
-     {
-      "id": "WA-606790",
-      "distanceM": 1000,
-      "areaM2": 427.246
-     },
-     {
-      "id": "WA-606931",
-      "distanceM": 500,
-      "areaM2": 4985.534
-     },
-     {
-      "id": "WA-606931",
-      "distanceM": 1000,
-      "areaM2": 11924.641
-     },
-     {
-      "id": "WA-606932",
-      "distanceM": 1000,
-      "areaM2": 5522.564
-     },
-     {
-      "id": "WA-606948",
-      "distanceM": 250,
-      "areaM2": 17277.778
-     },
-     {
-      "id": "WA-606948",
-      "distanceM": 500,
-      "areaM2": 30862.196
-     },
-     {
-      "id": "WA-606948",
-      "distanceM": 1000,
-      "areaM2": 30862.196
-     },
-     {
-      "id": "WA-606949",
-      "distanceM": 250,
-      "areaM2": 84421.976
-     },
-     {
-      "id": "WA-606949",
-      "distanceM": 500,
-      "areaM2": 252058.706
-     },
-     {
-      "id": "WA-606949",
-      "distanceM": 1000,
-      "areaM2": 252058.706
-     },
-     {
-      "id": "WA-606950",
-      "distanceM": 500,
-      "areaM2": 52736.083
-     },
-     {
-      "id": "WA-606950",
-      "distanceM": 1000,
-      "areaM2": 89160.032
-     },
-     {
-      "id": "WA-606953",
-      "distanceM": 250,
-      "areaM2": 6124.45
-     },
-     {
-      "id": "WA-606953",
-      "distanceM": 500,
-      "areaM2": 6124.45
-     },
-     {
-      "id": "WA-606953",
-      "distanceM": 1000,
-      "areaM2": 6124.45
-     },
-     {
-      "id": "WA-606956",
-      "distanceM": 250,
-      "areaM2": 7923.063
-     },
-     {
-      "id": "WA-606956",
-      "distanceM": 500,
-      "areaM2": 58544.779
-     },
-     {
-      "id": "WA-606956",
-      "distanceM": 1000,
-      "areaM2": 61038.035
-     },
-     {
-      "id": "WA-606957",
-      "distanceM": 1000,
-      "areaM2": 5050.377
-     },
-     {
-      "id": "WA-606958",
-      "distanceM": 500,
-      "areaM2": 225224.461
-     },
-     {
-      "id": "WA-606958",
-      "distanceM": 1000,
-      "areaM2": 562188.783
-     },
-     {
-      "id": "WA-606986",
-      "distanceM": 500,
-      "areaM2": 5001.002
-     },
-     {
-      "id": "WA-606986",
-      "distanceM": 1000,
-      "areaM2": 85076.371
-     },
-     {
-      "id": "WA-606987",
-      "distanceM": 1000,
-      "areaM2": 200240.628
-     },
-     {
-      "id": "WA-606990",
-      "distanceM": 500,
-      "areaM2": 11669.954
-     },
-     {
-      "id": "WA-606990",
-      "distanceM": 1000,
-      "areaM2": 680619.688
-     },
-     {
-      "id": "WA-609208",
-      "distanceM": 1000,
-      "areaM2": 70799.058
-     },
-     {
-      "id": "WA-611239",
-      "distanceM": 500,
-      "areaM2": 2045.661
-     },
-     {
-      "id": "WA-611239",
-      "distanceM": 1000,
-      "areaM2": 10192.404
      }
     ],
-    "overlappingFeaturePairsWithin1000M": 1011,
+    "overlappingFeaturePairsWithin1000M": 274,
     "sums": [
-     2038204.191,
-     6774470.237,
-     21028630.842
+     1326191.168,
+     4926422.991,
+     16302675.455
     ]
    },
    "analytical": {
@@ -28076,8 +25931,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -28118,8 +25973,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -28160,8 +26015,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -28203,8 +26058,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -28245,8 +26100,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -31143,8 +28998,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -31185,8 +29040,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -31227,8 +29082,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -31270,8 +29125,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -31312,8 +29167,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -32976,8 +30831,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -33018,8 +30873,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -33060,8 +30915,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -33103,8 +30958,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -33145,8 +31000,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -47840,8 +45695,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -47882,8 +45737,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -47911,21 +45766,21 @@
     "intersectsCorridor": true,
     "buffers": {
      "250": {
-      "areaM2": 1359824.081,
-      "featureCount": 223
+      "areaM2": 1342841.165,
+      "featureCount": 218
      },
      "500": {
-      "areaM2": 2820754.365,
-      "featureCount": 338
+      "areaM2": 2793657.312,
+      "featureCount": 332
      },
      "1000": {
-      "areaM2": 4914608.767,
-      "featureCount": 573
+      "areaM2": 4875000.933,
+      "featureCount": 563
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 6,
      "measureCrs": "EPSG:5070"
     }
@@ -47967,8 +45822,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -48009,8 +45864,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 6,
       "measureCrs": "EPSG:5070"
      }
@@ -49550,8 +47405,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 4,
      "measureCrs": "EPSG:5070"
     }
@@ -49592,8 +47447,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 4,
      "measureCrs": "EPSG:5070"
     }
@@ -49634,8 +47489,8 @@
      }
     },
     "provenance": {
-     "datasetId": "wetlands-or-sw-wa-portland-v2",
-     "datasetVersion": "or-sw-wa-portland-v2",
+     "datasetId": "wetlands-or-sw-wa-portland-v3",
+     "datasetVersion": "or-sw-wa-portland-v3",
      "partitions": 4,
      "measureCrs": "EPSG:5070"
     }
@@ -49677,8 +47532,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 4,
       "measureCrs": "EPSG:5070"
      }
@@ -49719,8 +47574,8 @@
       }
      },
      "provenance": {
-      "datasetId": "hydrography-or-sw-wa-portland-v2",
-      "datasetVersion": "or-sw-wa-portland-v2",
+      "datasetId": "hydrography-or-sw-wa-portland-v3",
+      "datasetVersion": "or-sw-wa-portland-v3",
       "partitions": 4,
       "measureCrs": "EPSG:5070"
      }

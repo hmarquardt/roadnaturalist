@@ -6,11 +6,13 @@ const registry = JSON.parse(readFileSync(new URL('../data/national/source-regist
 const grid = JSON.parse(readFileSync(new URL('../data/national/grid-conus-2025.json', import.meta.url)));
 const qa = JSON.parse(readFileSync(new URL('../data/national/qa-samples.json', import.meta.url)));
 
-test('CONUS source registry preserves the current TIGER road vintage and explicitly defers habitat', () => {
+test('CONUS source registry preserves the TIGER road vintage and pins the NWI source set', () => {
   assert.equal(registry.region, 'conus');
   assert.equal(registry.sources.roads.vintage, '2025');
   assert.match(registry.sources.roads.urlTemplate, /TIGER2025\/ROADS\/tl_2025_\{countyFips\}_roads\.zip$/);
-  assert.equal(registry.sources.wetlands.status, 'planned');
+  assert.equal(registry.sources.wetlands.status, 'pinned-build-in-progress');
+  assert.equal(registry.sources.wetlands.packageCount, 49);
+  assert.equal(registry.sources.wetlands.canonicalKeyVersion, 'nwi-id-exact-signature-v1');
   assert.equal(registry.sources.hydrography.status, 'planned');
   assert.equal(registry.grid.stepLon, 0.2);
   assert.equal(registry.grid.stepLat, 0.2);

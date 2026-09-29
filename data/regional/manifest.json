@@ -1,10 +1,10 @@
 {
   "schemaVersion": 2,
   "project": "roadnaturalist",
-  "version": "or-sw-wa-portland-v2",
+  "version": "or-sw-wa-portland-v3",
   "region": {
     "id": "or-sw-wa-portland",
-    "name": "Greater Portland region (Oregon and south-west Washington)",
+    "name": "Greater Portland region (exact NWI package-copy identity)",
     "bounds": [
       -124.05,
       44.75,
@@ -28,7 +28,7 @@
   "datasets": [
     {
       "id": "roads",
-      "version": "or-sw-wa-portland-v2",
+      "version": "or-sw-wa-portland-v3",
       "format": "GeoParquet",
       "schemaVersion": 1,
       "featureCount": 115907,
@@ -95,7 +95,7 @@
           ],
           "featureCount": 58,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x279_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x279_y673.parquet",
           "bytes": 35712,
           "sha256": "12eb9f8ecaaa6661ad18a1022624587890f5ec737ed16cd53d0c5cdd46fbb064"
         },
@@ -109,7 +109,7 @@
           ],
           "featureCount": 806,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x279_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x279_y674.parquet",
           "bytes": 238462,
           "sha256": "af3dd8bf7e508e905101ea8457c37de01637b64f064be9c70ccc4b14d072c014"
         },
@@ -123,7 +123,7 @@
           ],
           "featureCount": 89,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x279_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x279_y675.parquet",
           "bytes": 45054,
           "sha256": "93b3cc4d04c5756ad54261a385871585f778c9208810936bf6117cf35ed41da4"
         },
@@ -192,7 +192,7 @@
           ],
           "featureCount": 181,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x279_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x279_y681.parquet",
           "bytes": 67418,
           "sha256": "6b5570efa966026f49dfb02fcbc80d7f9259a358e4a2540d59627a6c4f1c62d9"
         },
@@ -206,7 +206,7 @@
           ],
           "featureCount": 14,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x279_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x279_y682.parquet",
           "bytes": 18077,
           "sha256": "26ea9a0789d175da7f66cfb56e5e9ed5dd301df5a4fb6dbdb1e69c2620871dce"
         },
@@ -220,7 +220,7 @@
           ],
           "featureCount": 120,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x280_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x280_y673.parquet",
           "bytes": 69125,
           "sha256": "26cc5e3f4881b3fb5760f0200bb69a66539d358ef9e5c1ac96c3c72d3641f0d9"
         },
@@ -234,7 +234,7 @@
           ],
           "featureCount": 772,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x280_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x280_y674.parquet",
           "bytes": 367657,
           "sha256": "0f71a21028e4e2cedb8748f8ec973c313ea85a04c164cc3907ecfe22266dc8d2"
         },
@@ -248,7 +248,7 @@
           ],
           "featureCount": 1135,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x280_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x280_y675.parquet",
           "bytes": 533037,
           "sha256": "5ada4c0e51d4bcb7912c512b3413fb16d99cc114d92886e59c4670b8a5f08f8e"
         },
@@ -262,7 +262,7 @@
           ],
           "featureCount": 929,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x280_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x280_y676.parquet",
           "bytes": 445057,
           "sha256": "dfe5d27c028fc8ab884845d6c31e667207b57e33b1ce62ffef66cd50f1fc27eb"
         },
@@ -276,7 +276,7 @@
           ],
           "featureCount": 1463,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x280_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x280_y677.parquet",
           "bytes": 573390,
           "sha256": "afef48c050a29da5608b7e795614a8e92740d1a8b4bfc4149de3f09a97866af5"
         },
@@ -290,7 +290,7 @@
           ],
           "featureCount": 1371,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x280_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x280_y678.parquet",
           "bytes": 514145,
           "sha256": "25724dd6ade9fa57100ed55bb39d0cf446ef4ab2924a98655ed6195d1f48f270"
         },
@@ -304,7 +304,7 @@
           ],
           "featureCount": 1033,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x280_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x280_y679.parquet",
           "bytes": 228791,
           "sha256": "f317dfe32450c168614e9fbd9838cec0c84ca43c22e7014c385d5e1848fadf7b"
         },
@@ -318,7 +318,7 @@
           ],
           "featureCount": 1632,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x280_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x280_y680.parquet",
           "bytes": 390462,
           "sha256": "b2e75bcb26ea95662a119d770f3b1d94edac3849ccbc2fb6e549b62af10c7cd6"
         },
@@ -332,7 +332,7 @@
           ],
           "featureCount": 631,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x280_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x280_y681.parquet",
           "bytes": 160817,
           "sha256": "0ed5737bdec9493ff0aa0d04d2eaf27f104dcd046a494ad131f9ff677763236e"
         },
@@ -346,7 +346,7 @@
           ],
           "featureCount": 3,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x280_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x280_y682.parquet",
           "bytes": 16527,
           "sha256": "71ab6556e78d9ec70994875ccb015c34d7dd090a35eeecf37a40b537871e9648"
         },
@@ -360,7 +360,7 @@
           ],
           "featureCount": 98,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x281_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x281_y673.parquet",
           "bytes": 70092,
           "sha256": "97c54d8361b101f6161261d4db48337470065f1f14ce24725e440df9d32cc053"
         },
@@ -374,7 +374,7 @@
           ],
           "featureCount": 790,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x281_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x281_y674.parquet",
           "bytes": 307862,
           "sha256": "8dd584f7599e0262ede9851538396ad5c73a3d2ec4dcb8b7d62338fdae2ecc31"
         },
@@ -388,7 +388,7 @@
           ],
           "featureCount": 917,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x281_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x281_y675.parquet",
           "bytes": 398567,
           "sha256": "db805db4f2d5226d56ec3d124e0780b98bbf458479ba4936c02fa64a2a33be0b"
         },
@@ -402,7 +402,7 @@
           ],
           "featureCount": 1000,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x281_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x281_y676.parquet",
           "bytes": 592835,
           "sha256": "7c47b3ca7be45e166617ff010e2c99520adc69dfce830bdc59d8fd77165c2fc3"
         },
@@ -416,7 +416,7 @@
           ],
           "featureCount": 911,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x281_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x281_y677.parquet",
           "bytes": 606212,
           "sha256": "0256233360a70eb51a02f6332ad85fc33511f1d5ebc48faa6c66a2c58a63b05b"
         },
@@ -430,7 +430,7 @@
           ],
           "featureCount": 451,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x281_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x281_y678.parquet",
           "bytes": 498788,
           "sha256": "dbf3053a2126579107f262e7bbc42460d532ecfb9862bb31a32ae1600335bc56"
         },
@@ -444,7 +444,7 @@
           ],
           "featureCount": 1015,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x281_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x281_y679.parquet",
           "bytes": 315321,
           "sha256": "623e79d93cee98abbcce6f4ae5e64684fa298c01ab7ff92cb131a0cac39d4933"
         },
@@ -458,7 +458,7 @@
           ],
           "featureCount": 824,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x281_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x281_y680.parquet",
           "bytes": 277306,
           "sha256": "35175a1320e42f7c3b583628abfc21f8142d313b92aa845b339cd1654c6e239a"
         },
@@ -472,7 +472,7 @@
           ],
           "featureCount": 611,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x281_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x281_y681.parquet",
           "bytes": 188131,
           "sha256": "2173cbbd84060770ca08c86aeb76a1585733182c13306146997ff0c6059fb286"
         },
@@ -486,7 +486,7 @@
           ],
           "featureCount": 25,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x281_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x281_y682.parquet",
           "bytes": 31716,
           "sha256": "ba16e053a8d50f5dd61986e63897b5fbe1215bd5be0dbfff16defb952f75c1a2"
         },
@@ -500,7 +500,7 @@
           ],
           "featureCount": 155,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x282_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x282_y673.parquet",
           "bytes": 81600,
           "sha256": "aa2b709daaeba8f8e1d321e1d8d17653ef33601ca0181bb48afab8af4d14ab32"
         },
@@ -514,7 +514,7 @@
           ],
           "featureCount": 766,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x282_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x282_y674.parquet",
           "bytes": 333018,
           "sha256": "bbf87417646758856fea080fb4c339e625ded1b2b609240a19a4bb5d4a8808fb"
         },
@@ -528,7 +528,7 @@
           ],
           "featureCount": 946,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x282_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x282_y675.parquet",
           "bytes": 459790,
           "sha256": "8c79732cbf9bc1f762237992f2364be340427442f2381539b758d6d95656734d"
         },
@@ -542,7 +542,7 @@
           ],
           "featureCount": 1179,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x282_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x282_y676.parquet",
           "bytes": 796643,
           "sha256": "f4a9481bf80ecc68498377a37a0dfbe4d744256051b7e7b8b515c65ab658f8e9"
         },
@@ -556,7 +556,7 @@
           ],
           "featureCount": 741,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x282_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x282_y677.parquet",
           "bytes": 618394,
           "sha256": "74bbe6f2565a2e6ee9d4d2149f7125cdba44a0359d80a31c9295fa4c126fb225"
         },
@@ -570,7 +570,7 @@
           ],
           "featureCount": 590,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x282_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x282_y678.parquet",
           "bytes": 507260,
           "sha256": "027ac146e2fc9b683b91bcde5728264ca4108c2fa99e40bd0d2f33f75a570279"
         },
@@ -584,7 +584,7 @@
           ],
           "featureCount": 352,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x282_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x282_y679.parquet",
           "bytes": 221536,
           "sha256": "f9498a55d736f0327dd4b1cbe7c12daa5bc6135a44f1a18972d206feee33d11c"
         },
@@ -598,7 +598,7 @@
           ],
           "featureCount": 358,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x282_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x282_y680.parquet",
           "bytes": 202755,
           "sha256": "e99a975c2dc3f8f3dc27eb388f3cab036df3163cb929c4dc0cba1c1dd4efa0f7"
         },
@@ -612,7 +612,7 @@
           ],
           "featureCount": 247,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x282_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x282_y681.parquet",
           "bytes": 151595,
           "sha256": "16bc0d824fe47133a7e3514e75d69a9204873ea655950d0a8120c21cd35cbf8b"
         },
@@ -626,7 +626,7 @@
           ],
           "featureCount": 46,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x282_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x282_y682.parquet",
           "bytes": 33144,
           "sha256": "ffdfa554046de6abb9c810a6902ec8a5f080839f0f98996aa9924f441b80bd22"
         },
@@ -640,7 +640,7 @@
           ],
           "featureCount": 53,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x283_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x283_y673.parquet",
           "bytes": 52665,
           "sha256": "e5a1f4d29a2f3428fb4a24cf779dc3efa7396e855d2300ccf01ca0cbcfbf4e5b"
         },
@@ -654,7 +654,7 @@
           ],
           "featureCount": 1313,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x283_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x283_y674.parquet",
           "bytes": 398495,
           "sha256": "5bd529b73895794ce670e27f3b6bb7f8567dcf569e6acac2d3cf662ddccf403b"
         },
@@ -668,7 +668,7 @@
           ],
           "featureCount": 696,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x283_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x283_y675.parquet",
           "bytes": 306988,
           "sha256": "09b23a8414df654a744385a711f8c35155922b160708115554d33dac2485c398"
         },
@@ -682,7 +682,7 @@
           ],
           "featureCount": 1082,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x283_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x283_y676.parquet",
           "bytes": 556977,
           "sha256": "e8b62019455dd82ac3d2b9c112ccee0990106fb980ef27645f367bd24f55888e"
         },
@@ -696,7 +696,7 @@
           ],
           "featureCount": 463,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x283_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x283_y677.parquet",
           "bytes": 426082,
           "sha256": "48e6664c214917f42cb5d7bc9d4a97fe040acf22eb39fd62391654a9e7a482a7"
         },
@@ -710,7 +710,7 @@
           ],
           "featureCount": 397,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x283_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x283_y678.parquet",
           "bytes": 352393,
           "sha256": "f551b5c510b915c6ec99e4d4e0324789cee5a03abc5af61ca26c194008f9b8d8"
         },
@@ -724,7 +724,7 @@
           ],
           "featureCount": 624,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x283_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x283_y679.parquet",
           "bytes": 345205,
           "sha256": "8374c334847f5093775e10f8af937a18935450b710a3e10471f4196c077c0d39"
         },
@@ -738,7 +738,7 @@
           ],
           "featureCount": 567,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x283_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x283_y680.parquet",
           "bytes": 320269,
           "sha256": "81e008036fb40d1a6bbde9cff5fd860a02c426002c266bf242320f44582f9071"
         },
@@ -752,7 +752,7 @@
           ],
           "featureCount": 445,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x283_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x283_y681.parquet",
           "bytes": 173670,
           "sha256": "71454ffa429a54fc3766b6fc39047877f1f0507cd3c51c240b4b299a3121bcc4"
         },
@@ -766,7 +766,7 @@
           ],
           "featureCount": 56,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x283_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x283_y682.parquet",
           "bytes": 39298,
           "sha256": "4caa1e9c4e6c62fa68c0cd5ba7f3b706dfca2046e76a4a9f82cc635ac2820b6a"
         },
@@ -780,7 +780,7 @@
           ],
           "featureCount": 178,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x284_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x284_y673.parquet",
           "bytes": 78889,
           "sha256": "55b812c7ad9b3d11e8fef19a6ea502b99ff78853125d85a3bc57f183fc00dc30"
         },
@@ -794,7 +794,7 @@
           ],
           "featureCount": 4449,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x284_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x284_y674.parquet",
           "bytes": 991704,
           "sha256": "0f3b7559dbdc15926ef44a466cf689e51ed303efc250d550be782fb646e2b7d3"
         },
@@ -808,7 +808,7 @@
           ],
           "featureCount": 1171,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x284_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x284_y675.parquet",
           "bytes": 331004,
           "sha256": "22f6fde744c40be4880594b2aeb93b827a0bfb7a3692a1f422af593709bc4b83"
         },
@@ -822,7 +822,7 @@
           ],
           "featureCount": 1694,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x284_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x284_y676.parquet",
           "bytes": 572857,
           "sha256": "d1aef5db6cfc45bfcb636e6083391dcb944d67c1fa479ef9492828a6d70c3817"
         },
@@ -836,7 +836,7 @@
           ],
           "featureCount": 1273,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x284_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x284_y677.parquet",
           "bytes": 502291,
           "sha256": "f9bbe9c307ca5c63147a7597234a4bec106cb942ee64df1f526440862e955772"
         },
@@ -850,7 +850,7 @@
           ],
           "featureCount": 422,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x284_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x284_y678.parquet",
           "bytes": 293232,
           "sha256": "161d3969ac55061d2dfce7c01347d14fc7319fbca22379c25e44e612338fc826"
         },
@@ -864,7 +864,7 @@
           ],
           "featureCount": 754,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x284_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x284_y679.parquet",
           "bytes": 413193,
           "sha256": "366ce50b2e0dc8a715d275687b8df2dc8bbc8b2a6fd2f5c5f12cbd4abdade07d"
         },
@@ -878,7 +878,7 @@
           ],
           "featureCount": 688,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x284_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x284_y680.parquet",
           "bytes": 412260,
           "sha256": "19a85d7b66302d41272334e114cf5274062c2db27589683f47a1fbe8d8c2d696"
         },
@@ -892,7 +892,7 @@
           ],
           "featureCount": 374,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x284_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x284_y681.parquet",
           "bytes": 231022,
           "sha256": "3319bf0ca29279ddcec1bf922a7b3957c0d5dcc79b00e7fab5dd047fa62634d9"
         },
@@ -906,7 +906,7 @@
           ],
           "featureCount": 22,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x284_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x284_y682.parquet",
           "bytes": 25994,
           "sha256": "dee5a907cb6b4c38bcd7dceaf1fb2124876eabe66f4008a11e9704f5f41fdc90"
         },
@@ -920,7 +920,7 @@
           ],
           "featureCount": 289,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x285_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x285_y673.parquet",
           "bytes": 88474,
           "sha256": "5a9f722eda412819f42a505ecb3144fd6a204eb960bf0f7e2035f1e203c841c4"
         },
@@ -934,7 +934,7 @@
           ],
           "featureCount": 3449,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x285_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x285_y674.parquet",
           "bytes": 694593,
           "sha256": "d3a42741311a4734f2a0262e642595916a9857299812076b3a97f9b8cbdefb65"
         },
@@ -948,7 +948,7 @@
           ],
           "featureCount": 1474,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x285_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x285_y675.parquet",
           "bytes": 371796,
           "sha256": "5267d93188a0f4f6f76a6dcedf10e9978a85f03c13dec3810e4298b7040c06c5"
         },
@@ -962,7 +962,7 @@
           ],
           "featureCount": 2446,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x285_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x285_y676.parquet",
           "bytes": 649260,
           "sha256": "7d4d16d78e67e9b5f0e92be68562e5462108ed1a2b67ece60095a7fb71a6e5ac"
         },
@@ -976,7 +976,7 @@
           ],
           "featureCount": 7623,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x285_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x285_y677.parquet",
           "bytes": 1831064,
           "sha256": "185b87bd2490ea80d5c166b8f7b2eee4007e4c4ef92999ef618dc079d665a83b"
         },
@@ -990,7 +990,7 @@
           ],
           "featureCount": 842,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x285_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x285_y678.parquet",
           "bytes": 380605,
           "sha256": "c6d72fc88e9b1abba21222cac8c20aedad1502f2254c3f27a8b3726cf96124dd"
         },
@@ -1004,7 +1004,7 @@
           ],
           "featureCount": 1303,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x285_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x285_y679.parquet",
           "bytes": 557705,
           "sha256": "c52b60f356b3010f14bf672cbaf556cc8b76ab0df747e30320cf6214e24678cc"
         },
@@ -1018,7 +1018,7 @@
           ],
           "featureCount": 1928,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x285_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x285_y680.parquet",
           "bytes": 769218,
           "sha256": "7072ddad62cf071f3f39c2e1e6660051454909b2a768b5705a9e722939200872"
         },
@@ -1032,7 +1032,7 @@
           ],
           "featureCount": 1096,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x285_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x285_y681.parquet",
           "bytes": 468077,
           "sha256": "1d4bc1721216eb00584f1cd48e905a4377eb3a0e3a05117834bc6ba065abf092"
         },
@@ -1046,7 +1046,7 @@
           ],
           "featureCount": 108,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x285_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x285_y682.parquet",
           "bytes": 42753,
           "sha256": "681b816050fc42f2913e04a20ca0e2c2f7fdd8c46557027aa11ff28490efdca7"
         },
@@ -1060,7 +1060,7 @@
           ],
           "featureCount": 347,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x286_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x286_y673.parquet",
           "bytes": 121034,
           "sha256": "37bddecc53a3f7327c5b4d443667c697f5a301096e3aaed9577f016283831adb"
         },
@@ -1074,7 +1074,7 @@
           ],
           "featureCount": 893,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x286_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x286_y674.parquet",
           "bytes": 278512,
           "sha256": "27d084eee7f884cb398d98f1072f08f927781aacdcbccbeef77e2610710f6835"
         },
@@ -1088,7 +1088,7 @@
           ],
           "featureCount": 988,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x286_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x286_y675.parquet",
           "bytes": 342800,
           "sha256": "eaeeb5d610120aa79ae96e42ec349789a627a5ed8352def975fa340b46d6f2ac"
         },
@@ -1102,7 +1102,7 @@
           ],
           "featureCount": 4254,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x286_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x286_y676.parquet",
           "bytes": 1005074,
           "sha256": "728ee0c18cd3c0b1cffc8fec54c15e11ebc5ada70f61300069b0eb5fd87f6b68"
         },
@@ -1116,7 +1116,7 @@
           ],
           "featureCount": 10122,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x286_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x286_y677.parquet",
           "bytes": 2171906,
           "sha256": "de76fe2651f0249cecc77b4898ce1a46c4b40a33d1b69a09d154e0a5eaa0719d"
         },
@@ -1130,7 +1130,7 @@
           ],
           "featureCount": 4696,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x286_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x286_y678.parquet",
           "bytes": 1118619,
           "sha256": "e5bafae5b94ccfc38788719297d0a4dded20586dfb55faa9ab6f852cab8cc5fb"
         },
@@ -1144,7 +1144,7 @@
           ],
           "featureCount": 1576,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x286_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x286_y679.parquet",
           "bytes": 639662,
           "sha256": "d96e2c94bcd2c1286dd53805213bc321981067270794a06648fcff48991a10c6"
         },
@@ -1158,7 +1158,7 @@
           ],
           "featureCount": 666,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x286_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x286_y680.parquet",
           "bytes": 342446,
           "sha256": "362279c8c9e1c55158f319ad6c59326de5822e33ae569982fead2d5ccb7b13e7"
         },
@@ -1172,7 +1172,7 @@
           ],
           "featureCount": 1162,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x286_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x286_y681.parquet",
           "bytes": 381665,
           "sha256": "6a2745b2fa30fa2b5dfb95ef97f6a476bf666d656b7a6f42ce7b5866e9515f00"
         },
@@ -1186,7 +1186,7 @@
           ],
           "featureCount": 157,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x286_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x286_y682.parquet",
           "bytes": 44644,
           "sha256": "bea3bcc9e0fa426a79624e5766e7cdd38103b090d1e1f43a410aa147e2ff460f"
         },
@@ -1200,7 +1200,7 @@
           ],
           "featureCount": 413,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x287_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x287_y673.parquet",
           "bytes": 138496,
           "sha256": "f8836084e163bbfb511bb9bb53e3b7bd531c9495a788f0b630cca120f2d58608"
         },
@@ -1214,7 +1214,7 @@
           ],
           "featureCount": 719,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x287_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x287_y674.parquet",
           "bytes": 352206,
           "sha256": "f35833e94fb163f91c8f3a2ed2aea405de43bd13ec25ffdb7aa672d4908d455b"
         },
@@ -1228,7 +1228,7 @@
           ],
           "featureCount": 1195,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x287_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x287_y675.parquet",
           "bytes": 411742,
           "sha256": "f135496ba329571e39e10760a4a0f2b6652925aad6717e73b7f4c462d0a1f70d"
         },
@@ -1242,7 +1242,7 @@
           ],
           "featureCount": 1984,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x287_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x287_y676.parquet",
           "bytes": 557504,
           "sha256": "878fcdcea10d5a38bd53a4cf42365516c9025a876e985af507b47b08b384ec3a"
         },
@@ -1256,7 +1256,7 @@
           ],
           "featureCount": 8154,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x287_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x287_y677.parquet",
           "bytes": 1563742,
           "sha256": "c4de88e275dc10cc5fd6ac408bdffd5864880b79e66ac0d6b94d85a6ab9d63f0"
         },
@@ -1270,7 +1270,7 @@
           ],
           "featureCount": 6030,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x287_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x287_y678.parquet",
           "bytes": 1502998,
           "sha256": "bdc2e8616c0ea44636e52acb5d7302f4f6330625803cf102ecc9100920bfc99a"
         },
@@ -1284,7 +1284,7 @@
           ],
           "featureCount": 1187,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x287_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x287_y679.parquet",
           "bytes": 570165,
           "sha256": "f35e274c5d49b504f6334aeb9d6f80fb1be5631dc97c7f777fd0bad706755bfd"
         },
@@ -1298,7 +1298,7 @@
           ],
           "featureCount": 1359,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x287_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x287_y680.parquet",
           "bytes": 458632,
           "sha256": "a992893fb85ccdfefbeedc47318c6746f75d690b25790a85b24f74dbf136cefd"
         },
@@ -1312,7 +1312,7 @@
           ],
           "featureCount": 927,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x287_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x287_y681.parquet",
           "bytes": 318889,
           "sha256": "d3822dbacc6b07c68a69f05ff253a389286a2c9749c5568301575df3f51dd0b5"
         },
@@ -1326,7 +1326,7 @@
           ],
           "featureCount": 58,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x287_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x287_y682.parquet",
           "bytes": 31970,
           "sha256": "ade0086127587971bd1c758803051b2660dc0662fa4df637c672b1305e9db581"
         },
@@ -1340,7 +1340,7 @@
           ],
           "featureCount": 105,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x288_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x288_y673.parquet",
           "bytes": 79184,
           "sha256": "b74c6a4d0ca54e832763d759561865c719df22a67453ff11a5d822f513c65bb9"
         },
@@ -1354,7 +1354,7 @@
           ],
           "featureCount": 239,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x288_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x288_y674.parquet",
           "bytes": 227109,
           "sha256": "67a1b9dd2a7a4e0db73b36c00ea03cc701d043e9337f547628430fc3e91323d0"
         },
@@ -1368,7 +1368,7 @@
           ],
           "featureCount": 521,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x288_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x288_y675.parquet",
           "bytes": 317328,
           "sha256": "bcadb2dd8360f030e71269c6329ad6c9870a858bcaf32689a1b24add3c17c726"
         },
@@ -1382,7 +1382,7 @@
           ],
           "featureCount": 1333,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x288_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x288_y676.parquet",
           "bytes": 524836,
           "sha256": "fcaa31297bc54713c1e67f71e19a849597a9e9c4eab58f6c9bc5c22a61b86d5c"
         },
@@ -1396,7 +1396,7 @@
           ],
           "featureCount": 2219,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x288_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x288_y677.parquet",
           "bytes": 604423,
           "sha256": "e3e2acb615cb0c008e927a638d7311e76e7c4ead981e0959b016503a66b09c8c"
         },
@@ -1410,7 +1410,7 @@
           ],
           "featureCount": 1061,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x288_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x288_y678.parquet",
           "bytes": 569557,
           "sha256": "f2dc12d96573c1757d1cfb9999f31f09a240acd76a44d0370df0e302eafe7c95"
         },
@@ -1424,7 +1424,7 @@
           ],
           "featureCount": 611,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x288_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x288_y679.parquet",
           "bytes": 534513,
           "sha256": "c266d45926b1538a6b35c969394b2ef20c91b3306a5105c49c71eb03dd1cea84"
         },
@@ -1438,7 +1438,7 @@
           ],
           "featureCount": 694,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x288_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x288_y680.parquet",
           "bytes": 320841,
           "sha256": "18cfef37e47255a9b6faa1adef7a868166ab0ae4b12a7e070968f5169c84a53f"
         },
@@ -1452,7 +1452,7 @@
           ],
           "featureCount": 846,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x288_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x288_y681.parquet",
           "bytes": 290362,
           "sha256": "18aae0e7a42d10bf55af22bb51dff02f5c293c36296b55bc89319de3671331b1"
         },
@@ -1466,7 +1466,7 @@
           ],
           "featureCount": 164,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x288_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x288_y682.parquet",
           "bytes": 50051,
           "sha256": "1330c79d19a34cf1247e11ba70f9dd4bb57db74c0d555c5c2af10bfc0b5f31da"
         },
@@ -1480,7 +1480,7 @@
           ],
           "featureCount": 110,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x289_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x289_y673.parquet",
           "bytes": 75566,
           "sha256": "721ce87f13c460865ad2ba15cfdb6e5d0a9120f6e938fd9f8a6c9c371c6f332e"
         },
@@ -1494,7 +1494,7 @@
           ],
           "featureCount": 188,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x289_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x289_y674.parquet",
           "bytes": 251172,
           "sha256": "8bd49fb3ee03fecee012e8894ddd8f213fa4d80a203603af007d1b39caf3b6fe"
         },
@@ -1508,7 +1508,7 @@
           ],
           "featureCount": 325,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x289_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x289_y675.parquet",
           "bytes": 393973,
           "sha256": "40aaf787ff591034dad7908b5cb05781cbe8de872db596d3ccedb8816f603239"
         },
@@ -1522,7 +1522,7 @@
           ],
           "featureCount": 511,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x289_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x289_y676.parquet",
           "bytes": 274663,
           "sha256": "2dc160b2a3604b565f8d8153e4ceb2ca39e443a0b07e92c21a9e64e03bc9b4e5"
         },
@@ -1536,7 +1536,7 @@
           ],
           "featureCount": 266,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x289_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x289_y677.parquet",
           "bytes": 184412,
           "sha256": "e8c8e416768de54bd1902543e11d438fb154d8df03ff3f367ea017cbd864d74a"
         },
@@ -1550,7 +1550,7 @@
           ],
           "featureCount": 479,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x289_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x289_y678.parquet",
           "bytes": 344732,
           "sha256": "48592b17ae8da9bcabb18bd1341d6d42cab3a9f36bf1c2caa2754d09942cf804"
         },
@@ -1564,7 +1564,7 @@
           ],
           "featureCount": 246,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x289_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x289_y679.parquet",
           "bytes": 371120,
           "sha256": "5bb9600e41093790d4906fc06efade89dedda0d7dba71362e744f8cefbaa1c0a"
         },
@@ -1578,7 +1578,7 @@
           ],
           "featureCount": 486,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x289_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x289_y680.parquet",
           "bytes": 370708,
           "sha256": "c470fac01b24fb99d6b3a2321bc7860890ec375db21adfbc7444cc0259ab62ab"
         },
@@ -1592,7 +1592,7 @@
           ],
           "featureCount": 93,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x289_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x289_y681.parquet",
           "bytes": 132844,
           "sha256": "a7ad0781dee4fa6262c87d4a941dc9fa531da624ddbd23f36e89ea9dfb2ef30a"
         },
@@ -1606,7 +1606,7 @@
           ],
           "featureCount": 15,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x289_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x289_y682.parquet",
           "bytes": 27911,
           "sha256": "dd86b4aaca7c42b6f88252626caf676fa40cc9ee00f47a27f815526e52211cf7"
         },
@@ -1620,7 +1620,7 @@
           ],
           "featureCount": 43,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x290_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x290_y673.parquet",
           "bytes": 48567,
           "sha256": "94c8389afd023508b2667c3955cc4f5f9cb8b1450d769d827945b172a93c4935"
         },
@@ -1634,7 +1634,7 @@
           ],
           "featureCount": 163,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x290_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x290_y674.parquet",
           "bytes": 210396,
           "sha256": "a4e2f525ff1c2b46ce19e448efafbab8e6e9ac4df72742712da904006aaf02e7"
         },
@@ -1648,7 +1648,7 @@
           ],
           "featureCount": 232,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x290_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x290_y675.parquet",
           "bytes": 316650,
           "sha256": "0204421178cfafe8d56112aba225f28d8f0d8afdba4bb9133d1556af519990f8"
         },
@@ -1662,7 +1662,7 @@
           ],
           "featureCount": 571,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x290_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x290_y676.parquet",
           "bytes": 229491,
           "sha256": "72b1779beafb9db9f6f3b12966fdc74e1740b5b6b31c3283e368d20a23614380"
         },
@@ -1676,7 +1676,7 @@
           ],
           "featureCount": 187,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x290_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x290_y677.parquet",
           "bytes": 128477,
           "sha256": "b8421a54bfab4a02962228859e7b370e8724660322bd6ac27f8bb1d15c037a5c"
         },
@@ -1690,7 +1690,7 @@
           ],
           "featureCount": 1022,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x290_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x290_y678.parquet",
           "bytes": 412537,
           "sha256": "6eff3925db5cc3fdc8429d20655870498473c866dc41089f953f1bf15e079f3a"
         },
@@ -1704,7 +1704,7 @@
           ],
           "featureCount": 356,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x290_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x290_y679.parquet",
           "bytes": 323705,
           "sha256": "20b3bf02f8a8bb45aacdf00990e5d4ad6998ab1e0005ad20dcef68afcb280ffd"
         },
@@ -1718,7 +1718,7 @@
           ],
           "featureCount": 203,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x290_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x290_y680.parquet",
           "bytes": 255483,
           "sha256": "75f0173393a3e481ec0f4d5b38a88c0ec538854d66813e6b8b0c5dfaf0399a50"
         },
@@ -1732,7 +1732,7 @@
           ],
           "featureCount": 201,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x290_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x290_y681.parquet",
           "bytes": 286315,
           "sha256": "2821994f9a697dbeeee9b56eacd42aa40bc4a8b87b527103bdefb9883e92c655"
         },
@@ -1746,7 +1746,7 @@
           ],
           "featureCount": 11,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x290_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x290_y682.parquet",
           "bytes": 31312,
           "sha256": "d05931090ad542c31cc974dde7b337d1fcc718373b08efb0ec04796f98ef6442"
         },
@@ -1760,7 +1760,7 @@
           ],
           "featureCount": 8,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x291_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x291_y673.parquet",
           "bytes": 25397,
           "sha256": "f0eddeca0f66ebf3496cb1bca4ec7d7165251932c6fe48bbe4c764c9fa1bdb4d"
         },
@@ -1774,7 +1774,7 @@
           ],
           "featureCount": 41,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x291_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x291_y674.parquet",
           "bytes": 40199,
           "sha256": "d68701e5ff74675fa8482ec4b4ba5824541d8f138d47256126c0fd91a434fcb6"
         },
@@ -1788,7 +1788,7 @@
           ],
           "featureCount": 68,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x291_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x291_y675.parquet",
           "bytes": 54083,
           "sha256": "25ebcf857f4fff1369c22491cae29ed06b6046b113097f0202a5bccb7142724c"
         },
@@ -1802,7 +1802,7 @@
           ],
           "featureCount": 23,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x291_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x291_y676.parquet",
           "bytes": 24000,
           "sha256": "06b61740f710cb27d37c20ddb80e915f4054b74e080eada5b06f7da56f1ba972"
         },
@@ -1816,7 +1816,7 @@
           ],
           "featureCount": 47,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x291_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x291_y677.parquet",
           "bytes": 60604,
           "sha256": "f9ba9b26f7ee4dac913f8de285dae30e528e3677b3576457215ba304f887c8e6"
         },
@@ -1830,7 +1830,7 @@
           ],
           "featureCount": 62,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x291_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x291_y678.parquet",
           "bytes": 42610,
           "sha256": "25151d8327d36a08424212288b797a16d926f16d3faacb349b147075a6563b80"
         },
@@ -1844,7 +1844,7 @@
           ],
           "featureCount": 13,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x291_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x291_y679.parquet",
           "bytes": 25614,
           "sha256": "1feb840d2ed2d10638da09e5cb6b893626e219ed791de71abb5dd98ff681f0ad"
         },
@@ -1858,7 +1858,7 @@
           ],
           "featureCount": 22,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x291_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x291_y680.parquet",
           "bytes": 42909,
           "sha256": "cea58c58a4d7566ef0210e63f8ff5cc763f82367597b2160509fef49aabbe2c5"
         },
@@ -1872,7 +1872,7 @@
           ],
           "featureCount": 14,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/roads/x291_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/roads/x291_y681.parquet",
           "bytes": 35329,
           "sha256": "7bd4c241c8e9b90b6aef13a92bde590dcf68ee89648e938923d8407eb2bb7e3a"
         },
@@ -1993,10 +1993,10 @@
     },
     {
       "id": "wetlands",
-      "version": "or-sw-wa-portland-v2",
+      "version": "or-sw-wa-portland-v3",
       "format": "GeoParquet",
       "schemaVersion": 1,
-      "featureCount": 173704,
+      "featureCount": 153853,
       "crs": "EPSG:4326",
       "sourceDatasetId": "nwi-wetlands-or-pilot",
       "source": {
@@ -2030,7 +2030,7 @@
           ],
           "featureCount": 244,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x279_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x279_y673.parquet",
           "bytes": 148425,
           "sha256": "8385ec98170a7a3c94fd08d3abbc74af40a7e001287112ec3f5b6ebae6bb91b4"
         },
@@ -2044,7 +2044,7 @@
           ],
           "featureCount": 764,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x279_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x279_y674.parquet",
           "bytes": 556425,
           "sha256": "9b61f76832bbc3ff9f0998e27f24232cea8d567d9bde3384d784f45daff202bc"
         },
@@ -2058,7 +2058,7 @@
           ],
           "featureCount": 122,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x279_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x279_y675.parquet",
           "bytes": 209618,
           "sha256": "9fec164eb85a00c2e56df0e48dad03ecc2a40110ea4ce6bd2254f453ba262892"
         },
@@ -2072,7 +2072,7 @@
           ],
           "featureCount": 9,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x279_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x279_y676.parquet",
           "bytes": 134934,
           "sha256": "fdf824ba37ccf271e5d6647e897c35292523399e7e665bbf4bd062946636e441"
         },
@@ -2086,7 +2086,7 @@
           ],
           "featureCount": 1,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x279_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x279_y677.parquet",
           "bytes": 125238,
           "sha256": "fc0bba1e5a35c88bb7cfbbdf751d54f3f51e98cc9ab9e54cd89b03f430b94ece"
         },
@@ -2100,7 +2100,7 @@
           ],
           "featureCount": 1,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x279_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x279_y678.parquet",
           "bytes": 125238,
           "sha256": "fc0bba1e5a35c88bb7cfbbdf751d54f3f51e98cc9ab9e54cd89b03f430b94ece"
         },
@@ -2114,7 +2114,7 @@
           ],
           "featureCount": 2,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x279_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x279_y679.parquet",
           "bytes": 125967,
           "sha256": "c5460ba9e86c41021431d745630549c99a5a409f2233d3dd7fc78aff9a863dfb"
         },
@@ -2128,7 +2128,7 @@
           ],
           "featureCount": 2,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x279_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x279_y680.parquet",
           "bytes": 126005,
           "sha256": "87d523da517f552b182f52e02ff62bea46f79e2a4f808997e7f50f39f702d672"
         },
@@ -2140,11 +2140,11 @@
             -124.0,
             46.4
           ],
-          "featureCount": 1227,
+          "featureCount": 722,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x279_y681.parquet",
-          "bytes": 1740021,
-          "sha256": "65415ed2a7a8db459caedf4105adf2f2d1f568e8b737e5c3d1626ed2fda495fe"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x279_y681.parquet",
+          "bytes": 1568073,
+          "sha256": "08b9c51bc115187883a64330cc5d24ef08a55e6d0d6f89f72d4e9887d99d6d26"
         },
         {
           "id": "x279_y682",
@@ -2156,7 +2156,7 @@
           ],
           "featureCount": 90,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x279_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x279_y682.parquet",
           "bytes": 179038,
           "sha256": "09eb3af19d264ef0019d6e6771f94d3d853d4027dfc558eea3cc02402824154e"
         },
@@ -2170,7 +2170,7 @@
           ],
           "featureCount": 823,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x280_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x280_y673.parquet",
           "bytes": 502396,
           "sha256": "31242afba54efa948d6534c6f6f4d49315328d23a334313a3853552e88d7b896"
         },
@@ -2184,7 +2184,7 @@
           ],
           "featureCount": 2427,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x280_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x280_y674.parquet",
           "bytes": 1409656,
           "sha256": "0f4c13272b2ff1267f8eb7a8dbfc41bca9d50645960a838437b830072e09a2e7"
         },
@@ -2198,7 +2198,7 @@
           ],
           "featureCount": 1255,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x280_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x280_y675.parquet",
           "bytes": 1369698,
           "sha256": "f44407ad856c278b21ce25545f01ad4eddc441c5d020030955de153caf9ccecc"
         },
@@ -2212,7 +2212,7 @@
           ],
           "featureCount": 2871,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x280_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x280_y676.parquet",
           "bytes": 1868723,
           "sha256": "8b3bd6d0528f7e23f8a6c6063e370629506ccf9370e45510e5519ec7da99e5a4"
         },
@@ -2226,7 +2226,7 @@
           ],
           "featureCount": 3705,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x280_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x280_y677.parquet",
           "bytes": 2230489,
           "sha256": "13695cda4e878841c225eed8b2a8e06f6d33988900ef66a160393bd435e3dd49"
         },
@@ -2240,7 +2240,7 @@
           ],
           "featureCount": 2355,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x280_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x280_y678.parquet",
           "bytes": 1518830,
           "sha256": "390ae768e27451dfd6edf56fd7bd904d1edca331b686318655babbba9a96fa25"
         },
@@ -2254,7 +2254,7 @@
           ],
           "featureCount": 1167,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x280_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x280_y679.parquet",
           "bytes": 1062395,
           "sha256": "7c8891fe36eed6ab82d3fa3b233b85ae9cd6ba7e0955e1bf7cd5cfc21525bb81"
         },
@@ -2266,11 +2266,11 @@
             -123.8,
             46.2
           ],
-          "featureCount": 3254,
+          "featureCount": 2201,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x280_y680.parquet",
-          "bytes": 3010155,
-          "sha256": "1c54f7890ccc8d318f120d372129f096aa773a261bd530f6e52751cd3d902a28"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x280_y680.parquet",
+          "bytes": 2254608,
+          "sha256": "3f43e59483f479f073edce0c4256d2f632ada31a367498b0b9ebe7a1532a37b6"
         },
         {
           "id": "x280_y681",
@@ -2280,11 +2280,11 @@
             -123.8,
             46.4
           ],
-          "featureCount": 2318,
+          "featureCount": 1269,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x280_y681.parquet",
-          "bytes": 3192562,
-          "sha256": "2995265eedf4c3ca72d65db3b864fec4fb1e9d2c965065cafb4a3b8611a4c3f0"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x280_y681.parquet",
+          "bytes": 2236385,
+          "sha256": "eb0095f346994e3d67dbd4f99344a0b8c53626a27d8142cd68ac8397152149ed"
         },
         {
           "id": "x280_y682",
@@ -2296,7 +2296,7 @@
           ],
           "featureCount": 155,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x280_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x280_y682.parquet",
           "bytes": 334176,
           "sha256": "7ec48c9fcf28d06042be52391e3b2dd5cee36bf3f91b08e298dae8eb93ccf8d1"
         },
@@ -2310,7 +2310,7 @@
           ],
           "featureCount": 97,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x281_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x281_y673.parquet",
           "bytes": 303753,
           "sha256": "a1989e5af64318c7c9bda8d987564202b1883dcc424c3d7a09f59c2dac881ad7"
         },
@@ -2324,7 +2324,7 @@
           ],
           "featureCount": 433,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x281_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x281_y674.parquet",
           "bytes": 815782,
           "sha256": "23abf646d7f315688eb6242245ada0ba101f15ee6bc5f7647bfd67a14563ae02"
         },
@@ -2338,7 +2338,7 @@
           ],
           "featureCount": 748,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x281_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x281_y675.parquet",
           "bytes": 1022094,
           "sha256": "86196789704d24047e39e2969a25d2c569a8f0f7df4c38bba12c6ced1f9e6acb"
         },
@@ -2352,7 +2352,7 @@
           ],
           "featureCount": 511,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x281_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x281_y676.parquet",
           "bytes": 815665,
           "sha256": "b62878fc1a5061b5b5b85a61bd5a7ff5f38e118f7b2054cf79d167934e1daf29"
         },
@@ -2366,7 +2366,7 @@
           ],
           "featureCount": 1189,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x281_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x281_y677.parquet",
           "bytes": 1226504,
           "sha256": "e2f7f83d62c4d942e345f31a3e483b60ecb6173c671bab704f067ac9a9eb4437"
         },
@@ -2380,7 +2380,7 @@
           ],
           "featureCount": 775,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x281_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x281_y678.parquet",
           "bytes": 1178758,
           "sha256": "e26526814f8096bfff28a8d96781463e179b42d1214c73b52432f819be02203a"
         },
@@ -2394,7 +2394,7 @@
           ],
           "featureCount": 617,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x281_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x281_y679.parquet",
           "bytes": 923992,
           "sha256": "ea8dec5c21c5967bbf96477ffbcb594153ed4b9b747f5fb2dd4e930f719a1389"
         },
@@ -2406,11 +2406,11 @@
             -123.6,
             46.2
           ],
-          "featureCount": 1934,
+          "featureCount": 1234,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x281_y680.parquet",
-          "bytes": 2789521,
-          "sha256": "22076dace832a4085950dcdfa403d4546da0cf0bec45d53d2721d2cb677394bb"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x281_y680.parquet",
+          "bytes": 2050304,
+          "sha256": "9ae2fc7eeec5b1e54f80fd1f76d802145ae54cb71d10ee9da7574e5643b8a515"
         },
         {
           "id": "x281_y681",
@@ -2420,11 +2420,11 @@
             -123.6,
             46.4
           ],
-          "featureCount": 2999,
+          "featureCount": 1749,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x281_y681.parquet",
-          "bytes": 3564528,
-          "sha256": "45a7d58b44ba93f5e5651c52d7bdc9cda352e3cc991cd24c5d3153c2bb92ef77"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x281_y681.parquet",
+          "bytes": 2361986,
+          "sha256": "1422c6ae0d287e4fccf2b7bae4180e6bc8fc0be2452ce65922baf0de0a2f35d6"
         },
         {
           "id": "x281_y682",
@@ -2436,7 +2436,7 @@
           ],
           "featureCount": 386,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x281_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x281_y682.parquet",
           "bytes": 291089,
           "sha256": "e8a3bec433a0ec2001d49f618f6bc7eebe88c4a9446131aa93db27f311349924"
         },
@@ -2450,7 +2450,7 @@
           ],
           "featureCount": 391,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x282_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x282_y673.parquet",
           "bytes": 350563,
           "sha256": "01741d9ef91046d196d06ebb4c71d948aa20de652d2020e9886846fe0afffc0d"
         },
@@ -2464,7 +2464,7 @@
           ],
           "featureCount": 690,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x282_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x282_y674.parquet",
           "bytes": 975735,
           "sha256": "f2c5dde01abf0f01d5074167416f838d66b3dec0bb125a518649970d052d8881"
         },
@@ -2478,7 +2478,7 @@
           ],
           "featureCount": 662,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x282_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x282_y675.parquet",
           "bytes": 716029,
           "sha256": "efaf2bd6b1952f67ae1578610610ef603170d4722ca369495dec4fcb261e0f02"
         },
@@ -2492,7 +2492,7 @@
           ],
           "featureCount": 352,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x282_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x282_y676.parquet",
           "bytes": 736703,
           "sha256": "147b07ae907d65ebdf26bd084332e224709826b999db284a1be1f4ff941d3247"
         },
@@ -2506,7 +2506,7 @@
           ],
           "featureCount": 452,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x282_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x282_y677.parquet",
           "bytes": 837102,
           "sha256": "463d2a646d10064b7076e4fabec43599327c9e9b913103e67268ace31315420f"
         },
@@ -2520,7 +2520,7 @@
           ],
           "featureCount": 588,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x282_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x282_y678.parquet",
           "bytes": 898017,
           "sha256": "629641e2210ea1471a17803810f712c58ebc107947b7803ab97176bbfbbfc3e7"
         },
@@ -2534,7 +2534,7 @@
           ],
           "featureCount": 394,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x282_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x282_y679.parquet",
           "bytes": 635600,
           "sha256": "3b2162b585047cedc74abf6a82510ba27929efe64a57cb5c771375bb771d2b89"
         },
@@ -2546,11 +2546,11 @@
             -123.4,
             46.2
           ],
-          "featureCount": 1191,
+          "featureCount": 757,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x282_y680.parquet",
-          "bytes": 3090855,
-          "sha256": "ec5b6619ff25c1f8401f0210c8f1e8d9f4c347fc174a320314f871fe065f1add"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x282_y680.parquet",
+          "bytes": 2933130,
+          "sha256": "35abf3b07cfd815b4a448c6d6b745799838f21d698a4440a54b6c8a075621bad"
         },
         {
           "id": "x282_y681",
@@ -2560,11 +2560,11 @@
             -123.4,
             46.4
           ],
-          "featureCount": 3130,
+          "featureCount": 1802,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x282_y681.parquet",
-          "bytes": 5542248,
-          "sha256": "8d3e7a242003b156f3198dec86107df0e6d3a4a914f81d23b1afad50e7526e25"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x282_y681.parquet",
+          "bytes": 4004767,
+          "sha256": "13bd360cfb929920426eb8e6cd72435b542d6e9e53411b21e38ca1c8cc73314d"
         },
         {
           "id": "x282_y682",
@@ -2576,7 +2576,7 @@
           ],
           "featureCount": 427,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x282_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x282_y682.parquet",
           "bytes": 344681,
           "sha256": "8959e292ea3bcf90607817bcff2991293b24eedf96a445a71f3c619b253d11d2"
         },
@@ -2590,7 +2590,7 @@
           ],
           "featureCount": 477,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x283_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x283_y673.parquet",
           "bytes": 516193,
           "sha256": "ec5862f4c46edbd1625fa3cce248edc53958c8561de2e03349b38d3c5e387b47"
         },
@@ -2604,7 +2604,7 @@
           ],
           "featureCount": 1832,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x283_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x283_y674.parquet",
           "bytes": 915993,
           "sha256": "4802cba0a5027828e31a6cc8f6354051d079126788545a99766e3c7243805523"
         },
@@ -2618,7 +2618,7 @@
           ],
           "featureCount": 1234,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x283_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x283_y675.parquet",
           "bytes": 1078357,
           "sha256": "2b35abf5a38a5344f4ac1da025fb49e0f88b770f728470a9ee777e66e2e7db19"
         },
@@ -2632,7 +2632,7 @@
           ],
           "featureCount": 1014,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x283_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x283_y676.parquet",
           "bytes": 1018707,
           "sha256": "74353020e50f5aeeeabdaef51436a5409d566f6271a0c2e1812fddd06b456de6"
         },
@@ -2646,7 +2646,7 @@
           ],
           "featureCount": 940,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x283_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x283_y677.parquet",
           "bytes": 1046976,
           "sha256": "e402d0fcb6ab559f5000e6cc93ac23d6b90b06bfd2a1e4963c2b383b6cf353cb"
         },
@@ -2660,7 +2660,7 @@
           ],
           "featureCount": 634,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x283_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x283_y678.parquet",
           "bytes": 1087609,
           "sha256": "88458a1f782feb5d7df3d138046cefd856f0e05d99f83f6b2ed85c5a65555689"
         },
@@ -2674,7 +2674,7 @@
           ],
           "featureCount": 597,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x283_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x283_y679.parquet",
           "bytes": 836433,
           "sha256": "94b9cedfc74bbd314eb9b8482ac83b5affa14e08edd40f492f65e70b5a261dbc"
         },
@@ -2686,11 +2686,11 @@
             -123.2,
             46.2
           ],
-          "featureCount": 2151,
+          "featureCount": 1329,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x283_y680.parquet",
-          "bytes": 2579816,
-          "sha256": "3fcd1c4cd2e1e96d41d5bf8ab129a988886dd5b7f2ca401d98e91b5b9db527d1"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x283_y680.parquet",
+          "bytes": 2492689,
+          "sha256": "b0503ca069a8e8df07a2ce8978bb75a8099709f2c58ea1b01caabb72be450dc9"
         },
         {
           "id": "x283_y681",
@@ -2700,11 +2700,11 @@
             -123.2,
             46.4
           ],
-          "featureCount": 4912,
+          "featureCount": 4074,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x283_y681.parquet",
-          "bytes": 4179677,
-          "sha256": "c834231347feb71f5ea8211b34dd32495b1684ddb0ed9f83d8535d88b9a84baa"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x283_y681.parquet",
+          "bytes": 3668574,
+          "sha256": "602bd747cff92496dbc14676278c4861b5d2d86a169ea398f500d5b44cc18602"
         },
         {
           "id": "x283_y682",
@@ -2716,7 +2716,7 @@
           ],
           "featureCount": 589,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x283_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x283_y682.parquet",
           "bytes": 572423,
           "sha256": "2a1324a7ea1c5b4265064f0f86d4be67aee0b1d21faba726d17337c020574a97"
         },
@@ -2730,7 +2730,7 @@
           ],
           "featureCount": 543,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x284_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x284_y673.parquet",
           "bytes": 534528,
           "sha256": "7e148592a79c978451ea8546b92aa5c51f60f430612d70cdb5d3c67c26b797da"
         },
@@ -2744,7 +2744,7 @@
           ],
           "featureCount": 1367,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x284_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x284_y674.parquet",
           "bytes": 939233,
           "sha256": "6196045922cdb663854af8c2ddc3a4ad2c3643cefcd11265bda81b312fcdc522"
         },
@@ -2758,7 +2758,7 @@
           ],
           "featureCount": 1336,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x284_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x284_y675.parquet",
           "bytes": 955424,
           "sha256": "cd7060827b1e0920bcf7a4e72391d9a0b9ec222ebe1f32519d1a68ff03279c7a"
         },
@@ -2772,7 +2772,7 @@
           ],
           "featureCount": 1491,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x284_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x284_y676.parquet",
           "bytes": 1101669,
           "sha256": "25bca83e38cfe67668fcfcab3e96c7be5843ca1eb2a7b472aa7fdf32117591c1"
         },
@@ -2786,7 +2786,7 @@
           ],
           "featureCount": 2382,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x284_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x284_y677.parquet",
           "bytes": 1345703,
           "sha256": "9d4459fe58330bc6ba720afce8deefe7d329b03c9031fcd3d292ed02b5cf463c"
         },
@@ -2800,7 +2800,7 @@
           ],
           "featureCount": 1277,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x284_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x284_y678.parquet",
           "bytes": 1136038,
           "sha256": "e1be0c314f56a7b82f84175421c2ab42bbd6d7dbf810084df60ba3fcdba4576b"
         },
@@ -2814,7 +2814,7 @@
           ],
           "featureCount": 679,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x284_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x284_y679.parquet",
           "bytes": 926676,
           "sha256": "066ef7b68e657d6e1f83839a8268630867d0d597a21870e5323bd64be21182c3"
         },
@@ -2826,11 +2826,11 @@
             -123.0,
             46.2
           ],
-          "featureCount": 1991,
+          "featureCount": 1232,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x284_y680.parquet",
-          "bytes": 2421949,
-          "sha256": "5d67fbb3c46691a10bdddafcf21889f969c361da49054097b58db1584389b85e"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x284_y680.parquet",
+          "bytes": 2410542,
+          "sha256": "4d21f21f34704e36203aa417d9abedd25cf500e71565770fcb5d4e08eb07b5d5"
         },
         {
           "id": "x284_y681",
@@ -2840,11 +2840,11 @@
             -123.0,
             46.4
           ],
-          "featureCount": 4326,
+          "featureCount": 3701,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x284_y681.parquet",
-          "bytes": 2457639,
-          "sha256": "554cb4b87e22064c0b6ac6d41abe19e3b3cccc5cb65253cf914d2d9a02c9db70"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x284_y681.parquet",
+          "bytes": 2147010,
+          "sha256": "7cbb01b4489b38934a1d1d058e6b8e2beccd34459e6068a9c8270b87426eb3db"
         },
         {
           "id": "x284_y682",
@@ -2856,7 +2856,7 @@
           ],
           "featureCount": 419,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x284_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x284_y682.parquet",
           "bytes": 402611,
           "sha256": "cbece0a6c9c917d9a88514750b5f8578a9b6374efbdc07e848b652374d714288"
         },
@@ -2870,7 +2870,7 @@
           ],
           "featureCount": 494,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x285_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x285_y673.parquet",
           "bytes": 481594,
           "sha256": "b75bd9b959936980ab55f99a70d4da7c79912781c04c253177df7bacd69aba62"
         },
@@ -2884,7 +2884,7 @@
           ],
           "featureCount": 1546,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x285_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x285_y674.parquet",
           "bytes": 816765,
           "sha256": "c5df444b14455c76fd6887549a867f1c171d074fd9c7e707515d679a3daae573"
         },
@@ -2898,7 +2898,7 @@
           ],
           "featureCount": 781,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x285_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x285_y675.parquet",
           "bytes": 885752,
           "sha256": "534d5301f829950416e1b66f1a2d8ecae8fa49c2e8db88a658f4f9378930268b"
         },
@@ -2912,7 +2912,7 @@
           ],
           "featureCount": 1422,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x285_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x285_y676.parquet",
           "bytes": 1236358,
           "sha256": "b0523621693c268c0522e3bedccce3f483e1553164b66311dd6d478366d3f404"
         },
@@ -2926,7 +2926,7 @@
           ],
           "featureCount": 1830,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x285_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x285_y677.parquet",
           "bytes": 1155369,
           "sha256": "4c26b7196201afb0248e990d23ad89ae8acc43876ef176b1c9d93edac75abce2"
         },
@@ -2938,11 +2938,11 @@
             -122.8,
             45.8
           ],
-          "featureCount": 5511,
+          "featureCount": 4147,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x285_y678.parquet",
-          "bytes": 5969476,
-          "sha256": "e289d64b72d2a8826eef363a26037196ac5e3a94c8159150646031b9739d71e0"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x285_y678.parquet",
+          "bytes": 4341429,
+          "sha256": "57dd3c823d45e67eb477d4867719411f83b4121a3c1b20a9153093682bb60778"
         },
         {
           "id": "x285_y679",
@@ -2952,11 +2952,11 @@
             -122.8,
             46.0
           ],
-          "featureCount": 3526,
+          "featureCount": 2573,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x285_y679.parquet",
-          "bytes": 4022805,
-          "sha256": "0f74166e8e44d767af98dc361ca16ae8144424abcc02fc61066cea6215d6d52b"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x285_y679.parquet",
+          "bytes": 3095901,
+          "sha256": "861eb9d9cac2c9e46ae82bb7f20340ed965760fe6125689fcbf362f2c50add3f"
         },
         {
           "id": "x285_y680",
@@ -2966,11 +2966,11 @@
             -122.8,
             46.2
           ],
-          "featureCount": 2697,
+          "featureCount": 1542,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x285_y680.parquet",
-          "bytes": 3075298,
-          "sha256": "475687c04705116dcd38f2d7609a2a90a157a1c01f1fd59c9ddf6fb1cd25de2c"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x285_y680.parquet",
+          "bytes": 2836132,
+          "sha256": "2363d9f0378c17f98a824316e379d3415259705e126da58eebb6a8eee3d068a9"
         },
         {
           "id": "x285_y681",
@@ -2980,11 +2980,11 @@
             -122.8,
             46.4
           ],
-          "featureCount": 2701,
+          "featureCount": 2293,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x285_y681.parquet",
-          "bytes": 2929517,
-          "sha256": "9fb8dad21fb57480422ed5a9476efac949aaf21e2d344cb303b68bf71a59505a"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x285_y681.parquet",
+          "bytes": 2735203,
+          "sha256": "1d12d9fa2bbb7cee4fbefd22d064a1595f1eb7113d77e6d7f15de36a1d203b05"
         },
         {
           "id": "x285_y682",
@@ -2996,7 +2996,7 @@
           ],
           "featureCount": 334,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x285_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x285_y682.parquet",
           "bytes": 328738,
           "sha256": "e715424e103590d684323b48760dd49e7892815a1482ca97d67cbe179f425b67"
         },
@@ -3010,7 +3010,7 @@
           ],
           "featureCount": 357,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x286_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x286_y673.parquet",
           "bytes": 481231,
           "sha256": "6027454e4f49937e17795d3d9cb35efda78381f1103cf3e637014a8c9f20ebf3"
         },
@@ -3024,7 +3024,7 @@
           ],
           "featureCount": 1191,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x286_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x286_y674.parquet",
           "bytes": 1112042,
           "sha256": "3dec72d2fe168fe7335663824dd0979c082870e2c607eccbbc8ec955cd977e8d"
         },
@@ -3038,7 +3038,7 @@
           ],
           "featureCount": 2810,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x286_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x286_y675.parquet",
           "bytes": 1343021,
           "sha256": "c615686fc7cc8d9e8bc3a2d4844b33071d2b8d67ec72ba38568fe25ddea65025"
         },
@@ -3052,7 +3052,7 @@
           ],
           "featureCount": 1438,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x286_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x286_y676.parquet",
           "bytes": 1940755,
           "sha256": "99770bb05ee31eba7708d2556f609f2be17b951d6c45282116ae58e556696ae3"
         },
@@ -3064,11 +3064,11 @@
             -122.6,
             45.6
           ],
-          "featureCount": 1074,
+          "featureCount": 953,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x286_y677.parquet",
-          "bytes": 1919969,
-          "sha256": "886ead1874bab38e1c10114633e0eadaf35f53e4237028ecfb3703a8a1e6171e"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x286_y677.parquet",
+          "bytes": 1890553,
+          "sha256": "6f5027384f12106f63395171512b10e0544c1f621cdc9790816676938373c1d1"
         },
         {
           "id": "x286_y678",
@@ -3078,11 +3078,11 @@
             -122.6,
             45.8
           ],
-          "featureCount": 3786,
+          "featureCount": 2342,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x286_y678.parquet",
-          "bytes": 5129537,
-          "sha256": "7fe0d625f8eed978ac692fc7d09822bc8c9e47e6b1602debbe77144b61f0b660"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x286_y678.parquet",
+          "bytes": 3653882,
+          "sha256": "73521dd31d99e87e3f74235a6acfb381cb75be0ee8e0d45daf469708e5ce7f66"
         },
         {
           "id": "x286_y679",
@@ -3092,11 +3092,11 @@
             -122.6,
             46.0
           ],
-          "featureCount": 4020,
+          "featureCount": 3205,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x286_y679.parquet",
-          "bytes": 4576501,
-          "sha256": "307456327f1b1da7a8bde5eb2afb75c1dd3e23f0456cbd2f504252002d31cffd"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x286_y679.parquet",
+          "bytes": 3965860,
+          "sha256": "19a12b5dfe5c49fb079405c8608699b2d368ea10c1995583f9b28626b61fbeb3"
         },
         {
           "id": "x286_y680",
@@ -3106,11 +3106,11 @@
             -122.6,
             46.2
           ],
-          "featureCount": 2628,
+          "featureCount": 2410,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x286_y680.parquet",
-          "bytes": 1873597,
-          "sha256": "b60f118ed4b7b3c4e932810bf3b736f224267041608bcbe652e210abfc7c5b31"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x286_y680.parquet",
+          "bytes": 1799803,
+          "sha256": "f2d9e41697e3d9b38548701be951e45efe99f43603bb4b698f491d7067894c24"
         },
         {
           "id": "x286_y681",
@@ -3122,7 +3122,7 @@
           ],
           "featureCount": 2601,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x286_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x286_y681.parquet",
           "bytes": 2046054,
           "sha256": "fa467f3dfd9aefdbbbbfb370f520567e09ff64a3270636346cd7572fb99371cf"
         },
@@ -3136,7 +3136,7 @@
           ],
           "featureCount": 312,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x286_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x286_y682.parquet",
           "bytes": 369611,
           "sha256": "2e84ca6b20caf9d703324aabc9a2c8034bfbd9ea38f13cd8e090bd89216aa9f5"
         },
@@ -3150,7 +3150,7 @@
           ],
           "featureCount": 214,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x287_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x287_y673.parquet",
           "bytes": 367216,
           "sha256": "e3160f6c4a487294e6ef049a0460100ca1b4ee34377bd620a9270ed0f4b028ba"
         },
@@ -3164,7 +3164,7 @@
           ],
           "featureCount": 534,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x287_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x287_y674.parquet",
           "bytes": 950345,
           "sha256": "cf443bb0124fbc647c3e81cb4a214c60adc2e5fb7fbd414db70bd1df873f20f0"
         },
@@ -3178,7 +3178,7 @@
           ],
           "featureCount": 3630,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x287_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x287_y675.parquet",
           "bytes": 1878242,
           "sha256": "caee0981ad624ba928d541dc01be6b0864f41d09fe74d34d1e3f88f3260c6fb8"
         },
@@ -3192,7 +3192,7 @@
           ],
           "featureCount": 2627,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x287_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x287_y676.parquet",
           "bytes": 1419336,
           "sha256": "b483f87df5db2ebf7db9c02ea3a14922725243f11145b6264b2b805b24bf0c58"
         },
@@ -3204,11 +3204,11 @@
             -122.4,
             45.6
           ],
-          "featureCount": 1760,
+          "featureCount": 1351,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x287_y677.parquet",
-          "bytes": 2273304,
-          "sha256": "e920f4141fedc186b2aa50182116d99d7d003cb80b6c3ad1adc8d3bc7f266415"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x287_y677.parquet",
+          "bytes": 2267064,
+          "sha256": "85fc847d0b109ffb21fcc91fe08e80b3ac59588c7649ab34c4d26fa87abd3134"
         },
         {
           "id": "x287_y678",
@@ -3218,11 +3218,11 @@
             -122.4,
             45.8
           ],
-          "featureCount": 1232,
+          "featureCount": 1173,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x287_y678.parquet",
-          "bytes": 1988062,
-          "sha256": "9ca83132ce42758648ef514b8f7495bc31e306ee9421137b8cf69c0a7b3f45fa"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x287_y678.parquet",
+          "bytes": 1957472,
+          "sha256": "33b1c1113a0455f35fd065ccefd16a11a5ac0a0d97c728d7bc86e8872817c4cf"
         },
         {
           "id": "x287_y679",
@@ -3234,7 +3234,7 @@
           ],
           "featureCount": 2095,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x287_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x287_y679.parquet",
           "bytes": 1270072,
           "sha256": "1270b43c48958595f54247252f26715775e9c7e0377f099a1d565c6197d300a2"
         },
@@ -3248,7 +3248,7 @@
           ],
           "featureCount": 3250,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x287_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x287_y680.parquet",
           "bytes": 2222058,
           "sha256": "44c57c3d333e751e8a2abae3ad3d4ed1507e6a2b27cc30dcde4115e5bfa66088"
         },
@@ -3262,7 +3262,7 @@
           ],
           "featureCount": 3460,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x287_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x287_y681.parquet",
           "bytes": 2797320,
           "sha256": "56455444ac8243e7cdbef43686d30538bc07ba292e9bc3b041ebe1a96af39f09"
         },
@@ -3276,7 +3276,7 @@
           ],
           "featureCount": 362,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x287_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x287_y682.parquet",
           "bytes": 201583,
           "sha256": "e1cb42ae4f097c15d6cb11948bb7554216576416005ec2d533ddcea770d56593"
         },
@@ -3290,7 +3290,7 @@
           ],
           "featureCount": 309,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x288_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x288_y673.parquet",
           "bytes": 410502,
           "sha256": "90a231257cbc47215c7b5a7f5b82abe69f0803bb00676768d4cadd94fe4822bb"
         },
@@ -3304,7 +3304,7 @@
           ],
           "featureCount": 697,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x288_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x288_y674.parquet",
           "bytes": 1013707,
           "sha256": "3a5ac9043b2cc3ba9d40820590cff7f38be4c8d1f22b5c31e1f97d7f6e8eff4f"
         },
@@ -3318,7 +3318,7 @@
           ],
           "featureCount": 774,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x288_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x288_y675.parquet",
           "bytes": 1211075,
           "sha256": "fba17ebdfc849ddb064c68374bd3af84b0f9867177be1822ac6227ea143619dd"
         },
@@ -3332,7 +3332,7 @@
           ],
           "featureCount": 2196,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x288_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x288_y676.parquet",
           "bytes": 1625114,
           "sha256": "d3ba3ac19aa54cb3161a3eebf2c2c6c2012f97c6b30f8469927baccc352eb500"
         },
@@ -3344,11 +3344,11 @@
             -122.2,
             45.6
           ],
-          "featureCount": 2599,
+          "featureCount": 1834,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x288_y677.parquet",
-          "bytes": 3020884,
-          "sha256": "6da0543326c80994ade74dee349d511b2f35d53606cb4c787e982707f2a3a22a"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x288_y677.parquet",
+          "bytes": 2566482,
+          "sha256": "23f1a3307801ec001a5fc41b805754f952b63acba942ea93cf56125909658b4a"
         },
         {
           "id": "x288_y678",
@@ -3358,11 +3358,11 @@
             -122.2,
             45.8
           ],
-          "featureCount": 1528,
+          "featureCount": 1388,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x288_y678.parquet",
-          "bytes": 1043156,
-          "sha256": "8fb730ba23b7d57214286c6a29704f26049f6abe274b0e4bd5d850c2a31774ff"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x288_y678.parquet",
+          "bytes": 1040852,
+          "sha256": "3d45e501e42c7592a23719fa606fcddd568a13c259d3751a0b08be20aa6cd8cf"
         },
         {
           "id": "x288_y679",
@@ -3374,7 +3374,7 @@
           ],
           "featureCount": 2163,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x288_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x288_y679.parquet",
           "bytes": 1340104,
           "sha256": "495e2787b3d43da572e3126bbdf9a1b593ec36c70f4d8492090cc88d9adba1d7"
         },
@@ -3388,7 +3388,7 @@
           ],
           "featureCount": 2622,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x288_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x288_y680.parquet",
           "bytes": 1983344,
           "sha256": "43062138b64db301d2a3b56ddb6f89690d75381584eb197aebfe0f83889e4fe5"
         },
@@ -3402,7 +3402,7 @@
           ],
           "featureCount": 2785,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x288_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x288_y681.parquet",
           "bytes": 2132992,
           "sha256": "51ba0bbdc7b4bceec920521ef3b90ae4e9a3153e43d816f5841f73c11cfa5a22"
         },
@@ -3416,7 +3416,7 @@
           ],
           "featureCount": 390,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x288_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x288_y682.parquet",
           "bytes": 315814,
           "sha256": "57f81bdc4d03e088594936fdc7b04ab91bc20e1f2b41eb21e5f82f94d1eec0de"
         },
@@ -3430,7 +3430,7 @@
           ],
           "featureCount": 570,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x289_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x289_y673.parquet",
           "bytes": 473196,
           "sha256": "3d79b945e653036713fb24bb91134b22a5557222c3ad18dc7e19fb01b4722c58"
         },
@@ -3444,7 +3444,7 @@
           ],
           "featureCount": 1584,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x289_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x289_y674.parquet",
           "bytes": 1404830,
           "sha256": "214eb05715df353f00e995ad0c5ac04767208deae0f700f8e7d7afd52913acd0"
         },
@@ -3458,7 +3458,7 @@
           ],
           "featureCount": 725,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x289_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x289_y675.parquet",
           "bytes": 919291,
           "sha256": "75ad9e5801445caedcdc3d79888568c5844bb947e78feb871e02f0f5f73c361a"
         },
@@ -3472,7 +3472,7 @@
           ],
           "featureCount": 2274,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x289_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x289_y676.parquet",
           "bytes": 1400040,
           "sha256": "128bb538e41dba8cde3e6fc1d4c9df6ac3b349c84a299b3a361fb57e156e0c3e"
         },
@@ -3484,11 +3484,11 @@
             -122.0,
             45.6
           ],
-          "featureCount": 2786,
+          "featureCount": 1784,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x289_y677.parquet",
-          "bytes": 2672374,
-          "sha256": "aea982e49858e77ad57e6d582aaf7ff5dbcd6f8b3ef44e8827883e2f675404f9"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x289_y677.parquet",
+          "bytes": 2346295,
+          "sha256": "9e1b9a6a85380a205799f0541316d097517c6f4dcb57f7acb64e355ce4d7e068"
         },
         {
           "id": "x289_y678",
@@ -3498,11 +3498,11 @@
             -122.0,
             45.8
           ],
-          "featureCount": 2238,
+          "featureCount": 2056,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x289_y678.parquet",
-          "bytes": 2555488,
-          "sha256": "b40a9d8119fa2d7ddd766190631977116d1aacde6dd375aa70f29a1a2b47a777"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x289_y678.parquet",
+          "bytes": 2531863,
+          "sha256": "af7d9bdb5f3eaa22d6bbe30ccf39f5e408cb6dc937a5f2d480188bc96d31b98d"
         },
         {
           "id": "x289_y679",
@@ -3514,7 +3514,7 @@
           ],
           "featureCount": 1361,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x289_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x289_y679.parquet",
           "bytes": 1182058,
           "sha256": "3d9483571c7b6c9faf32c3d86beff747c10f903e62e619105058ba8c78b22d5c"
         },
@@ -3528,7 +3528,7 @@
           ],
           "featureCount": 2253,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x289_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x289_y680.parquet",
           "bytes": 1532708,
           "sha256": "cb58d44a0a338d6fbf4f1f76755631a3f4ac9ea968763a972f246caa5c24667e"
         },
@@ -3542,7 +3542,7 @@
           ],
           "featureCount": 1561,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x289_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x289_y681.parquet",
           "bytes": 1914764,
           "sha256": "00e7af76b7a040d1df743a8b21b4fd673a9babe37875d2974e7737fe36884fcb"
         },
@@ -3556,7 +3556,7 @@
           ],
           "featureCount": 218,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x289_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x289_y682.parquet",
           "bytes": 575659,
           "sha256": "a792e7fd56ebfe5de974dcd2501390e3a580001406e1989189f2329ab9a6cd44"
         },
@@ -3570,7 +3570,7 @@
           ],
           "featureCount": 616,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x290_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x290_y673.parquet",
           "bytes": 481084,
           "sha256": "f17a797b42520e299a57561ef4ff956fb97a5a7e6b81a18f1712ac9631981cae"
         },
@@ -3584,7 +3584,7 @@
           ],
           "featureCount": 1150,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x290_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x290_y674.parquet",
           "bytes": 1215281,
           "sha256": "c3589abdad00750beb5d77b8b932814de84641d988a9bb042938dfebad01dc20"
         },
@@ -3598,7 +3598,7 @@
           ],
           "featureCount": 668,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x290_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x290_y675.parquet",
           "bytes": 977956,
           "sha256": "b1751fe4b2f61c11719acee1c2f182f8dbf40d3bd4feef39546ef89e7b3fd442"
         },
@@ -3612,7 +3612,7 @@
           ],
           "featureCount": 1991,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x290_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x290_y676.parquet",
           "bytes": 1456928,
           "sha256": "56569e2ce2925a866cd8d22d0ab8feb3d392aad0af233c0687a84017cf58abea"
         },
@@ -3624,11 +3624,11 @@
             -121.8,
             45.6
           ],
-          "featureCount": 2547,
+          "featureCount": 1976,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x290_y677.parquet",
-          "bytes": 1735373,
-          "sha256": "63eb5949bbc888b1af41be1a7b74c779d980476685ef1964f27193f3bbe94fb1"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x290_y677.parquet",
+          "bytes": 1446672,
+          "sha256": "7387168978dd51b1ceea89c0e445ca83945d09452fa0435d1257269c0d78142a"
         },
         {
           "id": "x290_y678",
@@ -3638,11 +3638,11 @@
             -121.8,
             45.8
           ],
-          "featureCount": 3441,
+          "featureCount": 2052,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x290_y678.parquet",
-          "bytes": 2980330,
-          "sha256": "4bcd2efbc24f964922019237bfb95c3531e44edcf7ab2d006588840d03c3544d"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x290_y678.parquet",
+          "bytes": 2548269,
+          "sha256": "d3e966d54949743ead411fab98a113c989e26236f2733890c8e6c7c911f3b5fc"
         },
         {
           "id": "x290_y679",
@@ -3654,7 +3654,7 @@
           ],
           "featureCount": 1370,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x290_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x290_y679.parquet",
           "bytes": 976710,
           "sha256": "decde9ee86e9b957e01e866a42ea63fbaa3c3a71f15715596f717378f44c9ac4"
         },
@@ -3668,7 +3668,7 @@
           ],
           "featureCount": 1352,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x290_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x290_y680.parquet",
           "bytes": 976250,
           "sha256": "1e4bd727e8103b092c4d7d1618ae1e1e4b1b6590d045a06d6c1f29077600c2b7"
         },
@@ -3682,7 +3682,7 @@
           ],
           "featureCount": 1175,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x290_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x290_y681.parquet",
           "bytes": 1211800,
           "sha256": "957c82d518554299c87947562005472d7f15492b977548fc045b4bd11b39d1f9"
         },
@@ -3696,7 +3696,7 @@
           ],
           "featureCount": 133,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x290_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x290_y682.parquet",
           "bytes": 472275,
           "sha256": "14484050bb3089754ce967539affca0b7cb82a19d0b3a12064bcb446aeec067f"
         },
@@ -3710,7 +3710,7 @@
           ],
           "featureCount": 187,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x291_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x291_y673.parquet",
           "bytes": 282946,
           "sha256": "710b46feab2a1fe2ed7718f80f6cc56921618c6b6b4c04ca41bdebb6588d0ded"
         },
@@ -3724,7 +3724,7 @@
           ],
           "featureCount": 203,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x291_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x291_y674.parquet",
           "bytes": 555865,
           "sha256": "59f6f2e46c63426ebd192bd09aeac99ee32780a5f999754641e802401d6487c1"
         },
@@ -3738,7 +3738,7 @@
           ],
           "featureCount": 92,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x291_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x291_y675.parquet",
           "bytes": 109098,
           "sha256": "96092abea1e299fd76cd534a7847d95bfa17c5e2b9dce24f5a6f47c749903835"
         },
@@ -3752,7 +3752,7 @@
           ],
           "featureCount": 235,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x291_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x291_y676.parquet",
           "bytes": 536306,
           "sha256": "57a67ef3e1070cfab68899592801efdd8f82dd627d075289e9bff59914449d95"
         },
@@ -3766,7 +3766,7 @@
           ],
           "featureCount": 263,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x291_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x291_y677.parquet",
           "bytes": 265438,
           "sha256": "56354351b4de449fb339da6a275d0056f0392baa8f1ee1feef48dbac5e7d99dc"
         },
@@ -3778,11 +3778,11 @@
             -121.6,
             45.8
           ],
-          "featureCount": 445,
+          "featureCount": 278,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x291_y678.parquet",
-          "bytes": 318338,
-          "sha256": "9fd376812da41cb8cf18200070f1d606793a23fcc120c67bda5b54f6ae26d6a4"
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x291_y678.parquet",
+          "bytes": 316412,
+          "sha256": "a26821b0d35200fd018a7b67bb8696c7ab3cbab624f08f17a0702c3ad82ecffc"
         },
         {
           "id": "x291_y679",
@@ -3794,7 +3794,7 @@
           ],
           "featureCount": 208,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x291_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x291_y679.parquet",
           "bytes": 188697,
           "sha256": "52a807df10e365a96e0f4ceff116c625f163d984a2f3cb65a5aaa58b34beaca5"
         },
@@ -3808,7 +3808,7 @@
           ],
           "featureCount": 336,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x291_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x291_y680.parquet",
           "bytes": 291565,
           "sha256": "ffe331eee9005bfe8f985836a8e50b52e1bea94a9590218752697c6cced2a048"
         },
@@ -3822,7 +3822,7 @@
           ],
           "featureCount": 253,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x291_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x291_y681.parquet",
           "bytes": 664757,
           "sha256": "235d66fcb991b0301ad13af37983b880f1ba90a2bee5aafce4d8dfac3396df13"
         },
@@ -3836,7 +3836,7 @@
           ],
           "featureCount": 28,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/wetlands/x291_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/wetlands/x291_y682.parquet",
           "bytes": 419324,
           "sha256": "5562d1927398af5c739905382078d21a5f9c604f07df1c53d9b68f4a462d7821"
         }
@@ -3914,7 +3914,7 @@
     },
     {
       "id": "hydrography",
-      "version": "or-sw-wa-portland-v2",
+      "version": "or-sw-wa-portland-v3",
       "format": "GeoParquet",
       "schemaVersion": 1,
       "featureCount": 473671,
@@ -3962,7 +3962,7 @@
           ],
           "featureCount": 549,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x279_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x279_y673.parquet",
           "bytes": 477900,
           "sha256": "bd5822dba7dc40c65ca44638f2bca5cecdde2291726b21fbe00bf8ea3a0e03ba"
         },
@@ -3976,7 +3976,7 @@
           ],
           "featureCount": 1104,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x279_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x279_y674.parquet",
           "bytes": 2316860,
           "sha256": "d263404400ced36b435d55f6d2db70621e9f9a26882707b176cb11174cf3592e"
         },
@@ -3990,7 +3990,7 @@
           ],
           "featureCount": 160,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x279_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x279_y675.parquet",
           "bytes": 793817,
           "sha256": "2fc1b8388321c013357ce51811aa29ca2410e800c58b5e8a64b2a50c2b00ac2b"
         },
@@ -4004,7 +4004,7 @@
           ],
           "featureCount": 12,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x279_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x279_y676.parquet",
           "bytes": 21946,
           "sha256": "ca5cb0d7c1d8f5d68e21191917988577908d473d1f617434eee4df273403ea17"
         },
@@ -4040,7 +4040,7 @@
           ],
           "featureCount": 2,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x279_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x279_y679.parquet",
           "bytes": 13792,
           "sha256": "9b2da44ae0bfff72002015ec60ed0db124747a0346618996cdac6c84bf6e640a"
         },
@@ -4065,7 +4065,7 @@
           ],
           "featureCount": 384,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x279_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x279_y681.parquet",
           "bytes": 174353,
           "sha256": "3c7004d1393129b7ee55d70ae9441cb58b36549b4c41a6887f90e6797f95984f"
         },
@@ -4079,7 +4079,7 @@
           ],
           "featureCount": 48,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x279_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x279_y682.parquet",
           "bytes": 59051,
           "sha256": "22c932a87e8d41bef638a9c7f9d227bcc628ce6b2096a4d7372c82b10d5e0e17"
         },
@@ -4093,7 +4093,7 @@
           ],
           "featureCount": 2083,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x280_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x280_y673.parquet",
           "bytes": 2689419,
           "sha256": "ec01c2668e41051b164d9b2fc06aab2b936745665c4d8634e497897eabde5c28"
         },
@@ -4107,7 +4107,7 @@
           ],
           "featureCount": 9489,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x280_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x280_y674.parquet",
           "bytes": 26786517,
           "sha256": "a920a46e17cf26c42882724d423034272cfe213e30be9345cac88e329198381f"
         },
@@ -4121,7 +4121,7 @@
           ],
           "featureCount": 5977,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x280_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x280_y675.parquet",
           "bytes": 8340940,
           "sha256": "2fc493b41223d19f2eb2853a1d803fe80ad15f6bb1e4503ffd75c9946c09de1b"
         },
@@ -4135,7 +4135,7 @@
           ],
           "featureCount": 8397,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x280_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x280_y676.parquet",
           "bytes": 25682061,
           "sha256": "e9da70cdca7cdad73af35aaaf706b59b40a7407830d60ab5a916fded7ecaaa87"
         },
@@ -4149,7 +4149,7 @@
           ],
           "featureCount": 9224,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x280_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x280_y677.parquet",
           "bytes": 12491520,
           "sha256": "acc32f03f3a9b506786317c189d56ec604ae0782b69b642c5fcf580f2e627d6e"
         },
@@ -4163,7 +4163,7 @@
           ],
           "featureCount": 9346,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x280_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x280_y678.parquet",
           "bytes": 10776822,
           "sha256": "12ba7b6277df0ab6251681c92eab2f4dd44323b16e9eca743527039611ef552d"
         },
@@ -4177,7 +4177,7 @@
           ],
           "featureCount": 9193,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x280_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x280_y679.parquet",
           "bytes": 6629483,
           "sha256": "ce498eac646c2ebb10870b8ada7c0c13a7f06c8860b541f676bc9001f43509fd"
         },
@@ -4191,7 +4191,7 @@
           ],
           "featureCount": 2100,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x280_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x280_y680.parquet",
           "bytes": 1600387,
           "sha256": "d5fcd0a27694a56482203808b30b539bbb12212a01318eb9cae9c44692bf96a3"
         },
@@ -4205,7 +4205,7 @@
           ],
           "featureCount": 8035,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x280_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x280_y681.parquet",
           "bytes": 1599206,
           "sha256": "9aa60d2ab67a3dccee73867df9b1781d192c8f74784e57e788bc3785fcc22180"
         },
@@ -4219,7 +4219,7 @@
           ],
           "featureCount": 709,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x280_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x280_y682.parquet",
           "bytes": 212972,
           "sha256": "7efdb88cc110e01c6d0f4824dc1c007cffded8e1ef8773e4f2f7adc75cc21358"
         },
@@ -4233,7 +4233,7 @@
           ],
           "featureCount": 2001,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x281_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x281_y673.parquet",
           "bytes": 1644128,
           "sha256": "1720f1a1323eec803b7d19663fd582453f834385d7ea799e8ae6e1e8a9d26965"
         },
@@ -4247,7 +4247,7 @@
           ],
           "featureCount": 7929,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x281_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x281_y674.parquet",
           "bytes": 9459665,
           "sha256": "98dc194ef4c62fa2afcd3790f2c7f4b1f1f5ae1923f3a52737812fdd9fd472dc"
         },
@@ -4261,7 +4261,7 @@
           ],
           "featureCount": 6552,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x281_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x281_y675.parquet",
           "bytes": 23160144,
           "sha256": "0aacbcaf2ec8b85744c31cc63bbf33dd453b67b7b0a25c0e89083bda4efad9e2"
         },
@@ -4275,7 +4275,7 @@
           ],
           "featureCount": 8503,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x281_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x281_y676.parquet",
           "bytes": 15317142,
           "sha256": "41e9907f0be260ffa169b234c9a0b397833b31f9fa7fb79a69d1da41cf80a77d"
         },
@@ -4289,7 +4289,7 @@
           ],
           "featureCount": 12952,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x281_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x281_y677.parquet",
           "bytes": 9075413,
           "sha256": "5366521b3280c0f1fe095bf0b28db5f4d34558b766833aec5910b1d2659ef135"
         },
@@ -4303,7 +4303,7 @@
           ],
           "featureCount": 13681,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x281_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x281_y678.parquet",
           "bytes": 7920070,
           "sha256": "f238d8b6e12c759d2f8871e09c7d7dd0c82f2fef476bff0428247e67dadd31a4"
         },
@@ -4317,7 +4317,7 @@
           ],
           "featureCount": 7916,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x281_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x281_y679.parquet",
           "bytes": 3759309,
           "sha256": "e736b7bc4955afd011777c4f54276c21b7676ad23e8063651e905a381d60ecff"
         },
@@ -4331,7 +4331,7 @@
           ],
           "featureCount": 9591,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x281_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x281_y680.parquet",
           "bytes": 4178316,
           "sha256": "ced98c9edd108e4d5514877f24395af3049d8904c3304cfb9a66bd422a98b473"
         },
@@ -4345,7 +4345,7 @@
           ],
           "featureCount": 7989,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x281_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x281_y681.parquet",
           "bytes": 1532274,
           "sha256": "2f021f9326803b2279e202f67774918e5d69043b251e14b49fcd99a53e48bc48"
         },
@@ -4359,7 +4359,7 @@
           ],
           "featureCount": 1357,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x281_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x281_y682.parquet",
           "bytes": 236497,
           "sha256": "1b2d60b5dd9f29a1fc62b286e11c5db76e1c8c583da3c8241e2f355cd1a184f8"
         },
@@ -4373,7 +4373,7 @@
           ],
           "featureCount": 1689,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x282_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x282_y673.parquet",
           "bytes": 3517079,
           "sha256": "8502cbff2b5e08e13f52f32b5ca20958696ae8b51864778373fdd100e147603a"
         },
@@ -4387,7 +4387,7 @@
           ],
           "featureCount": 7575,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x282_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x282_y674.parquet",
           "bytes": 20246900,
           "sha256": "241432cf22f47441cb633211239182a00592da02df0f83e1ed62a3e14add53ea"
         },
@@ -4401,7 +4401,7 @@
           ],
           "featureCount": 5939,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x282_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x282_y675.parquet",
           "bytes": 17078723,
           "sha256": "05b2bc17ee51c6a9de5cfb850980288579799210d7507dfb24f3712c9ad3d459"
         },
@@ -4415,7 +4415,7 @@
           ],
           "featureCount": 13742,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x282_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x282_y676.parquet",
           "bytes": 25872771,
           "sha256": "b93ce4c3c1b7412403aa796cb2a594c7121dfe297033cd633350a7acc37125dd"
         },
@@ -4429,7 +4429,7 @@
           ],
           "featureCount": 7465,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x282_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x282_y677.parquet",
           "bytes": 3141892,
           "sha256": "eb6e609f0356ab7ba1f4aa253b9a8c6c23d2204194344715294f8e74022e0c1e"
         },
@@ -4443,7 +4443,7 @@
           ],
           "featureCount": 8718,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x282_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x282_y678.parquet",
           "bytes": 2180412,
           "sha256": "399b11b166e3128b2baf27c047df6b20d96b2caf5be880dc5599970467ccca26"
         },
@@ -4457,7 +4457,7 @@
           ],
           "featureCount": 546,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x282_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x282_y679.parquet",
           "bytes": 404083,
           "sha256": "4229e291c6ac32c3cc7eb1833071d4a27baafb08ae173d163fe3fe420692dbfe"
         },
@@ -4471,7 +4471,7 @@
           ],
           "featureCount": 6700,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x282_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x282_y680.parquet",
           "bytes": 3542451,
           "sha256": "da7f0fc93d8d3ef8010c4f02bc52559f4a6c29c028024a60b2aa091451b7dee9"
         },
@@ -4485,7 +4485,7 @@
           ],
           "featureCount": 8789,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x282_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x282_y681.parquet",
           "bytes": 2097964,
           "sha256": "c91dccffc8f0e1b842fc8432b6e8dd8f6c650af53257042ec46421343daedffb"
         },
@@ -4499,7 +4499,7 @@
           ],
           "featureCount": 1181,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x282_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x282_y682.parquet",
           "bytes": 218963,
           "sha256": "3ce92c08396002f3bb92bb68d7fee48f9228ac532d5ed101b68a591a1a9f998f"
         },
@@ -4513,7 +4513,7 @@
           ],
           "featureCount": 325,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x283_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x283_y673.parquet",
           "bytes": 190062,
           "sha256": "dd0dca044c3eacc02f6def5dbd911f95bf1ac9420867eb94b3fc314552a48543"
         },
@@ -4527,7 +4527,7 @@
           ],
           "featureCount": 2163,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x283_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x283_y674.parquet",
           "bytes": 2154354,
           "sha256": "27d81bacc4c4180756f46cfc0a8539ee6d85eaf209a3eb801048161554acda91"
         },
@@ -4541,7 +4541,7 @@
           ],
           "featureCount": 1402,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x283_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x283_y675.parquet",
           "bytes": 1589198,
           "sha256": "fe20a0ac587dd6d70355fffd2ff8e9fd59676eee7ca0f42ab5a6551de4eceaa2"
         },
@@ -4555,7 +4555,7 @@
           ],
           "featureCount": 6835,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x283_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x283_y676.parquet",
           "bytes": 17442107,
           "sha256": "8d5a7d04d3d6776518cce68ea8a4877b53fcea321687f3b794d4dda5dd7dda72"
         },
@@ -4569,7 +4569,7 @@
           ],
           "featureCount": 7145,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x283_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x283_y677.parquet",
           "bytes": 12323991,
           "sha256": "8c114782515a77c1d79fea4e3a9b4734674a95999211ffd6d6d8ac6ca4366ac7"
         },
@@ -4583,7 +4583,7 @@
           ],
           "featureCount": 2989,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x283_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x283_y678.parquet",
           "bytes": 1664830,
           "sha256": "02eebfbd9cd7adac9913bd9698e376f8feea0996e6fe4833b4a223293510626d"
         },
@@ -4597,7 +4597,7 @@
           ],
           "featureCount": 562,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x283_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x283_y679.parquet",
           "bytes": 515178,
           "sha256": "c08888a7e04e4af658d22103d952a6c7776fbe15d2e6f5826a10b821e761900e"
         },
@@ -4611,7 +4611,7 @@
           ],
           "featureCount": 2272,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x283_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x283_y680.parquet",
           "bytes": 952184,
           "sha256": "0a415da236ae1c5886d8b5d36e47bea1bcb5ec171b3e8d558875ff5317a7834f"
         },
@@ -4625,7 +4625,7 @@
           ],
           "featureCount": 10540,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x283_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x283_y681.parquet",
           "bytes": 2021961,
           "sha256": "96c786a35faee7e0a8a3dd17a45a62e8eaf1f00d1b9f8d68774ceab8d0ee3c33"
         },
@@ -4639,7 +4639,7 @@
           ],
           "featureCount": 1497,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x283_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x283_y682.parquet",
           "bytes": 264858,
           "sha256": "50c194e92b75b02a0cba5fe6e0de91feb7900a678f4f22408cdd974c93b0b278"
         },
@@ -4653,7 +4653,7 @@
           ],
           "featureCount": 260,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x284_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x284_y673.parquet",
           "bytes": 92235,
           "sha256": "b01ca51e77555d520ff6cbbd80ee04f898348f809e6ff7dbe54bafd59fd47ca9"
         },
@@ -4667,7 +4667,7 @@
           ],
           "featureCount": 1007,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x284_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x284_y674.parquet",
           "bytes": 328183,
           "sha256": "a578ec28e747edcba88c8e93e36bab05229518e64c0765925e93b9647a8fd0a6"
         },
@@ -4681,7 +4681,7 @@
           ],
           "featureCount": 1060,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x284_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x284_y675.parquet",
           "bytes": 481608,
           "sha256": "2d0feddfca5e8fda2c91006de7ead9beb8d970a94925921785e3760048eff902"
         },
@@ -4695,7 +4695,7 @@
           ],
           "featureCount": 2509,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x284_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x284_y676.parquet",
           "bytes": 1123404,
           "sha256": "18f04f3798992c5c78ad698b6b4e917216b63d6692c0238a319e35a703e0eddd"
         },
@@ -4709,7 +4709,7 @@
           ],
           "featureCount": 4692,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x284_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x284_y677.parquet",
           "bytes": 3612964,
           "sha256": "4b8dd95fd58b10cfe6cc17ed13d4ccbe58e111d14b7469cebe5d9a2ce9026c9a"
         },
@@ -4723,7 +4723,7 @@
           ],
           "featureCount": 6593,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x284_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x284_y678.parquet",
           "bytes": 11936155,
           "sha256": "a7447a74efb5929deb8306b86f65ed72f04fa4711dd6e82b679d4bd6786f48ed"
         },
@@ -4737,7 +4737,7 @@
           ],
           "featureCount": 3594,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x284_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x284_y679.parquet",
           "bytes": 9095199,
           "sha256": "dd38f1bef39f0b3c35aa7a305dc55645f39a30fd86527fb5c7578c56bbfa0f82"
         },
@@ -4751,7 +4751,7 @@
           ],
           "featureCount": 1337,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x284_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x284_y680.parquet",
           "bytes": 628247,
           "sha256": "5cabc4a29cf683824648edc7ebc280e88e3050a6d4a9ebb2a97acb71942d64ca"
         },
@@ -4765,7 +4765,7 @@
           ],
           "featureCount": 9528,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x284_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x284_y681.parquet",
           "bytes": 1733897,
           "sha256": "f66de3a7fb0f6fd4bc4ac27cfd15959cbdd61937f63065da053a2e9e4c3f8d31"
         },
@@ -4779,7 +4779,7 @@
           ],
           "featureCount": 1036,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x284_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x284_y682.parquet",
           "bytes": 192058,
           "sha256": "addf16f12d126ac0ee8525bd5dda67090fab929e29da208b15d5c398a954f8b5"
         },
@@ -4793,7 +4793,7 @@
           ],
           "featureCount": 578,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x285_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x285_y673.parquet",
           "bytes": 181944,
           "sha256": "66ec98f4246614b13ae0b76aa173176056fdb310d26fe9654b46d198b4634d14"
         },
@@ -4807,7 +4807,7 @@
           ],
           "featureCount": 1572,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x285_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x285_y674.parquet",
           "bytes": 419681,
           "sha256": "9a7c881bc13001e8f590c0db5c4bc81a3e0bdd6d895f5cf230e237590d501f60"
         },
@@ -4821,7 +4821,7 @@
           ],
           "featureCount": 725,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x285_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x285_y675.parquet",
           "bytes": 309648,
           "sha256": "e99cd653886c340f6001f929bcf5fbb90d184a9423890b3aaf1f9c97fc52c33e"
         },
@@ -4835,7 +4835,7 @@
           ],
           "featureCount": 2201,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x285_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x285_y676.parquet",
           "bytes": 1095927,
           "sha256": "2802c2b273264af728410999d9735c35132c534f0b1e122669c6b9dcd55973e4"
         },
@@ -4849,7 +4849,7 @@
           ],
           "featureCount": 2105,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x285_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x285_y677.parquet",
           "bytes": 1095871,
           "sha256": "d3ab0d80792745a9656b0f72c4cf4e81791dc7b2b42f50b59e582b35151cb961"
         },
@@ -4863,7 +4863,7 @@
           ],
           "featureCount": 6353,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x285_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x285_y678.parquet",
           "bytes": 11274093,
           "sha256": "568bf87c4b3976726c9cb34309daa3f677959e722a278e363b49ebcca67002d5"
         },
@@ -4877,7 +4877,7 @@
           ],
           "featureCount": 2377,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x285_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x285_y679.parquet",
           "bytes": 3237794,
           "sha256": "6db41f9d2d0359ce643207fb57261a2ad2f2feb8eef9fd6d399113096e7ddfcd"
         },
@@ -4891,7 +4891,7 @@
           ],
           "featureCount": 2494,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x285_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x285_y680.parquet",
           "bytes": 730241,
           "sha256": "8f46fed564dff167c1995c6c575d2c4e6a72bd48f5c70da561a684e8b876b123"
         },
@@ -4905,7 +4905,7 @@
           ],
           "featureCount": 4520,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x285_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x285_y681.parquet",
           "bytes": 1100796,
           "sha256": "a14b8003811e52863c33f17f3fa4def72991c2583b2edda72f00564d0641a64e"
         },
@@ -4919,7 +4919,7 @@
           ],
           "featureCount": 320,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x285_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x285_y682.parquet",
           "bytes": 104812,
           "sha256": "8b7151047e66240e4663c26fa2d0e21849a3c6314d2b136528f4c53afd393f37"
         },
@@ -4933,7 +4933,7 @@
           ],
           "featureCount": 695,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x286_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x286_y673.parquet",
           "bytes": 384564,
           "sha256": "7c7cda17fb6645d4cc4dbd0407dc6e6d2e33b4a05381a0299dddd9bf0107cb8d"
         },
@@ -4947,7 +4947,7 @@
           ],
           "featureCount": 3186,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x286_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x286_y674.parquet",
           "bytes": 3662891,
           "sha256": "94af31ccfaa973d4735c064954ac0ce29599b6d3b9287865702ba9b3904ca985"
         },
@@ -4961,7 +4961,7 @@
           ],
           "featureCount": 1762,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x286_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x286_y675.parquet",
           "bytes": 4021521,
           "sha256": "f078067f31ee81b9713b28a7080f92478e52fcbedc4e757d86f452452daba5a8"
         },
@@ -4975,7 +4975,7 @@
           ],
           "featureCount": 1320,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x286_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x286_y676.parquet",
           "bytes": 518268,
           "sha256": "c4d427a8b55983ffe954d41ed42256cd8fe93ac397f0a848d6727cf58e6a5191"
         },
@@ -4989,7 +4989,7 @@
           ],
           "featureCount": 4249,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x286_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x286_y677.parquet",
           "bytes": 1259773,
           "sha256": "f8ca9605c63095d94ab9fd95a296932dc2a7ad3461c26f24c32a2b04f6b93ea6"
         },
@@ -5003,7 +5003,7 @@
           ],
           "featureCount": 1211,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x286_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x286_y678.parquet",
           "bytes": 543928,
           "sha256": "19fcbccb966b17180dbe3a326acc61968042988fd3b3a25c378bf4011110a904"
         },
@@ -5017,7 +5017,7 @@
           ],
           "featureCount": 4583,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x286_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x286_y679.parquet",
           "bytes": 1116161,
           "sha256": "a386fe358c5c1622c65bf46434b6c2dbcb6135e220f1360bac274c4941a17795"
         },
@@ -5031,7 +5031,7 @@
           ],
           "featureCount": 5854,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x286_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x286_y680.parquet",
           "bytes": 1386169,
           "sha256": "ac58b64e9e2c1b74904675df164fc16de9adc83055197e3d6afeccadc9880a34"
         },
@@ -5045,7 +5045,7 @@
           ],
           "featureCount": 3404,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x286_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x286_y681.parquet",
           "bytes": 989617,
           "sha256": "9c1ca8ecd64c90f31b1ff202ac1fabe352e86251dd8205ea5081c1e873877516"
         },
@@ -5059,7 +5059,7 @@
           ],
           "featureCount": 646,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x286_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x286_y682.parquet",
           "bytes": 156524,
           "sha256": "f445595de8598f0aa250bc49bfffe330d93724a573763066631e0a213ef6938b"
         },
@@ -5073,7 +5073,7 @@
           ],
           "featureCount": 1266,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x287_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x287_y673.parquet",
           "bytes": 3770892,
           "sha256": "980ee551df8317e37f4a1669289b94eb2ac16c2946ec061e7ec88a0767fd9103"
         },
@@ -5087,7 +5087,7 @@
           ],
           "featureCount": 5026,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x287_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x287_y674.parquet",
           "bytes": 13885928,
           "sha256": "09415b3f33fe15bf3d776a9ec29bd3577af7a8d10c5715c6428e7651dcae04c7"
         },
@@ -5101,7 +5101,7 @@
           ],
           "featureCount": 3572,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x287_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x287_y675.parquet",
           "bytes": 9583514,
           "sha256": "71070ad8f84b31330f2a19ab68e905c74285345398e6a3e3b991f46cfca8d709"
         },
@@ -5115,7 +5115,7 @@
           ],
           "featureCount": 4232,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x287_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x287_y676.parquet",
           "bytes": 2673985,
           "sha256": "143803a7c0ad2cdea8ed36251aae4a6602529cc996b37e5aa2c979739364c498"
         },
@@ -5129,7 +5129,7 @@
           ],
           "featureCount": 2856,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x287_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x287_y677.parquet",
           "bytes": 898954,
           "sha256": "55b89140f6b097ca9edf011103af3e120504c9c7d016187b6e5fb2595f4ae474"
         },
@@ -5143,7 +5143,7 @@
           ],
           "featureCount": 806,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x287_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x287_y678.parquet",
           "bytes": 378566,
           "sha256": "e18d3c459788cea4a8ca2335ffdb1d4a56cbcd88aa9b0c6e682f5784af2d14e1"
         },
@@ -5157,7 +5157,7 @@
           ],
           "featureCount": 3417,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x287_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x287_y679.parquet",
           "bytes": 942645,
           "sha256": "fdbcc77b4f9b2da1684f58a30ebf2f30d985ee7a4810b203c4d9e7c70871cd63"
         },
@@ -5171,7 +5171,7 @@
           ],
           "featureCount": 7982,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x287_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x287_y680.parquet",
           "bytes": 1623930,
           "sha256": "c0839b977c4b9816e19fe71a1581cfc4f10a1d60a605f3401c345a465ef1102a"
         },
@@ -5185,7 +5185,7 @@
           ],
           "featureCount": 7005,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x287_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x287_y681.parquet",
           "bytes": 1545084,
           "sha256": "1e82fb60b35e40da5d95512e094ca5f2c5b3ec8eb8b575056ebea1d7a2fc9fd3"
         },
@@ -5199,7 +5199,7 @@
           ],
           "featureCount": 787,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x287_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x287_y682.parquet",
           "bytes": 172355,
           "sha256": "e203c2c1ecf19777a3d8b4e256d2c7a995c7a3d560d3edd6c735ce9e02b5b859"
         },
@@ -5213,7 +5213,7 @@
           ],
           "featureCount": 1451,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x288_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x288_y673.parquet",
           "bytes": 3184907,
           "sha256": "d004bc95021eb54a14743c1a67eeeff9d507ac430f28702aca9dc685c132beee"
         },
@@ -5227,7 +5227,7 @@
           ],
           "featureCount": 5254,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x288_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x288_y674.parquet",
           "bytes": 12916412,
           "sha256": "b50a4289906ade5196881d41420faf024a5ded4085375e3fb88606ac9849e840"
         },
@@ -5241,7 +5241,7 @@
           ],
           "featureCount": 3741,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x288_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x288_y675.parquet",
           "bytes": 9792971,
           "sha256": "4869a9e3523ad5e983e1f6099285d13dbca29ef36a7eaf9813fcbd95aed151df"
         },
@@ -5255,7 +5255,7 @@
           ],
           "featureCount": 4641,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x288_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x288_y676.parquet",
           "bytes": 4130279,
           "sha256": "2dce59417f37350597cd75a9f642697ff638b44a4f3d15028d5604e44b34aa13"
         },
@@ -5269,7 +5269,7 @@
           ],
           "featureCount": 4071,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x288_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x288_y677.parquet",
           "bytes": 3671722,
           "sha256": "84aa876cb25a7efc22742d01f5b372e92e6f1fb966efe29c86e819271c3fb77d"
         },
@@ -5283,7 +5283,7 @@
           ],
           "featureCount": 2526,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x288_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x288_y678.parquet",
           "bytes": 963133,
           "sha256": "fc02803578edfc381e813b8976ad119537ff5b9aacfcff8287b2bc949eae0133"
         },
@@ -5297,7 +5297,7 @@
           ],
           "featureCount": 4151,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x288_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x288_y679.parquet",
           "bytes": 1077386,
           "sha256": "2882fec10312f843ac2c8192c561fdac3c734ee597540541ac2752a249d7cd8f"
         },
@@ -5311,7 +5311,7 @@
           ],
           "featureCount": 5551,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x288_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x288_y680.parquet",
           "bytes": 1253366,
           "sha256": "468ae5b4e81d12d7978cd54ec0001a00dfc1b9e49c5703f31fbc6432c8da31a8"
         },
@@ -5325,7 +5325,7 @@
           ],
           "featureCount": 7382,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x288_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x288_y681.parquet",
           "bytes": 3946819,
           "sha256": "a32fc624c16295e3a3968857e463dc6a523191f04064479fcb050aad7be5bca0"
         },
@@ -5339,7 +5339,7 @@
           ],
           "featureCount": 837,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x288_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x288_y682.parquet",
           "bytes": 181471,
           "sha256": "6f77cfa362b83d3d82f304be74db9dff5af815ce06e85c76710ab3d0336cd4c7"
         },
@@ -5353,7 +5353,7 @@
           ],
           "featureCount": 1453,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x289_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x289_y673.parquet",
           "bytes": 1798868,
           "sha256": "37911aabde611630dfe8699dc24d6849ab19eca507b4f6ab77db7c8b20338cd4"
         },
@@ -5367,7 +5367,7 @@
           ],
           "featureCount": 3749,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x289_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x289_y674.parquet",
           "bytes": 1979801,
           "sha256": "2df51c238f153a1ab875e51a093eddfba7bb39864a45b1eadfa628434134558f"
         },
@@ -5381,7 +5381,7 @@
           ],
           "featureCount": 4264,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x289_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x289_y675.parquet",
           "bytes": 7057543,
           "sha256": "cbb1428ad5da235990d0943861829798038df04ba2f22db49238b8eb38873f11"
         },
@@ -5395,7 +5395,7 @@
           ],
           "featureCount": 5833,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x289_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x289_y676.parquet",
           "bytes": 2332790,
           "sha256": "8af97c625be2bb4ebfa0f799c03d00a41096663a4b5e250a806eeb3907202bbc"
         },
@@ -5409,7 +5409,7 @@
           ],
           "featureCount": 3812,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x289_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x289_y677.parquet",
           "bytes": 9836162,
           "sha256": "d364b987c4b4b869377f3490abfccbc9b1367d41f6ea6e26a6a217a2071fc524"
         },
@@ -5423,7 +5423,7 @@
           ],
           "featureCount": 5496,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x289_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x289_y678.parquet",
           "bytes": 10910129,
           "sha256": "fe07e45163645b44041e6aaa5fc745d27d95ee7c06d8600bab79d68180f304a2"
         },
@@ -5437,7 +5437,7 @@
           ],
           "featureCount": 5210,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x289_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x289_y679.parquet",
           "bytes": 13691209,
           "sha256": "0bfd054864f0d1a3f48c78af8664744528d086b3e5e2bf4541876c2523851a80"
         },
@@ -5451,7 +5451,7 @@
           ],
           "featureCount": 5253,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x289_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x289_y680.parquet",
           "bytes": 8410264,
           "sha256": "5256cd12f005c839a98cd17056fd870ddc741acbe9583d874700e77b23ced631"
         },
@@ -5465,7 +5465,7 @@
           ],
           "featureCount": 5225,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x289_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x289_y681.parquet",
           "bytes": 10585303,
           "sha256": "65e983b96c23f14a9aae25ef74e803fd30e2c652d3db60914ffb1c96a3100fce"
         },
@@ -5479,7 +5479,7 @@
           ],
           "featureCount": 454,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x289_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x289_y682.parquet",
           "bytes": 109387,
           "sha256": "f7dc40dea3f2acf2e24b6d51bf9ded6be929a586e282e7599c5a6aa4edf75a53"
         },
@@ -5493,7 +5493,7 @@
           ],
           "featureCount": 1190,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x290_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x290_y673.parquet",
           "bytes": 3209753,
           "sha256": "fcd38873298bdb55a038065c64abfea35e91134a0918ae688f377ee060d2421b"
         },
@@ -5507,7 +5507,7 @@
           ],
           "featureCount": 2427,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x290_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x290_y674.parquet",
           "bytes": 6231917,
           "sha256": "60105ea5c61b678f89ad9a155354643bd86fcbb283fbe92191da061ac72b02a5"
         },
@@ -5521,7 +5521,7 @@
           ],
           "featureCount": 2328,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x290_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x290_y675.parquet",
           "bytes": 620894,
           "sha256": "73b2554d13b76171fc2d7f74b4f5db444bc92d47bd5c500f9e59785e4a571af9"
         },
@@ -5535,7 +5535,7 @@
           ],
           "featureCount": 4737,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x290_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x290_y676.parquet",
           "bytes": 10688512,
           "sha256": "d3f358a63f0580bd999a343e5bbbb73af155c0a718013d4f88d81f3563e512d8"
         },
@@ -5549,7 +5549,7 @@
           ],
           "featureCount": 4233,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x290_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x290_y677.parquet",
           "bytes": 13652987,
           "sha256": "979c4bc478cf78c50c0af8f05af569124192b3c8f858eee57ab372abba295477"
         },
@@ -5563,7 +5563,7 @@
           ],
           "featureCount": 5110,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x290_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x290_y678.parquet",
           "bytes": 15690994,
           "sha256": "caf92e83f23c9dc73bc0da1cb2d9be7bcedcc43efcac9e422229313cd4667ba1"
         },
@@ -5577,7 +5577,7 @@
           ],
           "featureCount": 6760,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x290_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x290_y679.parquet",
           "bytes": 45067524,
           "sha256": "db58fcae272cc8ce09f3e5b635caffa6cccf7ed3a78eef9050463064e9801cf3"
         },
@@ -5591,7 +5591,7 @@
           ],
           "featureCount": 3531,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x290_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x290_y680.parquet",
           "bytes": 22582005,
           "sha256": "eb47a1d2e2e24c3b7e2c92c5f03eea7650b0440763b7171d43e1d28ee3ff65bc"
         },
@@ -5605,7 +5605,7 @@
           ],
           "featureCount": 4070,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x290_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x290_y681.parquet",
           "bytes": 12186947,
           "sha256": "7dae017ddd47472adbbc903f919f00b599a965ebdfada651476caad0503a390e"
         },
@@ -5619,7 +5619,7 @@
           ],
           "featureCount": 386,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x290_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x290_y682.parquet",
           "bytes": 2012383,
           "sha256": "dd2f9f63e5d006a541c9fbfb449f61b5a88e32bb513b886497aa31fc63a104ab"
         },
@@ -5633,7 +5633,7 @@
           ],
           "featureCount": 253,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x291_y673.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x291_y673.parquet",
           "bytes": 347211,
           "sha256": "d3609cbdea90d187edb2cdab9c92a04dce2b90d4a1d66dd88796aede81687c6d"
         },
@@ -5647,7 +5647,7 @@
           ],
           "featureCount": 336,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x291_y674.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x291_y674.parquet",
           "bytes": 126047,
           "sha256": "b672b89d12029bba1dcd3cb164ef675d19e637bd54eff0a9f371a3c0fc4a4c5a"
         },
@@ -5661,7 +5661,7 @@
           ],
           "featureCount": 123,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x291_y675.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x291_y675.parquet",
           "bytes": 77299,
           "sha256": "4ba26fa9d25bcb9e4318875ec446c7b884bfc26ad69441700835f1d0c8924666"
         },
@@ -5675,7 +5675,7 @@
           ],
           "featureCount": 357,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x291_y676.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x291_y676.parquet",
           "bytes": 2857737,
           "sha256": "49f930da97bb2af40c67175b18f4f93c97a38dabbedd7afecb281cf11aa5bf4c"
         },
@@ -5689,7 +5689,7 @@
           ],
           "featureCount": 426,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x291_y677.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x291_y677.parquet",
           "bytes": 2346688,
           "sha256": "c0b20d2cb2e93590727be48c03d4c63ed4dca7dc1dac1204327763f62cb7005d"
         },
@@ -5703,7 +5703,7 @@
           ],
           "featureCount": 590,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x291_y678.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x291_y678.parquet",
           "bytes": 1512288,
           "sha256": "e5b4af6713155cc91f972ba6500d52099750f08dcd94249c651021bbb634b385"
         },
@@ -5717,7 +5717,7 @@
           ],
           "featureCount": 566,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x291_y679.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x291_y679.parquet",
           "bytes": 2359950,
           "sha256": "e07252f9b4c323c4d4a64e90665ecbb6b2047fd207bfaffcad66e70b66aae7ea"
         },
@@ -5731,7 +5731,7 @@
           ],
           "featureCount": 455,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x291_y680.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x291_y680.parquet",
           "bytes": 2453700,
           "sha256": "4ec3db96b81f1d62b657cb1142c3f1f7780a81e9765a83e0ad4faa06b9ae9974"
         },
@@ -5745,7 +5745,7 @@
           ],
           "featureCount": 692,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x291_y681.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x291_y681.parquet",
           "bytes": 2389649,
           "sha256": "205a410a4109eef14686b22ea5123241c1b820932865ed1e77356d72320066fb"
         },
@@ -5759,7 +5759,7 @@
           ],
           "featureCount": 62,
           "state": "present",
-          "url": "regional/partitions/or-sw-wa-portland-v2/hydrography/x291_y682.parquet",
+          "url": "regional/partitions/or-sw-wa-portland-v3/hydrography/x291_y682.parquet",
           "bytes": 299830,
           "sha256": "9eca82799ee0296b1e7de367fe28ca4ea5ed739b0e818ef2e49e7c427aaf1f20"
         }
@@ -5848,9 +5848,9 @@
       ]
     }
   ],
-  "roadComponentsUrl": "regional/components-or-sw-wa-portland-v2.json",
+  "roadComponentsUrl": "regional/components-or-sw-wa-portland-v3.json",
   "roadComponentsBytes": 949748,
-  "roadComponentsSha256": "11cb4b5076f9e0d58ae4288f530204d7126c6fc7580924c3b43399783c826c13",
+  "roadComponentsSha256": "33af4a6b210c70663ed717931117fa4728a8bd6a377c2bfc5343fb56b92b494d",
   "roadComponents": {
     "count": 61447,
     "multiCell": 2601,
@@ -5880,20 +5880,21 @@
       ]
     },
     "wetlandSourceWindowFeatures": 237184,
+    "wetlandPackageCopiesRemoved": 20839,
     "hydroFlowlineCount": 458023,
     "phasesMs": {
-      "pinSourcesMs": 2077,
-      "readRoadsMs": 6450,
-      "readWetlandsMs": 77128,
-      "readHydrographyMs": 39634,
-      "partitionMs": 46631
+      "pinSourcesMs": 83684,
+      "readRoadsMs": 8043,
+      "readWetlandsMs": 78849,
+      "readHydrographyMs": 46795,
+      "partitionMs": 49592
     },
     "cellCount": 130
   },
   "derived": {
-    "manifestUrl": "derived/corridor-metrics/40c78440082786507cb63a9e61dd8edd8728f4e364e8455aec5d7cb4736b9b84/manifest.json",
-    "localPath": "derived/corridor-metrics/40c78440082786507cb63a9e61dd8edd8728f4e364e8455aec5d7cb4736b9b84/manifest.json",
-    "analysisFingerprint": "40c78440082786507cb63a9e61dd8edd8728f4e364e8455aec5d7cb4736b9b84",
+    "manifestUrl": "derived/corridor-metrics/0d363f2cdb464418b82c976d4b76c5dfe9e8c2f8d344aabdfa2ae1791e325e00/manifest.json",
+    "localPath": "derived/corridor-metrics/0d363f2cdb464418b82c976d4b76c5dfe9e8c2f8d344aabdfa2ae1791e325e00/manifest.json",
+    "analysisFingerprint": "0d363f2cdb464418b82c976d4b76c5dfe9e8c2f8d344aabdfa2ae1791e325e00",
     "derivedSchemaVersion": 1,
     "bounds": [
       -124.05,
@@ -5903,12 +5904,12 @@
     ],
     "bounded": false,
     "corridors": 6244,
-    "bytes": 17288410,
+    "bytes": 17284937,
     "cells": 130,
     "presentCells": 118,
     "emptyCells": 12,
     "storedRows": 7875,
-    "averageRowBytes": 2195.4,
-    "manifestSha256": "46a72409c5615753a24a8eced9c78e77f41a25bff8677370e56c989ec3da9bc9"
+    "averageRowBytes": 2194.9,
+    "manifestSha256": "45a6845af72db0d3624486404263cd3b9f22ff6fd5b493f57095a724b0e67d52"
   }
 }

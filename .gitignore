@@ -1,6 +1,7 @@
 node_modules/
 test-results/
 data/national-work/
+data/national-wetlands-work/
 playwright-report/
 .DS_Store
 __pycache__/
@@ -13,10 +14,10 @@ __pycache__/
 .wrangler/
 dist/
 
-# The wider published regional window is served from R2; its 826 MiB of partitions are rebuilt on demand
-# with `npm run build:regional` (about three minutes from the pinned sources) and audited remotely with
-# `npm run audit:regional:remote`. The catalog, its per-object digests and the build report are committed.
+# The wider regional raw planes are served from R2. Their local partitions are
+# reproducible from pinned sources; commit the catalogs and digests, not the cells.
 data/regional/partitions/or-sw-wa-portland-v2/
+data/regional/partitions/or-sw-wa-portland-v3/
 
 # DuckDB spill files from offline builds
 .tmp/

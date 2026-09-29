@@ -53,6 +53,17 @@
     "test:national-roads": "uv run --python 3.12 --with pytest --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 -m pytest tests/test_national_roads.py -q",
     "benchmark:national-roads": "python3 scripts/benchmark-national-roads.py",
     "publish:national-roads": "node scripts/publish-national-roads.mjs"
+    ,"freeze:national-wetlands": "python3 scripts/freeze-national-wetlands.py",
+    "build:national-wetlands": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/build-national-wetlands.py",
+    "partition:national-wetlands": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/partition-national-wetlands.py",
+    "test:national-wetlands": "uv run --python 3.12 --with pytest --with pyarrow --with pyproj --with shapely python3 -m pytest tests/test_national_wetlands.py -q",
+    "analyze:nwi-borders": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/analyze-nwi-borders.py",
+    "verify:national-wetlands": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/verify-national-wetlands.py",
+    "benchmark:national-wetlands": "uv run --python 3.12 --with pyarrow python3 scripts/benchmark-national-wetlands.py",
+    "benchmark:nwi-concurrency": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/benchmark-nwi-concurrency.py",
+    "publish:national-wetlands": "node scripts/publish-national-wetlands.mjs",
+    "freeze:national-wetland-manifest": "python3 scripts/freeze-national-wetland-manifest.py",
+    "inspect:national-nwi": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/inspect-national-nwi-sources.py"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"

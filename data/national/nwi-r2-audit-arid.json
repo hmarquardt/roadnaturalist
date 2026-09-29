@@ -1,0 +1,18 @@
+{
+  "kind": "national-wetland-r2-sample-audit",
+  "bucket": "roadnaturalist-data",
+  "manifestVersion": "nwi-state-2026-05-v1-sample-e652619947db",
+  "buildCoverage": "partial",
+  "cells": [
+    {
+      "id": "x330_y610",
+      "url": "national/wetlands/nwi-state-2026-05-v1-sample-e652619947db/wetlands/x330_y610.parquet",
+      "bytes": 205254,
+      "sha256": "46c26646aa2161ec54a33f28600db60edab359a32be33ef27b7acf1a6c238b18",
+      "contentType": "application/vnd.apache.parquet",
+      "cacheControl": "public, max-age=31536000, immutable",
+      "cors": "https://roadnaturalist.pages.dev",
+      "rangeStatus": 206
+    }
+  ]
+}

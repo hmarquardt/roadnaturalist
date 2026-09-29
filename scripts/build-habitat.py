@@ -29,6 +29,7 @@ from shapely.ops import transform as shapely_transform
 from shapely import prepare as shapely_prepare
 from shapely.strtree import STRtree
 from shapely import transform as shapely_transform_arrays
+import national_wetlands as nwi_identity
 
 ROOT = Path(__file__).resolve().parents[1]
 PIPELINE_VERSION = "habitat-ingest-v1"
@@ -280,6 +281,17 @@ def read_wetlands(sources=None):
                             "sourceCrs": f"{authority[0]}:{authority[1]}" if authority else source_crs.to_string(),
                             "sourceCrsDefinition": source_crs.to_wkt()})
 
+    # State packages extend through neighboring map quadrangles. The same NWI_ID can therefore be
+    # present twice with different package-local OBJECTIDs. Remove only an exact cross-package copy;
+    # distinct mapped polygons, even when they overlap, continue to contribute to feature-area sums.
+    package_copies_removed = 0
+    if len(sources) > 1:
+        discarded = nwi_identity.regional_package_copies_to_remove(
+            features, [source["state"] for source in sources])
+        if discarded:
+            features = [feature for feature in features if feature[0] not in discarded]
+            package_copies_removed = len(discarded)
+
     # Every NWI state GeoPackage this build reads must use the same source CRS, because the window
     # polygon below is built once and reused for all of them.
     if len({item["sourceCrs"] for item in source_rows}) != 1:
@@ -344,6 +356,7 @@ def read_wetlands(sources=None):
         })
     stats = {"statewideFeatureCount": source_rows[0]["statewideFeatureCount"],
              "windowFeatureCount": sum(item["windowFeatureCount"] for item in source_rows),
+             "packageCopiesRemoved": package_copies_removed,
              "featureCount": len(rows), "droppedFeatureCount": dropped, "areaM2": round(total_area, 1),
              "sourceCrs": source_rows[0]["sourceCrs"], "sourceCrsDefinition": source_rows[0]["sourceCrsDefinition"],
              "states": source_rows,

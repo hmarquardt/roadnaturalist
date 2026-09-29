@@ -247,9 +247,9 @@ per feature.
   non-overlapping coverage - so a union would silently assert completeness Road Naturalist does not have.
   `tests/habitat-metrics.test.js` guards the shared expressions, and
   `npm run verify:regional-equivalence` asserts the batch and the detailed panel agree on the same capture.
-  Two overlapping mapped features therefore count twice, which is visible where the regional window reads two
-  state extracts across the Columbia River; the overlap note in [regional data](REGIONAL-DATA.md) records the
-  measured size of that effect and why the feature-area sum is the chosen reading.
+  Two distinct overlapping mapped features therefore count twice. Exact copies of one NWI source feature
+  found in adjacent state packages are removed before the metrics. The note in [regional data](REGIONAL-DATA.md)
+  quantifies the source-copy correction and the remaining mapped overlaps.
 * Coverage is compared before metrics: two paths may only be compared at a distance they both report as
   covered (`FULL`), and a coverage difference is reported as a coverage difference rather than as a metric
   difference.

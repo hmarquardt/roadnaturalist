@@ -1,0 +1,26 @@
+{
+  "phasesMs": {
+    "analytical": 8135,
+    "prepare": 28,
+    "metrics": 1230549,
+    "write": 7267,
+    "total": 1246705
+  },
+  "probe": {
+    "corridors": 6244,
+    "refused": 0
+  },
+  "repair": {
+    "ladder": {
+      "corridors": 6244,
+      "candidates": 75,
+      "rejectedByTolerance": 0
+    },
+    "gatedCorridors": 2,
+    "duplicateRepairs": 2,
+    "unusable": []
+  },
+  "chunks": 250,
+  "writeMs": 7078,
+  "manifestBytes": 51129
+}

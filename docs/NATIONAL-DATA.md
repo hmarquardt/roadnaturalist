@@ -1,5 +1,144 @@
 # CONUS data factory, Phase 1
 
+## Phase 2A: pinned NWI source plane
+
+The May 2026 FWS state GeoPackage set is frozen in `data/national/nwi-state-lock.json`: all 48 contiguous
+states and DC, 49 ZIP archives, **60,502,602,638 compressed bytes** and **128,044,507,136 ZIP-member bytes**.
+Every entry has the official URL, archive filename, byte length, SHA-256, Last-Modified, S3 version ID,
+GeoPackage member, and download timing. The freezer hashes one archive at a time, records a completed pin
+immediately, and deletes its temporary ZIP unless `--keep` is requested. This was necessary on the current
+machine: roughly 53 GiB was free before the build, less than the complete compressed source set. An initial
+run pinned 47 states and exhausted temporary disk space while downloading Wisconsin; rerunning pinned the
+remaining WI/WY entries without rehashing the completed downloads. `npm run freeze:national-wetlands -- --check`
+checks the complete lock offline. The source registry points to the lock and the source-schema inventory.
+`data/national/nwi-source-schema.json` reads every pinned package's GeoPackage member and counts
+**36,979,715 raw source rows** across all 49 CONUS layers; `npm run inspect:national-nwi -- --check`
+re-checks that inventory offline from the lock.
+
+The wetland factory lives in `scripts/build-national-wetlands.py`, `national_wetlands.py`, and
+`partition-national-wetlands.py`. It uses the Phase-1 `grid-conus-2025.json` unchanged. One state archive is
+downloaded and verified against the lock, one GeoPackage member is extracted and verified, and source rows
+are normalized in deterministic 100,000-`OBJECTID` chunks. Each chunk checkpoint carries the source digest,
+pipeline version, source and output counts, output bytes and SHA-256, and running/complete state. A killed
+chunk is rebuilt; completed output is rehashed. The `--cleanup-source` option discards ZIP/GeoPackage files
+after validated normalized chunks, leaving resumable normalized checkpoints. The default is one state worker,
+configurable to four; measured worker comparisons belong in the Phase-2A benchmark report.
+
+The raw NWI geometry is retained as complete Polygon/MultiPolygon source shapes and transformed from source
+EPSG:5070 to EPSG:4326 for GeoParquet. It is not simplified or clipped by cell. The publisher replicates the
+whole source feature to each intersecting 0.2° cell and uses `canonical_feature_id` to deduplicate selected
+cells. The compact schema carries that key, `NWI_ID`, source state/OBJECTID, all source states for an exact
+package copy, Cowardin `ATTRIBUTE`, `WETLAND_TYPE`, `QAQC_CODE`, `ACRES`, bounds, and WKB geometry. Regional
+metric semantics remain feature-area sum: two distinct wetland features can overlap and both contribute.
+
+The key policy is `nwi-id-exact-signature-v1`. A nonblank `NWI_ID` shared once per package becomes one
+canonical feature only when normalized **source geometry** and the classification/QA fields are exactly
+equal. The earliest state by FIPS owns the row. Repeated IDs within a package or across packages with
+different source geometry/attributes are kept as distinct package-qualified keys and counted as ambiguous.
+Blank IDs are always package-qualified. Geometry equality, overlap ratio, or type alone cannot remove a
+feature. The border harness in `scripts/analyze-nwi-borders.py` uses each GeoPackage R-tree for bounded
+real-world comparisons; `data/national/nwi-border-analysis.json` records counts and examples by border.
+
+The partition manifest declares all **21,874** national grid cells. Complete coverage permits `present` or
+`empty`; a partial build declares every unprocessed cell `unbuilt`, which must never be interpreted as zero
+wetlands. A present cell is a SHA-256-verified GeoParquet object under the immutable
+`national/wetlands/nwi-state-2026-05-v1/` path. `npm run verify:national-wetlands` audits pins, state/chunk
+checkpoints, identity rows, cell declarations, digests, schema, geometry samples, and deterministic manifest
+encoding. `npm run benchmark:national-wetlands` captures measured counts, bytes, and timings. Source cache,
+extraction, normalized checkpoints, fragments, and publishable objects remain in ignored
+`data/national-wetlands-work/`; only the small lock, inventory, manifests, reports, scripts, and docs are
+committed. A partial manifest is a build report, not a browser catalog.
+
+The existing Oregon/Washington regional ingestion had a genuine source-copy defect: it prefixed package
+local `OBJECTID`, so exact Columbia River NWI copies from both packages were counted twice. A source-level
+audit found 20,611 NWI IDs in both published regional packages, 19,966 of them with identical regional
+geometry and type. The shared package-copy identity rule now removes only exact cross-package copies before
+the regional wetland geometry is clipped/simplified. The corrected regional raw plane is versioned `v3`,
+the analysis profile includes this rule, and derived metrics are rebuilt under its new fingerprint. The
+feature-area sum rule itself is unchanged, and distinct overlapping mapped polygons are preserved.
+
+The Phase-2A build boundary and measured object distribution are recorded below after representative
+normalization, cross-border validation, and cell compaction. Full national wetland publication waits until
+EPA, hydrography, and national derived metrics can be verified together; representative cells are uploaded
+and audited in the existing `roadnaturalist-data` bucket.
+
+### Measured Phase-2A boundary
+
+The current laptop cannot hold the complete wetland factory output. The pinned ZIPs total **60.503 GB**,
+their uncompressed ZIP members total **128.045 GB**, and the disk had only about **53 GiB free** before this phase.
+After the road factory and wetland checkpoints, ordinary free space is about **25 GiB**; one extracted large
+state temporarily consumes another 5–12 GiB. The builder therefore completed full-state normalization for
+**AZ, DC, OR, and WA**, compacted the **AZ/DC** full-state partial plane, and compacted four bounded paired
+state validation slices. The remaining **45 states** have no full normalized checkpoint, and **47 states**
+have no full-state cell compaction. These are completed counts, not extrapolated national totals. The
+committed `data/national/wetland-manifest.json` is a **1,707,132-byte partial build record** with 694 present,
+two declared-empty, and 21,178 explicitly unbuilt cells. Its present cells total **2,765,274,542 bytes**;
+the 162,913 stored rows represent 150,835 distinct features in those cells (1.0801 rows per feature).
+Partial and bounded sample URLs include a digest of the state/selection set, so future complete cells cannot
+collide with these immutable R2 objects.
+
+| Validation slice | Raw rows | Canonical rows | Exact copies removed | Ambiguous rows retained | Present cells | Stored rows | GeoParquet bytes | Largest cell |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| PNW OR/WA | 34,624 | 28,849 | 5,775 | 440 | 12 | 21,577 | 117,131,850 | 19,569,756 |
+| Gulf FL/GA | 69,601 | 64,092 | 5,509 | 364 | 24 | 50,188 | 68,211,307 | 4,607,981 |
+| Northeast NY/NJ | 101,424 | 83,245 | 18,179 | 726 | 16 | 58,429 | 129,768,206 | 14,123,108 |
+| Arid AZ/DC full-state partial | 188,581 | 188,581 | 0 | 2 | 694 | 162,913 | 2,765,274,542 | 17,758,494 |
+
+The seven bounded border investigations measured **69,700 exact cross-package copies** and **4,506 ambiguous
+rows** in their selected windows. The OR/WA window alone found 32,563 exact copies. Conflicting reuse of the
+same `NWI_ID` was retained, and geometry-only identity was never used. In the corrected regional footprint,
+20,839 exact OR/WA source copies were removed before analytical clipping. The regional feature-area-sum
+metric and distinct overlapping wetlands remain intact. Source-level identity is checked before the
+regional 1 m geometry simplification; the national raw plane retains unsimplified whole source polygons.
+
+The OR/WA border result was independently re-derived from the full-state normalized OR and WA chunks rather
+than from the report: **1,285,527** source-faithful rows (unsimplified geometry digests, before any clipping)
+contain **32,563** exact cross-package copies and **2,620** ambiguous rows, and the exact-copy count is
+identical to the windowed border figure. That re-derivation also found the sharpest adversarial case present
+in the real data: one normalized source geometry digest is shared by **three distinct `NWI_ID`s**, each with a
+single row, and **all three are retained** - equal geometry alone is never treated as identity. Neither
+package has a blank `NWI_ID` row, so the blank-id path is exercised by the deterministic tests rather than by
+this pair. The command that re-derived it is a verification exercise, not part of the committed pipeline; the
+committed rule it checks is `nw.duplicate_group_is_safe` plus `nw.canonical_key`.
+
+The four sample benchmarks are committed under `data/national/nwi-benchmark-*.json`. Their median cell sizes
+range from **2.61 MB** in the Gulf slice to **7.49 MB** in the Northeast; the sampled p95 is at most **17.00
+MB** (PNW). The four published R2 sample objects total **10,802,553 bytes** and each public GET matched its
+SHA-256/byte length, GeoParquet content type, immutable cache header, CORS, and HTTP 206 Range response.
+They are samples, not a national active catalog. Full publication and browser activation remain gated on a
+complete 49-state build and the later ecology/hydro/derived equivalence gates.
+
+Worker concurrency was benchmarked rather than assumed, on one pinned four-package subset (CT, DC, DE, RI:
+**278,037,075** compressed source bytes, **306,139** raw rows, **451,746,046** normalized bytes each run,
+**8.367 s** shared source preparation). `data/national/nwi-concurrency-benchmark.json` records every run:
+
+| Workers | Invocation s | Wall s | Process CPU s | Peak RSS | Outcome |
+| ---: | ---: | ---: | ---: | ---: | --- |
+| 1 | 57.286 | **57.477** | 55.021 | **1.258 GB** | fastest, least memory |
+| 2 | 64.896 | 65.134 | 81.445 | 1.549 GB | 13% slower than one worker |
+| 4 | 60.145 | 60.358 | 80.685 | 1.691 GB | still slower than one worker |
+
+The default stays **one worker**. More workers did not help and cost more: the pinned ZIPs of a large state
+are 0.5–4 GB compressed and their GeoPackages 1.6–13 GB, so two or more large states in flight contend for
+the same disk on this machine, and each additional worker raised peak memory while consuming more CPU per
+second of wall time. The per-worker gain seen here is bounded by the fact that extraction and GeoPackage
+reads are disk-bound, not CPU-bound. A larger machine with independent fast storage should re-benchmark the
+same pinned subset before any default change; the measured 1/2/4 results above are the local baseline.
+
+Peak RSS is now measured for the normalization workload (**1.258 GB at one worker**), while peak CPU
+percentage and end-to-end Phase-2A wall time remain uninstrumented; per-state and partition stage timings are
+in the committed machine-readable reports. A full 49-state plane needs a larger disk or an external shard
+store. The next run can reuse all valid state/chunk checkpoints and will refuse stale source or output
+digests. `npm run verify:national-wetlands` validates the current partial plane and all seven real border
+regressions; add `--require-all` to make a complete national plane mandatory.
+
+At the current regional all-habitat rate of 6,244 corridors per 1,231 seconds, 1,420,806 national corridors
+would take about **78 hours of single-worker metric work** before national density and I/O effects. That is
+only a throughput reference, not a completed wetland intersection benchmark. Sampled wetland cell cost
+varies by more than an order of magnitude per feature, so a credible national NWI output-byte estimate
+requires additional full states. The previously measured **3.93 GB** national derived-row forecast concerns
+the compact *finished metrics*, not raw wetland source polygons or intermediate buffer work.
+
 Road Naturalist's production browser continues to use the Oregon/southwest Washington regional plane. This phase builds a separate national **road** plane; national habitat and derived discovery are later phases. No national road-only search is exposed to users.
 
 ## Coverage and source registry
@@ -50,7 +189,7 @@ A source refresh creates a new vintage/digest, invalidates affected county norma
 
 **EPA ecoregions.** EPA offers [CONUS Level III and IV shapefiles](https://www.epa.gov/eco-research/level-iii-and-iv-ecoregions-continental-united-states) of roughly 35 MB and 69 MB with state boundaries. Pin both archives and test that their overlap semantics match the current regional EPA layers before switching to national whole-region handling. Their size does not call for the county road shard model.
 
-**NWI wetlands.** FWS [offers state GeoPackages](https://www.fws.gov/program/national-wetlands-inventory/download-state-wetlands-data) for all 48 states and DC, updated in May and October; 49 downloads are the initial CONUS work units. State ZIPs range from about 1 MB to 4 GB, and the national wetland layer has [more than 37 million features](https://www.fws.gov/program/national-wetlands-inventory/wetlands-data). Oregon and Washington's currently pinned May 2026 archives total **3,062,142,756 bytes**; that is a measured two-state subtotal, not a national estimate. Extract each state's `Wetlands` layer with its GeoPackage R-tree in bounded spatial chunks, checkpoint by state and chunk with source digest, then assign whole normalized features to 0.2° cells. FWS explicitly warns that adjacent state downloads overlap because each extends through bordering map quadrangles. The planned national logical key is a nonblank, overlap-validated `NWI_ID`; for blank or conflicting IDs, use a digest of normalized geometry plus `ATTRIBUTE` and `WETLAND_TYPE`. Keep the state-local `OBJECTID` only as provenance. Compare both key types across OR/WA and other state seams before freezing the rule; select one identical overlap record by sorted state FIPS, and flag conflicting records for review. Each whole feature is then replicated across intersecting cells and deduped by that canonical key. Keep state coverage and unmapped areas explicit rather than calling them zero. Start with two workers for large ZIPs and benchmark disk/RAM before increasing.
+**NWI wetlands.** Phase 2A pins the complete 49-package May 2026 state GeoPackage source set, freezes an exact cross-package identity rule, and builds checkpointed source and cell stages as described at the top of this document. The 60.5 GB compressed source set exceeds the disk headroom of this laptop when cached together. Source packages are verified, processed one at a time by default, and removed after validated normalization. A full `present`/`empty` catalog requires all 49 state jobs; partial manifests explicitly mark unbuilt cells. The regional v3 correction for exact Columbia River package copies is part of the same semantic work.
 
 **Hydrography.** Freeze a national **legacy NHD High Resolution** snapshot for Phase 2. [USGS still distributes legacy NHD by HU8, HU4, state, and nation](https://www.usgs.gov/3d-hydrography-program/access-3dhp-data-products), while 3DHP is a different, actively updated generation. Migrating to 3DHP during national scaling would change feature and metric semantics and break regional equivalence. Pin bounded HU8 or HU4 archives with digests, dedupe overlap by layer plus source permanent ID, and retain current clipped-length and feature-count definitions. Evaluate 3DHP as a separate migration after the national legacy plane is verified.
 

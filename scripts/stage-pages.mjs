@@ -24,7 +24,8 @@ const ROOT = resolve(new URL('..', import.meta.url).pathname);
 const DIST = join(ROOT, 'dist');
 const MARKER = 'deployment.json';
 const SITE_ENTRIES = ['index.html', 'assets', 'src', 'data', 'config/pages-headers'];
-const UNSTAGED_DATA = ['data/national-work', 'data/national', 'data/regional/partitions', 'data/derived']
+const UNSTAGED_DATA = ['data/national-work', 'data/national-wetlands-work', 'data/national',
+  'data/regional/partitions', 'data/derived']
   .map(path => join(ROOT, path));
 
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'));

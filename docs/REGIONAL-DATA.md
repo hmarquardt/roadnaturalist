@@ -98,9 +98,12 @@ For Fruiting Forecast, the transferable parts were lazy DuckDB-WASM/Spatial, ver
 
 The first slice was too small to say anything about 25- or 50-mile searches, so the source window was
 widened to `[-124.05, 44.75, -121.77, 46.42]` (about 180 x 180 km) around the original pilot. The window is
-published as **`or-sw-wa-portland-v2`**; the earlier slice stays published as
+published as **`or-sw-wa-portland-v3`**; the earlier slice stays published as
 `data/regional/manifest-or-portland-west-v1.json` so its measurements remain reproducible and its objects
-remain auditable. `data/regional/manifest.json` is now the wider region.
+remain auditable, and the v2 wider window stays published under its own keys. `data/regional/manifest.json`
+is now the wider region at v3, the version that removes exact cross-package NWI copies at source identity.
+Where the tables below quote a v2 measurement they are labelled as the earlier pass, and the v3 numbers are
+the ones the current catalog and artifacts carry.
 
 What the wider window required, all from the same pinned products:
 
@@ -329,10 +332,11 @@ The equivalence command's own output on the committed capture:
 ```text
 Regional GIS equivalence
 
-Corridors checked      8 of 550 surveyed
-FULL                   8
-Repaired corridors     25
-Overlapping NWI pairs  872 within the sampled 1 km buffers
+Corridors checked      8 of 558 surveyed
+FULL                   7
+PARTIAL                1
+Repaired corridors     0
+Overlapping NWI pairs  330 within the sampled 1 km buffers
 
 Wetland metrics        PASS
 Hydrography metrics    PASS
@@ -341,6 +345,8 @@ Geometry provenance    PASS
 Batch composition      PASS
 Promotion identity     PASS
 Per-feature stage      PASS
+
+NOTE drv1-ojalla-rd-s1 [coverage-skipped] 1000 m metrics are not compared (batch covered false, detailed covered false)
 
 0 unexplained divergences
 ```
@@ -365,16 +371,15 @@ gated on, agrees; the summary's own combination at the window edge deserves a fo
 
 ### Overlapping mapped wetlands: the chosen definition
 
-NWI polygons do overlap, and the wider window makes that visible: the capture found **872 overlapping mapped
-wetland feature pairs** inside the sampled corridors' 1 km buffers, mostly because the window now reads the
-Oregon *and* Washington state extracts, which both cover the Columbia River corridor. Road Naturalist keeps
+NWI polygons do overlap, and the corrected v3 capture found **330 overlapping mapped wetland feature pairs**
+inside the sampled corridors' 1 km buffers. Exact OR/WA package copies have been removed at source identity;
+the remaining distinct mapped polygons still overlap. Road Naturalist keeps
 the **feature-area sum** - each mapped feature contributes the area of its own geometry clipped to the buffer -
 and therefore counts an overlapping pair twice. The reading is the interface's own: "Mapped wetland within
 250 m / 1 km" plus the feature count beside it answers "how much mapped wetland is recorded around this
 corridor", not "how much ground is wetland". A spatial-union area would be a different and stronger claim: it
 would silently assume the mapped inventory is complete and non-overlapping, which NWI is not, and it would
-change every committed pilot expectation. The double count across a state line is the one place where this
-definition is visibly generous, and it is recorded rather than smoothed over.
+change every committed pilot expectation. Package overlap is handled separately from this area definition.
 
 ## Road closure by connected component, not by name
 
@@ -393,7 +398,7 @@ asserts the same components, ids, membership and determinism under shuffled inpu
 | 50-mile radius | 88 | 22 (110 total) | **6** (94 total) | 1.5 MB | **0.5 MB** |
 
 The window holds **61,447 components**; **2,601** span more than one cell and are published (949,748 bytes at
-`regional/components-or-sw-wa-portland-v2.json`, declared in the catalog with its byte count and SHA-256 and
+`regional/components-or-sw-wa-portland-v3.json`, declared in the catalog with its byte count and SHA-256 and
 verified on load). The main catalog shrank from 1.24 MB to **177 KB**, because the name index it used to carry
 is gone. The components that still add cells are long roads that genuinely continue (`US Hwy 26`, `US Hwy 30`,
 `State Hwy 6`, `US Hwy 101`), not common street names: the test asserts no numbered street name appears among
@@ -412,13 +417,20 @@ corridor identity or as a metric.
 `data/regional/analysis-profile.json` freezes the semantics a derived artifact would bake in, and
 `src/discovery/analysis-fingerprint.js` builds it from the values the runtime actually uses (the constants are
 imported, never restated) and reduces it to canonical JSON, then SHA-256. Current fingerprint:
-`40c78440082786507cb63a9e61dd8edd8728f4e364e8455aec5d7cb4736b9b84`.
+`0d363f2cdb464418b82c976d4b76c5dfe9e8c2f8d344aabdfa2ae1791e325e00`.
 
 The CONUS road build found a shared composition defect: the selected source line was cloned for orientation,
 but the old removal step searched for that clone in the original list. Version 2 consumes the selected original
 and retains branches. That changes corridor geometry and metrics, so the profile records the new composition
 rule and the regional derived plane was rebuilt under a new fingerprint. Old immutable artifacts remain on R2;
 a browser running the new code refuses their fingerprint.
+
+The national NWI overlap audit found that two state packages can contain the same NWI source feature.
+Regional version 3 removes a package copy only when the nonblank `NWI_ID`, normalized source geometry,
+classification, and QA fields agree, before clipping or simplification. It retains ambiguous IDs and
+distinct overlapping wetlands. This corrects a real Columbia River double count and changes the regional
+wetland metrics, so the shared analysis profile advanced to version 3 and the derived plane received the
+new fingerprint above. The feature-area-sum definition remains unchanged.
 
 It covers the region version and bounds, the road dataset version plus a digest over every published road
 partition, the component-index digest and join tolerance, the composition tolerance and reversed-link ratio,
@@ -486,20 +498,20 @@ coverage_hydro_250 coverage_hydro_500 coverage_hydro_1000 analysis_fingerprint
 promotion compare against; `geometry_repaired`/`geometry_repair_method` record whether the offline analysis used
 a repair. No occurrence, access, Investigator, annotation, or user state is stored.
 
-### Built state (`or-sw-wa-portland-v2`, 2026-09-29)
+### Built state (`or-sw-wa-portland-v3`, 2026-09-29)
 
 The whole published region is now built, and the numbers are the ones the artifacts actually carry:
 
 | Fact | Value |
 | --- | --- |
-| Analysis fingerprint | `40c78440082786507cb63a9e61dd8edd8728f4e364e8455aec5d7cb4736b9b84` |
+| Analysis fingerprint | `0d363f2cdb464418b82c976d4b76c5dfe9e8c2f8d344aabdfa2ae1791e325e00` |
 | Corridors (unique) | 6,244 |
 | Repaired analysis geometry | 2 corridors via `remove-duplicate-segments` (see below) |
 | Stored rows (after replication) | 7,875 over 1,631 replicated rows and 1,518 multi-cell corridors |
 | Cells | 130 (118 present, 12 declared empty) |
-| GeoParquet bytes | 17,288,410 (16.49 MiB), 2,195.4 bytes per stored row average |
-| Manifest | `data/derived/corridor-metrics/<fingerprint>/manifest.json`, 51,046 bytes, SHA-256 `46a72409c5615753a24a8eced9c78e77f41a25bff8677370e56c989ec3da9bc9` |
-| Build cost | 21.2 minutes wall (250 chunks; analytical 5.9 s, metrics 1,254.6 s, write 8.3 s) |
+| GeoParquet bytes | 17,284,937 (16.48 MiB), 2,194.9 bytes per stored row average |
+| Manifest | `data/derived/corridor-metrics/<fingerprint>/manifest.json`, 51,129 bytes, SHA-256 `45a6845af72db0d3624486404263cd3b9f22ff6fd5b493f57095a724b0e67d52` |
+| Build cost | 20.8 minutes wall (250 chunks; analytical 8.1 s, metrics 1,230.5 s, write 7.3 s) |
 | Build engine | native DuckDB Spatial, `PRAGMA memory_limit='2GB'`, spill directory under `DERIVED_WORK` |
 
 Repair provenance records the shared ladder's decision, and the build applies two rules so that the geometry it

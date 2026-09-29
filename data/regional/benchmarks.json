@@ -1,7 +1,7 @@
 {
   "kind": "road-discovery-benchmarks",
   "version": 1,
-  "region": "or-sw-wa-portland-v2",
+  "region": "or-sw-wa-portland-v3",
   "assetBaseUrl": "https://data.roadnaturalist.com/",
   "catalogUrl": "regional/manifest.json",
   "analysisHaloM": 1000,

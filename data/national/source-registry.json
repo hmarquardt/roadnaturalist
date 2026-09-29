@@ -33,10 +33,19 @@
       "digestStrategy": "pin downloaded archive SHA-256 before conversion", "coverage": "CONUS", "updateCadence": "irregular", "status": "planned"
     },
     "wetlands": {
-      "agency": "U.S. Fish and Wildlife Service", "dataset": "National Wetlands Inventory", "vintage": "state download snapshot to be pinned in Phase 2",
+      "agency": "U.S. Fish and Wildlife Service", "dataset": "National Wetlands Inventory", "vintage": "May 2026 state GeoPackage downloads",
       "downloadPage": "https://www.fws.gov/program/national-wetlands-inventory/download-state-wetlands-data",
-      "archiveStructure": "GeoPackage or file geodatabase by state or HUC8", "digestStrategy": "SHA-256 per state archive",
-      "coverage": "state dependent; explicit coverage required", "updateCadence": "May and October state downloads", "status": "planned"
+      "urlTemplate": "https://documentst.ecosphere.fws.gov/wetlands/data/State-Downloads/{state}_geopackage_wetlands.zip",
+      "archiveStructure": "one ZIP and one GeoPackage per state or DC; {state}_Wetlands polygon layer and GeoPackage R-tree",
+      "packageCount": 49, "measuredCompressedBytes": 60502602638,
+      "measuredUncompressedBytes": 128044507136,
+      "lockPath": "data/national/nwi-state-lock.json",
+      "sourceInventoryPath": "data/national/nwi-source-schema.json",
+      "digestStrategy": "SHA-256 per state ZIP, with bytes, Last-Modified, S3 version ID, member and source schema inspection",
+      "coverage": "48 contiguous states plus DC; state packages extend into neighboring quadrangles",
+      "canonicalKeyVersion": "nwi-id-exact-signature-v1",
+      "license": "Public domain (U.S. Government work)",
+      "updateCadence": "May and October state downloads", "status": "pinned-build-in-progress"
     },
     "hydrography": {
       "agency": "U.S. Geological Survey", "dataset": "legacy NHD High Resolution", "vintage": "pinned HU8 snapshots in regional build; national vintage to be frozen in Phase 2",

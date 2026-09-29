@@ -1,9 +1,9 @@
 {
  "kind": "road-discovery-analysis-profile",
- "profileVersion": 2,
+ "profileVersion": 3,
  "derivedSchemaVersion": 1,
  "region": {
-  "version": "or-sw-wa-portland-v2",
+  "version": "or-sw-wa-portland-v3",
   "bounds": [
    -124.05,
    44.75,
@@ -13,11 +13,11 @@
  },
  "roadSource": {
   "id": "roads",
-  "version": "or-sw-wa-portland-v2",
+  "version": "or-sw-wa-portland-v3",
   "digest": "4faab5a1971c15bcd37082865f1a06e79446a044c00c76d13360849098e53388"
  },
  "roadComponents": {
-  "digest": "11cb4b5076f9e0d58ae4288f530204d7126c6fc7580924c3b43399783c826c13",
+  "digest": "33af4a6b210c70663ed717931117fa4728a8bd6a377c2bfc5343fb56b92b494d",
   "joinToleranceM": 150,
   "multiCellComponents": 2601
  },
@@ -49,12 +49,12 @@
  "habitat": {
   "wetlands": {
    "id": "wetlands",
-   "version": "or-sw-wa-portland-v2",
-   "digest": "c005ebe111a25d220e58659dea891e6a7fa238c5cc9bf595edc411d3a0e880f4"
+   "version": "or-sw-wa-portland-v3",
+   "digest": "1ba68abcf2610ae1ed684a7919afd8f662e3e74a819a723fc58bc3db056c5d93"
   },
   "hydrography": {
    "id": "hydrography",
-   "version": "or-sw-wa-portland-v2",
+   "version": "or-sw-wa-portland-v3",
    "digest": "4428497358f62c28a8d654190ccf00eba98dd4e76e01d9f2f63a57a328bab377"
   }
  },
@@ -88,11 +88,12 @@
  ],
  "metrics": {
   "wetlandArea": "feature-area-sum-v1",
+  "wetlandPackageCopies": "same-nwi-id-exact-source-geometry-and-attributes-v1",
   "hydrographyLength": "clipped-length-sum-v1",
   "habitatCounts": "distinct-contributing-features-v1",
   "coverage": "extent-per-distance-v1",
   "hydroNames": "sorted-distinct-first-40-v1",
   "wetlandDefinition": "sum of each mapped feature's own geometry clipped to the requested buffer (feature-area sum, not a spatial union)"
  },
- "fingerprint": "40c78440082786507cb63a9e61dd8edd8728f4e364e8455aec5d7cb4736b9b84"
+ "fingerprint": "0d363f2cdb464418b82c976d4b76c5dfe9e8c2f8d344aabdfa2ae1791e325e00"
 }

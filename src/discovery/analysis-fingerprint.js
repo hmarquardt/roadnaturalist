@@ -14,13 +14,14 @@ import { REVERSED_LINK_LENGTH_RATIO } from '../roads/normalize.js';
 //
 // The inputs are semantics only. Build timestamps, Pages deployment ids, R2 origins and user state are
 // deliberately absent: rebuilding the same rules from the same data must produce the same fingerprint.
-export const ANALYSIS_PROFILE_VERSION = 2;
+export const ANALYSIS_PROFILE_VERSION = 3;
 // Bumped by hand whenever the derived row shape changes; it is part of the fingerprint, so an old artifact
 // can never be mistaken for a current one.
 export const DERIVED_SCHEMA_VERSION = 1;
 
 const METRIC_SEMANTICS = Object.freeze({
   wetlandArea: 'feature-area-sum-v1',
+  wetlandPackageCopies: 'same-nwi-id-exact-source-geometry-and-attributes-v1',
   hydrographyLength: 'clipped-length-sum-v1',
   habitatCounts: 'distinct-contributing-features-v1',
   coverage: 'extent-per-distance-v1',

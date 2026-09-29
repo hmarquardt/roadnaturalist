@@ -62,6 +62,10 @@ REGIONS = {
                           "WA 53011/53015/53041/53049/53059/53069, Oregon and Washington NWI, NHD HU8 1707/1708/1709/1710",
     },
 }
+REGIONS["or-sw-wa-portland-v3"] = {
+    **REGIONS["or-sw-wa-portland-v2"],
+    "name": "Greater Portland region (exact NWI package-copy identity)",
+}
 BENCHMARKS = [
     {"id": "small-10mi", "label": "Small: 10-mile radius", "kind": "radius", "radiusMiles": 10},
     {"id": "medium-25mi", "label": "Medium: 25-mile radius", "kind": "radius", "radiusMiles": 25},
@@ -233,6 +237,7 @@ def benchmark_declaration(region_version):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--region", default="or-sw-wa-portland-v2", choices=sorted(REGIONS))
+    parser.add_argument("--download", action="store_true", help="fetch missing pinned habitat archives")
     parser.add_argument("--road-cache", type=Path, default=Path("/tmp/roadnaturalist-road-sources"))
     parser.add_argument("--habitat-cache", type=Path, default=Path("/tmp/rn-habitat-sources"))
     parser.add_argument("--report", type=Path, default=None, help="write measured build phases to this JSON file")
@@ -257,7 +262,7 @@ def main():
     nwi_sources = []
     for state in declaration["nwi"]:
         source = dict(habitat.WASHINGTON_WETLANDS if state == "WA" else habitat.WETLANDS)
-        archive = habitat.fetch(source["url"], args.habitat_cache / source["archive"], source["sha256"], False, source["bytes"])
+        archive = habitat.fetch(source["url"], args.habitat_cache / source["archive"], source["sha256"], args.download, source["bytes"])
         member = args.habitat_cache / source["member"]
         if not member.exists():
             import zipfile
@@ -272,7 +277,7 @@ def main():
             pilot = habitat.HYDROGRAPHY["sources"][hu8]
             pinned = {"url": pilot["url"], "bytes": pilot["bytes"], "sha256": pilot["sha256"]}
         archive = args.habitat_cache / f"NHD_H_{hu8}_HU8_GDB.zip"
-        habitat.fetch(pinned["url"], archive, pinned["sha256"], False, pinned["bytes"])
+        habitat.fetch(pinned["url"], archive, pinned["sha256"], args.download, pinned["bytes"])
         extracted = args.habitat_cache / f"NHD_H_{hu8}_HU8_GDB.gdb"
         if not extracted.exists():
             import zipfile
@@ -358,12 +363,13 @@ def main():
                          "deduplication": {"roads": ["county_fips", "source_feature_id", "part"], "wetlands": ["source_feature_id"],
                                            "hydrography": ["layer", "source_feature_id"]},
                          "wetlandSourceWindowFeatures": wetland_stats["windowFeatureCount"],
+                         "wetlandPackageCopiesRemoved": wetland_stats["packageCopiesRemoved"],
                          "hydroFlowlineCount": hydro_stats["flowlineCount"],
                          "phasesMs": phases, "cellCount": len(cell_list)}}
     OUT.mkdir(parents=True, exist_ok=True)
-    manifest_path = OUT / "manifest.json" if version == "or-sw-wa-portland-v2" else OUT / f"manifest-{version}.json"
+    manifest_path = OUT / "manifest.json" if version in ("or-sw-wa-portland-v2", "or-sw-wa-portland-v3") else OUT / f"manifest-{version}.json"
     manifest_path.write_text(json.dumps(catalog, indent=2) + "\n")
-    if version == "or-sw-wa-portland-v2":
+    if version in ("or-sw-wa-portland-v2", "or-sw-wa-portland-v3"):
         (OUT / "benchmarks.json").write_text(json.dumps(benchmark_declaration(version), indent=2) + "\n")
     phases["totalMs"] = round((time.time() - started_all) * 1000)
     report = {"region": version, "cells": len(cell_list), "phasesMs": phases,

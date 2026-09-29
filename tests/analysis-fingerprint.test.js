@@ -53,7 +53,7 @@ const materialChanges = [
   ['road component index digest', value => { value.regionalCatalog.roadComponentsSha256 = 'd'.repeat(64); }],
   ['ecoregion version', value => { value.manifest.datasets.find(dataset => dataset.id === 'epa-ecoregions-or-l3').version = 'epa-other-v9'; }],
   ['ecoregion digest', value => { value.manifest.datasets.find(dataset => dataset.id === 'epa-ecoregions-wa-l4').sha256 = 'e'.repeat(64); }],
-  ['region version', value => { value.regionalCatalog.version = 'or-sw-wa-portland-v3'; }],
+  ['region version', value => { value.regionalCatalog.version = 'or-sw-wa-portland-v4'; }],
   ['region bounds', value => { value.regionalCatalog.region.bounds = [-124.05, 44.75, -121.77, 46.5]; }],
 ];
 
