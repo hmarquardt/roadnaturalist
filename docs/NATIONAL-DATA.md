@@ -172,8 +172,111 @@ The full fragment stage produced **40,654 county-cell fragments** and **14,993,0
 The national name index contains **2,341,573 distinct normalized names**, **9,255,241 named eligible source rows**, and **7,840,443 connected components**, including **448,692** touching multiple grid cells. The 64 component buckets occupy **2,226,492,281 bytes** and took **2,084.956 seconds of bucket work**. The longest source component is a topologically connected US Hwy 27 chain at **1,334 km** across 21 counties. A high-feature-count example, Eglin Air Force Base, has **515 features** but is confined to a roughly 19 × 22 km Florida area; its 412 km source length describes a local branching network rather than nationwide name closure. There are 99 source components over 500 km and nine over 1,000 km. These figures are source component measurements, not corridor lengths.
 
 National QA exposed a shared corridor-composition bug: the selected source line was cloned for orientation and then removed from the remaining list by cloned-object identity. That removed the last line instead; some large highways repeated links, dropped others, and acquired inflated lengths. The shared composer now removes the selected original and retains unconsumed branches as separate lines. The analysis profile was advanced to version 2; the regional derived plane and all 64 national segmentation buckets must be rebuilt from this change. Source road partitions and component identities are unaffected. The committed exact national corridor count and derived-size forecast are taken only from the rebuilt segmentation checkpoints.
+## Phase 2B: national hydrography plane (legacy NHD High Resolution)
+
+### Build volume and the storage boundary (measured)
+
+This machine has **24 GiB free on `/`** (95% used) and **no external build volume** (`/Volumes` holds only the
+boot volume and Recovery). That is decisive, and the task's own threshold is 250–300 GB:
+
+* NWI needs **128.0 GB** of uncompressed GeoPackages (60.5 GB compressed) plus normalized chunks, fragments and
+  cells: 45 states have no normalized checkpoint and 47 have no full-state compaction.
+* NHD HR needs **23.65 GB** compressed for its **2,166 CONUS HU8 units**, and each unit's GDB is larger again
+  unpacked. A full national freeze plus normalized plane does not fit here either.
+
+This phase therefore continues from **validated checkpoints** rather than restating the whole source set: NWI
+keeps the states it has normalized, and hydro is pinned and built as a bounded set that still covers every CONUS
+HUC2 region. What remains is recorded exactly, never estimated. All large artifacts live under the ignored
+`data/national-wetlands-work/` and `data/national-hydro-work/` directories; only locks, inventories, manifests,
+benchmarks and audit reports are committed. The intended layout on a large volume is
+`<build-volume>/roadnaturalist/{sources,work,cells}/{nwi,nhd}`, which is what each tool's `--work` selects.
+
+**Cleanup policy.** Sources, extractions and fragments have different answers. *Source archives* are
+reconstructible from the pinned URL and are the only thing `--cleanup-source` removes. *Extractions* (`.gdb`
+directories) are removed automatically once a unit's validated normalized output exists. *Fragments* are
+reconstructible from normalized outputs with `npm run build:national-hydro --units … --finalize`, so they may be
+dropped after a plane's manifest is verified. *Normalized outputs, identity databases, checkpoints, coverage
+records and compacted cell artifacts* are **must-keep**: the two national verifiers re-hash them, and deleting
+one turns a verified plane back into an unverified one. The same rule was applied to the road factory's
+`fragments/` (6.0 GB) and the superseded `or-sw-wa-portland-v2` partitions (0.83 GB) — the 6.8 GB that made this
+phase's writes fit. Both are rebuildable (`npm run partition:national-roads`, `npm run build:regional`) and both
+national road verifiers were re-run afterwards to prove nothing they read had gone.
+
+### Source decision: legacy NHD HR, staged per HU8
+
+The regional pipeline already reads legacy **NHD High Resolution** from USGS staged **HU8** file geodatabases
+(`https://prd-tnm.s3.amazonaws.com/StagedProducts/Hydrography/NHD/HU8/GDB/NHD_H_<huc8>_HU8_GDB.zip`), and the
+product is retired: NHD was superseded by 3DHP on 2023-10-01, so freezing the *same* product nationally is the
+only way to scale current semantics without changing them. The bucket listing rejected the alternatives:
+
+| Product family | What it is | Why it is not the national input |
+| --- | --- | --- |
+| `NHD/HU4/GDB/` | **NHDPlus HR** (`NHDPLUS_H_…_HU4_…`), a different lineage | different source semantics and vintage; not what the region reads |
+| `NHD/State/` | state staging | a coarser resume unit over the same data |
+| `NHD/National/` | the national GDB | one archive: no resumable shard, unbounded download |
+| `NHD/HU8/GDB/` | **legacy NHD HR per HU8** | **chosen**: same product as the region, 2,166 CONUS shards, 8 MB median |
+
+Two pins were re-downloaded and re-hashed to prove it: `17090010` (21,056,661 bytes, `9f65000fa8cc…`) and
+`17090012` (12,173,295 bytes, `9b24d7dc5fab…`) still match the regional declaration **byte for byte**, so the
+national plane consumes exactly the rows the regional metrics already use.
+
 
 The corrected shared segmentation produced **1,140,129 eligible road units** and **1,420,806 corridors**; **6,700,314 units** fell below the existing minimum. Of the eligible units, **1,053,664** form one corridor, **28,534** form two, and **28,191** form three; the largest segment count is **207**. The 64 per-component segmentation records occupy **689,931,717 bytes** and took **2,981.597 seconds of bucket work**. Each record freezes the component ID, composed length, source-feature count, and deterministic corridor count; full corridor geometry is reconstructed from the raw source features in the next habitat phase. The strict index audit paired all **7,840,443** component and segmentation records, checked stable IDs and source-feature counts, and verified every checkpoint SHA-256 and current pipeline digest.
+### Lock, inventory and checkpoint strategy
+
+`data/national/nhd-rhu-hu8-lock.json` pins the units this phase builds (the two regional units plus
+median-sized units for every CONUS HUC2 region): URL, bytes, SHA-256, Last-Modified, ETag, ZIP member count,
+uncompressed bytes, the `WBDHU8` basin name read from the staged metadata XML, and download timing.
+`npm run freeze:national-hydro` pins more units and `--check` validates the lock offline; `--keep` retains
+verified archives in the ignored source cache. `data/national/nhd-hr-hu8-inventory.json` is the measured bucket
+listing: **2,166 CONUS units, 23,652,050,889 bytes, per-unit sizes and Last-Modified values**, with 220
+non-CONUS units excluded (HUC2 19 Alaska, 20 Hawaii/Pacific, 21 Caribbean, 22 territories). A future operator can
+see from that file exactly which units remain unpinned.
+
+The checkpoint unit is the **staged extract itself** — a HU8 geodatabase — which is the source's own partition,
+so a killed build loses the unit it was working on (seconds to minutes) and never the completed ones. Each unit
+checkpoint records source digest, pipeline version, checkpoint key, input rows, output rows, output bytes,
+output SHA-256 and status, and a checkpoint is reused only when the source digest and pipeline version match the
+lock and the output's bytes, digest and Parquet row count still agree; a stale digest invalidates that unit
+alone. Partitioning is checkpointed per unit as well, so identity, replication and compaction all resume.
+`--cleanup-source` drops each verified archive after its validated output exists, which is what keeps a national
+run's disk footprint at a few units rather than at the whole 23.65 GB source set.
+
+### Source schema (measured across every CONUS region)
+
+Every pinned unit stages the same two contributing layers, and only these two contribute:
+
+| Layer | Member | Geometry | Fields preserved |
+| --- | --- | --- | --- |
+| `NHDFlowline` | `line` | `MultiLineString` | `permanent_identifier`, `reachcode`, `gnis_name`, `ftype`, `fcode`, `fdate`, `resolution`, `lengthkm`, `visibilityfilter` |
+| `NHDWaterbody` | `polygon` | `MultiPolygon` | `permanent_identifier`, `reachcode`, `gnis_name`, `ftype`, `fcode`, `fdate`, `resolution`, `areasqkm`, `visibilityfilter` |
+
+Findings that mattered: `permanent_identifier` is present, non-blank and **unique within every unit
+inspected**; the declared CRS is **EPSG:5498** (NAD83 geographic plus a NAVD88 vertical component) whose
+horizontal frame is the NAD83 frame the regional build transforms from; geometry is published with **four
+ordinates (XYZM)** because flowlines carry a linear measure, so X/Y are preserved exactly and Z/M are dropped
+explicitly rather than failing a transform; `WBDHU8`, `WBDHU10` and `WBDHU12` basin polygons are present in the
+same geodatabase, which is what makes a typed-empty cell exact rather than assumed; and no unit has produced an
+invalid or empty geometry.
+
+### Hydro semantic contract and identity rule
+
+The contract lives in `scripts/national_hydro.py` and is deliberately the regional one, not broadened. Identity
+is `(member, permanent_identifier)`. `ftype` alone decides flowing/standing (`334/336/460/558` flowing,
+`361/378/390/436/466` standing, otherwise `other`). Geometry is preserved whole and unsimplified; length and
+clipped area are measured in EPSG:5070 exactly as the regional build does; a whole feature is replicated into
+every intersecting 0.2° cell; and runtime deduplicates by the canonical key. `layer`, `source_feature_id`,
+`length_m`, `area_m2`, `feature_type_code` and `water_class` are the fields the current browser metrics read
+through `src/gis/habitat-metrics.js`.
+
+Cross-unit identity is fail-closed, in the same shape as `nwi-id-exact-signature-v1`:
+**`nhd-permanent-identifier-v1`**. A nonblank `permanent_identifier` collapses to one canonical feature only when
+every package copy is exactly one row per unit **and** the signature (reach code, GNIS name, `ftype`, `fcode`,
+source length and area, normalized geometry digest) is identical. Repeated ids inside one unit, conflicting
+reuse, blank ids, and equal geometry under different ids are all retained and counted; the owner of a collapsed
+group is the lowest unit id and every row carries the full `source_units` list. Overlap, adjacency, a shared
+name or a touching geometry is never identity: two connected water features that touch remain two features.
+
 
 The compact committed `data/national/road-manifest.json` is **5,303,147 bytes** and declares all 21,874 cells with bounds, state, feature count, and digest for present cells. `component-manifest.json` and `segmentation-manifest.json` are **17,884** and **49,648 bytes**. Their 64 bucket entries also carry content digests. `npm run verify:national-roads -- --require-all --regional-regression --manifest` checked all 3,109 counties, 21,135 present and 739 empty cells, and the exact 115,907-row regional regression. `npm run verify:national-index` checked the component and corridor linkage.
 
@@ -182,6 +285,81 @@ The local macOS build's measured first normalization pass was **1,430.372 s** at
 ## Publication and updates
 
 National objects belong in the existing `roadnaturalist-data` bucket under the immutable `national/roads/tiger2025-county-v1/` path. The current regional keys and catalog stay untouched. `npm run publish:national-roads -- --cells x282_y677,x529_y653,x368_y654 --publish` uploaded representative West, dense East, and rural cells; the public audit matched all three local SHA-256 digests and byte lengths and confirmed GeoParquet content type, immutable caching, CORS, and HTTP 206 Range responses. Their combined payload is **1,894,735 bytes**. Publishing all 21,135 road objects before national habitat and derived metrics are built would spend substantial upload time without enabling national discovery, so the complete immutable catalog is staged locally and the three-cell publication proves the delivery path. The national catalog pointer should switch only after habitat and derived equivalence in a later phase.
+### Measured national hydro results (representative 38-unit build)
+
+`npm run build:national-hydro --units … --finalize` built the pinned set end to end and
+`npm run verify:national-hydro` re-derived every declaration from the artifacts:
+
+| Measured | Value |
+| --- | --- |
+| Pinned and built units | 38 of 2,166 CONUS (all 18 HUC2 regions) |
+| Source compressed bytes built | 328,283,224 |
+| Raw source rows | 440,872 |
+| Canonical features | 440,871 |
+| Exact cross-unit copies removed | **1** |
+| Ambiguous same-id rows retained | 0 |
+| Present cells | 1,109 |
+| Declared-empty cells | 20,765 |
+| Unbuilt cells | 0 (relative to the pinned set) |
+| Replicated stored rows | 448,372 (1.017 rows per feature) |
+| GeoParquet bytes | 2,875,044,094 |
+| Median / p95 / largest cell | 0.41 MB / 20.22 MB / 21.69 MB |
+| Cells over 10 / 20 / 50 MB | 102 / 102 / 0 |
+| Invalid geometry | 0 |
+| Verifier | `verify:national-hydro` green: pins, 38 unit checkpoints, identity re-derivation, 1,109 cell artifacts, typed empties, schema, geometry, deterministic manifest |
+| Hydro tests | 13 deterministic tests (`npm run test:national-hydro`) |
+
+The most interesting measurement is the duplicate count. State packages overlap heavily (NWI removed 32,563
+OR/WA copies), but HU8 extracts are drainage basins whose features are *assigned* rather than duplicated: across
+38 adjacent and distant units only **one** permanent identifier appears in two units with an identical
+signature — between **17090010 (Tualatin) and 17090012 (Lower Willamette)**, the regional pair — and no id was
+found reused with conflicting geometry. Every row in the plane carries a nonblank `permanent_identifier`
+(`blankIdRows: 0`, `ambiguousRows: 0`), so `nhd-permanent-identifier-v1` resolved the whole set to
+dataset-issued ids, and the retained-ambiguity path stays a guard rather than a routine outcome. The rule is therefore still needed for
+correctness, and its cost is negligible — which is the right shape: identity is not doing bulk deletion, it is
+refusing to merge anything it cannot prove is the same row. The 102 cells over 20 MB are not outliers of the
+grid: they are dense-lake units (Wisconsin and Minnesota waterbody units) where one cell holds thousands of
+small polygons, and they are the cells a future browser-served hydro plane would have to handle deliberately.
+
+### Storage boundary for the full CONUS planes (measured, not estimated)
+
+| Plane | Needed to finish | Available here | State |
+| --- | --- | --- | --- |
+| NWI cells, 49 states | 128.0 GB of GeoPackages plus fragments | 24 GiB on `/`, no external volume | 4 states normalized; 45 remain |
+| NHD cells, 2,166 HU8 units | 23.65 GB compressed plus unpacked GDBs and fragments | same volume | 38 units built; 2,128 remain |
+
+Both planes are resumable: every completed unit is a validated checkpoint, so the remaining work is bounded by
+download and normalize time on a machine with the 250–300 GB the task calls for, not by rebuild risk.
+
+### Derived-build readiness
+
+| Input plane | Status | Reason |
+| --- | --- | --- |
+| Roads | **READY** | 21,135 present and 739 declared-empty CONUS cells built, verified, with the regional regression exact |
+| NWI wetlands | **PARTIAL** | Identity rule, factory, verifier and representative slices are complete; the cell plane covers AZ/DC (OR/WA normalized and resumable), and 45 states are blocked on disk |
+| Hydrography | **PARTIAL** | Source frozen, contract and identity rule defined, factory and representative slices complete and verified; 2,128 of 2,166 CONUS units remain blocked on disk |
+| EPA ecoregions | **PARTIAL** | The planned CONUS Level III/IV entry is still valid (download page live, expected sizes unchanged) but no national artifact has been built; the regional job is per-state and the national semantic comparison is unexamined |
+
+The next national derived-phase task only starts when all four are READY. Nothing in this phase activates
+national discovery: the browser still reads the Oregon/south-west Washington regional plane.
+
+### Updated derived-build forecast (labelled estimates)
+
+Measured regional basis is unchanged: 6,244 corridors per 1,231 s of all-habitat work, 2,195 bytes per derived
+row, 1.261 replicated rows per corridor. Applied to the measured **1,420,806 national corridors**, and now
+corroborated by two national planes rather than by one:
+
+* **stored derived rows**: 1.5–2.2 million (regional ratio 1.79 million);
+* **derived GeoParquet**: 3.5–5.5 GB (regional ratio 3.93 GB), plus the raw planes themselves — roads 5.82 GB,
+  NWI and hydro raw planes on the order of **tens of GB** each at national scale, given that 38 hydro units alone
+  produced 2.87 GB and 2,166 units exist;
+* **offline compute**: 60–120 hours single-worker metric work, dominated by corridor × wetland intersections;
+* **intermediate disk**: **250–400 GB** for sources, normalized units, fragments and cells together — which is
+  why the volume question is the gate, not the algorithm.
+
+Every number above is an estimate except the ones marked measured; the regional ratios they are derived from are
+in the benchmark reports.
+
 
 A source refresh creates a new vintage/digest, invalidates affected county normalization and fragments, produces a new immutable version, passes geometry/equivalence QA, then atomically switches a catalog pointer. Old immutable objects remain available. The county and bucket checkpoints bound rework after a crash. Source fetch should stay at low bounded concurrency to avoid overloading Census; partition and component stages can use separate measured limits.
 

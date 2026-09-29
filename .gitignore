@@ -2,6 +2,7 @@ node_modules/
 test-results/
 data/national-work/
 data/national-wetlands-work/
+data/national-hydro-work/
 playwright-report/
 .DS_Store
 __pycache__/
@@ -24,3 +25,4 @@ data/regional/partitions/or-sw-wa-portland-v3/
 
 # Browser-test server log (see docs/DEPLOYMENT.md, "The browser-test server")
 test-server.log
+data/regional/partitions/or-sw-wa-portland-v2/
