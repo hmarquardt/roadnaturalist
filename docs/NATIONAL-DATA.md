@@ -498,3 +498,38 @@ On ExFAT, small files cost their allocation block: the volume's 262,144-byte blo
 sidecar file occupies 256 KB, which is why a 5.0 GB work tree occupied 9.1 GB after migration. Measured rather
 than estimated, and acceptable at this scale; consolidation is future debt, not a reason to restructure an active
 national build.
+
+### The unattended chain, and a race it exposed
+
+The national run is one script (`/tmp/run-hydro-national-chain.sh` in this session; the same commands below) that
+drives every stage in order, each of them checkpointed and idempotent, so re-running the whole thing is always
+safe:
+
+```bash
+# 1. normalize, one process per unit slice, extraction on fast scratch
+#    (repeat for each slice, or run --all --workers 1 for a small machine)
+uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow \
+  python3 scripts/build-national-hydro.py --units <slice> --workers 1 --cleanup-source \
+  --scratch /tmp/rnhydro-scratch/slice-$i --work /Volumes/Lexar/roadnaturalist/work/nhd
+
+# 2. identity: the one sequential stage
+... build-national-hydro.py --all --identity-only --work /Volumes/Lexar/roadnaturalist/work/nhd
+
+# 3. partition: independent per unit, so it shards
+... build-national-hydro.py --units <slice> --partition-only --work /Volumes/Lexar/roadnaturalist/work/nhd
+
+# 4. finalize: compact cells with per-cell reuse, then write the manifest
+... build-national-hydro.py --all --finalize --work /Volumes/Lexar/roadnaturalist/work/nhd
+
+# 5. verify, then the runtime consumer check, then measure
+... verify-national-hydro.py --work ... --require-all --regional-equivalence
+... check-hydro-consumers.py --work ...
+... measure-national-hydro.py --work ...
+```
+
+Running two drivers at once exposed a real race, and the fix is worth recording. Both drivers extracted the *same*
+unit into a *shared* scratch root; the first to finish deleted the geodatabase while the second was still reading
+it, which surfaced as a DuckDB `ST_Read` failure naming the scratch path. Extractions are now per slice
+(`--scratch <root>/slice-N`), so no two processes can share an extraction directory. The failure was also
+harmless to correctness: a unit whose run failed left no checkpoint, its normalized output is written through an
+atomic `os.replace`, and a reused output is re-hashed before it is trusted — so the failed unit is simply redone.
