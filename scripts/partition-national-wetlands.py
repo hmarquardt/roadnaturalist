@@ -14,11 +14,12 @@ from shapely import wkb
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+import build_volume as bv
 import national_wetlands as nw  # noqa: E402
 
 GRID = json.loads((ROOT / "data/national/grid-conus-2025.json").read_text())
 LOCK = json.loads((ROOT / "data/national/nwi-state-lock.json").read_text())
-DEFAULT_WORK = ROOT / "data/national-wetlands-work"
+DEFAULT_WORK = bv.work_dir("nwi", ROOT / "data/national-wetlands-work")
 VERSION = "nwi-state-2026-05-v1"
 STATE_FIPS = {"AL":"01","AZ":"04","AR":"05","CA":"06","CO":"08","CT":"09","DE":"10","DC":"11","FL":"12","GA":"13","ID":"16","IL":"17","IN":"18","IA":"19","KS":"20","KY":"21","LA":"22","ME":"23","MD":"24","MA":"25","MI":"26","MN":"27","MS":"28","MO":"29","MT":"30","NE":"31","NV":"32","NH":"33","NJ":"34","NM":"35","NY":"36","NC":"37","ND":"38","OH":"39","OK":"40","OR":"41","PA":"42","RI":"44","SC":"45","SD":"46","TN":"47","TX":"48","UT":"49","VT":"50","VA":"51","WA":"53","WV":"54","WI":"55","WY":"56"}
 CELL_IDS = {item["id"] for item in GRID["cells"]}
@@ -192,7 +193,8 @@ def compact(work, states):
     compact_started = time.monotonic()
     fragments = defaultdict(list)
     for state in states:
-        for checkpoint in sorted((work / "partition-jobs" / state).glob("*.json")):
+        for checkpoint in sorted(path for path in (work / "partition-jobs" / state).glob("*.json")
+                                  if bv.is_data_file(path)):
             job = json.loads(checkpoint.read_text())
             if job.get("state") != "complete":
                 raise ValueError(f"incomplete partition checkpoint {checkpoint}")

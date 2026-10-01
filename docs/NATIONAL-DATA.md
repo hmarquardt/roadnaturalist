@@ -378,3 +378,74 @@ A source refresh creates a new vintage/digest, invalidates affected county norma
 **Rebuild cost.** New annual road vintages require re-fetching up to 3,109 county ZIPs (the 2025 vintage totaled 4.03 GB), renormalizing changed source shards, rebuilding affected cell fragments and the global name/component closure, and resegmenting affected components. The 2025 local work figures above are the initial laptop benchmark. At the measured overall source-throughput of **2.82 MB/s**, a similarly sized full download-plus-normalization pass would be roughly **24 minutes** on this machine and connection, with separate cell compaction and component/segmentation work. This is a local baseline, not a cloud throughput promise. The three-object R2 trial validates upload semantics but is too small and request-heavy to extrapolate a credible 21,135-object upload duration; defer the bulk PUT cost until publication is needed for national habitat/derived launch.
 
 `data/national/qa-samples.json` pins centers across Pacific Northwest, California, Desert Southwest, Rockies, Great Plains, Midwest, Gulf Coast, Appalachia, Northeast, and Florida. Each sample should check source identities, cross-county/cell seams, common-name components, largest components, corridor geometry and length, typed empties, and eventually raw/derived habitat equivalence. The regional Oregon/Washington regression remains a gate on every national road build.
+
+## Phase 2C: the external build volume (Lexar)
+
+### Volume, and what ExFAT requires of the factories
+
+`/Volumes/Lexar` is a 1 TB external SSD, measured before use as **954 GiB total / 954 GiB free**, writable,
+formatted **ExFAT** with a **262,144-byte allocation block**. It is not repartitioned or reformatted; it is the
+scratch and build volume, and the repository stays on the boot volume where the committed manifests, source and
+tests live. Working root: `/Volumes/Lexar/roadnaturalist/{sources,work,cells,tmp}/{nhd,nwi}`.
+
+Measured characteristics that shaped the code:
+
+| Measured | Result | Consequence for the factories |
+| --- | --- | --- |
+| Sequential write / read | 883 MB/s write, 8.4 GB/s cached read | no I/O concern; the build is network- and CPU-bound |
+| `os.replace` (atomic checkpoint writes) | works | every checkpoint and manifest writer is safe unchanged |
+| SQLite `journal_mode=WAL` | works | the identity database stays in WAL mode on the volume |
+| DuckDB out-of-core | 20 M-row sort with a 512 MB limit and temp on the volume: 1.2 s | the compaction may spill there |
+| 500 small Parquet files | written in 0.5 s | fragment/cell granularity is fine |
+| **AppleDouble sidecars** | macOS writes `._name` beside files that carry extended attributes | every directory scan filters dotnames: a sidecar must never be read as a checkpoint or counted as a second file geodatabase. `scripts/build_volume.py:is_data_file` is the shared filter, and the two places that could have been fooled (the hydro extractor's `rglob("*.gdb")` and the wetland partitioner's `glob("*.json")`) now filter explicitly |
+| **256 KB allocation block** | every file costs up to 256 KB, so small files waste space | measured waste: the 5.0 GB hydro work tree occupies **9.1 GB** migrated. Acceptable at this scale (a national hydro plane projects to well under 200 GB), and reported rather than hidden |
+| no POSIX permissions, no symlinks, no hard links | chmod is ignored; symlinks unavailable | nothing in the factories depends on them; copies are real copies |
+
+`scripts/build_volume.py` also makes the volume the default workspace: `ROADNATURALIST_BUILD_VOLUME` names the root,
+`/Volumes/Lexar/roadnaturalist` is used when it is mounted, and the repository-local path is the fallback for a
+small run or a test. Every tool still accepts `--work`, which always wins.
+
+### Migration, verified rather than assumed
+
+Both existing boot-volume work trees were copied to the volume and then **proved** faithful, not assumed:
+
+| Tree | Size on boot | On the volume | Proof |
+| --- | --- | --- | --- |
+| `national-hydro-work` | 5.0 GB | 9.1 GB (sidecars + cluster slack) | all **38** unit checkpoints re-hashed on the volume: 38 verified, 0 problems, and `verify:national-hydro` re-ran green against it |
+| `national-wetlands-work` | 16 GB | 19.5 GB | `verify:national-wetlands --states AZ,DC` re-ran green against it: 694 present, 2 typed-empty, 21,178 unbuilt, 188,581 canonical, 2 ambiguous |
+
+After both proofs, the boot-volume copies were deleted, freeing **21 GB** (44 GiB → 65 GiB free on `/`). Nothing
+whose recovery status was uncertain was touched: the road factory's source cache and component index stay because
+the two national road verifiers read them, and both were re-run afterwards (`verify:national-roads`,
+`verify:national-index`) and passed unchanged.
+
+### Measured concurrency for the national pin pass
+
+The hydro lock now covers every CONUS unit of the measured inventory, and pinning is a bounded-concurrency pass:
+
+| Workers | Measured throughput | Wall clock for the pass |
+| --- | ---: | --- |
+| 1 | ~2.5 MB/s | hours |
+| 6 | **6.4–7.2 MB/s** | tens of minutes |
+
+6 workers is ~3× sequential, and the pass is network-bound, so the gain stops there; the default stays 1 for a
+small run and the national driver passes `--workers 6`. One truncated response used to abort the whole pass, which
+is the wrong failure mode for thousands of independent downloads, so each unit now retries once, records its own
+failure, and the pass continues; a re-run resumes from the lock.
+
+### Two findings from extending the source set
+
+**`permanent_identifier` is not one id family.** Unit `17090010` carries 14,515 GUID-shaped permanent identifiers
+and **11,337 numeric-shaped** ones (`147814500`, reach code `17090007000745`), and the same mix appears in the
+regional plane. NHD High Resolution therefore contains both originally-NHD features and features inherited from
+NHDPlus. `nhd-permanent-identifier-v1` is unaffected — it treats the identifier as an opaque stable string, which
+is why it works for both — but any future comparison must not assume a GUID shape.
+
+**Partial-plane equivalence is a stricter claim than "the ids match".** Comparing the 38-unit national plane
+against the published regional plane initially failed on 119 features. They were not missing: a cell that needs an
+unbuilt neighbour is declared `unbuilt` and has no artifact by design, so features whose cells depend on units that
+are not built yet cannot be compared. `verify:national-hydro --regional-equivalence` now compares only features in
+cells the national plane actually built, asserts identity, classification and source attributes exactly, asserts
+that a clipped regional extent never exceeds the whole national feature, and **reports** how many features and
+cells were excluded because of unbuilt coverage. Equivalence becomes a whole-plane claim only when the national
+plane is complete, which is the same gate roads and wetlands used.

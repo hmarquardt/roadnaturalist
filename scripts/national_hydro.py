@@ -33,6 +33,12 @@ from shapely.geometry import box
 
 STEP = 0.2
 PIPELINE_VERSION = "nhd-hr-hu8-v1"
+# The published-row contract is versioned separately from the unit pipeline, because it can change without any
+# source unit changing. Version 2 fixes `layer`: the published plane carries the normalised member
+# (`flowline`/`waterbody`) exactly as the regional plane does, because the browser's hydro queries filter on those
+# values (`src/gis/discovery-query.js`, `src/gis/habitat-query.js`). The unit-level rows keep the source layer
+# name (`NHDFlowline`/`NHDWaterbody`) for provenance. A change here invalidates cell artifacts, never units.
+COMPACT_VERSION = "nhd-hydro-compact-v2"
 CANONICAL_KEY_VERSION = "nhd-permanent-identifier-v1"
 LAYERS = (("NHDFlowline", "line"), ("NHDWaterbody", "polygon"))
 FLOWING_FTYPES = {334, 336, 460, 558}

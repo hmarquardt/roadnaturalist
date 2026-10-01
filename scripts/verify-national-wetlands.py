@@ -11,11 +11,12 @@ from shapely import wkb
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+import build_volume as bv
 import national_wetlands as nw  # noqa: E402
 
 LOCK_PATH = ROOT / "data/national/nwi-state-lock.json"
 GRID_PATH = ROOT / "data/national/grid-conus-2025.json"
-DEFAULT_WORK = ROOT / "data/national-wetlands-work"
+DEFAULT_WORK = bv.work_dir("nwi", ROOT / "data/national-wetlands-work")
 
 
 def main():

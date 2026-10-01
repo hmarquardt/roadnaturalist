@@ -22,11 +22,12 @@ from shapely.ops import transform
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+import build_volume as bv
 import national_wetlands as nw  # noqa: E402
 
 GRID_PATH = ROOT / "data/national/grid-conus-2025.json"
 LOCK_PATH = ROOT / "data/national/nwi-state-lock.json"
-DEFAULT_WORK = ROOT / "data/national-wetlands-work"
+DEFAULT_WORK = bv.work_dir("nwi", ROOT / "data/national-wetlands-work")
 CHUNK_SIZE = 100_000
 
 

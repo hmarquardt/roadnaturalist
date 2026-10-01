@@ -12,10 +12,12 @@ large-machine step: this tool pins whatever subset a build actually needs, and t
 what is left. Use --keep to retain verified archives in the source cache.
 """
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import shutil
 import tempfile
+import threading
 import time
 import urllib.request
 import zipfile
@@ -106,6 +108,11 @@ def main():
     parser.add_argument("--work", type=Path, default=DEFAULT_WORK)
     parser.add_argument("--units", help="comma-separated HUC8 units; default: every unit already in the lock")
     parser.add_argument("--keep", action="store_true", help="retain verified archives in the ignored source cache")
+    parser.add_argument("--all", action="store_true",
+                        help="pin every CONUS unit of the measured inventory (2,166 units, ~23.65 GB)")
+    parser.add_argument("--workers", type=int, default=1, choices=range(1, 13),
+                        help="concurrent unit downloads; hashing and I/O release the interpreter, so this is "\
+                             "network-bound work that measurably benefits from a small number of workers")
     parser.add_argument("--check", action="store_true", help="verify the committed lock offline (no network)")
     args = parser.parse_args()
     prior = json.loads(LOCK.read_text()) if LOCK.exists() else {}
@@ -119,27 +126,73 @@ def main():
         print(json.dumps({"units": len(units), "bytes": sum(entry["bytes"] for entry in units.values()),
                           "regions": sorted({entry["region"] for entry in units.values()})}))
         return
-    selected = args.units.split(",") if args.units else sorted(units)
+    inventory = json.loads((ROOT / "data/national/nhd-hr-hu8-inventory.json").read_text())
+    if args.all:
+        selected = sorted(inventory["units"])
+    else:
+        selected = args.units.split(",") if args.units else sorted(units)
     if not selected:
         raise SystemExit("nothing to pin: pass --units")
     args.work.mkdir(parents=True, exist_ok=True)
-    for unit in selected:
+    started = time.monotonic()
+    lock = threading.Lock()
+    completed = {"units": 0, "bytes": 0}
+
+    failures = []
+
+    def pin_once(unit):
         if len(unit) != 8 or unit[:2] not in CONUS_REGIONS:
             raise ValueError(f"{unit} is outside the CONUS HUC8 profile")
         metadata = remote_metadata(unit)
-        old = units.get(unit)
+        with lock:
+            old = units.get(unit)
         if (old and old.get("bytes") == metadata["bytes"] and old.get("lastModified") == metadata["lastModified"]
                 and old.get("sha256")):
-            print(f"{unit}: pinned {old['sha256'][:16]} ({old['bytes']:,} bytes)", flush=True)
-            continue
-        units[unit] = hash_download(unit, metadata, args.work, args.keep)
-        atomic_json(LOCK, {"schemaVersion": 1, "kind": "usgs-nhd-hr-hu8-staged-lock",
-                           "dataset": "National Hydrography Dataset (NHD) High Resolution - HU8 staged extract",
-                           "base": BASE, "coverage": "CONUS HUC2 regions 01-18",
-                           "unitCount": len(units), "totalBytes": sum(entry["bytes"] for entry in units.values()),
-                           "units": dict(sorted(units.items()))})
-        print(f"{unit}: pinned {units[unit]['sha256'][:16]} ({units[unit]['bytes']:,} bytes) {units[unit].get('name')}",
-              flush=True)
+            with lock:
+                completed["units"] += 1
+            return f"{unit}: pinned {old['sha256'][:16]} ({old['bytes']:,} bytes)"
+        entry = hash_download(unit, metadata, args.work, args.keep)
+        with lock:
+            units[unit] = entry
+            completed["units"] += 1
+            completed["bytes"] += entry["bytes"]
+            atomic_json(LOCK, {"schemaVersion": 1, "kind": "usgs-nhd-hr-hu8-staged-lock",
+                               "dataset": "National Hydrography Dataset (NHD) High Resolution - HU8 staged extract",
+                               "base": BASE, "coverage": "CONUS HUC2 regions 01-18",
+                               "unitCount": len(units), "totalBytes": sum(item["bytes"] for item in units.values()),
+                               "units": dict(sorted(units.items()))})
+            done = completed["units"]
+        line = f"{unit}: pinned {entry['sha256'][:16]} ({entry['bytes']:,} bytes) {entry.get('name')}"
+        if done % 25 == 0:
+            elapsed = time.monotonic() - started
+            line += (f"  [{done}/{len(selected)} units, {completed['bytes'] / 1e9:.2f} GB this pass, "
+                     f"{completed['bytes'] / 1e6 / max(elapsed, 1e-9):.1f} MB/s]")
+        return line
+
+    def pin(unit):
+        last = None
+        for attempt in (1, 2):
+            try:
+                return pin_once(unit)
+            except Exception as error:                       # noqa: BLE001 - recorded, never swallowed
+                last = f"{unit}: attempt {attempt} failed: {error}"
+                time.sleep(2 * attempt)
+        failures.append(last)
+        return last
+
+    if args.workers == 1:
+        for unit in selected:
+            print(pin(unit), flush=True)
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
+            for line in pool.map(pin, selected):
+                print(line, flush=True)
+    print(json.dumps({"units": len(units), "totalBytes": sum(item["bytes"] for item in units.values()),
+                      "workers": args.workers, "wallSeconds": round(time.monotonic() - started, 3),
+                      "passBytesPerSecond": round(completed["bytes"] / max(time.monotonic() - started, 1e-9), 1),
+                      "failures": failures}))
+    if failures:
+        raise SystemExit(f"{len(failures)} unit(s) failed and can be retried by re-running the same command")
 
 
 if __name__ == "__main__":

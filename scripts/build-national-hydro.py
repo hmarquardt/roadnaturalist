@@ -38,11 +38,12 @@ from shapely import force_2d  # noqa: E402
 from shapely import wkb  # noqa: E402
 from shapely.geometry import MultiLineString, MultiPolygon  # noqa: E402
 from shapely.ops import transform  # noqa: E402
+import build_volume as bv  # noqa: E402
 
 LOCK_PATH = ROOT / "data/national/nhd-hr-hu8-lock.json"
 GRID_PATH = ROOT / "data/national/grid-conus-2025.json"
 MANIFEST_PATH = ROOT / "data/national/hydro-manifest.json"
-DEFAULT_WORK = ROOT / "data/national-hydro-work"
+DEFAULT_WORK = bv.work_dir("nhd", ROOT / "data/national-hydro-work")
 AGENT = "RoadNaturalist-NHD/1"
 # The unit output schema: the preserved source fields plus the identity ingredients and measured values.
 UNIT_SCHEMA = pa.schema([
@@ -99,11 +100,14 @@ def extract_unit(unit, archive, work):
     root.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(archive) as zip_file:
         zip_file.extractall(root)
-    gdb = sorted(path for path in root.rglob("*.gdb"))
+    # Only a real directory is a file geodatabase: on ExFAT, macOS writes an AppleDouble sidecar beside it,
+    # and a sidecar must never be mistaken for a second source.
+    gdb = sorted(path for path in root.rglob("*.gdb") if path.is_dir() and bv.is_data_file(path))
     if len(gdb) != 1:
         raise ValueError(f"{unit} expected one file geodatabase, found {len(gdb)}")
     nh.atomic_json(checkpoint, {"state": "complete", "archiveSha256": nh.sha256_file(archive),
-                                "gdb": gdb[0].name, "extractedBytes": sum(p.stat().st_size for p in root.rglob("*") if p.is_file())})
+                                "gdb": gdb[0].name, "extractedBytes": sum(p.stat().st_size for p in root.rglob("*")
+                                        if p.is_file() and bv.is_data_file(p))})
     return gdb[0]
 
 
@@ -414,10 +418,17 @@ def finalize(work, units, lock, grid):
     for key, units_for in connection.execute("SELECT DISTINCT canonical_key, source_units FROM mapping WHERE owner=1"):
         owner_units[key] = units_for
     connection.close()
-    fragments = defaultdict(list)
+    # Cell -> contributing units and their fragment digests, read from the partition checkpoints rather than from
+    # the fragments themselves, so a resumed compaction can decide what to rewrite without touching a fragment.
+    cell_inputs = defaultdict(list)
     for unit in sorted(units):
-        for row in pq.read_table(work / "fragments" / f"{unit}.parquet").to_pylist():
-            fragments[row["cell"]].append(row)
+        record = json.loads((work / "partition-jobs" / f"{unit}.json").read_text())
+        for cell_id in record["cells"]:
+            cell_inputs[cell_id].append((unit, record["fragmentSha256"]))
+    priors = {}
+    if MANIFEST_PATH.exists():
+        prior_manifest = json.loads(MANIFEST_PATH.read_text())
+        priors = {cell["id"]: cell for cell in prior_manifest.get("cells", []) if cell.get("state") == "present"}
     # A build is complete only when every CONUS unit of the measured inventory is pinned and built. A build
     # that covers every unit of a *pinned subset* is partial, and the manifest says so: the version also
     # carries a digest of the built set, so a partial object can never sit at the complete plane's key.
@@ -425,10 +436,10 @@ def finalize(work, units, lock, grid):
     complete = set(units) == set(lock["units"]) and lock["unitCount"] == inventory["conusUnits"]
     version = publication_version(units, complete)
     artifact_dir = work / "artifacts" / "hydro"
-    cells, problems = [], []
+    cells, problems, reused = [], [], 0
     for cell_id, meta in cells_meta.items():
         covered = cell_units.get(cell_id, set())
-        parts = fragments.get(cell_id, [])
+        parts = cell_inputs.get(cell_id, [])
         if covered - set(units):
             cells.append({"id": cell_id, "bounds": meta["bounds"], "state": "unbuilt",
                           "missingUnits": sorted(covered - set(units))})
@@ -436,15 +447,30 @@ def finalize(work, units, lock, grid):
         if not parts:
             cells.append({"id": cell_id, "bounds": meta["bounds"], "state": "empty", "featureCount": 0, "storedRows": 0})
             continue
+        input_sha = hashlib.sha256((nh.COMPACT_VERSION + "\n"
+                                    + "\n".join(f"{unit}:{digest}" for unit, digest in sorted(parts))).encode()).hexdigest()
+        url = f"national/hydro/{version}/hydro/{cell_id}.parquet"
+        prior = priors.get(cell_id)
+        artifact = artifact_dir / f"{cell_id}.parquet"
+        # An unchanged cell is reused rather than rewritten: its inputs are the same fragment digests and its
+        # artifact still hashes to what the previous manifest declared. This is what makes a national
+        # compaction restartable instead of one fragile multi-hour job.
+        if (prior and prior.get("inputSha256") == input_sha and artifact.exists()
+                and artifact.stat().st_size == prior.get("bytes") and nh.sha256_file(artifact) == prior.get("sha256")):
+            cells.append({**prior, "id": cell_id, "bounds": meta["bounds"], "url": url})
+            reused += 1
+            continue
         by_key = {}
-        for row in parts:
-            old = by_key.get(row["feature"])
-            if old and old["geometry_digest"] != row["geometry_digest"]:
-                problems.append(f"canonical hydro geometry conflict {row['feature']} in {cell_id}")
-                continue
-            by_key[row["feature"]] = row
+        for unit, _digest in sorted(parts):
+            for row in pq.read_table(work / "fragments" / f"{unit}.parquet",
+                                     filters=[("cell", "=", cell_id)]).to_pylist():
+                found = by_key.get(row["feature"])
+                if found and found["geometry_digest"] != row["geometry_digest"]:
+                    problems.append(f"canonical hydro geometry conflict {row['feature']} in {cell_id}")
+                    continue
+                by_key[row["feature"]] = row
         rows = [{"canonical_feature_id": key, "source_feature_id": by_key[key]["permanent_identifier"],
-                 "layer": by_key[key]["layer"], "source_unit": by_key[key]["unit"],
+                 "layer": "flowline" if by_key[key]["layer"] == "NHDFlowline" else "waterbody", "source_unit": by_key[key]["unit"],
                  "source_units": owner_units.get(key, by_key[key]["unit"]),
                  "name": by_key[key]["gnis_name"], "feature_type_code": str(by_key[key]["ftype"] or ""),
                  "feature_type_label": nh.feature_type_label(by_key[key]["ftype"]),
@@ -456,11 +482,9 @@ def finalize(work, units, lock, grid):
                  "min_lon": by_key[key]["min_lon"], "min_lat": by_key[key]["min_lat"],
                  "max_lon": by_key[key]["max_lon"], "max_lat": by_key[key]["max_lat"],
                  "geometry": by_key[key]["geometry"]} for key in sorted(by_key)]
-        result = nh.write_geoparquet(rows, artifact_dir / f"{cell_id}.parquet")
+        result = nh.write_geoparquet(rows, artifact)
         cells.append({"id": cell_id, "bounds": meta["bounds"], "state": "present", "featureCount": len(rows),
-                      "storedRows": len(rows), "url": f"national/hydro/{version}/hydro/{cell_id}.parquet",
-                      "inputSha256": hashlib.sha256("\n".join(sorted(row["feature"] for row in parts)).encode()).hexdigest(),
-                      **result})
+                      "storedRows": len(rows), "url": url, "inputSha256": input_sha, **result})
     manifest = {"schemaVersion": 1, "kind": "national-hydrography", "version": version,
                 "coverage": grid["coverage"], "buildCoverage": "complete" if complete else "partial",
                 "builtUnits": sorted(units), "pinnedUnits": lock["unitCount"], "conusUnits": inventory["conusUnits"], "unpinnedConusUnits": inventory["conusUnits"] - lock["unitCount"],
@@ -481,8 +505,9 @@ def finalize(work, units, lock, grid):
                 "cells": cells}
     MANIFEST_PATH.write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n")
     nh.atomic_json(work / "build-benchmark.json", {"identitySeconds": identity["wallSeconds"],
-        "partitionSeconds": None, "fragments": partition["fragments"], "totalSeconds": round(time.monotonic() - started, 3)})
-    print(json.dumps({"problems": problems[:5], "counts": manifest["counts"]}, indent=1))
+        "fragments": partition["fragments"], "reusedCells": reused,
+        "totalSeconds": round(time.monotonic() - started, 3)})
+    print(json.dumps({"problems": problems[:5], "reusedCells": reused, "counts": manifest["counts"]}, indent=1))
     return manifest
 
 
