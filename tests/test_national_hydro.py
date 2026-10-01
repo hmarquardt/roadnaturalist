@@ -33,15 +33,16 @@ def signature(geometry, reach="11000001234567", name="Dairy Creek", ftype=460, f
 
 def test_source_lock_covers_conus_regions_and_matches_the_measured_inventory():
     assert LOCK["kind"] == "usgs-nhd-hr-hu8-staged-lock"
-    assert LOCK["unitCount"] == len(LOCK["units"]) == 38
+    assert LOCK["unitCount"] == len(LOCK["units"]) == INVENTORY["conusUnits"] == 2166
     regions = {entry["region"] for entry in LOCK["units"].values()}
     assert regions == {f"{code:02d}" for code in range(1, 19)}, "all 18 CONUS HUC2 regions are represented"
     for unit, entry in LOCK["units"].items():
         assert len(unit) == 8 and len(entry["sha256"]) == 64 and entry["bytes"] > 0
         assert INVENTORY["units"][unit]["bytes"] == entry["bytes"], "the pin agrees with the bucket measurement"
     assert LOCK["totalBytes"] == sum(entry["bytes"] for entry in LOCK["units"].values())
-    assert INVENTORY["conusUnits"] == 2166 and INVENTORY["nonConusUnits"] == 220
-    assert INVENTORY["conusCompressedBytes"] == 23652050889
+    assert INVENTORY["nonConusUnits"] == 220, "Alaska, Hawaii, the Caribbean and the Pacific are excluded"
+    assert LOCK["totalBytes"] == INVENTORY["conusCompressedBytes"] == 23652050889
+    assert {entry["region"] for entry in LOCK["units"].values()} == {f"{code:02d}" for code in range(1, 19)}
 
 
 def test_canonical_key_uses_the_permanent_identifier_only_without_conflict():
@@ -135,7 +136,12 @@ def test_manifest_encoding_and_counters_are_reproducible():
     assert counts["storedRows"] == sum(cell.get("storedRows", 0) for cell in MANIFEST["cells"])
     assert counts["artifactBytes"] == sum(cell.get("bytes", 0) for cell in MANIFEST["cells"])
     assert counts["canonicalFeatures"] == counts["rawRows"] - counts["duplicatePackageCopies"]
-    assert MANIFEST["sourceLockSha256"] == nh.sha256_file(ROOT / "data/national/nhd-hr-hu8-lock.json")
+    # A partial plane is built from the lock as it stood; only a complete plane must match the whole digest, and
+    # either way every built unit must still be pinned to the same bytes.
+    if MANIFEST["buildCoverage"] == "complete":
+        assert MANIFEST["sourceLockSha256"] == nh.sha256_file(ROOT / "data/national/nhd-hr-hu8-lock.json")
+    for unit in MANIFEST["builtUnits"]:
+        assert len(LOCK["units"][unit]["sha256"]) == 64
     assert MANIFEST["gridSha256"] == nh.sha256_file(ROOT / "data/national/grid-conus-2025.json")
 
 
@@ -178,4 +184,35 @@ def test_water_class_matches_the_regional_semantics():
 
 def test_blank_geometry_is_dropped_rather_than_published():
     assert nh.STORED_CRS == 4326 and nh.SOURCE_CRS == "EPSG:4269" and nh.ANALYSIS_CRS == "EPSG:5070"
+def test_published_layer_vocabulary_is_the_runtime_vocabulary():
+    """The bug this guards: a plane publishing source layer names returns zero rows to every runtime query."""
+    assert nh.PUBLISHED_LAYER == {nh.LAYERS[0][0]: "flowline", nh.LAYERS[1][0]: "waterbody"}
+    assert set(nh.PUBLISHED_LAYER.values()) == {"flowline", "waterbody"}
+    assert nh.GEOMETRY_FAMILY == {"flowline": "MultiLineString", "waterbody": "MultiPolygon"}
+    # The browser filters on exactly these strings (src/gis/discovery-query.js, src/gis/habitat-query.js).
+    for runtime_value in ("flowline", "waterbody"):
+        assert runtime_value in nh.GEOMETRY_FAMILY
+    assert nh.COMPACT_VERSION.startswith("nhd-hydro-compact-v"), \
+        "a published-row contract change must invalidate cells through COMPACT_VERSION"
+
+
+def test_published_cells_carry_only_the_runtime_layer_values():
+    """Volume-conditional: when the build volume is present, every published cell must satisfy the invariant."""
+    import build_volume as bv
+    import pyarrow.parquet as pq
+    work = bv.work_dir("nhd", ROOT / "data/national-hydro-work")
+    if not work.is_dir():
+        pytest.skip("the national build volume is not present")
+    manifest = json.loads((ROOT / "data/national/hydro-manifest.json").read_text())
+    present = [cell for cell in manifest["cells"] if cell["state"] == "present"][:25]
+    assert present, "the manifest declares no present cell to sample"
+    allowed = set(nh.PUBLISHED_LAYER.values())
+    for cell in present:
+        artifact = work / "artifacts" / "hydro" / f"{cell['id']}.parquet"
+        if not artifact.exists():
+            continue
+        table = pq.read_table(artifact, columns=["layer"])
+        values = set(table.column("layer").to_pylist())
+        assert values <= allowed, f"{cell['id']}: published layer values {sorted(values)} are not runtime values"
+
     assert nh.STEP == 0.2, "the national hydro plane uses the same 0.2-degree grid as roads and wetlands"

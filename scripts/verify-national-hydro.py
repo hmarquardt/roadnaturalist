@@ -134,13 +134,17 @@ def verify_cells(work, grid, manifest, sample_cells=3):
         for row in table.slice(0, sample_cells).to_pylist():
             geometry = wkb.loads(row["geometry"])
             assert not geometry.is_empty, f"{cell['id']}: empty geometry"
-            assert geometry.geom_type in ("MultiLineString", "MultiPolygon"), f"{cell['id']}: {geometry.geom_type}"
-            assert (row["layer"] == "NHDFlowline") == (geometry.geom_type == "MultiLineString"), \
-                f"{cell['id']}: layer and geometry family disagree"
+            assert geometry.geom_type == nh.GEOMETRY_FAMILY[row["layer"]], f"{cell['id']}: {geometry.geom_type}"
+            # The published plane carries the canonical application vocabulary, and the canonical key carries the
+            # layer's member. Both come from the one shared definition in scripts/national_hydro.py, so a
+            # vocabulary drift between builder and verifier is not expressible.
+            for source_layer, member in nh.LAYERS:
+                if nh.PUBLISHED_LAYER[source_layer] == row["layer"]:
+                    expected_member = member
+            assert row["canonical_feature_id"].split(":", 1)[0].startswith(f"nhd-{expected_member}"), \
+                f"{cell['id']}: canonical key does not carry the member"
             assert geometry.bounds[0] <= row["max_lon"] and geometry.bounds[2] >= row["min_lon"], \
                 f"{cell['id']}: bounds do not contain the geometry"
-            assert row["canonical_feature_id"].split(":", 1)[0].startswith(f"nhd-{nh.LAYERS[0][1] if row['layer'] == nh.LAYERS[0][0] else nh.LAYERS[1][1]}"), \
-                f"{cell['id']}: canonical key does not carry the member"
         present += 1
         stored += cell["storedRows"]
         artifact_bytes += cell["bytes"]

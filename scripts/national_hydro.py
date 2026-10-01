@@ -41,6 +41,13 @@ PIPELINE_VERSION = "nhd-hr-hu8-v1"
 COMPACT_VERSION = "nhd-hydro-compact-v2"
 CANONICAL_KEY_VERSION = "nhd-permanent-identifier-v1"
 LAYERS = (("NHDFlowline", "line"), ("NHDWaterbody", "polygon"))
+# The published `layer` vocabulary. The source layers are `NHDFlowline`/`NHDWaterbody`; the published plane
+# speaks the application's vocabulary, `flowline`/`waterbody`, because the browser's hydro queries filter on
+# exactly those values (`src/gis/discovery-query.js`, `src/gis/habitat-query.js`). One definition used by the
+# builder and by the verifier is what stops the two from drifting apart — they did, and a national plane
+# published the source layer names while every runtime query looked for the application ones.
+PUBLISHED_LAYER = {LAYERS[0][0]: "flowline", LAYERS[1][0]: "waterbody"}
+GEOMETRY_FAMILY = {"flowline": "MultiLineString", "waterbody": "MultiPolygon"}
 FLOWING_FTYPES = {334, 336, 460, 558}
 STANDING_FTYPES = {361, 378, 390, 436, 466}
 NHD_FEATURE_TYPES = {334: "Connector", 336: "CanalDitch", 361: "Playa", 378: "Ice Mass", 390: "Lake/Pond",

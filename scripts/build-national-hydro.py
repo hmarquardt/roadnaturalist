@@ -16,6 +16,7 @@ source coverage is complete, and unbuilt cells declared as unbuilt. See scripts/
 national hydro semantic contract.
 """
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import shutil
@@ -241,7 +242,7 @@ def build_identity(work, units):
     db_path.unlink(missing_ok=True)
     connection = sqlite3.connect(db_path)
     connection.executescript("""
-      PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;
+      PRAGMA journal_mode=WAL; PRAGMA synchronous=OFF; PRAGMA temp_store=MEMORY;  -- rebuildable intermediate: a lost write costs a re-run, not data
       CREATE TABLE feature(unit TEXT, member TEXT, objectid INTEGER, permanent_identifier TEXT,
                            geometry_digest TEXT, signature TEXT, PRIMARY KEY(unit, member, objectid));
       CREATE INDEX feature_id ON feature(member, permanent_identifier);
@@ -339,10 +340,16 @@ def unit_coverage(unit, work, gdb):
     return value
 
 
-def partition_units(work, units, cells):
-    """Replicate every canonical whole feature into each intersecting 0.2-degree cell."""
+def partition_units(work, units, cells, workers=1):
+    """Replicate every canonical whole feature into each intersecting 0.2-degree cell.
+
+    Units are independent: each reads the identity mapping read-only and writes only its own fragment and
+    checkpoint, so bounded concurrency is safe and is the difference between a national partition stage taking
+    hours and taking minutes. A concurrent SQLite reader per worker is fine because nothing writes the mapping.
+    """
     totals = {"units": 0, "replicatedRows": 0, "fragments": 0, "keys": 0}
-    for unit in sorted(units):
+
+    def partition_one(unit):
         checkpoint = work / "partition-jobs" / f"{unit}.json"
         fragment = work / "fragments" / f"{unit}.parquet"
         normalized = work / "normalized" / f"{unit}.parquet"
@@ -351,14 +358,10 @@ def partition_units(work, units, cells):
             if (prior.get("state") == "complete" and prior.get("normalizedSha256") == nh.sha256_file(normalized)
                     and prior.get("fragmentBytes") == fragment.stat().st_size
                     and prior.get("fragmentSha256") == nh.sha256_file(fragment)):
-                totals["units"] += 1
-                totals["replicatedRows"] += prior["replicatedRows"]
-                totals["fragments"] += len(prior["cells"])
-                totals["keys"] += prior["canonicalKeys"]
-                continue
+                return prior, True
         started = time.monotonic()
         canonical = {}
-        connection = sqlite3.connect(work / "identity.sqlite")
+        connection = sqlite3.connect(f"file:{work / 'identity.sqlite'}?mode=ro", uri=True)
         for unit_key, member, objectid, key, owner in connection.execute(
                 "SELECT unit, member, objectid, canonical_key, owner FROM mapping WHERE unit=?", (unit,)):
             canonical[(member, objectid)] = (key, owner)
@@ -387,9 +390,17 @@ def partition_units(work, units, cells):
                   "sourceUnits": sorted({row.get("unit") for row in rows}),
                   "wallSeconds": round(time.monotonic() - started, 3)}
         nh.atomic_json(checkpoint, record)
+        return record, False
+
+    if workers == 1:
+        records = [partition_one(unit) for unit in sorted(units)]
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+            records = list(pool.map(partition_one, sorted(units)))
+    for record, _reused in records:
         totals["units"] += 1
-        totals["replicatedRows"] += len(rows)
-        totals["fragments"] += len(cells_touched)
+        totals["replicatedRows"] += record["replicatedRows"]
+        totals["fragments"] += len(record["cells"])
         totals["keys"] += record["canonicalKeys"]
     return totals
 
@@ -399,12 +410,12 @@ def publication_version(units, complete):
     return f"nhd-hr-hu8-2023-12-v1" if complete else f"nhd-hr-hu8-2023-12-v1-partial-{digest}"
 
 
-def finalize(work, units, lock, grid):
+def finalize(work, units, lock, grid, workers=1):
     """Compact the replicated fragments into cells, dedupe by canonical key, and write the manifest."""
     started = time.monotonic()
     identity = build_identity(work, units)
     cells_meta = {cell["id"]: cell for cell in grid["cells"]}
-    partition = partition_units(work, units, set(cells_meta))
+    partition = partition_units(work, units, set(cells_meta), workers=workers)
     # Which units cover each cell, from the units' own declared boundaries: a cell may only be declared empty
     # when every unit that covers it has been processed. Everything else stays explicitly unbuilt.
     cell_units = defaultdict(set)
@@ -470,7 +481,7 @@ def finalize(work, units, lock, grid):
                     continue
                 by_key[row["feature"]] = row
         rows = [{"canonical_feature_id": key, "source_feature_id": by_key[key]["permanent_identifier"],
-                 "layer": "flowline" if by_key[key]["layer"] == "NHDFlowline" else "waterbody", "source_unit": by_key[key]["unit"],
+                 "layer": nh.PUBLISHED_LAYER[by_key[key]["layer"]], "source_unit": by_key[key]["unit"],
                  "source_units": owner_units.get(key, by_key[key]["unit"]),
                  "name": by_key[key]["gnis_name"], "feature_type_code": str(by_key[key]["ftype"] or ""),
                  "feature_type_label": nh.feature_type_label(by_key[key]["ftype"]),
@@ -514,35 +525,50 @@ def finalize(work, units, lock, grid):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--work", type=Path, default=DEFAULT_WORK)
-    parser.add_argument("--units", required=True, help="comma-separated pinned HUC8 units")
-    parser.add_argument("--workers", type=int, default=1, choices=range(1, 5))
+    parser.add_argument("--units", help="comma-separated pinned HUC8 units")
+    parser.add_argument("--all", action="store_true", help="every unit pinned in the NHD lock")
+    parser.add_argument("--workers", type=int, default=1, choices=range(1, 9))
     parser.add_argument("--cleanup-source", action="store_true", help="drop each verified archive after normalization")
     parser.add_argument("--finalize", action="store_true", help="resolve identity, replicate cells and write the manifest")
     args = parser.parse_args()
     lock, grid = load_inputs()
-    units = args.units.split(",")
+    if args.all:
+        units = sorted(lock["units"])
+    elif args.units:
+        units = args.units.split(",")
+    else:
+        raise SystemExit("pass --units or --all")
     unknown = [unit for unit in units if unit not in lock["units"]]
     if unknown:
         raise SystemExit(f"units are not pinned in the NHD lock: {unknown}")
     args.work.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
-    results = []
-    for unit in units:
+
+    def build_one(unit):
         source = lock["units"][unit]
         archive = fetch_unit(unit, source, args.work)
         gdb = extract_unit(unit, archive, args.work)
         unit_coverage(unit, args.work, gdb)
-        result = normalize_unit(unit, source, args.work, gdb, args.cleanup_source)
-        results.append(result)
-        print(json.dumps({"unit": unit, "rows": result["outputRows"], "bytes": result["outputBytes"],
+        return normalize_unit(unit, source, args.work, gdb, args.cleanup_source)
+
+    if args.workers == 1:
+        results = [build_one(unit) for unit in units]
+    else:
+        # Units are independent: each has its own archive, extraction directory, coverage record, checkpoint and
+        # normalized output. Bounded concurrency is therefore safe and turns a national normalization stage from
+        # hours into minutes. Each worker uses its own DuckDB connection and its own source temp file.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
+            results = list(pool.map(build_one, units))
+    for result in results:
+        print(json.dumps({"unit": result["unit"], "rows": result["outputRows"], "bytes": result["outputBytes"],
                           "lines": result["stats"]["lines"], "polygons": result["stats"]["polygons"],
                           "invalidGeometry": result["stats"]["invalidGeometry"],
                           "wallSeconds": result["wallSeconds"]}), flush=True)
-    print(json.dumps({"normalizedUnits": len(results),
+    print(json.dumps({"normalizedUnits": len(results), "workers": args.workers,
                       "rows": sum(result["outputRows"] for result in results),
                       "wallSeconds": round(time.monotonic() - started, 3)}))
     if args.finalize:
-        finalize(args.work, units, lock, grid)
+        finalize(args.work, units, lock, grid, workers=args.workers)
 
 
 if __name__ == "__main__":
