@@ -112,10 +112,20 @@ def main():
             geo = json.loads((schema.metadata or {}).get(b"geo", b"{}"))
             if geo.get("primary_column") != "geometry" or geo.get("columns", {}).get("geometry", {}).get("geometry_types") != ["MultiPolygon"]:
                 raise ValueError(f"{entry['id']} invalid GeoParquet geometry declaration")
-            sample = pq.read_table(path, columns=["canonical_feature_id", "geometry"]).slice(0, 10).to_pylist()
+            sample = pq.read_table(path, columns=["canonical_feature_id", "source_feature_id", "source_state",
+                                                  "source_objectid", "geometry"]).slice(0, 10).to_pylist()
             if any(not row["canonical_feature_id"] or wkb.loads(row["geometry"]).is_empty
                    or not wkb.loads(row["geometry"]).intersects(nw.box(*entry["bounds"])) for row in sample):
                 raise ValueError(f"{entry['id']} invalid sample")
+            # The derived build and the runtime both key wetlands on source_feature_id: build-derived.py dedupes
+            # with PARTITION BY source_feature_id and service.js uses it as the dataset's sole source key. So every
+            # published row must carry one, and it must be the state-qualified source identity rather than a bare
+            # object number that two state packages can both use.
+            if any(not row["source_feature_id"] or row["source_feature_id"] != f"{row['source_state']}:{row['source_objectid']}"
+                   for row in sample):
+                raise ValueError(f"{entry['id']} invalid source_feature_id")
+            if schema.names != [field["name"] for field in manifest["schema"]]:
+                raise ValueError(f"{entry['id']} artifact columns differ from the declared manifest schema")
             rows += entry["storedRows"]
             bytes_total += entry["bytes"]
         elif entry["state"] == "empty": empty += 1
@@ -125,6 +135,11 @@ def main():
     actual = {"present": present, "empty": empty, "unbuilt": unbuilt, "storedRows": rows, "artifactBytes": bytes_total}
     if any(expected[key] != value for key, value in actual.items()):
         raise ValueError(f"manifest totals differ: {actual}")
+    # With every package built, every declared cell is covered by built states, so a complete plane cannot
+    # contain an unbuilt cell. Asserting it here means a complete build that quietly skipped cells fails, rather
+    # than being described consistently by a manifest that agrees with itself.
+    if args.require_all and unbuilt != 0:
+        raise ValueError(f"complete build must publish every declared cell; {unbuilt} are unbuilt")
     encoded = json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n"
     if manifest_path.read_text() != encoded:
         raise ValueError("wetland manifest is not deterministically encoded")

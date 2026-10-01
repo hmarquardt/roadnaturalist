@@ -138,16 +138,39 @@ def build_identity(work, states):
     return report
 
 
+def required_identity(work, states):
+    """The already-built global identity, validated, never rebuilt.
+
+    Partition shards run concurrently and every one of them needs the identity database. Rebuilding it here would
+    mean each shard recomputing a different identity over its own state subset and unlinking the shared database
+    while its siblings read it, so a subset stage validates the existing global index instead and refuses to
+    proceed without one. Identity is built once, over every state, by --identity-only.
+    """
+    meta_path = work / "identity.json"
+    db_path = work / "identity.sqlite"
+    if not meta_path.exists() or not db_path.exists():
+        raise ValueError("wetlands identity has not been built; run --identity-only over every state first")
+    identity = json.loads(meta_path.read_text())
+    if identity.get("state") != "complete" or identity.get("canonicalKeyVersion") != nw.CANONICAL_KEY_VERSION:
+        raise ValueError("wetlands identity checkpoint is incomplete or uses a stale canonical key")
+    if identity.get("dbSha256") != nw.sha256_file(db_path):
+        raise ValueError("wetlands identity database changed since its checkpoint was written")
+    missing = sorted(set(states) - set(identity.get("states", [])))
+    if missing:
+        raise ValueError(f"wetlands identity does not cover {missing}")
+    return identity
+
+
 def partition_chunks(work, states):
     started = time.monotonic()
-    identity = build_identity(work, states)
+    identity = required_identity(work, states)
     connection = sqlite3.connect(work / "identity.sqlite")
     totals = {"chunks": 0, "replicatedRows": 0, "fragments": 0}
     for state, path, digest in input_chunks(work, states):
         chunk_name = path.stem
         checkpoint = work / "partition-jobs" / state / f"{chunk_name}.json"
         old = json.loads(checkpoint.read_text()) if checkpoint.exists() else {}
-        if old.get("state") == "complete" and old.get("inputSha256") == digest and old.get("identitySha256") == identity["inputSha256"] and all(
+        if old.get("state") == "complete" and old.get("inputSha256") == digest and old.get("identitySha256") == identity["inputSha256"] and old.get("schemaDigest") == nw.SCHEMA_DIGEST and all(
                 (work / item["path"]).exists() and nw.sha256_file(work / item["path"]) == item["sha256"] for item in old.get("fragments", {}).values()):
             totals["chunks"] += 1; totals["replicatedRows"] += old["replicatedRows"]; totals["fragments"] += len(old["fragments"])
             continue
@@ -163,7 +186,14 @@ def partition_chunks(work, states):
                 continue
             geometry = wkb.loads(row["geometry"])
             attribute = row["attribute"]
-            output = {"canonical_feature_id": canonical_key, "nwi_id": row["nwi_id"], "source_state": state,
+            # `source_feature_id` is the identifier the derived build and the runtime both key on:
+            # build-derived.py dedupes with PARTITION BY source_feature_id, and service.js uses
+            # `wetlands: 'source_feature_id'` as the dataset's sole source key. Object numbers are only unique
+            # within their state package, so publishing them bare would make two states' features look like one
+            # feature and silently undercount. Qualifying with the state keeps it unique and traceable.
+            output = {"canonical_feature_id": canonical_key, "nwi_id": row["nwi_id"],
+                      "source_feature_id": f"{state}:{row['objectid']}",
+                      "source_state": state,
                       "source_objectid": row["objectid"], "source_states": source_states, "attribute": attribute,
                       "wetland_type": row["wetland_type"], "system_code": attribute[:1],
                       "system_label": nw.COWARDIN_SYSTEMS.get(attribute[:1], ""), "qaqc_code": row["qaqc_code"],
@@ -178,6 +208,7 @@ def partition_chunks(work, states):
             result = nw.write_geoparquet(by_cell[cell], work / relative)
             fragments[cell] = {"path": str(relative), **result}
         record = {"state": "complete", "inputSha256": digest, "identitySha256": identity["inputSha256"],
+                  "schemaDigest": nw.SCHEMA_DIGEST,
                   "replicatedRows": sum(item["rows"] for item in fragments.values()), "fragments": fragments}
         nw.atomic_json(checkpoint, record)
         totals["chunks"] += 1; totals["replicatedRows"] += record["replicatedRows"]; totals["fragments"] += len(fragments)

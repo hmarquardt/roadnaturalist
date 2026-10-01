@@ -82,7 +82,8 @@
     "test:national-ecoregions": "uv run --python 3.12 --with pytest --with pyarrow --with shapely --with pyshp python3 -m pytest tests/test_national_ecoregions.py -q",
     "check:derived-readiness": "node scripts/check-derived-readiness.mjs",
     "record:verification": "node scripts/check-derived-readiness.mjs --record",
-    "reconcile:national-hydro-identity": "uv run --python 3.12 python3 scripts/reconcile-national-hydro-identity.py"
+    "reconcile:national-hydro-identity": "uv run --python 3.12 python3 scripts/reconcile-national-hydro-identity.py",
+    "check:wetland-consumers": "uv run --python 3.12 --with duckdb python3 scripts/check-wetland-consumers.py"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"

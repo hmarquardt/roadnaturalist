@@ -127,12 +127,19 @@ def member_cells(geometry, cell_ids):
 
 
 SCHEMA = pa.schema([
-    ("canonical_feature_id", pa.string()), ("nwi_id", pa.string()), ("source_state", pa.string()),
+    ("canonical_feature_id", pa.string()), ("nwi_id", pa.string()), ("source_feature_id", pa.string()),
+    ("source_state", pa.string()),
     ("source_objectid", pa.int64()), ("source_states", pa.string()), ("attribute", pa.string()),
     ("wetland_type", pa.string()), ("system_code", pa.string()), ("system_label", pa.string()),
     ("qaqc_code", pa.string()), ("source_acres", pa.float64()), ("geometry_digest", pa.string()),
     ("min_lon", pa.float64()), ("min_lat", pa.float64()), ("max_lon", pa.float64()),
     ("max_lat", pa.float64()), ("geometry", pa.binary())])
+# The published schema is part of what a partition fragment *is*: a fragment written before a column existed
+# cannot satisfy a manifest that declares it. Hashing it into the partition cache key means a schema change
+# invalidates the fragments instead of silently reusing them, which is the difference between rebuilding two
+# states and publishing a plane whose columns disagree with its own manifest.
+SCHEMA_DIGEST = hashlib.sha256(json.dumps([(field.name, str(field.type)) for field in SCHEMA],
+                                          separators=(",", ":")).encode()).hexdigest()[:16]
 
 
 def write_geoparquet(rows, path, schema=SCHEMA):
