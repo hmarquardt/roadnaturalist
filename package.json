@@ -52,8 +52,8 @@
     "freeze:national-manifest": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 scripts/freeze-national-manifest.py",
     "test:national-roads": "uv run --python 3.12 --with pytest --with duckdb --with pyproj --with shapely --with pyarrow --with pyshp --with numpy python3 -m pytest tests/test_national_roads.py -q",
     "benchmark:national-roads": "python3 scripts/benchmark-national-roads.py",
-    "publish:national-roads": "node scripts/publish-national-roads.mjs"
-    ,"freeze:national-wetlands": "python3 scripts/freeze-national-wetlands.py",
+    "publish:national-roads": "node scripts/publish-national-roads.mjs",
+    "freeze:national-wetlands": "python3 scripts/freeze-national-wetlands.py",
     "build:national-wetlands": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/build-national-wetlands.py",
     "partition:national-wetlands": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/partition-national-wetlands.py",
     "test:national-wetlands": "uv run --python 3.12 --with pytest --with pyarrow --with pyproj --with shapely python3 -m pytest tests/test_national_wetlands.py -q",
@@ -63,13 +63,14 @@
     "benchmark:nwi-concurrency": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/benchmark-nwi-concurrency.py",
     "publish:national-wetlands": "node scripts/publish-national-wetlands.mjs",
     "freeze:national-wetland-manifest": "python3 scripts/freeze-national-wetland-manifest.py",
-    "inspect:national-nwi": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/inspect-national-nwi-sources.py"
-    ,"freeze:national-hydro": "python3 scripts/freeze-national-hydro.py"
-    ,"build:national-hydro": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow python3 scripts/build-national-hydro.py"
-    ,"verify:national-hydro": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow python3 scripts/verify-national-hydro.py"
-    ,"test:national-hydro": "uv run --python 3.12 --with pytest --with pyarrow --with pyproj --with shapely python3 -m pytest tests/test_national_hydro.py -q"
-    ,"benchmark:national-hydro": "uv run --python 3.12 --with pyarrow python3 scripts/benchmark-national-hydro.py"
-    ,"publish:national-hydro": "node scripts/publish-national-hydro.mjs"
+    "inspect:national-nwi": "uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/inspect-national-nwi-sources.py",
+    "freeze:national-hydro": "python3 scripts/freeze-national-hydro.py",
+    "build:national-hydro": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow python3 scripts/build-national-hydro.py",
+    "verify:national-hydro": "uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow python3 scripts/verify-national-hydro.py",
+    "test:national-hydro": "uv run --python 3.12 --with pytest --with pyarrow --with pyproj --with shapely python3 -m pytest tests/test_national_hydro.py -q",
+    "benchmark:national-hydro": "uv run --python 3.12 --with pyarrow python3 scripts/benchmark-national-hydro.py",
+    "publish:national-hydro": "node scripts/publish-national-hydro.mjs",
+    "build:national-hydro:pipeline": "bash scripts/run-national-hydro.sh"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"
