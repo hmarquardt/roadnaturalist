@@ -11,6 +11,8 @@ wetland fragment layout - one file per state, chunk and cell - is many small fil
 """
 import argparse
 import json
+import shutil
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -68,6 +70,19 @@ def main():
     usage = {name: directory_usage(args.work / name) for name in
              ("sources", "normalized", "fragments", "artifacts", "partition-jobs", "jobs", "extracted", "samples")}
     replication = round(counts["storedRows"] / counts["canonicalFeatures"], 6) if counts["canonicalFeatures"] else None
+    # Ambiguous rows are retained as published features, so the interesting number is how many *groups* of them
+    # there are: one collision between two packages is a different fact from two hundred scattered ones.
+    ambiguous_groups = None
+    database = args.work / "identity.sqlite"
+    if database.exists():
+        connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+        ambiguous_groups = connection.execute(
+            "SELECT count(DISTINCT canonical_key) FROM mapping WHERE disposition='ambiguous'").fetchone()[0]
+        connection.close()
+    # Bytes per published row is the figure a future estimate should be built from, since it comes from this
+    # complete plane rather than from an extrapolation of a partial one.
+    stored = counts["storedRows"] or 1
+    volume = shutil.disk_usage(args.work if args.work.exists() else ROOT)
     report = {
         "kind": "national-wetland-build-benchmark", "schemaVersion": 1,
         "version": manifest["version"], "buildCoverage": manifest["buildCoverage"],
@@ -77,7 +92,10 @@ def main():
                    "inventoryRawRows": inventory.get("rawFeatures")},
         "features": {"rawRows": identity.get("rawRows"), "canonicalFeatures": identity.get("canonicalFeatures"),
                      "duplicatePackageCopies": identity.get("duplicatePackageCopies"),
-                     "ambiguousRows": identity.get("ambiguousRows"), "blankIdRows": identity.get("blankIdRows")},
+                     "ambiguousRows": identity.get("ambiguousRows"), "ambiguousGroups": ambiguous_groups,
+                     "blankIdRows": identity.get("blankIdRows"),
+                     "bytesPerPublishedRow": round(counts["artifactBytes"] / stored, 1),
+                     "bytesPerCanonicalFeature": round(counts["artifactBytes"] / max(1, counts["canonicalFeatures"]), 1)},
         "cells": {"declared": counts["cells"], "present": counts["present"], "typedEmpty": counts["empty"],
                   "unbuilt": counts["unbuilt"], "storedRows": counts["storedRows"], "replicationFactor": replication,
                   "medianBytes": percentile(0.5), "p95Bytes": percentile(0.95),
@@ -94,6 +112,7 @@ def main():
                                                 + usage["fragments"]["logicalBytes"]
                                                 + usage["jobs"]["logicalBytes"]
                                                 + usage["partition-jobs"]["logicalBytes"]},
+        "volume": {"totalBytes": volume.total, "usedBytes": volume.used, "freeBytes": volume.free},
         "projections": {"extrapolatedBytes": EXTRAPOLATED_BYTES, "actualBytes": counts["artifactBytes"],
                         "ratio": round(counts["artifactBytes"] / EXTRAPOLATED_BYTES, 3),
                         "obsolete": manifest["buildCoverage"] == "complete"},
