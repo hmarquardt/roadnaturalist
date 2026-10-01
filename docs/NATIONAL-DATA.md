@@ -533,3 +533,41 @@ it, which surfaced as a DuckDB `ST_Read` failure naming the scratch path. Extrac
 (`--scratch <root>/slice-N`), so no two processes can share an extraction directory. The failure was also
 harmless to correctness: a unit whose run failed left no checkpoint, its normalized output is written through an
 atomic `os.replace`, and a reused output is re-hashed before it is trusted — so the failed unit is simply redone.
+
+## Phase 3A: preparing the national NWI plane
+
+The NWI plane is the largest of the four raw planes: 49 packages, 60.5 GB compressed, ~128 GB unpacked, and
+36,979,715 source rows. Only AZ, DC, OR and WA have normalized checkpoints (all four verified on the build
+volume), and the cell plane covers AZ/DC.
+
+Three things were established before any large write, because each of them changes the shape of the run:
+
+* **The builder fetches its own pinned archives.** `fetch_package` verifies the committed lock and downloads when
+  the archive is missing, so no separate freeze step is required; `--cleanup-source` then drops each ZIP after its
+  validated per-chunk output exists. `scripts/fetch-national-wetlands.sh` optionally warms the cache first, which
+  is a scheduling choice rather than a correctness one: downloads are the slowest part of a state's work, and a
+  warm cache lets the normalization shards start computing immediately.
+* **Identity must stay global, partitions may shard.** `partition-national-wetlands.py` now separates the two:
+  `--identity-only` resolves canonical identity over the given states (it must be one process, because it decides
+  duplicate copies across every package at once), and `--partition-only` replicates and fragments a state subset
+  against that existing identity database. Its identity database is a rebuildable intermediate, so its durability
+  is relaxed for a national-scale insert, exactly as the hydro identity stage does.
+* **State work is independent, so the driver shards it.** Because the largest single package is 4.2 GB (TX) and
+  the median is 1.1 GB, `scripts/run-national-wetlands.sh` assigns states to slices with a largest-first greedy
+  pass over the committed lock: six slices give a **10.12 GB critical path** instead of one state at a time. One
+  process per slice keeps extraction disk bounded to a single state per process, and each state's work is
+  checkpointed per 100,000-OBJECTID chunk.
+
+Stages, all checkpointed and idempotent: normalize (sharded) → identity (single) → partition (sharded) →
+finalize (compaction with per-cell reuse, then the manifest) → verify (`--require-all`).
+
+```bash
+ROADNATURALIST_BUILD_VOLUME=/Volumes/Lexar/roadnaturalist bash scripts/fetch-national-wetlands.sh
+ROADNATURALIST_BUILD_VOLUME=/Volumes/Lexar/roadnaturalist bash scripts/run-national-wetlands.sh
+```
+
+Measured expectations to check the run against, from the earlier sessions rather than guessed: normalization runs
+at roughly 870 rows/s per process (AZ+DC: 188,581 rows in 216 s), so a 10.12 GB slice is roughly 6.2 M rows or
+about two hours of CPU per slice, and the downloads add tens of minutes; identity, partition, compaction and
+verification are then a further multi-hour sequence. This is a multi-session build by construction, which is why
+every stage resumes rather than restarts.

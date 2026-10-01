@@ -70,7 +70,9 @@
     "test:national-hydro": "uv run --python 3.12 --with pytest --with pyarrow --with pyproj --with shapely python3 -m pytest tests/test_national_hydro.py -q",
     "benchmark:national-hydro": "uv run --python 3.12 --with pyarrow python3 scripts/benchmark-national-hydro.py",
     "publish:national-hydro": "node scripts/publish-national-hydro.mjs",
-    "build:national-hydro:pipeline": "bash scripts/run-national-hydro.sh"
+    "build:national-hydro:pipeline": "bash scripts/run-national-hydro.sh",
+    "build:national-wetlands:pipeline": "bash scripts/run-national-wetlands.sh",
+    "fetch:national-wetlands": "bash scripts/fetch-national-wetlands.sh"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"

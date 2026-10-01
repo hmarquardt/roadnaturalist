@@ -76,7 +76,7 @@ def build_identity(work, states):
     db_path.unlink(missing_ok=True)
     connection = sqlite3.connect(db_path)
     connection.executescript("""
-      PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;
+      PRAGMA journal_mode=WAL; PRAGMA synchronous=OFF; PRAGMA temp_store=MEMORY;  -- rebuildable intermediate: a lost write costs a re-run, not data
       CREATE TABLE feature(state TEXT, objectid INTEGER, nwi_id TEXT, geometry_digest TEXT, semantic_digest TEXT,
                            PRIMARY KEY(state, objectid));
       CREATE INDEX feature_nwi ON feature(nwi_id);
@@ -279,8 +279,21 @@ def main():
     parser.add_argument("--work", type=Path, default=DEFAULT_WORK)
     parser.add_argument("--states", required=True)
     parser.add_argument("--finalize", action="store_true")
+    parser.add_argument("--identity-only", action="store_true",
+                        help="resolve canonical wetland identity over the given states and exit; identity is "
+                             "global (it resolves duplicates across every package) so it must run once, over all "
+                             "states, before any partition shard starts")
+    parser.add_argument("--partition-only", action="store_true",
+                        help="replicate and fragment only the given states and exit; requires the identity "
+                             "database from --identity-only, so this stage shards across processes")
     args = parser.parse_args()
     states = args.states.split(",")
+    if args.identity_only:
+        print(json.dumps({"identity": build_identity(args.work, states)}))
+        return
+    if args.partition_only:
+        print(json.dumps({"partitions": partition_chunks(args.work, states)}))
+        return
     if args.finalize:
         compact(args.work, states)
     else:
