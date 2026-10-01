@@ -86,15 +86,22 @@ def fetch_unit(unit, source, work):
     return archive
 
 
-def extract_unit(unit, archive, work):
-    """Extract the staged GDB once, reusing a previously verified extraction."""
+def extract_unit(unit, archive, work, scratch=None):
+    """Extract the staged GDB once, reusing a previously verified extraction.
+
+    `scratch` redirects the extraction (and therefore every file geodatabase read) to a faster filesystem. It
+    exists because of a measurement: reading a GDB on the ExFAT build volume is dominated by small random reads,
+    which showed up as high load average with low CPU (I/O wait) and made the national stage several times
+    slower. Extraction is per unit and deleted after its validated output exists, so scratch stays small, while
+    every durable artifact (normalized output, checkpoint, coverage record) remains on the build volume.
+    """
     checkpoint = work / "extracted" / f"{unit}.json"
-    root = work / "extracted" / unit
+    root = (Path(scratch) if scratch else work / "extracted") / unit
     if checkpoint.exists():
         prior = json.loads(checkpoint.read_text())
         if prior.get("state") == "complete" and prior.get("archiveSha256") == nh.sha256_file(archive):
-            directory = root / prior["gdb"]
-            if directory.exists():
+            directory = Path(prior.get("gdbPath") or "")
+            if directory.name and directory.exists():
                 return directory
     if root.exists():
         shutil.rmtree(root)
@@ -107,7 +114,8 @@ def extract_unit(unit, archive, work):
     if len(gdb) != 1:
         raise ValueError(f"{unit} expected one file geodatabase, found {len(gdb)}")
     nh.atomic_json(checkpoint, {"state": "complete", "archiveSha256": nh.sha256_file(archive),
-                                "gdb": gdb[0].name, "extractedBytes": sum(p.stat().st_size for p in root.rglob("*")
+                                "gdb": gdb[0].name, "gdbPath": str(gdb[0]),
+                                "extractedBytes": sum(p.stat().st_size for p in root.rglob("*")
                                         if p.is_file() and bv.is_data_file(p))})
     return gdb[0]
 
@@ -154,6 +162,9 @@ def normalize_unit(unit, source, work, gdb, cleanup):
     started = time.monotonic()
     connection = duckdb.connect()
     connection.execute("INSTALL spatial; LOAD spatial;")
+    # The national driver runs one process per unit slice; DuckDB would otherwise start a thread pool per
+    # process, which oversubscribes the machine. One thread per process is the measured optimum here.
+    connection.execute("SET threads=1")
     to_stored = Transformer.from_crs(nh.SOURCE_CRS, nh.STORED_CRS, always_xy=True)
     to_analysis = Transformer.from_crs(nh.SOURCE_CRS, nh.ANALYSIS_CRS, always_xy=True)
     rows, stats = [], {"inputRows": 0, "outputRows": 0, "droppedEmpty": 0, "droppedOtherGeometry": 0,
@@ -527,7 +538,15 @@ def main():
     parser.add_argument("--work", type=Path, default=DEFAULT_WORK)
     parser.add_argument("--units", help="comma-separated pinned HUC8 units")
     parser.add_argument("--all", action="store_true", help="every unit pinned in the NHD lock")
+    parser.add_argument("--identity-only", action="store_true",
+                        help="resolve cross-unit identity for every pinned unit and exit (one process)")
+    parser.add_argument("--partition-only", action="store_true",
+                        help="partition only the given --units and exit; requires an existing identity database, "
+                             "so the stage can be sharded across processes for a national run")
     parser.add_argument("--workers", type=int, default=1, choices=range(1, 9))
+    parser.add_argument("--scratch", help="extract geodatabases here (a faster filesystem than --work) "
+                                      "and delete each one after its validated output exists")
+
     parser.add_argument("--cleanup-source", action="store_true", help="drop each verified archive after normalization")
     parser.add_argument("--finalize", action="store_true", help="resolve identity, replicate cells and write the manifest")
     args = parser.parse_args()
@@ -543,13 +562,35 @@ def main():
         raise SystemExit(f"units are not pinned in the NHD lock: {unknown}")
     args.work.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
+    if args.identity_only:
+        # Identity is a single sequential step over every normalized unit: it is one SQLite pass, and it is the
+        # one stage that cannot be sharded by process because it resolves duplicates across all units at once.
+        identity = build_identity(args.work, units)
+        print(json.dumps({"identity": {"rawRows": identity["rawRows"],
+                                       "canonicalFeatures": identity["canonicalFeatures"],
+                                       "duplicatePackageCopies": identity["duplicatePackageCopies"],
+                                       "ambiguousRows": identity["ambiguousRows"],
+                                       "blankIdRows": identity["blankIdRows"],
+                                       "wallSeconds": identity["wallSeconds"]}}))
+        return
+    if args.partition_only:
+        # Requires the identity database from --identity-only. Units are independent here, so this stage shards.
+        totals = partition_units(args.work, units, {cell["id"] for cell in grid["cells"]}, workers=args.workers)
+        print(json.dumps({"partitionedUnits": totals["units"], "replicatedRows": totals["replicatedRows"],
+                          "fragments": totals["fragments"], "wallSeconds": round(time.monotonic() - started, 3)}))
+        return
 
     def build_one(unit):
         source = lock["units"][unit]
         archive = fetch_unit(unit, source, args.work)
-        gdb = extract_unit(unit, archive, args.work)
+        gdb = extract_unit(unit, archive, args.work, args.scratch)
         unit_coverage(unit, args.work, gdb)
-        return normalize_unit(unit, source, args.work, gdb, args.cleanup_source)
+        result = normalize_unit(unit, source, args.work, gdb, args.cleanup_source)
+        print(json.dumps({"unit": unit, "rows": result["outputRows"], "lines": result["stats"]["lines"],
+                          "polygons": result["stats"]["polygons"],
+                          "invalidGeometry": result["stats"]["invalidGeometry"],
+                          "wallSeconds": result["wallSeconds"]}), flush=True)
+        return result
 
     if args.workers == 1:
         results = [build_one(unit) for unit in units]

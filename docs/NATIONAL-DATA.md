@@ -449,3 +449,52 @@ cells the national plane actually built, asserts identity, classification and so
 that a clipped regional extent never exceeds the whole national feature, and **reports** how many features and
 cells were excluded because of unbuilt coverage. Equivalence becomes a whole-plane claim only when the national
 plane is complete, which is the same gate roads and wetlands used.
+
+## Phase 2D: closing hydro to a complete, measured plane
+
+### The published-layer bug, and how it was verified rather than assumed
+
+`verify:national-hydro --regional-equivalence` now passes end to end: **39,622 of 39,622** regional features
+matched, **0 excluded**, with identity, classification, source attributes, clipped-versus-whole extent and cell
+membership all asserted. Two rounds were needed, because the check found the bug and then found that the verifier
+itself had not moved with the fix.
+
+Round one found the semantic bug. The plane published `layer` as the source layer name (`NHDFlowline`,
+`NHDWaterbody`) while every runtime query filters on `flowline`/`waterbody`
+(`src/gis/discovery-query.js`, `src/gis/habitat-query.js`). Unfixed, national hydro metrics would have read zero
+rows while every schema check passed. Round two found two *verifier* assertions still written in the old
+vocabulary: a geometry-family check and a canonical-key check.
+
+The structural fix is one definition instead of two. `scripts/national_hydro.py` owns `PUBLISHED_LAYER` and
+`GEOMETRY_FAMILY`; the builder and the verifier both read them, so the two cannot disagree about the contract
+again. The published-row contract carries its own version (`COMPACT_VERSION`), so changing it invalidates cell
+artifacts and never source units. `scripts/check-hydro-consumers.py` runs the runtime predicate itself
+(`WHERE layer = 'flowline'` / `'waterbody'`) over representative national cells, because inspecting schema would
+not have caught this class of bug.
+
+### Pin set: complete
+
+`freeze:national-hydro --all --keep --workers 6` finished at **2,166 units / 23,652,050,889 bytes**, equal to the
+measured `conusCompressedBytes` of `data/national/nhd-hr-hu8-inventory.json`, covering all 18 CONUS HUC2 regions.
+One truncated download occurred mid-pass; because each unit retries once and records its own failure instead of
+aborting the pass, it cost a retry rather than a pass. Pins are verified against remote byte length and
+Last-Modified on reuse, so a republished source is detected rather than trusted.
+
+### Concurrency, measured three ways
+
+The national normalization was measured three ways on this machine, and the third way is the one that is fast:
+
+| Approach | Measured | Why |
+| --- | --- | --- |
+| 8 threads in one process (`--workers 8`) | ~0.45 units/s | the per-unit row loop over shapely/pyproj transforms holds the GIL, so threads barely parallelise |
+| 8 processes, geodatabases read from the ExFAT volume | ~1.1 units/s | process-parallel, but load average 36 with only ~3 cores of CPU: I/O wait on small random reads inside a file geodatabase |
+| 8 processes, extraction on local APFS scratch (`--scratch`) | **~1.1–2.5 units/s** | `--scratch` moves the GDB reads to a fast filesystem and deletes each extraction after its validated output exists; durable state stays on the build volume |
+
+One DuckDB thread per process is the measured optimum: DuckDB's default thread pool per process, times eight
+processes, oversubscribed the machine and made the stage slower. Progress is printed per unit, because a national
+slice is hundreds of units and buffered output makes a healthy run look like a stalled one.
+
+On ExFAT, small files cost their allocation block: the volume's 262,144-byte block means every checkpoint and
+sidecar file occupies 256 KB, which is why a 5.0 GB work tree occupied 9.1 GB after migration. Measured rather
+than estimated, and acceptable at this scale; consolidation is future debt, not a reason to restructure an active
+national build.
