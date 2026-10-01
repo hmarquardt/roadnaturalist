@@ -23,10 +23,12 @@ LOCK_PATH = ROOT / "data/national/nhd-hr-hu8-lock.json"
 REPORT_PATH = ROOT / "data/national/hydro-build-benchmark.json"
 DEFAULT_WORK = bv.work_dir("nhd", ROOT / "data/national-hydro-work")
 ALLOCATION_BLOCK = 262144
-# The two projections this run replaces: a row-proportional extrapolation from the 38-unit plane, and a
-# source-proportional one from compressed source bytes.
+# The three projections this run replaces: a row-proportional extrapolation from the 38-unit plane, a
+# source-proportional one from compressed source bytes, and the projection implied by the observed compaction
+# rate during the repaired national finalize.
 PROJECTION_ROW_PROPORTIONAL = 164 * 10 ** 9
 PROJECTION_SOURCE_PROPORTIONAL = 215 * 10 ** 9
+PROJECTION_COMPACTION = 190 * 10 ** 9
 
 
 def directory_usage(path):
@@ -73,6 +75,9 @@ def main():
     replication = round(counts["storedRows"] / counts["canonicalFeatures"], 6) if counts["canonicalFeatures"] else None
     ratio_row = round(counts["artifactBytes"] / PROJECTION_ROW_PROPORTIONAL, 3)
     ratio_source = round(counts["artifactBytes"] / PROJECTION_SOURCE_PROPORTIONAL, 3)
+    ratio_compaction = round(counts["artifactBytes"] / PROJECTION_COMPACTION, 3)
+    distances = {"row-proportional": abs(1 - ratio_row), "source-proportional": abs(1 - ratio_source),
+                 "compaction-rate": abs(1 - ratio_compaction)}
     report = {
         "kind": "national-hydro-build-benchmark", "schemaVersion": 1,
         "version": manifest["version"], "buildCoverage": manifest["buildCoverage"],
@@ -102,10 +107,12 @@ def main():
                                                 + usage["jobs"]["logicalBytes"] + usage["fragments"]["logicalBytes"]},
         "projections": {"rowProportionalBytes": PROJECTION_ROW_PROPORTIONAL,
                         "sourceProportionalBytes": PROJECTION_SOURCE_PROPORTIONAL,
+                        "compactionProjectionBytes": PROJECTION_COMPACTION,
                         "actualBytes": counts["artifactBytes"], "rowProportionalRatio": ratio_row,
-                        "sourceProportionalRatio": ratio_source,
-                        "closer": ("row-proportional" if abs(1 - ratio_row) <= abs(1 - ratio_source)
-                                   else "source-proportional") if manifest["buildCoverage"] == "complete" else None},
+                        "sourceProportionalRatio": ratio_source, "compactionRatio": ratio_compaction,
+                        "closer": min(distances, key=distances.get)
+                        if manifest["buildCoverage"] == "complete" else None,
+                        "distanceFromActual": distances if manifest["buildCoverage"] == "complete" else None},
     }
     REPORT_PATH.write_text(json.dumps(report, indent=1, sort_keys=True) + "\n")
     print(json.dumps(report, indent=1, sort_keys=True))
