@@ -66,7 +66,10 @@ def verify_identity(work, raw_rows, sample):
     identity = json.loads((work / "identity.json").read_text())
     assert identity["state"] == "complete" and identity["canonicalKeyVersion"] == nh.CANONICAL_KEY_VERSION
     assert identity["dbSha256"] == nh.sha256_file(work / "identity.sqlite"), "identity database changed"
-    assert identity["rawRows"] == raw_rows, "identity raw rows disagree with the unit outputs"
+    assert identity["rawRows"] == raw_rows, (
+        f"identity raw rows {identity['rawRows']} disagree with the {raw_rows} rows declared by the unit outputs "
+        f"of the manifest's {len(manifest['builtUnits'])} built units; a complete plane's manifest lists every "
+        "unit, so this means the manifest predates the identity artifact rather than that the identity is wrong")
     assert identity["canonicalFeatures"] == raw_rows - identity["duplicatePackageCopies"], "canonical count arithmetic"
     connection = sqlite3.connect(f"file:{work / 'identity.sqlite'}?mode=ro", uri=True)
     dispositions = dict(connection.execute("SELECT disposition, count(*) FROM mapping GROUP BY disposition"))

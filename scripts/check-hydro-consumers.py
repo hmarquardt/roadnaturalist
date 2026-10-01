@@ -5,7 +5,15 @@ The last semantic bug in this plane was a `layer` value the application never as
 `NHDFlowline`/`NHDWaterbody` while every runtime query filters on `flowline`/`waterbody`. Inspecting the schema
 would not have caught it, so this check runs the *actual* predicate the browser runs
 (`src/gis/discovery-query.js`, `src/gis/habitat-query.js`) over representative national cells and requires real
-rows back — one cell from the regional-equivalence location, plus geographically distinct cells.
+rows back.
+
+What "representative" means is decided by the source, not by the test. A perfectly valid cell can hold flowlines
+and no waterbody, so requiring both layers in every chosen cell asserts something untrue about geography; instead
+this check finds, from the fragments that feed the compaction, one cell whose source rows contain flowlines and
+one whose source rows contain waterbodies, and requires the published plane to serve each of those layers. It
+also requires the published feature count to equal the number of distinct canonical features in the source for
+that cell and layer - the compaction dedupes exactly on that key, so anything else means rows were lost, dropped
+or invented.
 
     python3 scripts/check-hydro-consumers.py --work /Volumes/Lexar/roadnaturalist/work/nhd
 """
@@ -26,48 +34,90 @@ DEFAULT_WORK = bv.work_dir("nhd", ROOT / "data/national-hydro-work")
 PREFERRED_UNITS = ("17090010", "12090101", "04030108")
 
 
+def units_per_cell(work):
+    """Which units replicate into each cell, from the partition checkpoints: a shared cell is only complete
+    when every unit that covers it is counted."""
+    mapping = {}
+    for path in (work / "partition-jobs").glob("*.json"):
+        if not bv.is_data_file(path):
+            continue
+        record = json.loads(path.read_text())
+        for cell_id in record["cells"]:
+            mapping.setdefault(cell_id, []).append(record["unit"])
+    return mapping
+
+
+def source_features(work, connection, units, cell_id, layer):
+    """Distinct canonical features the fragments offer for one cell and source layer."""
+    files = [str(work / "fragments" / f"{unit}.parquet") for unit in sorted(units)]
+    files = [path for path in files if Path(path).exists()]
+    if not files:
+        return None
+    query = "SELECT count(DISTINCT feature) FROM read_parquet(?) WHERE cell = ? AND layer = ?"
+    return connection.execute(query, [files, cell_id, layer]).fetchone()[0] if files else None
+
+
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--work", type=Path, default=DEFAULT_WORK)
-    parser.add_argument("--cells", type=int, default=3)
     args = parser.parse_args()
     manifest = json.loads(MANIFEST_PATH.read_text())
+    # A partial plane's cells are not evidence about the published plane: the pilot's cells were compacted from a
+    # subset of the units that cover them, so a runtime predicate over them can fail for reasons that have
+    # nothing to do with the layer vocabulary or the plane that will actually be served.
+    if manifest.get("buildCoverage") != "complete":
+        raise SystemExit(f"the plane is {manifest.get('buildCoverage')}: run this check against a complete plane")
     present = {cell["id"] for cell in manifest["cells"] if cell["state"] == "present"}
+    covering = units_per_cell(args.work)
     connection = duckdb.connect()
+    vocabulary = set(nh.PUBLISHED_LAYER.values())
 
-    chosen = []
+    results, found = [], {"flowline": None, "waterbody": None}
     for unit in PREFERRED_UNITS:
-        checkpoint = args.work / "partition-jobs" / f"{unit}.json"
-        if not checkpoint.exists():
+        fragment = args.work / "fragments" / f"{unit}.parquet"
+        if not fragment.exists():
             continue
-        record = json.loads(checkpoint.read_text())
-        for cell_id in sorted(record["cells"]):
-            if cell_id in present and cell_id not in [entry[1] for entry in chosen]:
-                chosen.append((unit, cell_id))
-                break
-        if len(chosen) >= args.cells:
-            break
-    if not chosen:
-        raise SystemExit("no representative built cell is available for the consumer check")
-
-    results = []
-    for unit, cell_id in chosen:
-        artifact = args.work / "artifacts" / "hydro" / f"{cell_id}.parquet"
-        if not artifact.exists():
-            raise SystemExit(f"{cell_id}: declared present but no artifact")
-        counts = {}
-        for layer, member in ((nh.PUBLISHED_LAYER[nh.LAYERS[0][0]], "geometry"), (nh.PUBLISHED_LAYER[nh.LAYERS[1][0]], "geometry")):
-            # This is the runtime predicate verbatim: the value the application filters on.
-            counts[layer] = connection.execute(
-                f"SELECT count(*) FROM read_parquet('{artifact}') WHERE layer = '{layer}'").fetchone()[0]
-            lengths = connection.execute(
-                f"""SELECT count(*), sum(CASE WHEN length_m IS NOT NULL THEN 1 ELSE 0 END),
-                           sum(CASE WHEN area_m2 IS NOT NULL THEN 1 ELSE 0 END)
-                    FROM read_parquet('{artifact}') WHERE layer = '{layer}'""").fetchone()
-            counts[f"{layer}Measurements"] = {"rows": lengths[0], "withLength": lengths[1], "withArea": lengths[2]}
-        results.append({"unit": unit, "cell": cell_id, "counts": counts})
-        if counts[nh.PUBLISHED_LAYER[nh.LAYERS[0][0]]] == 0 or counts[nh.PUBLISHED_LAYER[nh.LAYERS[1][0]]] == 0:
-            raise SystemExit(f"{cell_id}: a runtime layer predicate returned no rows: {json.dumps(counts)}")
+        for source_layer, published_layer in nh.PUBLISHED_LAYER.items():
+            if found[published_layer] is not None:
+                continue
+            cells = [row[0] for row in connection.execute(
+                "SELECT cell FROM read_parquet(?) WHERE layer = ? GROUP BY cell ORDER BY cell",
+                [str(fragment), source_layer]).fetchall()]
+            chosen = next((cell_id for cell_id in cells if cell_id in present), None)
+            if chosen is None:
+                continue
+            artifact = args.work / "artifacts" / "hydro" / f"{chosen}.parquet"
+            if not artifact.exists():
+                raise SystemExit(f"{chosen}: declared present but no artifact")
+            # The runtime predicate verbatim: the value the application filters on.
+            counts = dict(connection.execute(
+                f"SELECT layer, count(*) FROM read_parquet('{artifact}') GROUP BY layer").fetchall())
+            unexpected = sorted(set(counts) - vocabulary)
+            if unexpected:
+                raise SystemExit(f"{chosen}: published layer values outside the runtime vocabulary: {unexpected}")
+            families = dict(connection.execute(
+                f"SELECT layer, count(*) FROM read_parquet('{artifact}')"
+                " WHERE layer IN ('flowline','waterbody') GROUP BY layer"
+                " HAVING sum(CASE WHEN (layer='flowline' AND ST_GeometryType(geometry) <> 'MultiLineString')"
+                " OR (layer='waterbody' AND ST_GeometryType(geometry) <> 'MultiPolygon') THEN 1 ELSE 0 END) > 0"
+            ).fetchall())
+            if families:
+                raise SystemExit(f"{chosen}: layer/geometry family mismatch: {families}")
+            expected = source_features(args.work, connection, covering.get(chosen, [unit]), chosen, source_layer)
+            published = counts.get(published_layer, 0)
+            if not published:
+                raise SystemExit(f"{chosen}: runtime predicate layer='{published_layer}' returned no rows "
+                                 f"though the source carries {expected} distinct features")
+            if expected is not None and published != expected:
+                raise SystemExit(f"{chosen}: published {published} {published_layer} rows against {expected} "
+                                 "distinct source features for the same cell")
+            found[published_layer] = chosen
+            results.append({"unit": unit, "cell": chosen, "sourceLayer": source_layer,
+                            "publishedLayer": published_layer, "sourceFeatures": expected,
+                            "publishedRows": published, "layersPresent": sorted(counts)})
+    missing = [layer for layer, cell_id in found.items() if cell_id is None]
+    if missing:
+        raise SystemExit(f"no representative cell was found serving {missing} from the source data")
     connection.close()
     print(json.dumps({"checked": True, "cells": results}, indent=1))
 

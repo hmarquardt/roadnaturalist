@@ -654,3 +654,89 @@ At the end of this phase the contract reports:
 | ecoregions | **READY** | both levels built and verified, source equivalence proved |
 | wetlands | PARTIAL | 2 of 49 states, 21,178 unbuilt cells |
 | hydrography | PARTIAL | 38 of 2,166 units in the committed manifest; the national build is running |
+
+## Phase 3C: the unattended hydro chain failed at finalize, and why
+
+The chain ran to `CHAIN COMPLETE` while every stage after the first failure also failed, because the driver had no
+notion of a stage being required. What follows is the diagnosis, in the order the failures actually happened.
+
+### The finalize failure, recovered rather than read
+
+The first failure was stage 4 (`finalize exit=1`, 1,490 lines). Its log was written to `/tmp` and `/tmp` was
+cleaned before it could be read, so the error text was gone. It was recovered by instrumenting the stage and
+re-running it, which is also what made the stage repairable. **Two independent defects** were behind it:
+
+1. **Stage 4 did not run finalize, it ran the unit walk first.** The driver invoked `--all --finalize`, and
+   `--finalize` is an *add-on* to the unit-walking path rather than an alternative to it, so the stage re-validated
+   every source archive and normalized output before reaching `finalize()` - 48 minutes, which is the entire stage
+   duration that was observed, and the 1,490 lines were its per-unit progress output. The stage never compacted a
+   single cell: the artifact directory still held exactly the 1,109 cells of the previous partial build, all of
+   them reused. A national finalize could therefore also fail on a unit-level problem that finalize does not
+   depend on. Fixed by a `--finalize-only` flag, and that is what the driver now runs: validating the units is the
+   *verifier's* job, where it is authoritative.
+2. **`finalize` built an in-memory map with one entry per canonical feature.** `owner_units` was populated from
+   `SELECT DISTINCT canonical_key, source_units FROM mapping WHERE owner=1` - 33,222,396 entries, several
+   gigabytes of RAM - on a 16 GB machine that had about 1.2 GB free. The map is only ever consulted for a
+   *replicated* feature; for every other row the compaction's own fallback (`by_key[key]["unit"]`) already gives
+   the same answer, because `unique`, `ambiguous` and `blank-id` rows all carry `source_units = unit`. Filtering
+   to `source_units <> unit` is exact rather than an approximation and reduces the map to **33,860 entries** - the
+   duplicated features - which is what the phase log now reports.
+
+The instrumented re-run reached `prepared owners=33860 cellsWithParts=21606 reusable=1109 complete=True` at 148 s
+and then began writing cells, so both defects are confirmed by behaviour rather than by inference: the stage that
+could not finish now finishes its preparation in under three minutes and compacts at roughly 350 cells/hour.
+
+### Identity was never wrong, and never needed a rebuild
+
+`verify-national-hydro` failed with *"identity raw rows disagree with the unit outputs"*, which reads like an
+identity bug. It is not. That assertion sums each built unit's `outputRows` **over the manifest's `builtUnits`**,
+and the manifest on disk was still the 38-unit partial plane, because the failed finalize never rewrote it. The
+independent reconciliation (`scripts/reconcile-national-hydro-identity.py`) compares the identity artifact against
+all 2,166 validated unit checkpoints:
+
+| Measure | Value |
+| --- | ---: |
+| Expected raw rows (sum of 2,166 unit outputs) | 33,222,396 |
+| Identity declared raw rows | 33,222,396 |
+| Delta | **0** |
+| Units expected / represented | 2,166 / 2,166 |
+| Missing, duplicate, stale, incomplete or mislabelled units | none |
+
+So identity is neither stale nor incomplete, it postdates every normalized output (its mtime is 27 minutes after
+the last unit was written), and the 8.3 GB uncheckpointed WAL is not a defect: the stage was deliberately built
+with `synchronous=OFF` as a rebuildable intermediate, and reading through the WAL is what the partition stage and
+finalize both do successfully. The assertion's message now says what actually happened - that the manifest
+predates the identity artifact - instead of implying the identity is at fault.
+
+### The consumer check was right, and the cell was the problem
+
+The failing cell was `x282_y677`, and the check claimed a runtime layer predicate returned no rows. The source
+says otherwise: the fragments that cover that cell carry **7,454 `NHDFlowline` and 11 `NHDWaterbody`** rows, while
+the published artifact returned 117 `flowline` rows and no `waterbody` at all. That artifact is a 06:43 partial
+plane cell with 117 features. So this was not a bad test assumption about geography; it was a real discrepancy,
+and its cause is the partial plane:
+
+* `finalize` decides a cell is `unbuilt` when `covered - set(units)` is non-empty, but `covered` is accumulated
+  by iterating *the build's own* units, so the difference is always empty and the guard can never fire. A partial
+  build can therefore publish a cell as `present` while a unit that also covers it was never built, which is
+  exactly the 117-versus-7,465 gap. This is a manifest-honesty defect at the plane level rather than a data
+  defect: `buildCoverage: partial` and `builtUnits` are both declared, and for a complete plane the guard is moot
+  because every unit is built.
+
+The check itself was still wrong in a way worth fixing: it required *both* runtime layers in *every* representative
+cell, and it picked those cells from whichever unit came first. A valid cell may hold flowlines and no waterbody.
+It now requires a complete plane, finds its representative cells **from the source fragments** - one cell whose
+source rows carry flowlines and one whose source rows carry waterbodies - requires the published plane to serve
+each of those layers, requires every published `layer` value to be inside the runtime vocabulary
+(`flowline`/`waterbody`) with the matching geometry family, and requires the published row count to equal the
+number of **distinct canonical features** the source offers for that cell and layer. That last equality is exact:
+compaction dedupes on `feature`, so any other number means rows were lost, dropped or invented.
+
+### The chain now fails closed
+
+`scripts/run-national-hydro.sh` was rewritten around three rules: a stage that exits non-zero stops the chain;
+verification and measurement only run after a build that succeeded; and the last line is never mistakable for
+success. `PIPELINE COMPLETE` is now printed only when the plane finalized, verified, served the runtime predicate
+and was measured; otherwise the chain prints `PIPELINE FAILED at <stage>`, says in as many words that the plane is
+not ready and that no measurement was taken, and runs only explicitly-labelled diagnostics. Stage logs moved from
+`/tmp` to `$WORK/logs/` for the reason this incident demonstrated.

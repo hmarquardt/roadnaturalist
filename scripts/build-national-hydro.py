@@ -424,9 +424,17 @@ def publication_version(units, complete):
 def finalize(work, units, lock, grid, workers=1):
     """Compact the replicated fragments into cells, dedupe by canonical key, and write the manifest."""
     started = time.monotonic()
+
+    def phase(label):
+        """Phases are reported as they finish, flushed, so an interrupted log still says where it stopped."""
+        print(f"[finalize] {label} at {round(time.monotonic() - started, 1)}s", file=sys.stderr, flush=True)
+
+    phase(f"start units={len(units)}")
     identity = build_identity(work, units)
+    phase(f"identity done rawRows={identity['rawRows']} canonical={identity['canonicalFeatures']}")
     cells_meta = {cell["id"]: cell for cell in grid["cells"]}
     partition = partition_units(work, units, set(cells_meta), workers=workers)
+    phase(f"partition done fragments={partition['fragments']}")
     # Which units cover each cell, from the units' own declared boundaries: a cell may only be declared empty
     # when every unit that covers it has been processed. Everything else stays explicitly unbuilt.
     cell_units = defaultdict(set)
@@ -435,9 +443,16 @@ def finalize(work, units, lock, grid, workers=1):
         polygon = wkb.loads(bytes.fromhex(coverage["geometry"]))
         for cell_id in nh.member_cells(polygon, set(cells_meta)):
             cell_units[cell_id].add(unit)
+    # Only a *replicated* canonical feature needs a mapped owner list: every other row's `source_units` is its
+    # own unit, which the compaction below already falls back to. Materialising a dict entry per canonical
+    # feature instead means ~33.2 million entries - several gigabytes of RAM spent to hold values that are all
+    # identical to the fallback - which is what made this stage unable to finish on a 16 GB machine. The filter
+    # is exact rather than an approximation: `owner=1` rows are `unique`, `ambiguous` and `blank-id` with
+    # `source_units = unit`, or the one `canonical` row of a cross-unit duplicate group with the joined list.
     owner_units = {}
-    connection = sqlite3.connect(work / "identity.sqlite")
-    for key, units_for in connection.execute("SELECT DISTINCT canonical_key, source_units FROM mapping WHERE owner=1"):
+    connection = sqlite3.connect(f"file:{work / 'identity.sqlite'}?mode=ro", uri=True)
+    for key, units_for in connection.execute("""SELECT canonical_key, source_units FROM mapping
+                                                WHERE owner=1 AND source_units <> unit"""):
         owner_units[key] = units_for
     connection.close()
     # Cell -> contributing units and their fragment digests, read from the partition checkpoints rather than from
@@ -459,6 +474,8 @@ def finalize(work, units, lock, grid, workers=1):
     version = publication_version(units, complete)
     artifact_dir = work / "artifacts" / "hydro"
     cells, problems, reused = [], [], 0
+    phase(f"prepared owners={len(owner_units)} cellsWithParts={len(cell_inputs)} reusable={len(priors)} "
+          f"complete={complete}")
     for cell_id, meta in cells_meta.items():
         covered = cell_units.get(cell_id, set())
         parts = cell_inputs.get(cell_id, [])
@@ -507,6 +524,13 @@ def finalize(work, units, lock, grid, workers=1):
         result = nh.write_geoparquet(rows, artifact)
         cells.append({"id": cell_id, "bounds": meta["bounds"], "state": "present", "featureCount": len(rows),
                       "storedRows": len(rows), "url": url, "inputSha256": input_sha, **result})
+        if len(cells) % 250 == 0:
+            phase(f"compacted {len(cells)}/{len(cells_meta)} cells reused={reused}")
+    # A geometry conflict means two units disagree about the same canonical feature, so publishing either one
+    # would be a coin flip. Nothing is written in that case: a stale manifest is recoverable, a wrong plane is
+    # not.
+    if problems:
+        raise SystemExit(f"compaction found {len(problems)} conflicting features: {problems[:5]}")
     manifest = {"schemaVersion": 1, "kind": "national-hydrography", "version": version,
                 "coverage": grid["coverage"], "buildCoverage": "complete" if complete else "partial",
                 "builtUnits": sorted(units), "pinnedUnits": lock["unitCount"], "conusUnits": inventory["conusUnits"], "unpinnedConusUnits": inventory["conusUnits"] - lock["unitCount"],
@@ -525,7 +549,14 @@ def finalize(work, units, lock, grid, workers=1):
                            "storedRows": sum(cell.get("storedRows", 0) for cell in cells),
                            "artifactBytes": sum(cell.get("bytes", 0) for cell in cells)},
                 "cells": cells}
-    MANIFEST_PATH.write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n")
+    # The same bytes as before, written atomically: a half-written manifest is worse than a stale one, because
+    # the stale one is still a coherent description of a plane that exists.
+    payload = json.dumps(manifest, indent=1, sort_keys=True) + "\n"
+    temporary = MANIFEST_PATH.with_suffix(".json.tmp")
+    temporary.write_text(payload)
+    temporary.replace(MANIFEST_PATH)
+    phase(f"manifest written present={manifest['counts']['present']} empty={manifest['counts']['empty']} "
+          f"unbuilt={manifest['counts']['unbuilt']}")
     nh.atomic_json(work / "build-benchmark.json", {"identitySeconds": identity["wallSeconds"],
         "fragments": partition["fragments"], "reusedCells": reused,
         "totalSeconds": round(time.monotonic() - started, 3)})
@@ -549,6 +580,9 @@ def main():
 
     parser.add_argument("--cleanup-source", action="store_true", help="drop each verified archive after normalization")
     parser.add_argument("--finalize", action="store_true", help="resolve identity, replicate cells and write the manifest")
+    parser.add_argument("--finalize-only", action="store_true",
+                        help="finalize without first walking the units; requires the normalized outputs, since the "
+                             "identity and partition stages inside finalize build themselves when uncached")
     args = parser.parse_args()
     lock, grid = load_inputs()
     if args.all:
@@ -592,6 +626,13 @@ def main():
                           "wallSeconds": result["wallSeconds"]}), flush=True)
         return result
 
+    if args.finalize_only:
+        # The same finalize, without walking the units first. Walking them re-validates every source archive and
+        # normalized output, which is what the *verifier* is for: as a preface to finalize it doubled the stage's
+        # wall clock, and it is also how a national finalize could fail on a unit-level problem that finalize
+        # itself does not depend on.
+        finalize(args.work, units, lock, grid, workers=args.workers)
+        return
     if args.workers == 1:
         results = [build_one(unit) for unit in units]
     else:
