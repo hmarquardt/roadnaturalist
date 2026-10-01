@@ -83,10 +83,32 @@ def verify_identity(work, raw_rows, sample):
         rows = connection.execute("""SELECT unit, objectid, geometry_digest, signature FROM feature
                                      WHERE member=? AND permanent_identifier=? ORDER BY unit, objectid""",
                                   (member, identifier)).fetchall()
-        if len(rows) > 1 and nh.duplicate_group_is_safe(rows):
-            canonicals = connection.execute("""SELECT count(*) FROM mapping WHERE member=? AND objectid=?
-                                               AND disposition IN ('canonical','duplicate')""", (member, rows[0][1])).fetchone()[0]
-            assert canonicals == 1, f"{member}:{identifier}: a safe copy group was not resolved"
+        # A copy group is addressed by its own rows' full key. Counting mapping rows by (member, objectid) instead
+        # - which this check used to do - also matches every *other* feature in every unit that happens to carry
+        # that object number, so it reported groups as unresolved that the identity had resolved correctly. The
+        # group's rows are joined on unit+member+objectid, which is the identity's own mapping key.
+        group = connection.execute("""SELECT f.unit, f.objectid, m.disposition, m.owner, m.source_units, m.canonical_key
+                                      FROM feature f JOIN mapping m
+                                        ON m.unit=f.unit AND m.member=f.member AND m.objectid=f.objectid
+                                      WHERE f.member=? AND f.permanent_identifier=?
+                                      ORDER BY f.unit, f.objectid""", (member, identifier)).fetchall()
+        assert len(group) == len(rows), f"{member}:{identifier}: a feature row is missing from the mapping"
+        if nh.duplicate_group_is_safe(rows):
+            canonicals = [row for row in group if row[2] == "canonical"]
+            assert len(canonicals) == 1, f"{member}:{identifier}: a safe copy group was not resolved"
+            assert all(row[2] in ("canonical", "duplicate") for row in group), \
+                f"{member}:{identifier}: a resolved copy group carries a third disposition"
+            assert all(row[3] == (1 if row[2] == "canonical" else 0) for row in group), \
+                f"{member}:{identifier}: a resolved copy group has more than one owner"
+            expected_units = ",".join(sorted(row[0] for row in rows))
+            assert canonicals[0][4] == expected_units, f"{member}:{identifier}: source_units omits a package"
+        else:
+            # A group that is not safe to collapse stays published, so it must be retained *and* qualified: two
+            # units can each own a feature with the same identifier and different geometry.
+            assert all(row[2] == "ambiguous" for row in group), \
+                f"{member}:{identifier}: a group not safe to collapse was not retained as ambiguous"
+            assert all(row[5].startswith(f"nhd-{member}-conflict:") for row in group), \
+                f"{member}:{identifier}: an ambiguous row is missing its package-qualified key"
     wrong_unique = connection.execute("""SELECT count(*) FROM mapping WHERE disposition='unique'
                                          AND canonical_key NOT LIKE 'nhd-%:%'""").fetchone()[0]
     assert wrong_unique == 0, "a unique disposition carries a non-canonical key"
