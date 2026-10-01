@@ -1,0 +1,84 @@
+{
+ "artifacts": {
+  "3": {
+   "bounds": [
+    -124.73317272766855,
+    24.543936363356163,
+    -66.94982727324619,
+    49.38435454555595
+   ],
+   "bytes": 37567531,
+   "codesWithMultipleNames": {},
+   "crs": "EPSG:4326",
+   "featureCount": 1250,
+   "format": "GeoParquet",
+   "id": "epa-ecoregions-conus-l3",
+   "level": 3,
+   "schemaVersion": 1,
+   "sha256": "982931a4f2f30264ca1933d4111fc118650adda9023c2057a1ee2928e96c6ba4",
+   "source": {
+    "bytes": 28424315,
+    "layer": "us_eco_l3",
+    "sha256": "9a65f63cf10d7386aa0d2b0f39c9d0ac3d51bf742eb59d750abcf65ecc12f633",
+    "url": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/us/us_eco_l3.zip"
+   },
+   "uniqueCodes": 85,
+   "url": "national/epa-conus-l3.parquet"
+  },
+  "4": {
+   "bounds": [
+    -124.73317272766855,
+    24.543936363356163,
+    -66.94982727324619,
+    49.38435454555595
+   ],
+   "bytes": 85847147,
+   "codesWithMultipleNames": {
+    "42c": [
+     "Miissouri Coteau Slope",
+     "Missouri Coteau Slope"
+    ]
+   },
+   "crs": "EPSG:4326",
+   "featureCount": 5896,
+   "format": "GeoParquet",
+   "id": "epa-ecoregions-conus-l4",
+   "level": 4,
+   "schemaVersion": 1,
+   "sha256": "1f994e9d7fe6abbd97f67f9697d703472ec1398d3ed40e8c347c1f1e5efda9d3",
+   "source": {
+    "bytes": 66167640,
+    "layer": "us_eco_l4_no_st",
+    "sha256": "7d01a1a5802af0da0f7afbb0a8cd04d1e1756ac4d143f1a3efe73ab694051acd",
+    "url": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/us/us_eco_l4.zip"
+   },
+   "uniqueCodes": 967,
+   "url": "national/epa-conus-l4.parquet"
+  }
+ },
+ "buildCoverage": "complete",
+ "counts": {
+  "artifactBytes": 123414678,
+  "codesWithMultipleNames": 1,
+  "features": 7146,
+  "levels": 2,
+  "uniqueCodes": 1052
+ },
+ "coverage": "CONUS",
+ "kind": "national-ecoregions",
+ "levels": [
+  3,
+  4
+ ],
+ "partitioning": "none: one artifact per level",
+ "pipelineVersion": "epa-conus-shapefile-v1",
+ "publication": {
+  "agency": "U.S. Environmental Protection Agency",
+  "dataset": "Level III and IV Ecoregions of the Continental United States",
+  "documentation": "https://www.epa.gov/eco-research/level-iii-and-iv-ecoregions-continental-united-states",
+  "publicationDate": "2015-07-17"
+ },
+ "schemaVersion": 1,
+ "sourceLockSha256": "dce6239c0d95a1d94e58cf7e7c27436a8759878d1c1e341bf223daf797b4239f",
+ "version": "epa-conus-2015-v1"
+}

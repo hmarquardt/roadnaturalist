@@ -571,3 +571,86 @@ at roughly 870 rows/s per process (AZ+DC: 188,581 rows in 216 s), so a 10.12 GB 
 about two hours of CPU per slice, and the downloads add tens of minutes; identity, partition, compaction and
 verification are then a further multi-hour sequence. This is a multi-session build by construction, which is why
 every stage resumes rather than restarts.
+
+## Phase 3B: the national EPA ecoregion plane, and a readiness contract for the derived build
+
+### What EPA actually was, and what was missing
+
+The pilot builds EPA ecoregions **per state, as whole-state files**: `scripts/build-ecoregions.py` pins the Oregon
+and Washington ZIPs, writes `data/gis/epa-{state}-l{3,4}-2012.parquet` (475 KB to 2.8 MB), and declares them in
+`data/manifest.json`, where they are hashed into the analysis fingerprint. The browser reads those four files
+directly (`ECO_L3_DATASET = 'epa-ecoregions-or-l3'` in `src/gis/discovery-query.js`). So "EPA is PARTIAL" was not
+an unfinished state extract: there was **no national product, no national manifest, no pin for a national source,
+no verifier, no tests and no measurement**, and the coverage gap was the other 47 states.
+
+### The national source, pinned
+
+EPA publishes the same seamless mapping as two national shapefiles, alongside the per-state downloads. Both are
+now pinned in `data/national/epa-conus-lock.json` with URL, bytes, SHA-256, publication date, layer stem and
+extract members:
+
+| Level | Archive | Bytes | Layer | Features | Codes | Artifact |
+| --- | --- | ---: | --- | ---: | ---: | ---: |
+| III | `us_eco_l3.zip` | 28,424,315 | `us_eco_l3` | 1,250 | 85 | 37,567,531 B |
+| IV | `us_eco_l4.zip` | 66,167,640 | `us_eco_l4_no_st` | 5,896 | 967 | 85,847,147 B |
+
+Attributes are the pair the per-state extracts carry (`US_L3CODE`/`US_L3NAME`, and `US_L4CODE`/`US_L4NAME` plus
+`US_L3CODE`/`US_L3NAME` on the Level IV file), the CRS is the same NAD83 Albers family, and the Level IV layer is
+deliberately the *no state boundaries* variant: state-split polygons would repeat a code for no semantic gain.
+The national plane is **one artifact per level, unpartitioned** - unlike roads, wetlands and hydrography it is
+small enough to read whole, and the offline derived build wants it that way. The runtime is not changed: national
+browser activation remains a later decision, and the regional plane is untouched.
+
+### A real upstream anomaly, kept rather than tidied
+
+The national Level IV file spells code `42c` twice: `Missouri Coteau Slope` in the eastern polygon and
+`Miissouri Coteau Slope` (a doubled `i`) in the western one. The first version of the build failed on it, because
+it assumed a code has one name. The data is right and the assumption was wrong, so the build now **measures the
+multiplicity, keeps every row exactly as published, and declares it** in the manifest
+(`codesWithMultipleNames`). A consumer aggregating by code - which is what the runtime does - can therefore know
+that the published label can vary with which polygon overlaps most.
+
+### Verification, including source equivalence
+
+`scripts/verify-national-ecoregions.py --require-all` re-hashes both archives and both artifacts, re-asserts the
+column set, the EPSG:4326 declaration, geometry validity and declared bounds, re-derives the code/name
+multiplicity, checks the declared coverage against the CONUS grid the other planes use, and requires the manifest
+to be in its deterministic encoding.
+
+The part that matters most is **source equivalence, proved rather than assumed**. The national plane and the
+regional plane come from two different EPA products, so for **every** feature in the regional OR/WA files the
+verifier takes that feature's representative point, asks which national polygon contains it, and requires the
+same ecoregion code; every regional code/name pair must also exist nationally. Result: **18 of 18** Level III and
+**571 of 571** Level IV regional features agree, with no exceptions. That is the check that would have caught a
+silent mismatch between the two products, and it is now permanent.
+
+Coverage is asserted the honest way: ecoregions are clipped to land, so they cannot contain the grid's
+rectangular cells (the grid spans 58.2 x 25.2 degrees, the ecoregions 57.8 x 24.8). The verifier requires the
+plane to stay inside the grid and to span it within a one-degree margin, which would catch a truncated level
+without pretending land cover is a rectangle.
+
+### The readiness contract for the derived build
+
+Whether the four source planes are ready was previously nobody's job to answer. `scripts/check-derived-readiness.mjs`
+now answers it from the manifests, and refuses loudly:
+
+```bash
+npm run check:derived-readiness                 # report all four planes, exit non-zero unless all are READY
+npm run record:verification -- hydrography      # run a plane's verifier and record the result
+```
+
+Structural completeness is read from each manifest (cells declared, unbuilt cells, units and states, EPA levels),
+so a partial plane fails with the counts that show why. The verifier gate is a **record**: running a plane's
+verifier writes `data/national/verification/<plane>.json` with the command, exit code, output digest and the
+digest of the manifest it ran against, and the preflight requires a passing record whose manifest digest still
+matches the manifest on disk - which is what makes a *stale* verification visible instead of invisible. Nothing
+about the derived build is assumed by filename or by process completion.
+
+At the end of this phase the contract reports:
+
+| Plane | State | Reason |
+| --- | --- | --- |
+| roads | **READY** | 21,135 present and 739 typed-empty cells, verification recorded |
+| ecoregions | **READY** | both levels built and verified, source equivalence proved |
+| wetlands | PARTIAL | 2 of 49 states, 21,178 unbuilt cells |
+| hydrography | PARTIAL | 38 of 2,166 units in the committed manifest; the national build is running |

@@ -1,0 +1,10 @@
+{
+ "plane": "ecoregions",
+ "command": "npm run verify:national-ecoregions -- --require-all",
+ "exitCode": 0,
+ "manifest": "data/national/epa-manifest.json",
+ "manifestSha256": "a4a0c546e0258d577b8e441d6e830e651fdde9d585d330fb84c3d13d4d9ece47",
+ "outputSha256": "80b7700fae53d7dd3e52fda1a5fe947a3437f4bac8ef07b1535622d503dc98a6",
+ "outputTail": "  \"parquet\": 4\n }\n}",
+ "recordedAt": "2026-10-01T13:41:53.002Z"
+}

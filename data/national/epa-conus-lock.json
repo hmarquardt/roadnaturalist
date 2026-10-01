@@ -1,0 +1,51 @@
+{
+ "agency": "U.S. Environmental Protection Agency",
+ "coverage": "CONUS",
+ "dataset": "Level III and IV Ecoregions of the Continental United States",
+ "documentation": "https://www.epa.gov/eco-research/level-iii-and-iv-ecoregions-continental-united-states",
+ "kind": "epa-conus-ecoregions-lock",
+ "levelCount": 2,
+ "publicationDate": "2015-07-17",
+ "schemaVersion": 1,
+ "totalBytes": 94591955,
+ "units": {
+  "3": {
+   "bytes": 28424315,
+   "filename": "us_eco_l3.zip",
+   "layer": "us_eco_l3",
+   "level": 3,
+   "members": [
+    "us_eco_l3.dbf",
+    "us_eco_l3.prj",
+    "us_eco_l3.sbn",
+    "us_eco_l3.sbx",
+    "us_eco_l3.shp",
+    "us_eco_l3.shp.xml",
+    "us_eco_l3.shx"
+   ],
+   "publicationDate": "2015-07-17",
+   "sha256": "9a65f63cf10d7386aa0d2b0f39c9d0ac3d51bf742eb59d750abcf65ecc12f633",
+   "uncompressedBytes": 42617727,
+   "url": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/us/us_eco_l3.zip"
+  },
+  "4": {
+   "bytes": 66167640,
+   "filename": "us_eco_l4.zip",
+   "layer": "us_eco_l4_no_st",
+   "level": 4,
+   "members": [
+    "us_eco_l4_no_st.dbf",
+    "us_eco_l4_no_st.prj",
+    "us_eco_l4_no_st.sbn",
+    "us_eco_l4_no_st.sbx",
+    "us_eco_l4_no_st.shp",
+    "us_eco_l4_no_st.shp.xml",
+    "us_eco_l4_no_st.shx"
+   ],
+   "publicationDate": "2015-07-17",
+   "sha256": "7d01a1a5802af0da0f7afbb0a8cd04d1e1756ac4d143f1a3efe73ab694051acd",
+   "uncompressedBytes": 101745472,
+   "url": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/us/us_eco_l4.zip"
+  }
+ }
+}

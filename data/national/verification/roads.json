@@ -1,0 +1,10 @@
+{
+ "plane": "roads",
+ "command": "npm run verify:national-roads",
+ "exitCode": 0,
+ "manifest": "data/national/road-manifest.json",
+ "manifestSha256": "0a0515c02cffd0c205531a4982305e2f59e822b74311587e4f1d354eb545e207",
+ "outputSha256": "2a1326b04fa2c6d6e2aeae3e2ab6e3b99f744ab177690cbc8f84d349f4550793",
+ "outputTail": "  \"sourceBytes\": 4033268938,\n  \"outputBytes\": 4887025743\n}",
+ "recordedAt": "2026-10-01T13:42:17.198Z"
+}
