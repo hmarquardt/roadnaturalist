@@ -1,0 +1,108 @@
+{
+ "buildCoverage": "partial",
+ "bytes": {
+  "artifactBytes": 2765274542,
+  "lockBytes": 25319,
+  "manifestBytes": 1707132
+ },
+ "canonicalKeyVersion": "nwi-id-exact-signature-v1",
+ "cells": {
+  "declared": 21874,
+  "largestBytes": 17758494,
+  "largestCellId": "x346_y609",
+  "medianBytes": 3181235,
+  "over10MB": 27,
+  "over20MB": 0,
+  "over50MB": 0,
+  "p95Bytes": 9945512,
+  "present": 694,
+  "replicationFactor": 0.863889,
+  "storedRows": 162913,
+  "typedEmpty": 2,
+  "unbuilt": 21178
+ },
+ "features": {
+  "ambiguousRows": 2,
+  "blankIdRows": 0,
+  "canonicalFeatures": 188581,
+  "duplicatePackageCopies": 0,
+  "rawRows": 188581
+ },
+ "kind": "national-wetland-build-benchmark",
+ "pipelineVersion": "nwi-state-gpkg-v1",
+ "projections": {
+  "actualBytes": 2765274542,
+  "extrapolatedBytes": 500000000000,
+  "obsolete": false,
+  "ratio": 0.006
+ },
+ "schemaVersion": 1,
+ "states": {
+  "built": 2,
+  "inventoryRawRows": 36979715,
+  "pinned": 49,
+  "sourceBytes": 60502602638,
+  "sourcePackages": 49
+ },
+ "version": "nwi-state-2026-05-v1-sample-e652619947db",
+ "workspace": {
+  "byDirectory": {
+   "artifacts": {
+    "allocatedBytes": 3595829248,
+    "files": 810,
+    "logicalBytes": 3277336671,
+    "sidecars": 811
+   },
+   "extracted": {
+    "allocatedBytes": 27525120,
+    "files": 45,
+    "logicalBytes": 4157949,
+    "sidecars": 45
+   },
+   "fragments": {
+    "allocatedBytes": 3617325056,
+    "files": 886,
+    "logicalBytes": 3267706081,
+    "sidecars": 891
+   },
+   "jobs": {
+    "allocatedBytes": 12058624,
+    "files": 21,
+    "logicalBytes": 13827,
+    "sidecars": 25
+   },
+   "normalized": {
+    "allocatedBytes": 6897795072,
+    "files": 17,
+    "logicalBytes": 6889774494,
+    "sidecars": 21
+   },
+   "partition-jobs": {
+    "allocatedBytes": 2097152,
+    "files": 3,
+    "logicalBytes": 150063,
+    "sidecars": 5
+   },
+   "samples": {
+    "allocatedBytes": 1650196480,
+    "files": 374,
+    "logicalBytes": 1479497760,
+    "sidecars": 444
+   },
+   "sources": {
+    "allocatedBytes": 9634054144,
+    "files": 14,
+    "logicalBytes": 9629008707,
+    "sidecars": 14
+   }
+  },
+  "checkpointAndWorkBytes": 10157644465,
+  "sourceCacheBytes": 9629008707,
+  "total": {
+   "allocatedBytes": 30483152896,
+   "files": 2263,
+   "logicalBytes": 29536319524,
+   "sidecars": 2406
+  }
+ }
+}

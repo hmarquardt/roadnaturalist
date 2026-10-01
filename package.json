@@ -72,7 +72,10 @@
     "publish:national-hydro": "node scripts/publish-national-hydro.mjs",
     "build:national-hydro:pipeline": "bash scripts/run-national-hydro.sh",
     "build:national-wetlands:pipeline": "bash scripts/run-national-wetlands.sh",
-    "fetch:national-wetlands": "bash scripts/fetch-national-wetlands.sh"
+    "fetch:national-wetlands": "bash scripts/fetch-national-wetlands.sh",
+    "measure:national-wetlands": "uv run --python 3.12 --with pyarrow python3 scripts/measure-national-wetlands.py",
+    "check:hydro-consumers": "uv run --python 3.12 --with duckdb python3 scripts/check-hydro-consumers.py",
+    "measure:national-hydro": "uv run --python 3.12 --with pyarrow python3 scripts/measure-national-hydro.py"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"
