@@ -70,6 +70,13 @@ def main():
     present = {cell["id"] for cell in manifest["cells"] if cell["state"] == "present"}
     covering = units_per_cell(args.work)
     connection = duckdb.connect()
+    # The geometry-family check needs the spatial extension. Without it the check fails with a catalog error
+    # that says nothing about the plane, so it is loaded explicitly here rather than implicitly assumed.
+    try:
+        connection.execute("LOAD spatial")
+    except duckdb.Error:
+        connection.execute("INSTALL spatial")
+        connection.execute("LOAD spatial")
     vocabulary = set(nh.PUBLISHED_LAYER.values())
 
     results, found = [], {"flowline": None, "waterbody": None}

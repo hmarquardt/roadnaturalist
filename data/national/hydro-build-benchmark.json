@@ -1,0 +1,125 @@
+{
+ "buildCoverage": "complete",
+ "bytes": {
+  "artifactBytes": 26583624700,
+  "lockBytes": 1376028,
+  "manifestBytes": 9593616
+ },
+ "canonicalKeyVersion": "nhd-permanent-identifier-v1",
+ "cells": {
+  "declared": 21874,
+  "largestBytes": 57389890,
+  "largestCellBounds": [
+   -123.0,
+   47.2,
+   -122.8,
+   47.4
+  ],
+  "largestCellId": "x285_y686",
+  "medianBytes": 667053,
+  "over10MB": 280,
+  "over20MB": 142,
+  "over50MB": 1,
+  "p95Bytes": 4098349,
+  "present": 21606,
+  "replicationFactor": 0.965477,
+  "storedRows": 32042219,
+  "typedEmpty": 268,
+  "unbuilt": 0
+ },
+ "compactVersion": "nhd-hydro-compact-v2",
+ "features": {
+  "ambiguousRows": 2,
+  "canonicalFeatures": 33187960,
+  "duplicatePackageCopies": 34436,
+  "flowlines": 26238750,
+  "rawRows": 33222396,
+  "waterbodies": 6983646
+ },
+ "kind": "national-hydro-build-benchmark",
+ "pipelineVersion": "nhd-hr-hu8-v1",
+ "projections": {
+  "actualBytes": 26583624700,
+  "closer": "row-proportional",
+  "compactionProjectionBytes": 190000000000,
+  "compactionRatio": 0.14,
+  "distanceFromActual": {
+   "compaction-rate": 0.86,
+   "row-proportional": 0.838,
+   "source-proportional": 0.876
+  },
+  "rowProportionalBytes": 164000000000,
+  "rowProportionalRatio": 0.162,
+  "sourceProportionalBytes": 215000000000,
+  "sourceProportionalRatio": 0.124
+ },
+ "schemaVersion": 1,
+ "units": {
+  "built": 2166,
+  "conus": 2166,
+  "pinned": 2166,
+  "sourceBytes": 23652050889,
+  "unpinned": 0
+ },
+ "version": "nhd-hr-hu8-2023-12-v1",
+ "workspace": {
+  "byDirectory": {
+   "artifacts": {
+    "allocatedBytes": 35096887296,
+    "files": 21606,
+    "logicalBytes": 26583624700,
+    "sidecars": 21607
+   },
+   "coverage": {
+    "allocatedBytes": 1672740864,
+    "files": 2166,
+    "logicalBytes": 826938178,
+    "sidecars": 2166
+   },
+   "extracted": {
+    "allocatedBytes": 14461960192,
+    "files": 24368,
+    "logicalBytes": 2195195239,
+    "sidecars": 24597
+   },
+   "fragments": {
+    "allocatedBytes": 24899747840,
+    "files": 2166,
+    "logicalBytes": 24042293417,
+    "sidecars": 2166
+   },
+   "jobs": {
+    "allocatedBytes": 1135607808,
+    "files": 2166,
+    "logicalBytes": 1127333,
+    "sidecars": 2166
+   },
+   "normalized": {
+    "allocatedBytes": 24501026816,
+    "files": 2166,
+    "logicalBytes": 23648841902,
+    "sidecars": 2166
+   },
+   "partition-jobs": {
+    "allocatedBytes": 1135607808,
+    "files": 2166,
+    "logicalBytes": 1338966,
+    "sidecars": 2166
+   },
+   "sources": {
+    "allocatedBytes": 17945329664,
+    "files": 1651,
+    "logicalBytes": 17289751156,
+    "sidecars": 1651
+   }
+  },
+  "checkpointAndWorkBytes": 47693601618,
+  "sourceCacheBytes": 17289751156,
+  "total": {
+   "allocatedBytes": 143124856832,
+   "files": 58474,
+   "logicalBytes": 116853583216,
+   "sidecars": 58713
+  }
+ }
+}

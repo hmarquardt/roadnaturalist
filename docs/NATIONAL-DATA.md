@@ -740,3 +740,68 @@ success. `PIPELINE COMPLETE` is now printed only when the plane finalized, verif
 and was measured; otherwise the chain prints `PIPELINE FAILED at <stage>`, says in as many words that the plane is
 not ready and that no measurement was taken, and runs only explicitly-labelled diagnostics. Stage logs moved from
 `/tmp` to `$WORK/logs/` for the reason this incident demonstrated.
+
+## Phase 3D: the national hydrography plane is complete, verified and measured
+
+The repaired finalize exited 0 after 2,781 s (46 minutes) and wrote the complete manifest in one atomic step:
+
+| | |
+| --- | ---: |
+| Publication version | `nhd-hr-hu8-2023-12-v1` (no partial suffix) |
+| CONUS units pinned / built | 2,166 / 2,166 (unpinned 0) |
+| Source bytes pinned | 23,652,050,889 |
+| Raw rows | 33,222,396 |
+| Canonical features | 33,187,960 |
+| Duplicate package copies removed | 34,436 |
+| Ambiguous rows retained | 2 (blank IDs 0) |
+| Flowlines / waterbodies | 26,238,750 / 6,983,646 |
+| Cells declared / present / typed-empty / unbuilt | 21,874 / 21,606 / 268 / **0** |
+| Published rows | 32,042,219 (replication factor 0.965477) |
+| **GeoParquet artifact bytes** | **26,583,624,700** (26.58 GB) |
+| Manifest bytes | 9,593,616 |
+| Cell size median / p95 / largest | 667,053 / 4,098,349 / 57,389,890 (`x285_y686`, Puget Sound) |
+| Cells over 10 / 20 / 50 MB | 280 / 142 / 1 |
+| Workspace logical / allocated | 116,853,583,216 / 143,124,856,832 |
+
+All ten readiness gates pass: finalize exit 0; fresh complete manifest; `buildCoverage: complete`; `unbuilt: 0`;
+`verify-national-hydro --require-all` returns `ok: true`; regional equivalence matches **39,622 of 39,622**
+regional features with **0 excluded**; the source-grounded runtime consumer check passes; the measurement ran
+against the complete plane; the national Hydro suite passes (15 tests); and the project suite passes (446/446).
+**Hydro is READY.**
+
+### The size projections were all wrong, and why
+
+The plane is 26.58 GB, or 830 bytes per published row. The three estimates were 164 GB (row-proportional), 190 GB
+(compaction-rate) and 215 GB (source-proportional): the nearest was row-proportional at a ratio of 0.162, and all
+three overestimated by six to eight times. They were not unlucky, they were unrepresentative. Each extrapolated
+from the 38-unit pilot plane's aggregate 6,412 bytes per stored row, and that aggregate was itself an artefact:
+the pilot's byte total was dominated by a handful of large cells while its row total came from cells that were
+built from only some of their covering units. The honest extrapolation from the pilot was never available, which
+is a reason to measure a plane rather than project it.
+
+### One real finding: 3.55% of source rows fall outside the declared grid
+
+The compaction is faithful - for three sampled cells, published rows equal the number of distinct canonical
+features offered by the covering fragments exactly (`x285_y686` 983/983, `x282_y677` 7,465/7,465, including the
+7,465 that the pilot plane had published as 117, and `x476_y678` 166/166 after collapsing 2 replicas). Across all
+2,166 fragments there are 32,043,028 fragment rows against 33,222,396 normalized rows (ratio 0.9645), and the
+manifest publishes 32,042,219 of them - 99.997%. The difference is therefore upstream of compaction: at least
+1,179,368 normalized rows (3.55%) intersect no cell of the declared CONUS grid and are consequently not
+published. The plane is internally consistent - it declares its grid - but a runtime query for every CONUS
+flowline would omit those rows, so the number belongs in the record and in the manifest rather than in a reader's
+assumptions. Adding an explicit `uncoveredRows` declaration and an assertion that published rows equal fragment
+rows is the obvious follow-up.
+
+### Three defects found by the gates, all in the checking code
+
+1. **The identity copy-group check addressed a group by `(member, objectid)`.** An object number is unique only
+   within its unit, so the count also matched unrelated features that happened to share it, and the check failed
+   the whole plane on `line:01000689-...` whose group was resolved correctly (`04030114/1231` canonical with
+   `source_units=04030114,04190000`, `04190000/1393` duplicate). It now joins on the identity's own key and
+   validates the ambiguous branch too, which it previously did not check at all.
+2. **The consumer check called `ST_GeometryType` without loading DuckDB's spatial extension**, so it failed with a
+   catalog error rather than a verdict about the plane. It now loads the extension explicitly.
+3. **The gate chain deadlocked against a watcher.** The chain waited on `pgrep -f 'finalize-only'`, and a
+   leftover watcher's own command line contained that string, so both waited forever while the finalize had long
+   since exited. The corrected chain has no `pgrep` wait at all: stage logs and gates are sequenced by the
+   process itself, not by pattern-matching process tables.
