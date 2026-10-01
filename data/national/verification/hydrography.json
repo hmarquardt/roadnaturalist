@@ -1,0 +1,10 @@
+{
+ "plane": "hydrography",
+ "command": "npm run verify:national-hydro -- --require-all --regional-equivalence",
+ "exitCode": 0,
+ "manifest": "data/national/hydro-manifest.json",
+ "manifestSha256": "e9c9f041c3b11c5f604382ff34541289181c619b01901f7d480a2b6f5c99497e",
+ "outputSha256": "823cbb86bc1a6f8fff48238035aa9dfb1ea7de58998cc0a02fdcbfe093da3cd0",
+ "outputTail": "> uv run --python 3.12 --with duckdb --with pyproj --with shapely --with pyarrow python3 scripts/verify-national-hydro.py --require-all --regional-equivalence\n\n{\"ok\": true, \"units\": 2166, \"lockUnits\": 2166, \"rawRows\": 33222396, \"canonicalFeatures\": 33187960, \"duplicatePackageCopies\": 34436, \"ambiguousRows\": 2, \"blankIdRows\": 0, \"unitPairs\": {\"01010002/01010008\": 1, \"01010003/01010008\": 2, \"01010004/01010010\": 2, \"01010005/01010010\": 2, \"01010006/01010007\": 3, \"01010007/01010008\": 5, \"01010008/01010009\": 2, \"01010009/01010010\": 2, \"01010010/01010011\": 3, \"01020001/01020005\": 2, \"01020001/043100",
+ "recordedAt": "2026-10-01T15:56:22.662Z"
+}
