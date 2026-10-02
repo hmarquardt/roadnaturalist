@@ -1,87 +1,95 @@
 {
- "buildCoverage": "partial",
+ "buildCoverage": "complete",
  "bytes": {
-  "artifactBytes": 2765274542,
+  "artifactBytes": 156357316115,
   "lockBytes": 25319,
-  "manifestBytes": 1707132
+  "manifestBytes": 5984421
  },
  "canonicalKeyVersion": "nwi-id-exact-signature-v1",
  "cells": {
   "declared": 21874,
-  "largestBytes": 17758494,
-  "largestCellId": "x346_y609",
-  "medianBytes": 3181235,
-  "over10MB": 27,
-  "over20MB": 0,
-  "over50MB": 0,
-  "p95Bytes": 9945512,
-  "present": 694,
-  "replicationFactor": 0.863889,
-  "storedRows": 162913,
-  "typedEmpty": 2,
-  "unbuilt": 21178
+  "largestBytes": 188125070,
+  "largestCellId": "x429_y602",
+  "medianBytes": 4620504,
+  "over10MB": 3106,
+  "over20MB": 1043,
+  "over50MB": 245,
+  "p95Bytes": 20250153,
+  "present": 21811,
+  "replicationFactor": 1.022673,
+  "storedRows": 35397211,
+  "typedEmpty": 63,
+  "unbuilt": 0
  },
  "features": {
-  "ambiguousRows": 2,
+  "ambiguousGroups": 139210,
+  "ambiguousRows": 139210,
   "blankIdRows": 0,
-  "canonicalFeatures": 188581,
-  "duplicatePackageCopies": 0,
-  "rawRows": 188581
+  "bytesPerCanonicalFeature": 4517.4,
+  "bytesPerPublishedRow": 4417.2,
+  "canonicalFeatures": 34612430,
+  "duplicatePackageCopies": 2367285,
+  "rawRows": 36979715
  },
  "kind": "national-wetland-build-benchmark",
  "pipelineVersion": "nwi-state-gpkg-v1",
  "projections": {
-  "actualBytes": 2765274542,
+  "actualBytes": 156357316115,
   "extrapolatedBytes": 500000000000,
-  "obsolete": false,
-  "ratio": 0.006
+  "obsolete": true,
+  "ratio": 0.313
  },
  "schemaVersion": 1,
  "states": {
-  "built": 2,
+  "built": 49,
   "inventoryRawRows": 36979715,
   "pinned": 49,
   "sourceBytes": 60502602638,
   "sourcePackages": 49
  },
- "version": "nwi-state-2026-05-v1-sample-e652619947db",
+ "version": "nwi-state-2026-05-v1",
+ "volume": {
+  "freeBytes": 415307399168,
+  "totalBytes": 1024191889408,
+  "usedBytes": 608884490240
+ },
  "workspace": {
   "byDirectory": {
    "artifacts": {
-    "allocatedBytes": 3595829248,
-    "files": 810,
-    "logicalBytes": 3277336671,
-    "sidecars": 811
+    "allocatedBytes": 164942839808,
+    "files": 21812,
+    "logicalBytes": 156365317614,
+    "sidecars": 21813
    },
    "extracted": {
-    "allocatedBytes": 27525120,
-    "files": 45,
-    "logicalBytes": 4157949,
-    "sidecars": 45
+    "allocatedBytes": 28049408,
+    "files": 46,
+    "logicalBytes": 4158147,
+    "sidecars": 46
    },
    "fragments": {
-    "allocatedBytes": 3617325056,
-    "files": 886,
-    "logicalBytes": 3267706081,
-    "sidecars": 891
+    "allocatedBytes": 171124195328,
+    "files": 38984,
+    "logicalBytes": 155510671918,
+    "sidecars": 39426
    },
    "jobs": {
-    "allocatedBytes": 12058624,
-    "files": 21,
-    "logicalBytes": 13827,
-    "sidecars": 25
+    "allocatedBytes": 244580352,
+    "files": 442,
+    "logicalBytes": 263989,
+    "sidecars": 491
    },
    "normalized": {
-    "allocatedBytes": 6897795072,
-    "files": 17,
-    "logicalBytes": 6889774494,
-    "sidecars": 21
+    "allocatedBytes": 98672574464,
+    "files": 393,
+    "logicalBytes": 98508349895,
+    "sidecars": 442
    },
    "partition-jobs": {
-    "allocatedBytes": 2097152,
-    "files": 3,
-    "logicalBytes": 150063,
-    "sidecars": 5
+    "allocatedBytes": 218890240,
+    "files": 393,
+    "logicalBytes": 6675191,
+    "sidecars": 442
    },
    "samples": {
     "allocatedBytes": 1650196480,
@@ -90,19 +98,19 @@
     "sidecars": 444
    },
    "sources": {
-    "allocatedBytes": 9634054144,
-    "files": 14,
-    "logicalBytes": 9629008707,
-    "sidecars": 14
+    "allocatedBytes": 4134010880,
+    "files": 4,
+    "logicalBytes": 4132630187,
+    "sidecars": 4
    }
   },
-  "checkpointAndWorkBytes": 10157644465,
-  "sourceCacheBytes": 9629008707,
+  "checkpointAndWorkBytes": 254025960993,
+  "sourceCacheBytes": 4132630187,
   "total": {
-   "allocatedBytes": 30483152896,
-   "files": 2263,
-   "logicalBytes": 29536319524,
-   "sidecars": 2406
+   "allocatedBytes": 464691396608,
+   "files": 62564,
+   "logicalBytes": 439614572472,
+   "sidecars": 63282
   }
  }
 }

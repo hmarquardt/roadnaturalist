@@ -805,3 +805,70 @@ rows is the obvious follow-up.
    leftover watcher's own command line contained that string, so both waited forever while the finalize had long
    since exited. The corrected chain has no `pgrep` wait at all: stage logs and gates are sequenced by the
    process itself, not by pattern-matching process tables.
+
+## Phase 3E: the national wetlands plane is complete, verified and measured
+
+The unattended fail-closed chain finished at 21:11 after 10h04m: normalization exit 0 (49/49 states in 1h11m,
+1,343 chunk checkpoints, zero failures), identity exit 0 (6h56m — one global database over all 49 states),
+partition exit 0 (42m in six shards), finalize exit 0 (1h05m), verify exit 0, consumers exit 0, measure exit 0.
+`PIPELINE COMPLETE`, no stage failed, and no completed state was ever rebuilt: AZ/DC/OR/WA were reused from
+their September checkpoints (their `state.json` mtimes predate the run) and 45 states were built fresh.
+
+| | |
+| --- | ---: |
+| Publication version | `nwi-state-2026-05-v1` (no sample suffix) |
+| Packages / states built | 49 / 49 (48 states + DC) |
+| Raw features (reconciled to inventory) | **36,979,715** — equals Σ per-state inventory counts exactly, delta 0 |
+| Canonical features | **34,612,430** = 36,979,715 − 2,367,285 exactly |
+| Exact duplicate package copies removed | 2,367,285 |
+| Ambiguous rows retained (= groups) | 139,210, blank/invalid ids 0 |
+| Cells declared / present / typed-empty / unbuilt | 21,874 / 21,811 / 63 / **0** |
+| Stored (published) rows | 35,397,211 — replication factor **1.022673** |
+| **GeoParquet artifact bytes** | **156,357,316,115** (156.36 GB) |
+| Manifest bytes | 5,984,421 |
+| Cell size median / p95 / largest | 4,620,504 / 20,250,153 / 188,125,070 (`x429_y602`) |
+| Cells over 10 / 20 / 50 MB | 3,106 / 1,043 / 245 |
+| Bytes per published row / per canonical feature | 4,417.2 / 4,517.4 |
+| Workspace logical / allocated | 439.6 GB / 464.7 GB (fragments 155.5 GB, normalized 98.5 GB) |
+| Lexar peak = final usage | 567 GiB used / 387 GiB free (started 210 GiB) |
+
+### The ~500 GB projection is retired, obsolete
+
+The plane is 156.36 GB, or **0.313×** the 500 GB extrapolation — the projection is marked `obsolete: true` in
+the measured benchmark. Both raw-plane extrapolations have now failed the same way (Hydro's came in at 0.162×
+of its row-proportional estimate): a partial plane's bytes-per-row is an artifact of which cells it happened to
+publish, not a property of the data. The measured figure that a future estimate should be built from is
+**4,417 bytes per published row** on the complete plane.
+
+### Identity and the source-row gate
+
+Raw rows reconcile three independent ways: the frozen inventory's own `rawFeatures` (36,979,715), the sum of its
+49 per-state `featureCount`s (36,979,715), and the sum of the 49 completed normalized outputs (36,979,715) —
+delta 0 at every checkpoint reading during the run. The earlier `37,979,715` that appeared in one handoff was a
+transcription typo, retired. The identity database was built once (input digest `52b0ca3b…`), and the six-way
+race that the pre-build repair closed never recurred: partition shards validate the global index and consume it
+read-only; none recreated or unlinked it.
+
+### source_feature_id, the contract both consumers key on
+
+Every published feature carries `source_feature_id = <state>:<objectid>` (e.g. `AZ:116534`), because
+`build-derived.py` dedupes with `PARTITION BY source_feature_id` and `service.js` uses it as the wetland
+dataset's sole source key — a bare object number would silently collapse two states' features into one. The
+schema-digest cache invalidation proved itself in the real run: the AZ/DC partition jobs sealed with the new
+`schemaDigest 8741439f…` were rebuilt, and the final plane contains zero stale-schema fragments. The verifier
+asserts presence and `state:objectid` equality per sampled row; the source-grounded consumer check requires
+dense, middle and sparse published cells to equal the distinct canonical features their own fragments offer,
+`source_feature_id` uniqueness per feature, the runtime bounds-prefilter shape, and that the 63 typed-empty
+cells have neither fragments nor artifacts.
+
+### Why readiness read a stale plane, and the promotion
+
+`check:derived-readiness` answers from the *committed repo-side* manifests, and three artifacts had not been
+promoted when the chain finished: the repo manifest was still the frozen 2-state partial (`freeze-national-
+wetland-manifest.py` is deliberately a manual promotion step, so a build cannot publish itself), the repo
+benchmark was mixed (its feature counts came from the work-tree identity while its cell counts came from the
+still-partial repo manifest), and no wetlands verification record existed. The fix was bookkeeping only — the
+Parquet plane was not touched: re-freeze the manifest from the work tree, re-run the measurement against the
+promoted manifest so the benchmark is coherent, and record the verifier. The one test that asserted
+`buildCoverage == "partial"` became coverage-aware (a complete plane has no unbuilt cell and must represent
+all 49 pinned packages — a stronger assertion, not a weaker one), exactly as Hydro's equivalent did.

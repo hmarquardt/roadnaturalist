@@ -1,0 +1,10 @@
+{
+ "plane": "wetlands",
+ "command": "npm run verify:national-wetlands -- --require-all",
+ "exitCode": 0,
+ "manifest": "data/national/wetland-manifest.json",
+ "manifestSha256": "1dd24a0d07531a8cb56caddd815d37ed0e6cfb35b1181c67ab33c8586795e4ba",
+ "outputSha256": "b584f4d7f8a5f75b49339cfa1d9f5397f0846a5f9b7d3fd0e0bccf193d7dd3c5",
+ "outputTail": "> uv run --python 3.12 --with pyarrow --with pyproj --with shapely python3 scripts/verify-national-wetlands.py --require-all\n\n{\"ok\": true, \"packages\": 49, \"builtStates\": 49, \"rawFeatures\": 36979715, \"canonicalFeatures\": 34612430, \"duplicates\": 2367285, \"ambiguous\": 139210, \"present\": 21811, \"empty\": 63, \"unbuilt\": 0, \"storedRows\": 35397211, \"artifactBytes\": 156357316115, \"invalidGeometry\": 0}",
+ "recordedAt": "2026-10-02T10:30:18.919Z"
+}

@@ -128,17 +128,28 @@ def test_regional_columbia_source_copy_regression_is_recorded():
     assert wetlands["featureCount"] == 153853
 
 
-def test_partial_national_manifest_distinguishes_typed_empty_from_unbuilt():
+def test_national_manifest_distinguishes_typed_empty_from_unbuilt():
     manifest = json.loads((ROOT / "data/national/wetland-manifest.json").read_text())
-    assert manifest["buildCoverage"] == "partial"
-    assert manifest["counts"]["cells"] == 21874
-    assert manifest["counts"]["empty"] > 0 and manifest["counts"]["unbuilt"] > 0
+    counts = manifest["counts"]
+    assert manifest["buildCoverage"] in ("partial", "complete")
+    assert counts["cells"] == 21874
+    assert counts["present"] + counts["empty"] + counts["unbuilt"] == counts["cells"]
     assert [field["name"] for field in manifest["schema"]] == [field.name for field in nw.SCHEMA]
     for entry in manifest["cells"]:
         if entry["state"] == "empty":
             assert entry["storedRows"] == 0 and "url" not in entry
         elif entry["state"] == "unbuilt":
             assert "url" not in entry and "storedRows" not in entry
+    # The two coverages assert different things, and neither is weaker: a partial plane is exactly what
+    # distinguishes unbuilt from typed-empty (cells a covering package was never built for), while a complete
+    # plane has no unbuilt cell at all and must represent every pinned package.
+    if manifest["buildCoverage"] == "partial":
+        assert counts["unbuilt"] > 0 and counts["empty"] >= 0
+    else:
+        lock = json.loads((ROOT / "data/national/nwi-state-lock.json").read_text())
+        assert counts["unbuilt"] == 0
+        assert len(manifest["builtStates"]) == len(lock["packages"])
+        assert counts["storedRows"] > 0 and counts["artifactBytes"] > 0
 
 
 def test_real_nwi_schema_inventory_covers_geographic_regimes():
