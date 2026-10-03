@@ -1,0 +1,305 @@
+{
+ "kind": "national-derived-representative-validation",
+ "recordedAt": "2026-10-02T22:26:25Z",
+ "conditions": {
+  "Pacific Northwest": [
+   "sx-123_sy45",
+   "sx-124_sy45"
+  ],
+  "Northeast": [
+   "sx-75_sy40"
+  ],
+  "Gulf/Southeast": [
+   "sx-83_sy27"
+  ],
+  "Midwest/Great Lakes": [
+   "sx-94_sy44"
+  ],
+  "arid Southwest": [
+   "sx-113_sy33"
+  ],
+  "Great Plains": [
+   "sx-98_sy39"
+  ]
+ },
+ "regionalWindowShards": [
+  "sx-125_sy44",
+  "sx-125_sy45",
+  "sx-125_sy46",
+  "sx-124_sy44",
+  "sx-124_sy45",
+  "sx-124_sy46",
+  "sx-123_sy44",
+  "sx-123_sy45",
+  "sx-123_sy46"
+ ],
+ "shards": {
+  "sx-113_sy33": {
+   "corridors": 2268,
+   "rows": 2268,
+   "cellsTouched": 34,
+   "chunks": 91,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 313.833,
+   "secondsPerCorridor": 0.1384
+  },
+  "sx-123_sy44": {
+   "corridors": 1292,
+   "rows": 1292,
+   "cellsTouched": 36,
+   "chunks": 52,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 418.916,
+   "secondsPerCorridor": 0.3242
+  },
+  "sx-123_sy45": {
+   "corridors": 2805,
+   "rows": 2805,
+   "cellsTouched": 36,
+   "chunks": 113,
+   "refused": 0,
+   "duplicateRepairs": 1,
+   "wallSeconds": 904.626,
+   "secondsPerCorridor": 0.3225
+  },
+  "sx-123_sy46": {
+   "corridors": 1105,
+   "rows": 1105,
+   "cellsTouched": 36,
+   "chunks": 45,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 332.2,
+   "secondsPerCorridor": 0.3006
+  },
+  "sx-124_sy44": {
+   "corridors": 1779,
+   "rows": 1779,
+   "cellsTouched": 37,
+   "chunks": 72,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 547.683,
+   "secondsPerCorridor": 0.3079
+  },
+  "sx-124_sy45": {
+   "corridors": 1634,
+   "rows": 1634,
+   "cellsTouched": 40,
+   "chunks": 66,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 873.492,
+   "secondsPerCorridor": 0.5346
+  },
+  "sx-124_sy46": {
+   "corridors": 939,
+   "rows": 939,
+   "cellsTouched": 36,
+   "chunks": 38,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 343.418,
+   "secondsPerCorridor": 0.3657
+  },
+  "sx-125_sy44": {
+   "corridors": 168,
+   "rows": 168,
+   "cellsTouched": 12,
+   "chunks": 7,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 148.419,
+   "secondsPerCorridor": 0.8834
+  },
+  "sx-125_sy45": {
+   "corridors": 0,
+   "rows": 0,
+   "cellsTouched": 0,
+   "chunks": 0,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 7.136,
+   "secondsPerCorridor": null
+  },
+  "sx-125_sy46": {
+   "corridors": 110,
+   "rows": 110,
+   "cellsTouched": 9,
+   "chunks": 5,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 46.114,
+   "secondsPerCorridor": 0.4192
+  },
+  "sx-75_sy40": {
+   "corridors": 5064,
+   "rows": 5064,
+   "cellsTouched": 37,
+   "chunks": 203,
+   "refused": 0,
+   "duplicateRepairs": 4,
+   "wallSeconds": 1424.92,
+   "secondsPerCorridor": 0.2814
+  },
+  "sx-83_sy27": {
+   "corridors": 2666,
+   "rows": 2666,
+   "cellsTouched": 45,
+   "chunks": 107,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 1992.473,
+   "secondsPerCorridor": 0.7474
+  },
+  "sx-94_sy44": {
+   "corridors": 4242,
+   "rows": 4242,
+   "cellsTouched": 39,
+   "chunks": 170,
+   "refused": 0,
+   "duplicateRepairs": 1,
+   "wallSeconds": 1234.409,
+   "secondsPerCorridor": 0.291
+  },
+  "sx-98_sy39": {
+   "corridors": 2321,
+   "rows": 2321,
+   "cellsTouched": 43,
+   "chunks": 93,
+   "refused": 0,
+   "duplicateRepairs": 0,
+   "wallSeconds": 273.898,
+   "secondsPerCorridor": 0.118
+  }
+ },
+ "measuredCorridors": 26393,
+ "measuredWallSeconds": 8861.5,
+ "weightedSecondsPerCorridor": 0.3358,
+ "regionalEquivalence": {
+  "ok": true,
+  "sharedIds": 3459,
+  "compared": 3313,
+  "excludedDifferentFeatures": 129,
+  "failures": [],
+  "fields": {
+   "length_m": {
+    "n": 3313,
+    "medianRelative": 0.0,
+    "p95Relative": 0.0,
+    "maxRelative": 0.0,
+    "gate": 0.0
+   },
+   "road_length_m": {
+    "n": 3313,
+    "medianRelative": 0.0,
+    "p95Relative": 0.0,
+    "maxRelative": 0.0,
+    "gate": 0.0
+   },
+   "wetland_area_250_m2": {
+    "n": 3313,
+    "medianRelative": 0.002916681955481114,
+    "p95Relative": 0.01135961324010858,
+    "maxRelative": 0.11509445395464388,
+    "gate": 0.02
+   },
+   "wetland_area_500_m2": {
+    "n": 3313,
+    "medianRelative": 0.0026032906722897355,
+    "p95Relative": 0.009287744178616457,
+    "maxRelative": 0.030121471708905945,
+    "gate": 0.02
+   },
+   "wetland_area_1000_m2": {
+    "n": 3313,
+    "medianRelative": 0.002437167139441412,
+    "p95Relative": 0.00799704820712441,
+    "maxRelative": 0.2628626264117517,
+    "gate": 0.02
+   },
+   "hydro_flowline_length_1000_m": {
+    "n": 3313,
+    "medianRelative": 1.5794652502524575e-05,
+    "p95Relative": 0.0007360927320943669,
+    "maxRelative": 0.05087080162308018,
+    "gate": 0.02
+   },
+   "hydro_waterbody_area_1000_m2": {
+    "n": 3313,
+    "medianRelative": 7.745390488208539e-05,
+    "p95Relative": 0.0007199801591909106,
+    "maxRelative": 0.024699828473413402,
+    "gate": 0.02
+   }
+  },
+  "categorical": {
+   "primary_l3_code": {
+    "n": 3313,
+    "mismatches": 0,
+    "fraction": 0.0,
+    "gate": 1.0,
+    "example": null
+   },
+   "primary_l4_code": {
+    "n": 3313,
+    "mismatches": 0,
+    "fraction": 0.0,
+    "gate": 1.0,
+    "example": null
+   },
+   "coverage": {
+    "n": 3313,
+    "mismatches": 0,
+    "fraction": 0.0,
+    "gate": 1.0,
+    "example": null
+   },
+   "ecology_coverage": {
+    "n": 3313,
+    "mismatches": 0,
+    "fraction": 0.0,
+    "gate": 1.0,
+    "example": null
+   },
+   "wetland_intersects": {
+    "n": 3313,
+    "mismatches": 2,
+    "fraction": 0.0006036824630244491,
+    "gate": 0.995,
+    "example": "drv1-ne-244th-st-c1-s1"
+   },
+   "wetland_count_250": {
+    "n": 3313,
+    "maxDelta": 2,
+    "withinGate": 1.0,
+    "gate": 3,
+    "example": null
+   },
+   "wetland_count_500": {
+    "n": 3313,
+    "maxDelta": 2,
+    "withinGate": 1.0,
+    "gate": 3,
+    "example": null
+   },
+   "wetland_count_1000": {
+    "n": 3313,
+    "maxDelta": 9,
+    "withinGate": 0.9996981587684878,
+    "gate": 3,
+    "example": "drv1-annonen-rd-s1"
+   },
+   "hydro_crossing_count": {
+    "n": 3313,
+    "maxDelta": 3,
+    "withinGate": 0.9987926350739511,
+    "gate": 1,
+    "example": "drv1-kalama-river-rd-c1-s3"
+   }
+  }
+ },
+ "note": "Validation shards are deliberately diverse and dense-biased; the weighted rate is an upper reference for the national projection, not an average. Every shard here is reused by the national run, never rebuilt."
+}

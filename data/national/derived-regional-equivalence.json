@@ -1,0 +1,126 @@
+{
+ "regionalCorridors": 6511,
+ "nationalCorridorsLoaded": 9832,
+ "sharedIds": 3459,
+ "excludedDifferentFeatures": 129,
+ "fullCoverageCompared": 3313,
+ "fields": {
+  "length_m": {
+   "n": 3313,
+   "medianRelative": 0.0,
+   "p95Relative": 0.0,
+   "maxRelative": 0.0,
+   "gate": 0.0
+  },
+  "road_length_m": {
+   "n": 3313,
+   "medianRelative": 0.0,
+   "p95Relative": 0.0,
+   "maxRelative": 0.0,
+   "gate": 0.0
+  },
+  "wetland_area_250_m2": {
+   "n": 3313,
+   "medianRelative": 0.002916681955481114,
+   "p95Relative": 0.01135961324010858,
+   "maxRelative": 0.11509445395464388,
+   "gate": 0.02
+  },
+  "wetland_area_500_m2": {
+   "n": 3313,
+   "medianRelative": 0.0026032906722897355,
+   "p95Relative": 0.009287744178616457,
+   "maxRelative": 0.030121471708905945,
+   "gate": 0.02
+  },
+  "wetland_area_1000_m2": {
+   "n": 3313,
+   "medianRelative": 0.002437167139441412,
+   "p95Relative": 0.00799704820712441,
+   "maxRelative": 0.2628626264117517,
+   "gate": 0.02
+  },
+  "hydro_flowline_length_1000_m": {
+   "n": 3313,
+   "medianRelative": 1.5794652502524575e-05,
+   "p95Relative": 0.0007360927320943669,
+   "maxRelative": 0.05087080162308018,
+   "gate": 0.02
+  },
+  "hydro_waterbody_area_1000_m2": {
+   "n": 3313,
+   "medianRelative": 7.745390488208539e-05,
+   "p95Relative": 0.0007199801591909106,
+   "maxRelative": 0.024699828473413402,
+   "gate": 0.02
+  }
+ },
+ "categorical": {
+  "primary_l3_code": {
+   "n": 3313,
+   "mismatches": 0,
+   "fraction": 0.0,
+   "gate": 1.0,
+   "example": null
+  },
+  "primary_l4_code": {
+   "n": 3313,
+   "mismatches": 0,
+   "fraction": 0.0,
+   "gate": 1.0,
+   "example": null
+  },
+  "coverage": {
+   "n": 3313,
+   "mismatches": 0,
+   "fraction": 0.0,
+   "gate": 1.0,
+   "example": null
+  },
+  "ecology_coverage": {
+   "n": 3313,
+   "mismatches": 0,
+   "fraction": 0.0,
+   "gate": 1.0,
+   "example": null
+  },
+  "wetland_intersects": {
+   "n": 3313,
+   "mismatches": 2,
+   "fraction": 0.0006036824630244491,
+   "gate": 0.995,
+   "example": "drv1-ne-244th-st-c1-s1"
+  },
+  "wetland_count_250": {
+   "n": 3313,
+   "maxDelta": 2,
+   "withinGate": 1.0,
+   "gate": 3,
+   "example": null
+  },
+  "wetland_count_500": {
+   "n": 3313,
+   "maxDelta": 2,
+   "withinGate": 1.0,
+   "gate": 3,
+   "example": null
+  },
+  "wetland_count_1000": {
+   "n": 3313,
+   "maxDelta": 9,
+   "withinGate": 0.9996981587684878,
+   "gate": 3,
+   "example": "drv1-annonen-rd-s1"
+  },
+  "hydro_crossing_count": {
+   "n": 3313,
+   "maxDelta": 3,
+   "withinGate": 0.9987926350739511,
+   "gate": 1,
+   "example": "drv1-kalama-river-rd-c1-s3"
+  }
+ },
+ "gates": {},
+ "failures": [],
+ "ok": true
+}
