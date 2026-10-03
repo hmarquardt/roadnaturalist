@@ -98,6 +98,11 @@ its peak process RSS was 5.09 GB. The resumed default is one metric worker, two 
 DuckDB limit on the 16 GB M2 build machine. Existing complete shard checkpoints are digest-validated and
 reused. The earlier four-worker wall-time projection does not apply to this configuration.
 
+The chain also runs corridor composition with one worker by default. On an interrupted restart, six
+workers reached the shared `corridors/index.json.tmp` writer together and two failed to replace the same
+temporary path. The single-worker setting reuses completed corridor buckets and lets the separate index
+stage validate their aggregate without that race.
+
 The same coastal shard (`sx-95_sy29`) completed at 8 GB: 792 corridors in 32 chunks, 906 s shard wall time,
 5.83 GB peak process RSS, and 862 MB maximum *post-query sampled* DuckDB buffer use. The sampled value is
 not DuckDB's transient query peak; the 4 GB failure established that the query can need more than 3.7 GiB.

@@ -16,7 +16,9 @@ ROOT="$(pwd)"
 BUILD="${ROADNATURALIST_BUILD_VOLUME:-/Volumes/Lexar/roadnaturalist}"
 OUT="${NATIONAL_DERIVED_OUT:-$BUILD/work/derived-national}"
 FINAL="${NATIONAL_DERIVED_FINAL:-$BUILD/cells/derived/corridor-metrics}"
-CORRIDOR_WORKERS="${NATIONAL_DERIVED_CORRIDOR_WORKERS:-6}"
+# Every corridor worker can publish the shared index when all buckets exist. Serialize this checkpointed
+# stage until its index writer uses a unique temporary path; metric throughput is the long pole.
+CORRIDOR_WORKERS="${NATIONAL_DERIVED_CORRIDOR_WORKERS:-1}"
 METRIC_WORKERS="${NATIONAL_DERIVED_METRIC_WORKERS:-1}"
 export NATIONAL_DERIVED_MEMORY="${NATIONAL_DERIVED_MEMORY:-8GB}"
 export NATIONAL_DERIVED_THREADS="${NATIONAL_DERIVED_THREADS:-2}"
