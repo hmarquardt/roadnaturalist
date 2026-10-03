@@ -53,6 +53,16 @@ def log(message):
     print(message, flush=True)
 
 
+def primary_or_none(level, corridor_id, label):
+    """An uncovered ecology level has no primary; inconsistent summaries fail closed."""
+    if not isinstance(level, dict):
+        raise ValueError(f"{corridor_id}: {label} ecology summary is missing")
+    primary = level['primary']
+    if primary is None and (level['coverage'] != 'NONE' or level['intersections']):
+        raise ValueError(f"{corridor_id}: {label} ecology has no primary despite measured coverage")
+    return primary
+
+
 def sha256_of(path):
     value = hashlib.sha256()
     with open(path, 'rb') as handle:
@@ -178,6 +188,19 @@ class Builder:
         self.chunk_ids = None
         self.chunk_pad = None
         self.build_bounds = None
+        self.peak_sampled_duckdb_bytes = 0
+
+    def sample_memory(self, stage):
+        """Optional benchmark telemetry; does not alter a metric query or its result."""
+        if os.environ.get('NATIONAL_DERIVED_TELEMETRY') != '1':
+            return
+        used, spill = self.con.execute(
+            'SELECT coalesce(sum(memory_usage_bytes), 0), coalesce(sum(temporary_storage_bytes), 0) '
+            'FROM duckdb_memory()').fetchone()
+        if used > self.peak_sampled_duckdb_bytes:
+            self.peak_sampled_duckdb_bytes = used
+            print('DUCKDB_MEMORY ' + json.dumps({'stage': stage, 'sampledBytes': used,
+                  'temporaryBytes': spill}), file=sys.stderr, flush=True)
 
     # ------------------------------------------------------------------ dataset relations
     def files(self, dataset_id):
@@ -416,9 +439,13 @@ class Builder:
     # ------------------------------------------------------------------ rows
     def derived_rows(self, corridors):
         wetlands = self.wetland_metrics()
+        self.sample_memory('wetlands')
         hydro = self.hydro_metrics()
+        self.sample_memory('hydrography')
         ecology = self.ecology_metrics()
+        self.sample_memory('ecology')
         coverage = self.coverage_metrics()
+        self.sample_memory('coverage')
         lengths = self.route_lengths()
         rows = []
         for corridor in corridors:
@@ -428,6 +455,8 @@ class Builder:
             water = hydro.get(identifier, {'buffers': {}, 'crossings': [], 'names': [], 'nearestFlowingM': None, 'nearestStandingM': None})
             distance_states = self.buffer_states(coverage.get(identifier, {}))
             ecology_entry = self.ecology_entry(ecology.get(identifier, {}), lengths.get(identifier, corridor['lengthM']))
+            primary_l3 = primary_or_none(ecology_entry['l3'], identifier, 'Level III')
+            primary_l4 = primary_or_none(ecology_entry['l4'], identifier, 'Level IV')
             buffers = {distance: wetland['buffers'].get(distance, {'areaM2': 0.0, 'featureCount': 0}) for distance in DISTANCES}
             hydro_buffers = {distance: water['buffers'].get(distance, {'flowlineLengthM': 0.0, 'waterbodyAreaM2': 0.0, 'featureCount': 0})
                              for distance in DISTANCES}
@@ -444,12 +473,12 @@ class Builder:
                 'source_feature_ids': [str(value) for value in corridor['sourceFeatureIds']],
                 'segment_index': int(corridor['segmentIndex']), 'segment_count': int(corridor['segmentCount']),
                 'geometry_repaired': bool(canal['repaired']), 'geometry_repair_method': canal['method'],
-                'primary_l3_code': None if not ecology_entry['l3'] else ecology_entry['l3']['primary']['code'],
-                'primary_l3_name': None if not ecology_entry['l3'] else ecology_entry['l3']['primary']['name'],
-                'primary_l3_percent': None if not ecology_entry['l3'] else ecology_entry['l3']['primary']['percent'],
-                'primary_l4_code': None if not ecology_entry['l4'] else ecology_entry['l4']['primary']['code'],
-                'primary_l4_name': None if not ecology_entry['l4'] else ecology_entry['l4']['primary']['name'],
-                'primary_l4_percent': None if not ecology_entry['l4'] else ecology_entry['l4']['primary']['percent'],
+                'primary_l3_code': None if primary_l3 is None else primary_l3['code'],
+                'primary_l3_name': None if primary_l3 is None else primary_l3['name'],
+                'primary_l3_percent': None if primary_l3 is None else primary_l3['percent'],
+                'primary_l4_code': None if primary_l4 is None else primary_l4['code'],
+                'primary_l4_name': None if primary_l4 is None else primary_l4['name'],
+                'primary_l4_percent': None if primary_l4 is None else primary_l4['percent'],
                 'l3_count': 0 if not ecology_entry['l3'] else len(ecology_entry['l3']['intersections']),
                 'l4_count': 0 if not ecology_entry['l4'] else len(ecology_entry['l4']['intersections']),
                 'transition_count': self.transition_count(ecology_entry),

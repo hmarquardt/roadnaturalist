@@ -14,7 +14,8 @@ ROADNATURALIST_BUILD_VOLUME=/Volumes/Lexar/roadnaturalist bash scripts/run-natio
 npm run build:national-derived -- --stage lookup
 npm run build:national-derived -- --stage corridors --buckets 0:11      # 64 deterministic name buckets
 npm run build:national-derived -- --stage index
-npm run build:national-derived -- --stage metrics --shard sx-98_sy39    # or --shard-range 0:128
+NATIONAL_DERIVED_MEMORY=8GB npm run build:national-derived -- --stage metrics --shard sx-98_sy39
+# or --shard-range 0:128; use one metric worker on the 16 GB M2
 npm run build:national-derived -- --stage finalize
 npm run verify:national-derived
 npm run measure:national-derived
@@ -69,8 +70,9 @@ corridors in one shard can never overwrite each other. The count and examples ar
 All large work lives on the build volume. Sources are read in place (roads 5.82 GB, wetlands 156.36 GB,
 hydrography 26.58 GB, ecoregions 0.12 GB). The derived build's own scratch is modest: corridor Parquet
 2.11 GB, metrics Parquet and per-shard cell parts of the same order, final cells ≈ 4–6 GB, and bounded
-DuckDB spill (2 GB per worker). Peak scratch is roughly 25–35 GB, well inside the 387 GiB that was free when
-the build started; **no cleanup of raw-plane work trees was necessary**.
+DuckDB spill (8 GB for one metric worker by default). Peak scratch is roughly 25–35 GB,
+well inside the 387 GiB that was free when the build started; **no cleanup of raw-plane work trees was
+necessary**.
 
 ## Representative validation (`data/national/derived-validation.json`)
 
@@ -86,8 +88,27 @@ Six required ecological/geographic conditions were measured before the national 
 | arid Southwest | `sx-113_sy33` | 2,268 | 0.14 |
 | Great Plains | `sx-98_sy39` | 2,321 | 0.12 |
 
-This sample is dense-biased; the national projection is 60–120 h single-worker (the forecast) with 20–33 h at
-four workers.
+This sample is dense-biased; the national projection is 60–120 h single-worker (the forecast). The original
+four-worker, 2 GB-per-worker run stopped during stage 3: two wetland aggregations exhausted their per-process
+DuckDB limit, while two other workers independently encountered a row-serialization bug for corridors with no
+Level III/IV primary ecoregion. The shared row writer now preserves the existing `NONE` coverage semantics by
+writing null primary fields and raises an explicit error if an ecology summary is internally inconsistent.
+A single-worker 4 GB probe on the previously OOM coastal shard also failed at the DuckDB cap after 644 s;
+its peak process RSS was 5.09 GB. The resumed default is one metric worker, two DuckDB threads, and an 8 GB
+DuckDB limit on the 16 GB M2 build machine. Existing complete shard checkpoints are digest-validated and
+reused. The earlier four-worker wall-time projection does not apply to this configuration.
+
+The same coastal shard (`sx-95_sy29`) completed at 8 GB: 792 corridors in 32 chunks, 906 s shard wall time,
+5.83 GB peak process RSS, and 862 MB maximum *post-query sampled* DuckDB buffer use. The sampled value is
+not DuckDB's transient query peak; the 4 GB failure established that the query can need more than 3.7 GiB.
+
+The first failed chain left **156 complete shard checkpoints**. Its four failures were `sx-95_sy29` and
+`sx-81_sy38` (DuckDB wetland aggregation OOM at 1.8 GiB), plus `sx-123_sy37` and `sx-109_sy48`
+(ecoregion-primary serialization). The latter errors were independent of the OOM: `ecology_entry()` returns
+a nonempty level summary even when its `intersections` are empty and `primary` is null; the old writer tested
+the summary's truthiness and indexed that null primary. No partial failed-shard output is marked complete.
+The repaired `sx-109_sy48` shard completed with 346 rows; four corridors have zero Level III and IV
+intersections, `ecology_coverage=NONE`, and null primary fields, as intended.
 
 ### Regional equivalence (`data/national/derived-regional-equivalence.json`)
 

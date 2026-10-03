@@ -17,7 +17,9 @@ BUILD="${ROADNATURALIST_BUILD_VOLUME:-/Volumes/Lexar/roadnaturalist}"
 OUT="${NATIONAL_DERIVED_OUT:-$BUILD/work/derived-national}"
 FINAL="${NATIONAL_DERIVED_FINAL:-$BUILD/cells/derived/corridor-metrics}"
 CORRIDOR_WORKERS="${NATIONAL_DERIVED_CORRIDOR_WORKERS:-6}"
-METRIC_WORKERS="${NATIONAL_DERIVED_METRIC_WORKERS:-4}"
+METRIC_WORKERS="${NATIONAL_DERIVED_METRIC_WORKERS:-1}"
+export NATIONAL_DERIVED_MEMORY="${NATIONAL_DERIVED_MEMORY:-8GB}"
+export NATIONAL_DERIVED_THREADS="${NATIONAL_DERIVED_THREADS:-2}"
 BUCKETS=64
 mkdir -p "$OUT/logs"
 
@@ -31,7 +33,7 @@ stage_failed() {
   exit 1
 }
 
-log "national derived chain: OUT=$OUT FINAL=$FINAL corridor_workers=$CORRIDOR_WORKERS metric_workers=$METRIC_WORKERS"
+log "national derived chain: OUT=$OUT FINAL=$FINAL corridor_workers=$CORRIDOR_WORKERS metric_workers=$METRIC_WORKERS duckdb_memory=$NATIONAL_DERIVED_MEMORY duckdb_threads=$NATIONAL_DERIVED_THREADS"
 
 log "stage 0/6 derived-build readiness (four source planes)"
 if ! node scripts/check-derived-readiness.mjs > "$OUT/logs/readiness.json" 2> "$OUT/logs/readiness.err"; then
