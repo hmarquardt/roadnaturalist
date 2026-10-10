@@ -320,7 +320,7 @@ async function publishOneRegion() {
   if (!regionId || !/^[a-z0-9][a-z0-9._-]*$/.test(regionId)) throw new Error('--region wants a lowercase slug');
   const bounds = parseBounds(option('--bounds'));
   const marginCells = Number(option('--margin-cells') ?? 1);
-  const maxClosureCells = Number(option('--max-closure-cells') ?? 64);
+  const maxClosureCells = Number(option('--max-closure-cells') ?? 256);
   const planes = loadPlanes(path => readFileSync(path, 'utf8'));
   const ecoregions = ecoregionArtifacts(path => readFileSync(path, 'utf8'), BUILD);
   const closure = loadClosure(join(BUILD, 'work/raw-closure/components.jsonl'));

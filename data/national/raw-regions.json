@@ -29,7 +29,7 @@
   {
    "assetBaseUrl": "https://data.roadnaturalist.com/",
    "id": "evansville-in",
-   "version": "raw-20261010-215443",
+   "version": "raw-20261010-215834",
    "bounds": [
     -88.39999999999999,
     36,
@@ -37,7 +37,7 @@
     39.400000000000006
    ],
    "label": "Evansville,\\ Indiana",
-   "publishedAt": "2026-10-10T21:54:50.578Z",
+   "publishedAt": "2026-10-10T21:58:41.588Z",
    "cellStepDeg": 0.2,
    "cells": {
     "roads": {
@@ -132,8 +132,8 @@
      "x462_y640"
     ]
    },
-   "catalogUrl": "raw/evansville-in/raw-20261010-215443/manifest.json",
-   "componentsUrl": "raw/evansville-in/raw-20261010-215443/road-components.json",
+   "catalogUrl": "raw/evansville-in/raw-20261010-215834/manifest.json",
+   "componentsUrl": "raw/evansville-in/raw-20261010-215834/road-components.json",
    "objects": 62,
    "bytes": 61158118,
    "regionCells": 238,
@@ -145,7 +145,7 @@
    ],
    "note": "A bounded region of the national raw planes, published for detailed corridor analysis only. Discovery reads the derived plane and never these objects.",
    "catalogBytes": 150038,
-   "catalogSha256": "f2a01553f973c36259baee7abf0b6036832d6cb43f808244fbe0ffdb7317c4b5",
+   "catalogSha256": "cbcbbfca99ab1a9c731323f78d668aafca8bcc5b4282d1dd597ce48136dfa6c3",
    "componentsBytes": 224080,
    "componentsSha256": "a081cc389e62645f525a4df19a9405490c9022070679d8a0cf958ee207a2636b",
    "catalogAction": "uploaded",
@@ -158,7 +158,7 @@
   {
    "assetBaseUrl": "https://data.roadnaturalist.com/",
    "id": "nashville-tn",
-   "version": "raw-20261010-215451",
+   "version": "raw-20261010-215842",
    "bounds": [
     -91.6,
     31.400000000000006,
@@ -166,7 +166,7 @@
     38.20000000000002
    ],
    "label": "Nashville,\\ Tennessee",
-   "publishedAt": "2026-10-10T21:55:03.229Z",
+   "publishedAt": "2026-10-10T21:58:56.297Z",
    "cellStepDeg": 0.2,
    "cells": {
     "roads": {
@@ -354,8 +354,8 @@
      "x466_y631"
     ]
    },
-   "catalogUrl": "raw/nashville-tn/raw-20261010-215451/manifest.json",
-   "componentsUrl": "raw/nashville-tn/raw-20261010-215451/road-components.json",
+   "catalogUrl": "raw/nashville-tn/raw-20261010-215842/manifest.json",
+   "componentsUrl": "raw/nashville-tn/raw-20261010-215842/road-components.json",
    "objects": 155,
    "bytes": 95873630,
    "regionCells": 1462,
@@ -367,7 +367,7 @@
    ],
    "note": "A bounded region of the national raw planes, published for detailed corridor analysis only. Discovery reads the derived plane and never these objects.",
    "catalogBytes": 858797,
-   "catalogSha256": "036bef7108e43bf9049e6d6a2b9de2b18ca2592e8f811891230435ad2870e6a7",
+   "catalogSha256": "7a81a259f1a42add44304634fbfd43739964583b5fa8bd019e450fa537aa6477",
    "componentsBytes": 592286,
    "componentsSha256": "7d346584a628ac71ba288ffdd089f07c211f5fdd9be7e39a4ffe222283a541bc",
    "catalogAction": "uploaded",
@@ -379,7 +379,7 @@
   },
   {
    "id": "portland-or",
-   "version": "raw-20261010-215504",
+   "version": "raw-20261010-215857",
    "bounds": [
     -124.19999999999999,
     43.400000000000006,
@@ -388,7 +388,7 @@
    ],
    "label": "Portland,\\ Oregon",
    "assetBaseUrl": "https://data.roadnaturalist.com/",
-   "publishedAt": "2026-10-10T21:55:13.077Z",
+   "publishedAt": "2026-10-10T21:59:05.379Z",
    "cellStepDeg": 0.2,
    "cells": {
     "roads": {
@@ -520,8 +520,8 @@
      "x287_y678"
     ]
    },
-   "catalogUrl": "raw/portland-or/raw-20261010-215504/manifest.json",
-   "componentsUrl": "raw/portland-or/raw-20261010-215504/road-components.json",
+   "catalogUrl": "raw/portland-or/raw-20261010-215857/manifest.json",
+   "componentsUrl": "raw/portland-or/raw-20261010-215857/road-components.json",
    "objects": 99,
    "bytes": 135172267,
    "regionCells": 585,
@@ -533,7 +533,7 @@
    ],
    "note": "A bounded region of the national raw planes, published for detailed corridor analysis only. Discovery reads the derived plane and never these objects.",
    "catalogBytes": 354636,
-   "catalogSha256": "287ccc0fcf2aaad5d85856707130d09ade4acedd06e6685a3b8525d69bcd2678",
+   "catalogSha256": "544441522eb5bca62a351bd13bfab9ec1604088c86405c3fc7e33764cd0ee4cf",
    "componentsBytes": 213833,
    "componentsSha256": "33d4c60bbfc17aa7544f3a21085a8a4f2a7f39882d6eb246505ddcd017cbf451",
    "catalogAction": "uploaded",
@@ -546,7 +546,7 @@
   {
    "assetBaseUrl": "https://data.roadnaturalist.com/",
    "id": "princeton-in",
-   "version": "raw-20261010-215436",
+   "version": "raw-20261010-215826",
    "bounds": [
     -90.39999999999999,
     37.400000000000006,
@@ -554,7 +554,7 @@
     39.599999999999994
    ],
    "label": "Princeton,\\ Indiana",
-   "publishedAt": "2026-10-10T21:54:42.396Z",
+   "publishedAt": "2026-10-10T21:58:33.864Z",
    "cellStepDeg": 0.2,
    "cells": {
     "roads": {
@@ -638,8 +638,8 @@
      "x462_y642"
     ]
    },
-   "catalogUrl": "raw/princeton-in/raw-20261010-215436/manifest.json",
-   "componentsUrl": "raw/princeton-in/raw-20261010-215436/road-components.json",
+   "catalogUrl": "raw/princeton-in/raw-20261010-215826/manifest.json",
+   "componentsUrl": "raw/princeton-in/raw-20261010-215826/road-components.json",
    "objects": 51,
    "bytes": 60123887,
    "regionCells": 209,
@@ -651,7 +651,7 @@
    ],
    "note": "A bounded region of the national raw planes, published for detailed corridor analysis only. Discovery reads the derived plane and never these objects.",
    "catalogBytes": 134151,
-   "catalogSha256": "6bcaa385957defb75d9528fbe039ab64b33d1f2ffb542e04ed270dc13b1c0d6e",
+   "catalogSha256": "8db430c093f2c65f2bd2e72761503aae94be3d60868b27c59a33db43dc7f0bac",
    "componentsBytes": 210055,
    "componentsSha256": "1b1e1f3e14491e73272d71005452c8925075d75c2399bd174e63b4e9641ab5a7",
    "catalogAction": "uploaded",
@@ -662,5 +662,5 @@
    }
   }
  ],
- "updatedAt": "2026-10-10T21:55:13.078Z"
+ "updatedAt": "2026-10-10T21:59:05.379Z"
 }

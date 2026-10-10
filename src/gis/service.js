@@ -315,7 +315,8 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
   // grid, the same road-component closure, the same 1 km habitat halo, the same three planes.
   async function selectRawOrRegionalPartitions(catalog, searchArea, declaredType) {
     const components = await getRoadComponents(catalog);
-    const selection = selectRegionalPartitions(catalog, searchArea.bbox, { components });
+    const selection = selectRegionalPartitions(catalog, searchArea.bbox, { components,
+      componentIds: searchArea.roadComponentIds ?? null });
     return declaredType === DISCOVERY_CATALOG_TYPE.RAW
       ? Object.freeze({ ...selection, raw: true, catalogVersion: catalog.version,
         publication: catalog.publication ?? null })

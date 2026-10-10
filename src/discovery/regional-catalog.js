@@ -78,7 +78,7 @@ export function validateRegionalCatalog(catalog) {
   return catalog;
 }
 
-export function selectRegionalPartitions(catalog, bounds, { components = null } = {}) {
+export function selectRegionalPartitions(catalog, bounds, { components = null, componentIds = null } = {}) {
   validateRegionalCatalog(catalog);
   if (!Array.isArray(bounds) || bounds.length !== 4 || !bounds.every(Number.isFinite) || bounds[0] >= bounds[2] || bounds[1] >= bounds[3]) {
     throw new TypeError('Regional search needs ordered finite bounds');
@@ -114,7 +114,14 @@ export function selectRegionalPartitions(catalog, bounds, { components = null } 
       componentId: component.id ?? null, lengthM: component.lengthM ?? null });
   };
   if (components) {
+    // When a caller names the components it needs - a promotion knows the exact road component of the corridor it
+    // is rebuilding - the closure follows only those. Closing over every component that touches the box is right
+    // for a region-sized search box and wrong for a corridor-sized one: it drags in every other road in the
+    // neighbourhood, which is both slow and needless, because the corridor's own component is what must be
+    // composed in full for its id to come out the same.
+    const wanted = componentIds == null ? null : new Set(componentIds);
     for (const component of components.components) {
+      if (wanted && !wanted.has(component.id)) continue;
       if (!intersects(component.bounds, bounds)) continue;
       if (!component.cells.some(id => initialIds.has(id))) continue;
       addComponent(component.nameKey, component);

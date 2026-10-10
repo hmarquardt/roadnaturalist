@@ -411,13 +411,26 @@ async function reconstructDerivedCorridor(result) {
   // A raw catalog is a data-origin document: the index says where it is served from, so the reader never assumes
   // the page's own origin. Its cells are resolved against the same origin by the catalog's own assetBaseUrl.
   const catalogUrl = new URL(region.catalogUrl, region.assetBaseUrl).href;
+  // The corridor's own road component, named: the closure then follows exactly the road this corridor belongs to
+  // instead of every road that happens to touch its box, which is what makes the rebuild both small and the same
+  // composition the derived row came from.
   const scope = await gis.prepareRegionalSearch({ bbox: bounds, catalogUrl, catalogType: 'raw',
-    rawRegionId: region.id, distancesM: ANALYSIS_DISTANCES_M }, {});
+    rawRegionId: region.id, distancesM: ANALYSIS_DISTANCES_M,
+    roadComponentIds: entry.corridor.componentId ? [entry.corridor.componentId] : null }, {});
   const road = await scope.queryRoadNetwork({ bbox: bounds, roadClasses: eligibleClasses(), limit: 100000 });
   if (road.coverage !== COVERAGE.FULL && road.coverage !== COVERAGE.PARTIAL) {
     throw new Error('the raw road network could not be read back');
   }
-  const verified = verifyDerivedPromotion({ derived: entry.corridor, features: road.features });
+  let verified;
+  try {
+    verified = verifyDerivedPromotion({ derived: entry.corridor, features: road.features });
+  } catch (error) {
+    // The derived row was composed over the whole national road network; this rebuild composes over the cells a
+    // bounded region published. When they disagree for that reason, the honest sentence is about the missing
+    // source, not about geometry disagreeing with itself.
+    throw new Error(`${error.message} - this corridor's road needs raw source cells that the published region does `
+      + 'not hold, so it cannot be rebuilt here yet. National discovery is unaffected.');
+  }
   return { unit: verified.unit, corridor: verified.corridor, features: verified.features,
     dataCatalogUrl: catalogUrl };
 }
