@@ -39,11 +39,11 @@ PLACE_PRODUCTION {"query":"great smoky mountains","expected":"Great Smoky Mounta
 
 PLACE_PRODUCTION {"query":"yellowstone","expected":"Yellowstone National Park, WY","first":"Yellowstone National Park, WY · National park — National park","centre":"44.6204,-110.5607","coverage":"FULL","runnable":true}
 
-PLACE_PRODUCTION {"region":"Pacific Northwest","query":"portland oregon","place":"Portland, OR","elapsedMs":6743,"corridors":2347,"cellsRead":31,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi\nDuluth, MN · 10 mi\nMoab, UT · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Portland, OR · centre 45.5369, -122.6500 (custom search centre) · 2347 corridor(s) found · 30 metric cell(s) loaded (0 declared empty) · 6.9 MiB · search 6.6 s · data 5.6 s · selection 0.9 s · query 0.9 s · build 0.1 s","firstRow":"NW Sauvie Island Rd 11.0 km · S1400 · segment 2/2 6.8 mi 13.9 mi NW 513.80 ha 1 Willamette Valley (3) FULL DISCOVERED"}
+PLACE_PRODUCTION {"region":"Pacific Northwest","query":"portland oregon","place":"Portland, OR","elapsedMs":5717,"corridors":2347,"cellsRead":31,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi\nDuluth, MN · 10 mi\nMoab, UT · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Portland, OR · centre 45.5369, -122.6500 (custom search centre) · 2347 corridor(s) found · 30 metric cell(s) loaded (0 declared empty) · 6.9 MiB · search 5.6 s · data 4.7 s · selection 0.8 s · query 0.8 s · build 0.1 s","firstRow":"NW Sauvie Island Rd 11.0 km · S1400 · segment 2/2 6.8 mi 13.9 mi NW 513.80 ha 1 Willamette Valley (3) FULL DISCOVERED"}
 
-PLACE_PRODUCTION {"region":"Northeast","query":"boston massachusetts","place":"Boston, MA","elapsedMs":4124,"corridors":2135,"cellsRead":28,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi\nDuluth, MN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Boston, MA · centre 42.3385, -71.0182 (custom search centre) · 2135 corridor(s) found · 27 metric cell(s) loaded (2 declared empty) · 7.9 MiB · search 4.0 s · data 3.3 s · selection 0.6 s · query 0.5 s · build 0.1 s","firstRow":"Nahant Rd 8.4 km · S1400 5.2 mi 7.6 mi NE 151.63 ha 0 Northeastern Coastal Zone (59) FULL DISCOVERED"}
+PLACE_PRODUCTION {"region":"Northeast","query":"boston massachusetts","place":"Boston, MA","elapsedMs":4027,"corridors":2135,"cellsRead":28,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi\nDuluth, MN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Boston, MA · centre 42.3385, -71.0182 (custom search centre) · 2135 corridor(s) found · 27 metric cell(s) loaded (2 declared empty) · 7.9 MiB · search 3.9 s · data 3.2 s · selection 0.6 s · query 0.5 s · build 0.1 s","firstRow":"Nahant Rd 8.4 km · S1400 5.2 mi 7.6 mi NE 151.63 ha 0 Northeastern Coastal Zone (59) FULL DISCOVERED"}
 
-PLACE_PRODUCTION {"region":"Gulf/Southeast","query":"miami florida","place":"Miami, FL","elapsedMs":3110,"corridors":2237,"cellsRead":15,"cellsHost":"data.roadnaturalist.com","coverage":"NONE","recent":"RECENT SEARCHES\nMiami, FL · 25 mi\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Miami, FL · centre 25.7752, -80.2086 (custom search centre) · 2237 corridor(s) found · 14 metric cell(s) loaded (2 declared empty) · 2.9 MiB · search 2.9 s · data 2.4 s · selection 0.4 s · query 0.4 s · build 0.1 s","firstRow":"8th St SW 8.8 km · S1200 · segment 3/7 5.5 mi 22.0 mi W 398.75 ha 2 Southern Florida Coastal Plain (76) NONE DISCOVERED"}
+PLACE_PRODUCTION {"region":"Gulf/Southeast","query":"miami florida","place":"Miami, FL","elapsedMs":2637,"corridors":2237,"cellsRead":15,"cellsHost":"data.roadnaturalist.com","coverage":"NONE","recent":"RECENT SEARCHES\nMiami, FL · 25 mi\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Miami, FL · centre 25.7752, -80.2086 (custom search centre) · 2237 corridor(s) found · 14 metric cell(s) loaded (2 declared empty) · 2.9 MiB · search 2.6 s · data 2.1 s · selection 0.4 s · query 0.4 s · build 0.1 s","firstRow":"8th St SW 8.8 km · S1200 · segment 3/7 5.5 mi 22.0 mi W 398.75 ha 2 Southern Florida Coastal Plain (76) NONE DISCOVERED"}
 
   1) tests/place-production.spec.js:38:1 › deployed place search resolves the named places and runs national discovery, with nothing outside 
 
@@ -54,18 +54,18 @@ PLACE_PRODUCTION {"region":"Gulf/Southeast","query":"miami florida","place":"Mia
     Expected: "FULL"
     Received: "NONE"
 
-      119 |     expect(entry.cellsRead, region).toBeGreaterThan(0);
-      120 |     expect(entry.cellsHost, region).toBe('data.roadnaturalist.com');
-    > 121 |     expect(entry.coverage, region).toBe('FULL');
+      122 |     expect(entry.cellsRead, region).toBeGreaterThan(0);
+      123 |     expect(entry.cellsHost, region).toBe('data.roadnaturalist.com');
+    > 124 |     expect(entry.coverage, region).toBe('FULL');
           |                                    ^
-      122 |     // The corridor row carries the ecology, wetland and hydrography summary the derived plane holds.
-      123 |     expect(entry.firstRow, region).toMatch(/\d/);
-      124 |     expect(entry.summary, region).toContain('25-mile radius search');
-        at /Users/hmarquardt/roadnaturalist/tests/place-production.spec.js:121:36
+      125 |     // The corridor row carries the ecology, wetland and hydrography summary the derived plane holds.
+      126 |     expect(entry.firstRow, region).toMatch(/\d/);
+      127 |     expect(entry.summary, region).toContain('25-mile radius search');
+        at /Users/hmarquardt/roadnaturalist/tests/place-production.spec.js:124:36
 
     Error Context: test-results/place-production-deployed--081cc-covery-with-nothing-outside/error-context.md
 
 
   1 failed
     tests/place-production.spec.js:38:1 › deployed place search resolves the named places and runs national discovery, with nothing outside 
-  1 passed (40.6s)
+  1 passed (38.4s)

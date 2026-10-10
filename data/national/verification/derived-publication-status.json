@@ -26,7 +26,7 @@
  },
  "browserCutover": {
   "status": "failed",
-  "checkedAt": "2026-10-10T20:57:26.974Z",
+  "checkedAt": "2026-10-10T20:59:34.469Z",
   "record": null,
   "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
  },
@@ -58,6 +58,12 @@
   {
    "status": "failed",
    "checkedAt": "2026-10-10T20:55:30.067Z",
+   "record": null,
+   "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
+  },
+  {
+   "status": "failed",
+   "checkedAt": "2026-10-10T20:57:26.974Z",
    "record": null,
    "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
   }
