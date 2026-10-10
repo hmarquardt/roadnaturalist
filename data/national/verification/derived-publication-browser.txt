@@ -2,23 +2,17 @@
 Running 1 test using 1 worker
 
 [1/1] tests/national-derived-production.spec.js:40:1 › national discovery serves six regions from the published derived plane
-  1) tests/national-derived-production.spec.js:40:1 › national discovery serves six regions from the published derived plane 
+tests/national-derived-production.spec.js:40:1 › national discovery serves six regions from the published derived plane
+NATIONAL_SMOKE {"id":"pnw","coverage":"FULL","corridors":2197,"cells":{"cells":24,"present":24,"empty":0},"bytes":6195509,"problems":[],"sample":[{"id":"drv1-17th-ave-c52-s1","name":"17th Ave","lengthM":1742,"geometry":"MultiLineString","ecology":2,"ecologyLevel":"Willamette Valley (3)","wetland250":8030.997,"wetlandNearest":152.3502679594106,"hydro":0},{"id":"drv1-18th-ave-c46-s1","name":"18th Ave","lengthM":2188,"geometry":"LineString","ecology":2,"ecologyLevel":"Willamette Valley (3)","wetland250":8262.022,"wetlandNearest":79.16167259305334,"hydro":0},{"id":"drv1-19th-ave-c24-s1","name":"19th Ave","lengthM":2545,"geometry":"MultiLineString","ecology":2,"ecologyLevel":"Willamette Valley (3)","wetland250":2070.029,"wetlandNearest":188.02433335441393,"hydro":0}]}
 
-    Error: page.evaluate: Error: The regional discovery catalog national/derived-catalog.json is not a valid regional catalog: Invalid regional catalog
-        at getDiscoveryCatalog (https://roadnaturalist.com/src/gis/service.js:114:13)
-        at async Object.prepareDerivedSearch (https://roadnaturalist.com/src/gis/service.js:242:21)
-        at async runDiscovery (https://roadnaturalist.com/src/discovery/run.js:35:20)
-        at async eval (eval at evaluate (:311:30), <anonymous>:25:19)
-        at async <anonymous>:337:30
-        at getDiscoveryCatalog (https://roadnaturalist.com/src/gis/service.js:114:13)
-        at async Object.prepareDerivedSearch (https://roadnaturalist.com/src/gis/service.js:242:21)
-        at async runDiscovery (https://roadnaturalist.com/src/discovery/run.js:35:20)
-        at async eval (eval at evaluate (:311:30), <anonymous>:25:19)
-        at async <anonymous>:337:30
-        at /Users/hmarquardt/roadnaturalist/tests/national-derived-production.spec.js:54:32
+NATIONAL_SMOKE {"id":"northeast","coverage":"FULL","corridors":2254,"cells":{"cells":29,"present":27,"empty":2},"bytes":8313119,"problems":[],"sample":[{"id":"drv1-1st-parish-rd-c1-s1","name":"1st Parish Rd","lengthM":7216,"geometry":"LineString","ecology":2,"ecologyLevel":"Northeastern Coastal Zone (59)","wetland250":502495.971,"wetlandNearest":0,"hydro":3},{"id":"drv1-2nd-st-c352-s1","name":"2nd St","lengthM":2324,"geometry":"LineString","ecology":2,"ecologyLevel":"Northeastern Coastal Zone (59)","wetland250":6071.884,"wetlandNearest":83.49334227375125,"hydro":0},{"id":"drv1-abbot-st-c1-s1","name":"Abbot St","lengthM":2358,"geometry":"LineString","ecology":2,"ecologyLevel":"Northeastern Coastal Zone (59)","wetland250":39804.229,"wetlandNearest":0,"hydro":1}]}
 
-    Error Context: test-results/national-derived-productio-737ba-the-published-derived-plane/error-context.md
+NATIONAL_SMOKE {"id":"gulf","coverage":"FULL","corridors":1113,"cells":{"cells":25,"present":24,"empty":1},"bytes":2614233,"problems":[],"sample":[{"id":"drv1-17th-st-c113-s1","name":"17th St","lengthM":1651,"geometry":"MultiLineString","ecology":2,"ecologyLevel":"Mississippi Alluvial Plain (73)","wetland250":0,"wetlandNearest":310.7868852977028,"hydro":0},{"id":"drv1-1st-ave-c61-s1","name":"1st Ave","lengthM":2784,"geometry":"LineString","ecology":2,"ecologyLevel":"Mississippi Alluvial Plain (73)","wetland250":80477.83,"wetlandNearest":19.372918728300718,"hydro":0},{"id":"drv1-1st-st-c247-s1","name":"1st St","lengthM":2908,"geometry":"MultiLineString","ecology":2,"ecologyLevel":"Mississippi Alluvial Plain (73)","wetland250":464559.444,"wetlandNearest":13.560119712649234,"hydro":0}]}
 
+NATIONAL_SMOKE {"id":"midwest","coverage":"FULL","corridors":3752,"cells":{"cells":30,"present":22,"empty":8},"bytes":10210260,"problems":[],"sample":[{"id":"drv1-103rd-st-c15-s1","name":"103rd St","lengthM":4546,"geometry":"LineString","ecology":2,"ecologyLevel":"Central Corn Belt Plains (54)","wetland250":35374.346,"wetlandNearest":0,"hydro":1},{"id":"drv1-103rd-st-c16-s1","name":"103rd St","lengthM":4380,"geometry":"LineString","ecology":2,"ecologyLevel":"Central Corn Belt Plains (54)","wetland250":28861.371,"wetlandNearest":0,"hydro":2},{"id":"drv1-104th-ave-c2-s1","name":"104th Ave","lengthM":9641,"geometry":"MultiLineString","ecology":2,"ecologyLevel":"Central Corn Belt Plains (54)","wetland250":622379.708,"wetlandNearest":0,"hydro":4}]}
 
-  1 failed
-    tests/national-derived-production.spec.js:40:1 › national discovery serves six regions from the published derived plane 
+NATIONAL_SMOKE {"id":"plains","coverage":"FULL","corridors":1615,"cells":{"cells":20,"present":20,"empty":0},"bytes":2291219,"problems":[],"sample":[{"id":"drv1-140th-c1-s1","name":"140th","lengthM":7737,"geometry":"LineString","ecology":2,"ecologyLevel":"Western Corn Belt Plains (47)","wetland250":57569.887,"wetlandNearest":0,"hydro":8},{"id":"drv1-140th-c1-s2","name":"140th","lengthM":6995,"geometry":"LineString","ecology":2,"ecologyLevel":"Western Corn Belt Plains (47)","wetland250":66618.99,"wetlandNearest":0,"hydro":4},{"id":"drv1-140th-c1-s3","name":"140th","lengthM":6864,"geometry":"LineString","ecology":2,"ecologyLevel":"Western Corn Belt Plains (47)","wetland250":101489.961,"wetlandNearest":0,"hydro":5}]}
+
+NATIONAL_SMOKE {"id":"southwest","coverage":"FULL","corridors":2619,"cells":{"cells":25,"present":25,"empty":0},"bytes":4989146,"problems":[],"sample":[{"id":"drv1-0-e-w-s1","name":"0 E-W","lengthM":2157,"geometry":"LineString","ecology":2,"ecologyLevel":"Sonoran Basin and Range (81)","wetland250":9997.31,"wetlandNearest":28.035153904378948,"hydro":2},{"id":"drv1-0-n-s-s1","name":"0 N-S","lengthM":4971,"geometry":"MultiLineString","ecology":2,"ecologyLevel":"Sonoran Basin and Range (81)","wetland250":14180.922,"wetlandNearest":0,"hydro":1},{"id":"drv1-104th-st-c35-s1","name":"104th St","lengthM":2436,"geometry":"MultiLineString","ecology":2,"ecologyLevel":"Sonoran Basin and Range (81)","wetland250":56782.444,"wetlandNearest":24.281924629049147,"hydro":0}]}
+
+  1 passed (22.8s)
