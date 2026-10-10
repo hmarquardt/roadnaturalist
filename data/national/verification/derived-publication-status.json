@@ -25,10 +25,10 @@
   "note": "Node + DuckDB against the published R2 plane: the six regions resolve, load and query."
  },
  "browserCutover": {
-  "status": "passed",
-  "checkedAt": "2026-10-10T19:54:40.609Z",
-  "record": "data/national/verification/derived-publication-browser.txt",
-  "reason": null
+  "status": "failed",
+  "checkedAt": "2026-10-10T20:53:01.669Z",
+  "record": null,
+  "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
  },
  "browserCutoverHistory": [
   {
@@ -42,6 +42,12 @@
    "checkedAt": "2026-10-10T19:52:44.946Z",
    "record": null,
    "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
+  },
+  {
+   "status": "passed",
+   "checkedAt": "2026-10-10T19:54:40.609Z",
+   "record": "data/national/verification/derived-publication-browser.txt",
+   "reason": null
   }
  ],
  "note": "Two independent gates. R2 publication is verified by re-fetching every published object; the browser cutover is verified by a real browser resolving that plane through the deployed frontend. Neither is reported as the other, and the R2 verification stays valid across a browser failure."
