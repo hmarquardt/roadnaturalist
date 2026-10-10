@@ -49,6 +49,10 @@ const reportPath = option('--report') ?? join(work, 'publication.json');
 const concurrency = Number(option('--concurrency') ?? 16);
 
 const limit = option('--limit') ? Number(option('--limit')) : Infinity;
+// Two publication halves may run at once over disjoint slices: the Cloudflare API path is rate limited while the
+// `wrangler` path is not, so a long publication can use both without either racing the other (immutable keys,
+// disjoint object sets, and every object is checked against its manifest length before it is written).
+const offset = option('--offset') ? Number(option('--offset')) : 0;
 const checkOnly = flag('--check-only');
 const via = option('--via') ?? 'api';
 const account = option('--account') ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? null;
@@ -154,10 +158,10 @@ let uploadedBytes = 0;
 let next = 0;
 let logged = 0;
 const started = Date.now();
-const pending = set.objects.slice(0, Number.isFinite(limit) ? limit : set.objects.length);
+const pending = set.objects.slice(offset, Number.isFinite(limit) ? offset + limit : set.objects.length);
 console.log(`${set.fingerprint}: ${pending.length}/${set.objects.length} objects, `
-  + `${pending.reduce((sum, object) => sum + object.bytes, 0).toLocaleString()} bytes, via ${via}, concurrency ${concurrency}, ${rate} req/s`
-  + `${checkOnly ? ' (check-only)' : ''}`);
+  + `${pending.reduce((sum, object) => sum + object.bytes, 0).toLocaleString()} bytes, via ${via}, concurrency ${concurrency}`
+  + `${via === 'api' ? `, ${rate} req/s` : ''}${checkOnly ? ' (check-only)' : ''}`);
 
 async function publishOne(object) {
   const previous = done.get(object.key);

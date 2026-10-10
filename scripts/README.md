@@ -52,6 +52,29 @@ unexplained divergence. `npm run capture:regional-equivalence` regenerates the c
 `npm run benchmark:regional` runs the committed 10-, 25- and 50-mile scenarios in a real browser, cold and warm, and prints `REGIONAL_BENCHMARK` JSON lines plus `/tmp/regional-benchmark.json`. It is opt-in (`RUN_REGIONAL_BENCHMARK=1`) because it takes minutes; ordinary `npm run test:e2e` never runs it.
 
 `verify-geometry.mjs` (`npm run verify:geometry`) is the offline check of the shared analytical-geometry boundary. It replays `tests/fixtures/discovery-geometry-failures.json` (the eight real corridors the buffering engine refused, with their geometry, failing radii, GEOS messages, and every repair variant that was tried) and eleven adversarial geometries through the same repair ladder the browser runs, then prints per corridor which rung was accepted, how much doubled centerline traversal it removed, the length delta, and the maximum displacement. It reads no dataset, contacts no network, writes nothing, and exits non-zero when a recorded failure is not repaired, when a repair exceeds the acceptance tolerances, or when some adversarial case is over-repaired. Use it after any change to road composition, segmentation, or geometry preparation.
+# Publishing the national derived plane
+
+`national-derived-objects.mjs` is the one enumeration of the national derived publication set: the finalized
+manifest's own manifest object plus one Parquet object per present cell, under the immutable
+`derived/corridor-metrics/<analysis-fingerprint>/` directory the manifest declares. The publisher, the local
+pre-publication audit and the remote audit all read that one function, so a declared object cannot go missing
+while every existing check still passes (the lesson of the version-3 regional component index). Nothing is
+enumerated from a directory walk, so AppleDouble `._*` siblings, `finalize.json`, scratch files and logs are
+never part of the set. `check-national-derived-publication.mjs` proves every local byte and digest before a byte
+moves. `publish-national-derived.mjs` uploads resumably: it checkpoints every completed object to a JSONL file on
+the build volume, reuses an object whose remote length and digest already match, refuses to overwrite an
+immutable key whose length differs, and paces itself (`--rate`, default 4 requests/second) because the Cloudflare
+API throttles bulk R2 object writes; `--via wrangler` uses the `wrangler r2 object put` path `publish-regional.mjs`
+uses. `audit-national-derived-remote.mjs` re-fetches every object and proves byte count, SHA-256, content type,
+immutable cache-control, Pages-origin CORS and Range support, and lists the remote inventory of the immutable
+prefix so an unexpected object is a failure. `verify-national-derived-production.mjs` resolves the committed
+pointer, fetches the manifest from the data origin, selects cells with the runtime's own `selectDerivedCells`,
+verifies every fetched byte and digest, and runs DuckDB over them for six geographically distinct centres.
+`freeze-national-derived-catalog.mjs` generates the committed production discovery pointer
+(`data/national/derived-catalog.json`) from the manifest, and `--check` proves it is still current.
+`tests/national-derived-production.spec.js` runs the same six centres in a real browser against R2.
+
+
 `docs/ECOREGIONS.md`, `docs/ROADS.md`, `docs/DISCOVERY.md`, `docs/HABITAT.md`, `docs/OCCURRENCE.md`, and `docs/INVESTIGATOR.md` hold the exact commands, source digests, schemas, coverage extents, privacy rules, and scope. Generated small GeoParquet files are committed so local analysis works without production data hosting. `docs/DEPLOYMENT.md` holds the production topology (Pages project `roadnaturalist` for `roadnaturalist.com`, Worker `roadnaturalist-investigator` at `api.roadnaturalist.com`), its configuration, and every deploy and verification command.
 
 `stage-pages.mjs` stages the static application for Cloudflare Pages direct upload: it copies `index.html`, `assets/`, `src/`, and `data/` into `dist/`, refuses to replace a `dist/` it did not create, and fails if any stylesheet, script, module import, or manifest dataset is missing or its byte length disagrees with `data/manifest.json`. It also refuses to stage the small files the browser loads by path rather than through the manifest — the pilot declaration, the discovery search areas, the regional place gazetteer, the reviewed access capture, and the probe catalog with its schema. `dist/` stays out of Git. `deploy-pages.mjs` runs it and uploads, but only from a clean `main` checkout whose HEAD is on `origin/main`, so what is published is always a reviewed commit.
