@@ -55,10 +55,18 @@ test('national discovery serves six regions from the published derived plane', a
       const { createGisService } = await import('./src/gis/service.js');
       const { runDiscovery } = await import('./src/discovery/run.js');
       const { radiusBounds } = await import('./src/discovery/search-area.js');
+      // Build the search exactly as the workspace does: take the *deployed* interactive template and replace only
+      // the centre and radius. Nothing about which catalog a national search loads is restated here, so a
+      // deployment whose declaration is wrong fails this check rather than a hand-written copy of it.
+      const declaration = await (await fetch('./data/discovery/search-areas.json')).json();
+      const template = (declaration.searchAreas ?? []).find(area => area.id === declaration.interactiveRadiusArea);
+      if (!template) throw new Error('the deployed declaration names no interactive radius template');
+      if (template.catalogType !== 'national') {
+        throw new Error(`the interactive template loads a ${template.catalogType} catalog, not the national one`);
+      }
       const gis = createGisService({});
-      const searchArea = { id: 'national-smoke', kind: 'radius', name: 'National smoke test',
-        catalogUrl: 'national/derived-catalog.json', derivedOnly: true, center,
-        radiusMiles, bbox: radiusBounds(center, radiusMiles) };
+      const searchArea = { ...template, id: 'national-smoke', name: 'National smoke test', kind: 'radius',
+        center, radiusMiles, bbox: radiusBounds(center, radiusMiles) };
       const run = await runDiscovery({ gis, searchArea });
       const sample = run.results.slice(0, 3).map(result => ({ id: result.id, name: result.name,
         lengthM: Math.round(result.lengthM), geometry: result.geometry?.type ?? null,
