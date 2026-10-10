@@ -4,7 +4,9 @@ import { test, expect } from '@playwright/test';
 // same derived discovery pipeline the committed 10/25/50-mile benchmarks verify. These tests cover the
 // interaction (map pick, coordinate entry, radius, preview, coverage, sharing) and the two things that must
 // not change with it: exact-radius inclusion, and zero external evidence requests.
-const EXTERNAL_HOSTS = /^https?:\/\/(?:[^/]*\.)?(?:inaturalist\.org|ebird\.org|overpass-api\.de|overpass\.kumi\.systems|openstreetmap\.org|roadnaturalist\.com)(?::\d+)?\//i;
+// `data.roadnaturalist.com` is deliberately absent: it is the application’s own published-asset origin
+// (the national derived plane), so a request to it is the app reading its data, not an outside service.
+const EXTERNAL_HOSTS = /^https?:\/\/(?:[^/]*\.)?(?:inaturalist\.org|ebird\.org|overpass-api\.de|overpass\.kumi\.systems|openstreetmap\.org|api\.roadnaturalist\.com)(?::\d+)?\//i;
 const EXTERNAL_PATTERNS = ['https://api.inaturalist.org/**', 'https://api.ebird.org/**', 'https://ebird.org/**',
   'https://overpass-api.de/**', 'https://overpass.kumi.systems/**', 'https://api.roadnaturalist.com/**'];
 
@@ -72,10 +74,12 @@ test('a map-picked centre and a typed centre run the same derived search, and re
   const picked = Number(await page.locator('#discovery-center-lat').inputValue());
   const pickedLon = Number(await page.locator('#discovery-center-lon').inputValue());
   expect(Number.isFinite(picked)).toBe(true);
-  expect(picked).toBeGreaterThan(44.75);
-  expect(picked).toBeLessThan(46.42);
-  expect(pickedLon).toBeGreaterThan(-124.05);
-  expect(pickedLon).toBeLessThan(-121.77);
+  // The map's frame is the published national region now, so a pick is an ordinary conterminous centre rather
+  // than a point inside the old Oregon window.
+  expect(picked).toBeGreaterThan(24.39);
+  expect(picked).toBeLessThan(49.39);
+  expect(pickedLon).toBeGreaterThan(-124.85);
+  expect(pickedLon).toBeLessThan(-66.88);
   expect(`${picked},${pickedLon}`).not.toBe(beforeLat);
   // The map draws the chosen centre, the requested radius and the selection box as a preview only.
   await expect(page.locator('#map .search-center')).toHaveCount(1);
@@ -118,19 +122,20 @@ test('a search that crosses the published edge is PARTIAL, and one that misses i
   const derivedRequests = [];
   await page.route('**/derived/corridor-metrics/**', route => { derivedRequests.push(route.request().url()); return route.continue(); });
   await boot(page);
-  // North of the published region's north edge, with a radius that reaches back into it.
-  await setCenter(page, 46.30, -122.90);
-  await setRadius(page, 25);
+  // The published region is now the conterminous states, so the edge is that region's edge: a centre just north
+  // of it, with a radius that reaches back in, is PARTIAL rather than a silent FULL or NONE.
+  await setCenter(page, 49.9, -95.0);
+  await setRadius(page, 50);
   await expect(page.locator('#discovery-search-status')).toContainText('Coverage: PARTIAL');
   await expect(page.locator('#discovery-search-status')).toContainText('crosses the edge of the published');
   await expect(page.locator('#discover-roads')).toBeEnabled();
-  await search(page, { radius: 25 });
+  await search(page, { radius: 50 });
   await expect(page.locator('#discovery')).toContainText('Discovery coverage PARTIAL');
   const read = derivedRequests.length;
   expect(read).toBeGreaterThan(0);
   // A centre whose circle cannot reach the region is answered before the search: status, reason, and a
   // disabled button - and no metric cell is read to find that out.
-  await setCenter(page, 43.0, -120.0);
+  await setCenter(page, 25.0, -140.0);
   await expect(page.locator('#discovery-search-status')).toContainText('Coverage: NONE');
   await expect(page.locator('#discovery-search-status')).toContainText('does not overlap the published');
   await expect(page.locator('#discovery')).toContainText('Cannot search');
@@ -140,7 +145,7 @@ test('a search that crosses the published edge is PARTIAL, and one that misses i
   expect(external).toEqual([]);
 });
 
-test('promotion of an arbitrary-search corridor reconstructs and verifies the raw corridor', async ({ page }) => {
+test('promotion of a national corridor is refused with the reason the data supports', async ({ page }) => {
   test.slow();
   await page.setViewportSize({ width: 1440, height: 1000 });
   const external = await watchExternal(page);
@@ -151,27 +156,23 @@ test('promotion of an arbitrary-search corridor reconstructs and verifies the ra
   await setRadius(page, 10);
   await search(page, { radius: 10, timeout: 240000 });
   expect(partitions).toEqual([]);
-  // A corridor with FULL habitat coverage is the strongest case: the detailed panel must measure the same
-  // corridor the search row described, from the raw regional partitions.
+  // A corridor with FULL habitat coverage is the strongest case.
   const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:text-is("FULL")') }).first();
   await expect(fullRow).toBeVisible({ timeout: 60000 });
   await fullRow.locator('.discovery-row').click();
   const selected = page.locator('#discovery-selected');
   await expect(selected).toContainText('Mapped wetland within 250 m');
-  const discoveryArea = await selected.locator('.discovery-facts div', { hasText: 'Mapped wetland within 250 m' }).locator('dd').innerText();
+  // Detailed promotion reads raw road, wetland and hydrography partitions, and those are deliberately not
+  // published for the national plane: the refusal is the contract, named in the panel, and it reads no partition
+  // and reaches no outside service. (Publishing per-region raw planes is the open decision that would change
+  // this test, not a bug to paper over.)
   await page.locator('#discovery-promote').click();
-  const habitat = page.locator('.habitat-section');
-  await expect(habitat).toContainText('PHYSICAL HABITAT EVIDENCE', { timeout: 300000 });
-  await expect(habitat).toContainText('Detailed GIS');
-  expect(partitions.length).toBeGreaterThan(0);
-  expect(partitions[0]).toContain('regional/partitions/');
-  if (discoveryArea !== 'None mapped' && discoveryArea !== 'Unknown') {
-    const wetlandFacts = habitat.locator('.habitat-block').first();
-    await expect(wetlandFacts).toContainText('Within 250 m');
-    const detailArea = await wetlandFacts.locator('dl div', { hasText: /^Within 250 m/ }).first().locator('dd').innerText();
-    expect(detailArea).toContain(discoveryArea);
-  }
-  await expect(page.locator('#candidate-list')).toContainText('discovered');
+  const refused = page.locator('#discovery-promotion-error');
+  await expect(refused).toBeVisible({ timeout: 120000 });
+  await expect(refused).toContainText('Promotion stopped');
+  await expect(refused).toContainText('not published');
+  expect(partitions).toEqual([]);
+  await expect(page.locator('#candidate-list')).not.toContainText('discovered');
   expect(external).toEqual([]);
 });
 

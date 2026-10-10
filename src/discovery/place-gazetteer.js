@@ -24,7 +24,7 @@ export const PLACE_FEATURE_CLASSES = Object.freeze({ city: 'City', town: 'Town',
 // A documented normalization rule, not data: the two abbreviations that appear in this source's own names
 // are folded to the word they abbreviate, so "St. Helens" and "Saint Helens" are the same query and the same
 // place. Nothing else is rewritten, and no alias list is invented.
-export const PLACE_ABBREVIATIONS = Object.freeze({ st: 'saint', mt: 'mount' });
+export const PLACE_ABBREVIATIONS = Object.freeze({ st: 'saint', mt: 'mount', ft: 'fort' });
 // A typo is one insertion, deletion or substitution, only for a query of at least five characters, and only
 // when the first character already matches: a short or unrelated query gets nothing rather than a guess.
 const FUZZY_MIN_LENGTH = 5;
@@ -51,6 +51,7 @@ export function placeLabel(place) {
 }
 
 export function placeTypeLabel(place) {
+  if (place?.type && NATIONAL_PLACE_TYPES[place.type]) return NATIONAL_PLACE_TYPES[place.type];
   return PLACE_FEATURE_CLASSES[place?.featureClass] ?? 'Place';
 }
 
@@ -214,7 +215,10 @@ const TIERS = Object.freeze([
 
 // One query, one answer: exact name, then prefix, then a later word, then a single bounded typo. No score is
 // computed, nothing is ranked by popularity, and a query that matches nothing says so.
-export function searchPlaces(gazetteer, rawQuery, { limit = MAX_PLACE_RESULTS } = {}) {
+export function searchPlaces(gazetteer, rawQuery, { limit = MAX_PLACE_RESULTS, center = null, recentIds = null } = {}) {
+  if (gazetteer?.kind === NATIONAL_LIBRARY_KIND) {
+    return searchNationalPlaces(gazetteer, rawQuery, { limit, center, recentIds });
+  }
   const source = typeof rawQuery === 'string' ? rawQuery.slice(0, MAX_PLACE_QUERY_LENGTH) : '';
   const query = normalizePlaceText(source);
   if (!gazetteer?.places?.length) {
@@ -267,6 +271,7 @@ const TIE_TOLERANCE_M = 1;
 
 export function nearestPlace(center, gazetteer, { maxDistanceM = MAX_NEAR_PLACE_M } = {}) {
   if (!Array.isArray(center) || center.length !== 2 || !center.every(Number.isFinite)) return null;
+  if (gazetteer?.kind === NATIONAL_LIBRARY_KIND) return nearestInLibrary(center, gazetteer, maxDistanceM);
   const places = gazetteer?.places;
   if (!Array.isArray(places) || !places.length) return null;
   let distanceM = Infinity;
@@ -307,8 +312,311 @@ export function placeMetadata(place) {
 
 export function storedPlaceMetadata(value) {
   if (!value || typeof value !== 'object') return null;
-  const id = typeof value.id === 'string' && /^[0-9]{7}$/.test(value.id) ? value.id : null;
+  const id = typeof value.id === 'string' && /^(?:[0-9]{7}|[A-Z]:[^:]{1,64})$/.test(value.id) ? value.id : null;
   const label = typeof value.label === 'string' && value.label.trim() && value.label.length <= 80 ? value.label.trim() : null;
   if (!id || !label) return null;
   return Object.freeze({ id, label, featureClass: PLACE_FEATURE_CLASSES[value.featureClass] ? value.featureClass : null });
 }
+
+// ================================================================ the national gazetteer (schema version 2)
+//
+// The artifact above matches a few hundred names in one window. The national artifact is tens of thousands of
+// rows, so it is a compact columnar document - one row of ten small values plus dictionaries for states,
+// counties, types and sources - read through a library that can hold one tier or two.
+//
+// Tiers, because they have different jobs: the core tier (populated places, counties, named federal areas) is
+// what an ordinary query matches, and the extended tier (postal codes, GNIS communities) is added on demand.
+// Both tiers declare identical dictionaries, so merging them is index-compatible.
+export const NATIONAL_PLACE_SCHEMA_VERSION = 2;
+// The longest published name in the national sources is a wildlife refuge at 80 characters, so the national
+// schema's bound is 96 rather than the regional artifact's 64 - and the builder refuses anything longer.
+export const MAX_NATIONAL_PLACE_NAME_LENGTH = 96;
+export const NATIONAL_LIBRARY_KIND = 'road-discovery-national-place-library';
+export const NATIONAL_PLACE_COLUMNS = Object.freeze(['id', 'name', 'state', 'county', 'lat', 'lon', 'type',
+  'population', 'prominence', 'source']);
+export const NATIONAL_PLACE_TYPES = Object.freeze({
+  city: 'City', town: 'Town', village: 'Village', borough: 'Borough', cdp: 'Census-designated place',
+  county: 'County', zip: 'ZIP Code Tabulation Area', community: 'Community', municipality: 'Municipality',
+  'national-park': 'National park', 'national-monument': 'National monument',
+  'national-historic-park': 'National historic park', 'national-historic-site': 'National historic site',
+  'national-battlefield': 'National battlefield', 'national-military-park': 'National military park',
+  'national-memorial': 'National memorial', 'national-seashore': 'National seashore',
+  'national-lakeshore': 'National lakeshore', 'national-recreation-area': 'National recreation area',
+  'national-preserve': 'National preserve', 'national-parkway': 'National parkway',
+  'national-scenic-trail': 'National scenic trail', 'wild-and-scenic-river': 'Wild and scenic river',
+  'national-scenic-river': 'National scenic river', 'national-forest': 'National forest',
+  'national-grassland': 'National grassland', 'national-wilderness': 'National wilderness area',
+  'national-conservation-area': 'National conservation area',
+  'national-wildlife-refuge': 'National wildlife refuge',
+  'wildlife-management-area': 'Wildlife management area', 'waterfowl-production-area': 'Waterfowl production area',
+  'research-natural-area': 'Research natural area', 'coordinated-area': 'Coordinated area',
+});
+// What a result's second line says. It must always disambiguate and never repeat the first line, so a county
+// names the kind of division it is, a postal code names its state (and county when one is known), and a
+// protected area names what it is rather than a county it may straddle.
+export function placeDetail(place) {
+  if (!place) return '';
+  if (place.type === 'county') return / (County|Parish)$/.test(place.name) ? place.name.split(' ').slice(-1)[0] : 'County';
+  if (place.type === 'zip') return place.county ? `${place.stateName} · ${place.county}` : place.stateName;
+  if (place.county) return place.county;
+  return NATIONAL_PLACE_TYPES[place.type] ?? 'Place';
+}
+
+
+export function validateNationalPlaceGazetteer(document) {
+  if (document?.kind !== PLACE_GAZETTEER_KIND || document.schemaVersion !== NATIONAL_PLACE_SCHEMA_VERSION) {
+    throw new TypeError('Not a national place gazetteer document');
+  }
+  const tables = document.dictionaries ?? {};
+  if (!Array.isArray(tables.states) || !Array.isArray(tables.stateNames)
+    || tables.states.length !== tables.stateNames.length || !tables.states.length
+    || !Array.isArray(tables.types) || !tables.types.length || !Array.isArray(tables.sources)
+    || !tables.sources.length || !Array.isArray(tables.counties)) {
+    throw new TypeError('The national gazetteer declares no dictionaries');
+  }
+  if (!Array.isArray(document.columns) || document.columns.length !== NATIONAL_PLACE_COLUMNS.length
+    || document.columns.some((column, index) => column !== NATIONAL_PLACE_COLUMNS[index])) {
+    throw new TypeError('The national gazetteer declares an unexpected column order');
+  }
+  if (!Array.isArray(document.rows) || !document.rows.length) throw new TypeError('The national gazetteer carries no rows');
+  const scope = document.scope ?? {};
+  if (!Array.isArray(scope.bounds) || scope.bounds.length !== 4 || !scope.bounds.every(Number.isFinite)) {
+    throw new TypeError('The national gazetteer declares no coverage');
+  }
+  const ids = new Set();
+  for (const row of document.rows) {
+    if (!Array.isArray(row) || row.length !== NATIONAL_PLACE_COLUMNS.length) {
+      throw new TypeError('A national gazetteer row is not the declared width');
+    }
+    if (typeof row[0] !== 'string' || !/^[A-Z]:[^:]{1,64}$/.test(row[0]) || ids.has(row[0])) {
+      throw new TypeError(`Invalid national place id: ${String(row[0]).slice(0, 40)}`);
+    }
+    ids.add(row[0]);
+    if (typeof row[1] !== 'string' || !row[1].trim() || row[1].length > MAX_NATIONAL_PLACE_NAME_LENGTH) {
+      throw new TypeError(`Invalid national place name for ${row[0]}`);
+    }
+    if (!Number.isSafeInteger(row[2]) || !tables.states[row[2]]) throw new TypeError(`Place ${row[0]} names no state`);
+    if (!Number.isSafeInteger(row[3]) || row[3] < -1 || row[3] >= tables.counties.length) {
+      throw new TypeError(`Place ${row[0]} names no county dictionary entry`);
+    }
+    if (!Number.isFinite(row[4]) || !Number.isFinite(row[5]) || row[4] < -90 || row[4] > 90
+      || row[5] < -180 || row[5] > 180) throw new TypeError(`Place ${row[0]} has no coordinate`);
+    if (!Number.isSafeInteger(row[6]) || !tables.types[row[6]]) throw new TypeError(`Place ${row[0]} names no type`);
+    if (!tables.sources[row[9]]) throw new TypeError(`Place ${row[0]} names no source`);
+  }
+  return document;
+}
+
+// The library: every loaded tier, decoded once into the shapes the search, the labels and the reverse lookup
+// need. The columnar arrays are released as they are read, so one tier costs one representation, not two.
+export function createPlaceLibrary(initial = []) {
+  const entries = [];
+  const byId = new Map();
+  const byZip = new Map();
+  const qualifiers = new Map();
+  const tiers = new Set();
+  const sources = new Map();
+  let tables = null;
+  let cells = null;
+  let loadedMs = 0;
+
+  function add(document) {
+    const started = Date.now();
+    const validated = validateNationalPlaceGazetteer(document);
+    const local = validated.dictionaries;
+    if (tables && JSON.stringify(tables) !== JSON.stringify(local)) {
+      throw new TypeError('A national gazetteer tier declares different dictionaries from the loaded one');
+    }
+    tables = local;
+    for (const row of validated.rows) {
+      if (byId.has(row[0])) continue;
+      const type = local.types[row[6]];
+      const place = Object.freeze({ id: row[0], name: row[1], state: local.states[row[2]],
+        stateName: local.stateNames[row[2]], county: row[3] < 0 ? null : local.counties[row[3]],
+        center: Object.freeze([row[5], row[4]]), type, population: row[7] < 0 ? null : row[7],
+        prominence: row[8], source: local.sources[row[9]],
+        featureClass: Object.hasOwn(PLACE_FEATURE_CLASSES, type) ? type : null });
+      byId.set(place.id, place);
+      const normalized = normalizePlaceText(place.name);
+      entries.push({ place, normalized });
+      if (type === 'zip') byZip.set(place.name, place);
+    }
+    for (let index = 0; index < local.states.length; index += 1) {
+      qualifiers.set(local.states[index].toLowerCase(), local.states[index]);
+      qualifiers.set(normalizePlaceText(local.stateNames[index]), local.states[index]);
+    }
+    loadedMs += Date.now() - started;
+    if (validated.scope?.tier) tiers.add(validated.scope.tier);
+    // The provenance a reader can see: every source the loaded tiers were built from, named once.
+    for (const [key, source] of Object.entries(validated.sources ?? {})) if (!sources.has(key)) sources.set(key, source);
+    cells = null;
+    return validated;
+  }
+  for (const document of initial) add(document);
+
+  return Object.freeze({
+    kind: NATIONAL_LIBRARY_KIND, schemaVersion: NATIONAL_PLACE_SCHEMA_VERSION,
+    get size() { return entries.length; },
+    get entries() { return entries; },
+    get places() { return entries.map(entry => entry.place); },
+    get byId() { return byId; },
+    get byZip() { return byZip; },
+    get qualifiers() { return qualifiers; },
+    get nearCells() { if (!cells) cells = buildNearCells(entries); return cells; },
+    get tiers() { return [...tiers]; },
+    get sources() { return Object.fromEntries(sources); },
+    loadedMs: () => loadedMs,
+    has: id => byId.has(id),
+    hasTier: tier => tiers.has(tier),
+    add,
+  });
+}
+
+// A half-degree grid over the core places, so labelling a map-picked centre is nine small buckets rather than a
+// scan of forty thousand haversines. Half a degree is at least 36 km everywhere in the conterminous states,
+// comfortably more than the ten-mile label radius, so the nine-cell neighbourhood always contains the answer.
+const NEAR_CELL_DEGREES = 0.5;
+
+export function buildNearCells(entries) {
+  const cells = new Map();
+  for (const entry of entries) {
+    const key = `${Math.floor(entry.place.center[0] / NEAR_CELL_DEGREES)}|${Math.floor(entry.place.center[1] / NEAR_CELL_DEGREES)}`;
+    const bucket = cells.get(key);
+    if (bucket) bucket.push(entry); else cells.set(key, [entry]);
+  }
+  return cells;
+}
+
+
+// ---------------------------------------------------------------- the national query and its tiers
+
+export const NATIONAL_PLACE_TIERS = Object.freeze(['zip', 'exact', 'prefix', 'token-prefix', 'typo']);
+
+// A query is a name with an optional trailing state qualifier, or a postal code. Parsing is total and
+// deterministic, and a qualifier is only taken when something remains to search for - so "new york" is a place,
+// not a state with an empty name.
+export function parsePlaceQuery(rawQuery, qualifiers = null) {
+  const source = typeof rawQuery === 'string' ? rawQuery.slice(0, MAX_PLACE_QUERY_LENGTH) : '';
+  const normalized = normalizePlaceText(source);
+  const tokens = normalized.split(' ').filter(Boolean);
+  if (qualifiers?.size) {
+    for (const size of [3, 2, 1]) {
+      if (tokens.length <= size) continue;
+      const code = qualifiers.get(tokens.slice(-size).join(' '));
+      if (!code) continue;
+      const rest = tokens.slice(0, -size).join(' ');
+      if (rest.length < MIN_PLACE_QUERY_LENGTH) continue;
+      return finishPlaceQuery(rest, code, normalized);
+    }
+  }
+  return finishPlaceQuery(normalized, null, normalized);
+}
+
+function finishPlaceQuery(text, state, normalized) {
+  if (/^[0-9]{5}$/.test(text)) return Object.freeze({ text: '', state, zip: text, normalized });
+  return Object.freeze({ text, state, zip: null, normalized });
+}
+
+// The four name tiers, in the order a person expects them, as a number so one pass can keep the best tier.
+// "A later word starts with the text" is a substring test on the normalized name - every word after the first
+// is preceded by a space - so no per-entry token array is needed, which is what keeps a 170,000-row library
+// cheap to hold and fast to scan.
+function nationalTier(entry, text) {
+  if (entry.normalized === text) return 0;
+  if (entry.normalized.startsWith(text)) return 1;
+  if (entry.normalized.includes(` ${text}`)) return 2;
+  return fuzzyMatch(entry, text) ? 3 : -1;
+}
+
+export function searchNationalPlaces(library, rawQuery, { limit = MAX_PLACE_RESULTS, center = null,
+  recentIds = null } = {}) {
+  const query = parsePlaceQuery(rawQuery, library.qualifiers);
+  if (!library.size) {
+    return Object.freeze({ status: 'unavailable', query: query.normalized, text: '', state: null, tier: null,
+      results: Object.freeze([]), message: 'Place names are not available in this build.' });
+  }
+  if (query.zip) {
+    const place = library.byZip.get(query.zip);
+    return place
+      ? Object.freeze({ status: 'ok', query: query.normalized, text: query.zip, state: query.state, tier: 'zip',
+        results: Object.freeze([place]), message: null })
+      : Object.freeze({ status: 'none', query: query.normalized, text: query.zip, state: query.state, tier: null,
+        results: Object.freeze([]),
+        message: `No ZIP Code Tabulation Area ${query.zip} is published in the conterminous United States.` });
+  }
+  if (query.text.length < MIN_PLACE_QUERY_LENGTH) {
+    return Object.freeze({ status: 'too-short', query: query.normalized, text: query.text, state: query.state,
+      tier: null, results: Object.freeze([]),
+      message: `Type at least ${MIN_PLACE_QUERY_LENGTH} characters of a place name or a five-digit ZIP code.` });
+  }
+  // One pass over the candidates keeps every entry of the best tier that matched, so the ranking below never
+  // has to rescan for a worse tier.
+  let tier = Number.POSITIVE_INFINITY;
+  let matched = [];
+  for (const entry of library.entries) {
+    if (query.state && entry.place.state !== query.state) continue;
+    const found = nationalTier(entry, query.text);
+    if (found < 0) continue;
+    if (found < tier) { tier = found; matched = [entry]; } else if (found === tier) matched.push(entry);
+  }
+  if (!matched.length) {
+    return Object.freeze({ status: 'none', query: query.normalized, text: query.text, state: query.state, tier: null,
+      results: Object.freeze([]),
+      message: `No place matching "${query.text}"${query.state ? ` in ${query.state}` : ''} is published in the `
+        + 'conterminous United States.' });
+  }
+  const recent = recentIds?.length ? new Set(recentIds) : null;
+  const scored = matched.map(entry => ({ entry, distance: center ? haversineM(center, entry.place.center) : null }));
+  scored.sort((left, right) => compareNational(left, right, { center, recent }));
+  return Object.freeze({ status: 'ok', query: query.normalized, text: query.text, state: query.state,
+    tier: NATIONAL_PLACE_TIERS[tier + 1],
+    results: Object.freeze(scored.slice(0, Math.max(1, limit)).map(item => item.entry.place)), message: null });
+}
+
+
+// Deterministic ordering inside one tier: how many people live there, then a place this device chose recently,
+// then how close it is to the centre already on screen, then the shorter and therefore more likely name, then
+// the name, the state and the id. Two runs on the same input always produce the same list.
+function compareNational(left, right, { center, recent }) {
+  const byPopulation = (right.entry.place.population ?? -1) - (left.entry.place.population ?? -1);
+  if (byPopulation) return byPopulation;
+  if (recent) {
+    const difference = (recent.has(right.entry.place.id) ? 1 : 0) - (recent.has(left.entry.place.id) ? 1 : 0);
+    if (difference) return difference;
+  }
+  if (center) {
+    const byDistance = left.distance - right.distance;
+    if (byDistance) return byDistance;
+  }
+  return (right.entry.place.prominence - left.entry.place.prominence)
+    || (left.entry.place.name.length - right.entry.place.name.length)
+    || left.entry.place.name.localeCompare(right.entry.place.name)
+    || left.entry.place.state.localeCompare(right.entry.place.state)
+    || left.entry.place.id.localeCompare(right.entry.place.id);
+}
+
+// Neighbouring cells hold every place within the label radius, so the reverse lookup is nine buckets rather
+// than forty thousand haversines.
+function nearestInLibrary(center, library, maxDistanceM) {
+  const cells = library.nearCells;
+  const keyX = Math.floor(center[0] / NEAR_CELL_DEGREES);
+  const keyY = Math.floor(center[1] / NEAR_CELL_DEGREES);
+  let bestDistance = Infinity;
+  let best = null;
+  const consider = place => {
+    const distance = haversineM(center, place.center);
+    if (distance < bestDistance - TIE_TOLERANCE_M) { bestDistance = distance; best = place; return; }
+    if (Math.abs(distance - bestDistance) <= TIE_TOLERANCE_M && (!best || comparePlaces(place, best) < 0)) {
+      bestDistance = Math.min(bestDistance, distance);
+      best = place;
+    }
+  };
+  for (let x = keyX - 1; x <= keyX + 1; x += 1) {
+    for (let y = keyY - 1; y <= keyY + 1; y += 1) {
+      for (const entry of cells.get(`${x}|${y}`) ?? []) consider(entry.place);
+    }
+  }
+  if (!best || !(maxDistanceM > 0) || bestDistance > maxDistanceM) return null;
+  return Object.freeze({ place: best, distanceM: bestDistance, label: nearPlaceLabel(best) });
+}
+

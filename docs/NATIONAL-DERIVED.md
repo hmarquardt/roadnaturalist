@@ -231,3 +231,20 @@ benchmark scenarios are unchanged, so rollback is either reverting the one commi
 `data/national/derived-catalog.json` also records `rollback` for the operator. No already-published national
 object is deleted to roll back.
 
+
+**Place-name search, and the browser specs that still describe the regional promotion contract.** National place
+search is three versioned tiers on Pages (`data/places/national-places*.json`), matched in the browser with no
+geocoder; `docs/DISCOVERY.md` has the sources, the ranking and the measured sizes, and
+`tests/national-place-gazetteer.test.js` holds the ranking, the geography, the contract that a chosen place is
+the definition its coordinates produce, and the failure cases. Because detailed promotion reads raw road,
+wetland and hydrography partitions and the national plane deliberately publishes none of them,
+`prepareRegionalSearch` refuses a national search with that reason — so the Playwright specs written when
+promotion always succeeded no longer describe the product. That is not a place-search effect: running
+`tests/candidate-persistence.spec.js` against the commit *before* the place tiers fails the same way, and
+`tests/search-center.spec.js` (which now asserts the refusal as the contract) and `tests/geolocation.spec.js`
+(whose promotion-dependent test is marked `fixme` with the cause) are the two that were brought into line. The
+release gates are unaffected: the six-region Node verification, the staging and settle gates, and the two
+production browser specs (`tests/national-derived-production.spec.js` and `tests/place-production.spec.js`, the
+latter resolving every place the brief names and running one discovery search per national region from a typed
+place name).
+

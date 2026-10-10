@@ -33,7 +33,7 @@ import { defaultSearchArea, searchAreaBounds, validateSearchAreas } from '../dis
 import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiveSearchArea,
   definitionFromSearchArea, formatRadius, initialSearchSelection, interactiveSearchTemplate, placeForSearch, radiusPresets,
   readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRefusal, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
-import { placeMetadata, validatePlaceGazetteer } from '../discovery/place-gazetteer.js';
+import { createPlaceLibrary, placeMetadata, validateNationalPlaceGazetteer } from '../discovery/place-gazetteer.js';
 import { nearestPlace } from '../discovery/place-gazetteer.js';
 import { centerPresentation, formatContextDirection, pendingSearchContext, runCenterPresentation, storedSearchContext } from '../discovery/search-context.js';
 import { filterAndSort } from '../discovery/filter.js';
@@ -44,10 +44,47 @@ const PILOT_URL = new URL('../../data/roads/or-roads-pilot.json', import.meta.ur
 // Declared discovery search areas. The loader refuses an area that is not inside every dataset it
 // requires, so the workspace can never offer a survey the loaded data cannot cover.
 const SEARCH_AREAS_URL = new URL('../../data/discovery/search-areas.json', import.meta.url);
-// The regional place-name gazetteer: a small static artifact reduced offline from the pinned U.S. Census
-// Bureau Gazetteer file (scripts/build-places.py). It answers "where is Hillsboro?" and nothing else - no
-// address, no landmark, no runtime geocoder - and it is validated against the published region on load.
-const PLACES_URL = new URL('../../data/places/or-sw-wa-portland-places.json', import.meta.url);
+// The national place gazetteer: three versioned tiers, read by need rather than all at once.
+//
+//   * `core` - populated places, counties and named federal areas: loaded in the background at start-up.
+//   * `postal` - ZIP Code Tabulation Areas: fetched the first time a query is a five-digit code.
+//   * `community` - the communities a Census place file does not carry (GNIS populated places): fetched the
+//     first time the core tier cannot answer, with a stated "searching wider" state.
+//
+// Measured on the committed artifacts: the core tier is 2.4 MB of JSON (884 KB compressed), about 96 ms to parse
+// and index, and about 19 MB of heap; postal codes add 40 ms and 18 MB; communities add 175 ms and 65 MB. That
+// is why the last two are fetched only when a query needs them, and why the UI yields a frame before the largest
+// one, so the field can say what it is doing instead of appearing to freeze. It is local, deterministic and
+// private: no geocoding service is contacted and nothing leaves the page.
+const PLACE_TIER_URL = Object.freeze({
+  core: new URL('../../data/places/national-places.json', import.meta.url),
+  postal: new URL('../../data/places/national-places-zip.json', import.meta.url),
+  community: new URL('../../data/places/national-places-communities.json', import.meta.url),
+});
+// The core tier's download starts here, at import time, so it overlaps the manifest and declaration fetches:
+// the workspace waits for the slowest of them rather than for their sum.
+const placeCoreRequest = fetchJson(PLACE_TIER_URL.core).then(document => validateNationalPlaceGazetteer(document));
+let placeLibrary = null;
+const placeTierLoads = new Map();
+
+// A tier is fetched at most once; a second request while the first is in flight waits for the same promise.
+function ensurePlaceTier(tier) {
+  if (!placeLibrary || placeLibrary.hasTier(tier)) return Promise.resolve(false);
+  if (placeTierLoads.has(tier)) return placeTierLoads.get(tier);
+  const load = (async () => {
+    try {
+      placeLibrary.add(validateNationalPlaceGazetteer(await fetchJson(PLACE_TIER_URL[tier])));
+      return true;
+    } catch (error) {
+      if (!store.getState().search.error) store.setSearchError(`Some place names are unavailable: ${error.message}`);
+      return false;
+    } finally {
+      placeTierLoads.delete(tier);
+    }
+  })();
+  placeTierLoads.set(tier, load);
+  return load;
+}
 // The reviewed operator capture of official-source research, replayed offline. The browser cannot crawl county
 // sites (they send no CORS header) and must not depend on a live Overpass mirror, so it replays this record and
 // offers a live OpenStreetMap re-check as an explicit, separate action.
@@ -89,10 +126,6 @@ let manifest = null;
 let manifestError = null;
 let searchAreas = [];
 let publishedRegion = null;
-// The window the place gazetteer was built for. It stays the regional pilot window even after the national
-// derived plane becomes the production discovery payload, because the committed gazetteer is a bounded Oregon
-// list and validates against its own build report; national searches are run from coordinates.
-let gazetteerRegion = null;
 let declaredRadiusPresets = [];
 let radiusSearchTemplate = null;
 let places = null;
@@ -114,7 +147,6 @@ async function loadSearchAreas() {
   // once the national derived plane is the production discovery payload, so a centre anywhere in the conterminous
   // United States is runnable rather than refused as "outside the published region".
   publishedRegion = declaration.discoveryRegion ?? declaration.publishedRegion ?? null;
-  gazetteerRegion = declaration.publishedRegion ?? null;
   declaredRadiusPresets = [...radiusPresets(declaration)];
   radiusSearchTemplate = interactiveSearchTemplate(declaration);
   // Precedence is explicit and testable: a URL search, then the search this device last chose, then a
@@ -140,12 +172,14 @@ async function loadSearchAreas() {
   return searchAreas;
 }
 
-// The place gazetteer is static, small, and loaded once. A missing or inconsistent artifact costs the
+// The national gazetteer's core tier, validated and indexed once. A missing or inconsistent artifact costs the
 // place-name field (the panel says so) and nothing else: coordinates remain the search.
 async function loadPlaces() {
   try {
-    places = validatePlaceGazetteer(await fetchJson(PLACES_URL), { region: gazetteerRegion });
+    placeLibrary = createPlaceLibrary([await placeCoreRequest]);
+    places = placeLibrary;
   } catch (error) {
+    placeLibrary = null;
     places = null;
     if (!store.getState().search.error) store.setSearchError(`Place names are unavailable: ${error.message}`);
   }
@@ -876,7 +910,7 @@ function renderDiscoveryPanel(state) {
   const discovery = { ...state.discovery, results: applyMarks(state.discovery.results, state.discovery.marks) };
   renderDiscovery(nodes.discovery, {
     discovery, searchAreas, searchAreaId: state.search.areaId, search: state.search,
-    presets: declaredRadiusPresets, region: publishedRegion, gazetteer: places,
+    presets: declaredRadiusPresets, region: publishedRegion, gazetteer: places, loadPlaceTier: ensurePlaceTier,
     onDiscover: () => { discoverRoads().catch(error => store.failDiscovery({ error: error.message, marks: state.discovery.marks })); },
     onSelect: id => store.selectDiscovery(id),
     onPromote: id => promoteDiscoveryCorridor(id),

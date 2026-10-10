@@ -147,10 +147,16 @@ The discovery workspace adds three payloads of its own: the bounded road-network
 (`data/gis/or-roads-network-2025.parquet`, a manifest dataset like the others), the declared search areas
 (`data/discovery/search-areas.json`, which also declares the published region a chosen search centre is
 classified against), and the discovery modules under `src/discovery/`. `stage:pages` refuses to stage
-a payload without the search-area declaration, and the manifest byte check covers the extract. The place
-gazetteer (`data/places/or-sw-wa-portland-places.json`, 57 KB) is a fourth: it is loaded by path like the
-declaration, and `stage:pages` refuses to stage a payload without it. Nothing else about it is special — it
-is static data on Pages, not an R2 object and not a Worker concern.
+a payload without the search-area declaration, and the manifest byte check covers the extract. The national place
+gazetteer is a fourth: three versioned assets loaded by path like the declaration — the core tier the workspace
+loads in the background (`data/places/national-places.json`, 2.4 MB), and the postal-code and community tiers it
+fetches the first time a query needs one (`national-places-zip.json`, 2.0 MB; `national-places-communities.json`,
+8.6 MB). `stage:pages` refuses to stage a payload that lacks any of them, and it fails the deployment when a tier
+is not a schema-2 national gazetteer, names the wrong tier, disagrees with its build report by byte or by row,
+does not share one dictionary with the other tiers, or carries no populated places, counties, postal codes and
+communities. The release chain settles the core and postal tiers at the deployed origin before any browser
+verdict, so a browser written against one version and data from another cannot pass unnoticed. Nothing else about
+them is special — they are static data on Pages, not R2 objects and not a Worker concern.
 
 `stage:pages` fails the deployment rather than shipping a broken payload: every stylesheet/icon/script referenced by
 `index.html`, every relative `import` in the `src/` module graph, and every dataset in `data/manifest.json` must be

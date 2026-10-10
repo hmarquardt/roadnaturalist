@@ -277,10 +277,20 @@ function removalControl(id, onRemove, { outingsUsing = 0 } = {}) {
   return block;
 }
 
+// The place vocabulary the workspace can search, with the government agencies it was built from. Naming the
+// agencies here is the same provenance claim every other dataset makes: a reader can see the list is Census and
+// USGS data and that nothing was geocoded.
+function gazetteerSummary(places) {
+  if (!places) return 'Unavailable';
+  const count = places.size ?? places.places?.length ?? 0;
+  const agencies = [...new Set(Object.values(places.sources ?? {}).map(source => source?.agency).filter(Boolean))];
+  return `${count.toLocaleString('en-US')} named places${agencies.length ? ` · ${agencies.join(', ')}` : ''}`;
+}
+
 export function renderContext(container, { manifest, pilotLoaded, error, coverage, roadQuery, places = null } = {}) {
   container.replaceChildren();
   const rows = [['Published GIS datasets', manifest ? `${manifest.datasets.length}` : 'Unavailable'],
-    ['Place-name gazetteer', places ? `${places.places.length} named places` : 'Unavailable']];
+    ['Place-name gazetteer', gazetteerSummary(places)]];
   for (const [datasetId, label] of Object.entries(COVERAGE_LABELS)) rows.push([label, coverage?.[datasetId]?.coverage ?? COVERAGE.UNKNOWN]);
   const dl = el('dl', 'coverage-list');
   for (const [label, value] of rows) { const row = el('div'); row.append(el('dt', '', label), el('dd', '', value)); dl.append(row); }

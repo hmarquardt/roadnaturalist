@@ -130,6 +130,52 @@ function stage() {
     }
   }
 
+  // The national place gazetteer is three versioned browser assets: the core tier the workspace loads with the
+  // page, and the postal-code and community tiers it fetches the first time a query needs one. They are ordinary
+  // data files, so the copy above already staged them; the gate checks the declared shape, the shared dictionary
+  // and the row counts against the build report, because a release whose place tiers disagree with each other
+  // must fail here rather than in the browser.
+  const placeTiers = { core: 'data/places/national-places.json', postal: 'data/places/national-places-zip.json',
+    community: 'data/places/national-places-communities.json' };
+  const placeReportPath = join(ROOT, 'data/places/build-national-places.json');
+  const placeReport = existsSync(placeReportPath) ? readJson(placeReportPath) : null;
+  if (!placeReport) regionalProblems.push('national place gazetteer build report is missing');
+  const placeDocuments = {};
+  for (const [tier, relative] of Object.entries(placeTiers)) {
+    const path = join(DIST, relative);
+    if (!existsSync(path)) { regionalProblems.push(`the ${tier} place tier is not staged: ${relative}`); continue; }
+    const document = readJson(path);
+    placeDocuments[tier] = document;
+    if (document.kind !== 'road-discovery-place-gazetteer' || document.schemaVersion !== 2) {
+      regionalProblems.push(`the ${tier} place tier is not a schema-2 national gazetteer`);
+      continue;
+    }
+    if (document.scope?.tier !== tier) regionalProblems.push(`the ${tier} place tier declares tier ${document.scope?.tier}`);
+    if (placeReport) {
+      const entry = placeReport.artifacts?.[tier === 'core' ? 'core' : tier === 'postal' ? 'postalCode' : 'community'];
+      const bytes = readFileSync(path);
+      if (!entry) regionalProblems.push(`the build report describes no ${tier} place tier`);
+      else if (bytes.length !== entry.bytes || sha256(bytes) !== entry.sha256) {
+        regionalProblems.push(`the ${tier} place tier does not match its build report`);
+      } else if (document.rows.length !== entry.jsonRows) {
+        regionalProblems.push(`the ${tier} place tier's row count does not match its build report`);
+      }
+    }
+  }
+  if (placeDocuments.core && placeDocuments.postal) {
+    // The tiers are merged in one library, so their dictionary indices must mean the same thing.
+    if (JSON.stringify(placeDocuments.core.dictionaries) !== JSON.stringify(placeDocuments.postal.dictionaries)
+      || JSON.stringify(placeDocuments.core.dictionaries) !== JSON.stringify(placeDocuments.community?.dictionaries)) {
+      regionalProblems.push('the place tiers do not share one dictionary');
+    }
+    if (!placeDocuments.core.rows.some(row => row[0].startsWith('P:'))
+      || !placeDocuments.core.rows.some(row => row[0].startsWith('C:'))
+      || !placeDocuments.postal.rows.some(row => row[0].startsWith('Z:'))
+      || !placeDocuments.community?.rows.some(row => row[0].startsWith('G:'))) {
+      regionalProblems.push('the place tiers do not carry populated places, counties, postal codes and communities');
+    }
+  }
+
   // A tiny 404 page: Pages serves it for unknown paths instead of a blank response.
   writeFileSync(join(DIST, '404.html'), '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Not found — Road Naturalist</title><h1>Not found</h1><p><a href="/">Road Naturalist</a></p></html>\n');
 

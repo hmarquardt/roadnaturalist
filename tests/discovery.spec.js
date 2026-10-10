@@ -11,7 +11,9 @@ const expectedFeatures = summary.featureCount - summary.classCounts.S1500;
 // Discovery must reach no occurrence source, no Investigator Worker, and no live OpenStreetMap. The
 // guard matches external hosts only: the application's own occurrence adapter modules live under
 // /src/occurrence/ and must load normally.
-const EXTERNAL_HOSTS = /^https?:\/\/(?:[^/]*\.)?(?:inaturalist\.org|ebird\.org|overpass-api\.de|overpass\.kumi\.systems|openstreetmap\.org|roadnaturalist\.com)(?::\d+)?\//i;
+// `data.roadnaturalist.com` is deliberately absent: it is the application’s own published-asset origin
+// (the national derived plane), so a request to it is the app reading its data, not an outside service.
+const EXTERNAL_HOSTS = /^https?:\/\/(?:[^/]*\.)?(?:inaturalist\.org|ebird\.org|overpass-api\.de|overpass\.kumi\.systems|openstreetmap\.org|api\.roadnaturalist\.com)(?::\d+)?\//i;
 const EXTERNAL_PATTERNS = ['https://api.inaturalist.org/**', 'https://api.ebird.org/**', 'https://ebird.org/**',
   'https://overpass-api.de/**', 'https://overpass.kumi.systems/**', 'https://api.roadnaturalist.com/**'];
 

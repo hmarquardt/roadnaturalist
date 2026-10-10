@@ -6,7 +6,7 @@ import { MAX_RESULT_ROWS, SEGMENTED_ROAD_NOTE } from '../discovery/constants.js'
 import { CUSTOM_SEARCH_AREA_ID, DEFAULT_RADIUS_MILES, MAX_RADIUS_MILES, MIN_RADIUS_MILES, RADIUS_STOPS_MILES,
   areaCoverage, formatCenter, formatRadius, radiusNumber, readSearchDefinition, searchIsRunnable,
   searchRefusal, searchRegionCoverage, storedDefinition } from '../discovery/search-definition.js';
-import { placeLabel, placeTypeLabel, searchPlaces, nearestPlace } from '../discovery/place-gazetteer.js';
+import { parsePlaceQuery, placeDetail, placeLabel, placeTypeLabel, searchPlaces, nearestPlace } from '../discovery/place-gazetteer.js';
 import { CENTER_LABEL_KIND, CONTEXT_NOTE, centerPresentation, formatContextDistance, formatContextDirection, runCenterPresentation } from '../discovery/search-context.js';
 import { LOCATION_STATUS, accuracyLabel } from '../discovery/geolocation.js';
 import { formatArea, formatDistance, formatLength } from './render.js';
@@ -23,11 +23,13 @@ function el(tag, className, text) { const node = document.createElement(tag); if
 const CLASS_LABELS = Object.freeze({ S1200: 'Secondary road', S1400: 'Local road' });
 
 export function renderDiscovery(container, { discovery, searchAreas = [], searchAreaId = null, search = null,
-  presets = [], region = null, gazetteer = null, onDiscover, onSelect, onPromote, onDismiss, onFilters, onSort, onSearchArea,
-  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported = false } = {}) {
+  presets = [], region = null, gazetteer = null, loadPlaceTier = null, onDiscover, onSelect, onPromote, onDismiss,
+  onFilters, onSort, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace,
+  onUseLocation, locationSupported = false } = {}) {
   container.replaceChildren();
-  container.append(controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, onDiscover,
-    onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }));
+  container.append(controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, loadPlaceTier,
+    onDiscover, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation,
+    locationSupported }));
   if (discovery.error) container.append(el('p', 'discovery-error', discovery.error));
   // A promotion that could not be completed says so, with the reason the application actually hit. It used to
   // be state that nothing rendered: pressing Promote on a published object that was never uploaded looked
@@ -71,8 +73,9 @@ function staleResults({ discovery, search, searchAreaId }) {
   return `These results are from the previous search (${previous}). Choose a centre and radius, then search again to replace them.`;
 }
 
-function controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, onDiscover, onSearchArea,
-  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }) {
+function controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, loadPlaceTier = null,
+  onDiscover, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace,
+  onUseLocation, locationSupported }) {
   const block = el('div', 'discovery-controls');
   if (searchAreas.length > 1) {
     const label = el('label', 'discovery-field', 'Search area');
@@ -94,8 +97,8 @@ function controls({ discovery, searchAreas, searchAreaId, search, presets, regio
   } else if (searchAreas.length === 1) {
     block.append(el('p', 'discovery-area', `Search area: ${searchAreas[0].name}`));
   }
-  block.append(searchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, onSearchDefinition,
-    onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }));
+  block.append(searchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, loadPlaceTier,
+    onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }));
   const customSearch = searchAreaId === CUSTOM_SEARCH_AREA_ID;
   const coverage = coverageOf({ search, searchAreas, searchAreaId, region });
   const runnable = customSearch ? Boolean(search?.definition) && searchIsRunnable({ ok: true, coverage }) : true;
@@ -142,8 +145,8 @@ function coverageOf({ search, searchAreas, searchAreaId, region }) {
 
 // The centre and the radius. Every control here produces the same plain value, and a map pick, a preset, a
 // shared URL and a remembered search are all just other ways of arriving at it.
-function searchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, onSearchDefinition, onSearchRadius,
-  onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }) {
+function searchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, loadPlaceTier = null,
+  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }) {
   const block = el('div', 'discovery-search');
   const draft = search?.definition ?? null;
   const custom = searchAreaId === CUSTOM_SEARCH_AREA_ID;
@@ -169,7 +172,7 @@ function searchControls({ search, searchAreas, searchAreaId, presets, region, ga
   status.append(el('p', `small discovery-coverage-line ${(coverage?.coverage ?? COVERAGE.UNKNOWN).toLowerCase()}`,
     `Coverage: ${coverage?.coverage ?? COVERAGE.UNKNOWN}${coverage?.reason ? ` — ${coverage.reason}` : ''}`));
   block.append(status);
-  block.append(placeFinder({ gazetteer, place, onSelectPlace }));
+  block.append(placeFinder({ gazetteer, place, onSelectPlace, loadPlaceTier }));
   // Another way to say where: the browser's own location, after an explicit click and nothing else. It sits
   // beside the other centre inputs rather than above them, and the radius below stays the person's.
   block.append(locationControl({ location: search?.location ?? null, supported: locationSupported, onUseLocation }));
@@ -320,7 +323,7 @@ function locationControl({ location = null, supported = false, onUseLocation = n
   return block;
 }
 
-function placeFinder({ gazetteer, place, onSelectPlace }) {
+function placeFinder({ gazetteer, place, onSelectPlace, loadPlaceTier = null }) {
   const box = el('div', 'discovery-place');
   box.id = 'discovery-place-box';
   if (!gazetteer) {
@@ -333,7 +336,7 @@ function placeFinder({ gazetteer, place, onSelectPlace }) {
   input.id = 'discovery-place';
   input.autocomplete = 'off';
   input.spellcheck = false;
-  input.placeholder = 'Hillsboro';
+  input.placeholder = 'Princeton, IN — or a ZIP code';
   input.setAttribute('role', 'combobox');
   input.setAttribute('aria-expanded', 'false');
   input.setAttribute('aria-controls', 'discovery-place-results');
@@ -349,7 +352,8 @@ function placeFinder({ gazetteer, place, onSelectPlace }) {
   status.id = 'discovery-place-status';
   status.setAttribute('role', 'status');
   box.append(field, list, status);
-  const finder = { input, list, status, results: [], active: -1, open: false, onSelect: onSelectPlace };
+  const finder = { input, list, status, results: [], active: -1, open: false, onSelect: onSelectPlace,
+    onNeedTier: loadPlaceTier, generation: 0 };
   input.addEventListener('input', () => updatePlaceResults(finder, gazetteer));
   input.addEventListener('keydown', event => onPlaceKey(event, finder, gazetteer, onSelectPlace));
   input.addEventListener('blur', () => closePlaceResults(finder));
@@ -370,8 +374,23 @@ function closePlaceResults(finder) {
   finder.input.removeAttribute('aria-activedescendant');
 }
 
-function updatePlaceResults(finder, gazetteer) {
-  const outcome = searchPlaces(gazetteer, finder.input.value);
+// One keystroke, one answer - and at most one lazy tier fetch. A five-digit query asks for the postal-code
+// tier; a query the core tier cannot answer asks for the community tier once, saying so while it does. A newer
+// keystroke supersedes an older in-flight search through the finder's generation, so a slow fetch can never
+// overwrite a fresher list.
+async function updatePlaceResults(finder, gazetteer) {
+  const generation = (finder.generation += 1);
+  let outcome = searchPlaces(gazetteer, finder.input.value);
+  const wanted = tierToLoad(gazetteer, finder.input.value, outcome);
+  if (wanted) {
+    finder.status.textContent = wanted.message;
+    finder.input.setAttribute('aria-busy', 'true');
+    await nextFrame();
+    await finder.onNeedTier?.(wanted.tier);
+    finder.input.removeAttribute('aria-busy');
+    if (generation !== finder.generation) return;
+    outcome = searchPlaces(gazetteer, finder.input.value);
+  }
   finder.results = outcome.status === 'ok' ? [...outcome.results] : [];
   finder.active = finder.results.length ? 0 : -1;
   finder.open = finder.results.length > 0;
@@ -379,6 +398,27 @@ function updatePlaceResults(finder, gazetteer) {
     ? `${finder.results.length} matching place${finder.results.length === 1 ? '' : 's'}.`
     : (finder.input.value.trim() ? outcome.message : '');
   renderPlaceOptions(finder);
+}
+
+// Which lazy tier this query needs, if any. A tier already loaded, a build that offers none, or a query too
+// short to be worth a fetch needs nothing.
+function tierToLoad(gazetteer, rawQuery, outcome) {
+  if (typeof gazetteer?.hasTier !== 'function') return null;
+  const query = parsePlaceQuery(rawQuery, gazetteer.qualifiers);
+  if (query.zip && !gazetteer.hasTier('postal')) return { tier: 'postal', message: 'Looking up that ZIP code…' };
+  if (outcome.status === 'none' && outcome.text.length >= 3 && !gazetteer.hasTier('community')) {
+    return { tier: 'community', message: 'Searching every U.S. place name…' };
+  }
+  return null;
+}
+
+// Let the field paint the state it just set before the (largest) tier is parsed and indexed, so a 175 ms index
+// build reads as work being done rather than as a frozen page.
+function nextFrame() {
+  return new Promise(resolve => {
+    if (typeof globalThis.requestAnimationFrame === 'function') globalThis.requestAnimationFrame(() => resolve());
+    else resolve();
+  });
 }
 
 function renderPlaceOptions(finder) {
@@ -394,7 +434,11 @@ function renderPlaceOptions(finder) {
     option.id = `discovery-place-option-${index}`;
     option.setAttribute('role', 'option');
     option.setAttribute('aria-selected', String(index === finder.active));
-    option.append(el('span', 'discovery-place-name', placeLabel(place)), el('span', 'discovery-place-type', placeTypeLabel(place)));
+    // The second line is what separates two places with the same name: the county a person knows, the state a
+    // ZIP code falls in, or the kind of area a protected place is.
+    option.append(el('span', 'discovery-place-name', placeLabel(place)),
+      el('span', 'discovery-place-detail', ` — ${placeDetail(place)}`),
+      el('span', 'discovery-place-type', placeTypeLabel(place)));
     // A pointer press selects without moving focus out of the field, so the same list works with a mouse, a
     // finger, and a keyboard.
     option.addEventListener('pointerdown', event => { event.preventDefault(); choosePlace(finder, index, finder.onSelect); });
@@ -409,8 +453,12 @@ function onPlaceKey(event, finder, gazetteer, onSelectPlace) {
     return;
   }
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-    if (!finder.open && finder.input.value.trim()) updatePlaceResults(finder, gazetteer);
-    if (!finder.open) return;
+    if (!finder.open) {
+      // The list is filled by the (possibly lazy) search this starts; this press only asks for it, so the next
+      // press has something to move through. Nothing here blocks or reorders the keystroke.
+      if (finder.input.value.trim()) updatePlaceResults(finder, gazetteer);
+      return;
+    }
     event.preventDefault();
     const step = event.key === 'ArrowDown' ? 1 : -1;
     finder.active = (finder.active + step + finder.results.length) % finder.results.length;

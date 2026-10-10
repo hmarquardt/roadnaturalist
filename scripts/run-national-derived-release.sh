@@ -93,6 +93,8 @@ settle dist/src/discovery/discovery-catalog.js /src/discovery/discovery-catalog.
 settle dist/src/discovery/national-catalog.js /src/discovery/national-catalog.js || fail "deployment settle (national catalog)"
 settle dist/data/national/derived-catalog.json /data/national/derived-catalog.json || fail "deployment settle (national pointer)"
 settle dist/data/discovery/search-areas.json /data/discovery/search-areas.json || fail "deployment settle (declaration)"
+settle dist/data/places/national-places.json /data/places/national-places.json || fail "deployment settle (place core tier)"
+settle dist/data/places/national-places-zip.json /data/places/national-places-zip.json || fail "deployment settle (place postal tier)"
 
 # The R2 evidence is recorded here, after the deploy (which needs a clean tree) and before the verdict, so a
 # failed browser gate still leaves the R2 publication verification committed and correctly labelled.
@@ -100,8 +102,12 @@ settle dist/data/discovery/search-areas.json /data/discovery/search-areas.json |
 cp "$WORK/production-verify.log" data/national/verification/derived-publication-production.txt
 
 say "stage 6 real-browser production check"
-if PRODUCTION_BASE_URL="$ORIGIN" RUN_NATIONAL_PRODUCTION=1 \
-   npx playwright test tests/national-derived-production.spec.js --reporter=line --retries=0 \
+# One verdict, two specs: the six-region national discovery check, and the place-name search that now drives it
+# (every place the brief names, plus one discovery search per region started from a typed place name). Both run
+# against the settled origin, so the verdict describes the build under review and not the previous release.
+if PRODUCTION_BASE_URL="$ORIGIN" RUN_NATIONAL_PRODUCTION=1 RUN_PLACE_PRODUCTION=1 \
+   npx playwright test tests/national-derived-production.spec.js tests/place-production.spec.js \
+   --reporter=line --retries=0 \
    > "$WORK/browser-production.txt" 2>&1; then
   cp "$WORK/browser-production.txt" data/national/verification/derived-publication-browser.txt
   node scripts/record-national-release-status.mjs --browser passed \

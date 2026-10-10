@@ -7,7 +7,9 @@ import { test, expect } from '@playwright/test';
 // the URL stays coordinates, every refusal is a sentence rather than a dead panel, a late fix cannot overwrite a
 // newer choice, and a reload never asks the browser for a location again.
 const HILLSBORO = { latitude: 45.5229, longitude: -122.9898, accuracy: 120 };
-const EXTERNAL_HOSTS = /^https?:\/\/(?:[^/]*\.)?(?:inaturalist\.org|ebird\.org|overpass-api\.de|overpass\.kumi\.systems|openstreetmap\.org|roadnaturalist\.com|nominatim\.openstreetmap\.org|api\.mapbox\.com|maps\.googleapis\.com|geocoding\.geo\.census\.gov)(?::\d+)?\//i;
+// `data.roadnaturalist.com` is deliberately absent: it is the application’s own published-asset origin
+// (the national derived plane), so a request to it is the app reading its data, not an outside service.
+const EXTERNAL_HOSTS = /^https?:\/\/(?:[^/]*\.)?(?:inaturalist\.org|ebird\.org|overpass-api\.de|overpass\.kumi\.systems|openstreetmap\.org|api\.roadnaturalist\.com|nominatim\.openstreetmap\.org|api\.mapbox\.com|maps\.googleapis\.com|geocoding\.geo\.census\.gov)(?::\d+)?\//i;
 const EXTERNAL_PATTERNS = ['https://api.inaturalist.org/**', 'https://api.ebird.org/**', 'https://ebird.org/**',
   'https://overpass-api.de/**', 'https://overpass.kumi.systems/**', 'https://api.roadnaturalist.com/**',
   'https://nominatim.openstreetmap.org/**', 'https://api.mapbox.com/**', 'https://maps.googleapis.com/**',
@@ -207,7 +209,13 @@ test('a reload restores the located centre without asking the browser for a loca
   expect(external).toEqual([]);
 });
 
-test('a candidate found from a located centre is kept on this device, with no location request on restore', async ({ page }) => {
+// FIXME: this test promotes a corridor to check that a candidate comes back from local storage, and detailed
+// promotion of a *national* corridor is deliberately refused: the raw road, wetland and hydrography partitions
+// behind the national derived plane are not published (src/gis/service.js, `prepareRegionalSearch`). The located
+// centre, the search it runs and the "no location request on restore" behaviour are all still covered by the
+// tests above. Re-enable this the day per-region raw-plane publication is a decision, and see
+// tests/search-center.spec.js for the refusal asserted as a contract in the meantime.
+test.fixme('a candidate found from a located centre is kept on this device, with no location request on restore', async ({ page }) => {
   test.slow();
   await page.setViewportSize({ width: 1440, height: 1000 });
   const external = await watchExternal(page);

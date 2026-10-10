@@ -183,134 +183,144 @@ promote a corridor  ->  Saved roads: favorite · note · sort · filter  ->  com
   figures (`SAVED_ROADS_SIZE`) for sets of 10, 50 and 100 with and without notes.
 
 ## Finding a place by name
-The centre can also be named. Typing a place into **Find a place** resolves it to a centre and hands that
-centre to the same search definition a map click or a typed coordinate produces:
+
+The centre can also be named. Typing a place into **Find a place** resolves it to a centre and hands that centre
+to the same search definition a map click or a typed coordinate produces:
 
 ```
-"Hillsboro"  ->  local gazetteer  ->  Hillsboro, OR (45.5268, -122.93539)  ->  the radius control  ->  derived discovery
+"Princeton, IN"  ->  national gazetteer  ->  Princeton, IN (38.35447, -87.57951)  ->  the radius control  ->  national derived discovery
+"47715"          ->  postal-code tier    ->  47715, IN (37.97230, -87.57110)     ->  the radius control  ->  national derived discovery
 ```
 
-It is a lookup, not a geocoder. There is no street-address search, no live geocoding service, no browser
-location permission, and no landmark or feature search: a few hundred named places are matched in the
-browser, in a fraction of a millisecond, and nothing leaves the page.
+It is a lookup, not a geocoder. There is no street-address search, no live geocoding service, no browser location
+permission, and no runtime request to any third party: every name is matched in the browser against committed,
+versioned, public-domain government data, and nothing leaves the page.
 
-### Source
+### What is searchable
 
-| | |
-| --- | --- |
-| Agency | U.S. Census Bureau |
-| Dataset | 2025 Gazetteer Files — Places (national) |
-| Source archive | `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_Gaz_place_national.zip` |
-| Published | 2025-09-10 (member file date 2025-09-08) |
-| Archive digest | 1,214,053 bytes, SHA-256 `49644173a453469d9bd77fb7a493b027f87567e209edaf2078aac7543ac2ee29` |
-| Member | `2025_Gaz_place_national.txt`, 3,288,984 bytes, SHA-256 `15f4977a010cc42308f4d5ddc5e19f26ef63fc035f20745333a14b78aa08d3fa` |
-| Licence | Public domain (U.S. Government work) |
-| Vintage | The same Census vintage the pinned TIGER/Line 2025 road geometry comes from |
-
-### What a place is here
-
-Places are the Census Bureau's own legal and statistical places, by LSAD code, and nothing else:
-
-| LSAD | Class | Shown as |
+| Feature type | Source | Rows (conterminous states) |
 | --- | --- | --- |
-| 25 | `city` | City |
-| 43 | `town` | Town |
-| 57 | `cdp` | Census-designated place |
+| Incorporated places (`city`, `town`, `village`, `borough`, `municipality`) | Census 2025 Gazetteer, places | 19,320 |
+| Census-designated places (`cdp`) | Census 2025 Gazetteer, places | 12,171 |
+| Consolidated city-county governments (Nashville, Louisville, Indianapolis, Carson City …) | Census 2025 Gazetteer, places | 8 |
+| Counties and parishes | Census 2025 Gazetteer, counties | 3,109 |
+| ZIP Code Tabulation Areas | Census 2025 Gazetteer, ZCTAs | 33,300 |
+| Named federal areas (parks, forests, grasslands, refuges, wilderness, seashores, preserves …) | USGS Federal Lands of the United States, 1:1,000,000 | 1,329 |
+| Communities the Census place file does not carry | USGS GNIS, populated places | 135,628 |
 
-The build refuses to guess: a row is kept only when the published `NAME` carries exactly the class suffix
-its LSAD implies, and when `FUNCSTAT` matches that class's status (active legal entity for a city or town,
-statistical entity for a CDP). Unincorporated communities, post-office names, streams, peaks, schools,
-churches, roads and buildings are **not** in this dataset and are not searched.
+Population — the Census Bureau's Vintage 2024 estimates for places and counties — is the prominence signal
+ranking uses. GNIS contributes no name a Census place already carries: a feature whose normalized name and state
+describe a Census place is the same real place, and the build drops it (34,135 such features).
 
-### Scope
-
-The gazetteer covers the published regional coverage plus a margin wide enough for the largest search the
-interface offers (50 statute miles):
+### Sources
 
 | | |
 | --- | --- |
-| Published region | `[-124.05, 44.75, -121.77, 46.42]` |
-| Window rectangle | `[-125.11284, 44.02205, -120.70716, 47.14795]` (published region ± 0.727946° latitude, ± 1.062840° longitude, evaluated at the window's most poleward latitude) |
-| Inclusion rule | inside the rectangle **and** within 50 miles of the published region |
-| Places | 387 (234 Oregon, 153 Washington: 172 cities, 9 towns, 206 CDPs) |
-| Artifact | `data/places/or-sw-wa-portland-places.json`, 57,249 bytes, SHA-256 `7c07b18b686896683abee953f482f41ac545663f7c975c9792ee74298f744d24` |
 
-The rectangle is only the outer bound; the rule is the distance, so every place in the artifact can reach
-published coverage with a search of at most 50 miles. A place whose own search could never reach the region
-is not offered at all — it could not return a corridor at any radius, and the interface does not present dead
-ends. A place outside the published region is deliberately **kept** when it can reach it: the search is
-reported PARTIAL and the outside is never read as empty.
+### Delivery: three tiers, measured
 
-### Identity and disambiguation
+The dataset is too large for one asset to be loaded on every visit, so it is partitioned by *what a query
+needs*, and the partition was chosen from measurement (record counts, bytes, parse and index time, heap) rather
+than intuition:
 
-The place id is the Census Bureau's own 7-digit place GEOID, which encodes the state FIPS prefix; a name is
-never an identifier. Two places can share a name, and the result list shows what separates them:
+| Tier | Rows | JSON bytes | Compressed | Parse + index | Heap | Loaded |
+| --- | --- | --- | --- | --- | --- | --- |
+| `core` — places, counties, federal areas | 35,937 | 2.4 MB | 884 KB | ~96 ms | ~19 MB | in the background at start-up, overlapping the manifest |
+| `postal` — ZIP Code Tabulation Areas | 33,300 | 2.0 MB | 495 KB | ~49 ms | ~18 MB | the first time a query is a five-digit code |
+| `community` — GNIS populated places | 135,628 | 8.6 MB | 2.7 MB | ~218 ms | ~65 MB | the first time the core tier cannot answer |
 
-```
-Toledo, OR            Toledo, WA            Fairview, OR                Fairview, OR
-City                  City                  City                        Census-designated place
-```
+They are ordinary versioned assets on the same origin as the application, so a browser caches them like any
+other file; the community tier yields a frame before it is indexed, so the field can say "Searching every U.S.
+place name…" instead of appearing to freeze. A tier that fails to arrive costs the names it would have carried
+and nothing else, and the field says so.
 
 ### Matching
 
-Normalization is deterministic and applied identically to a query and to every stored name: Unicode NFKD
-with combining marks removed, case folded, periods, apostrophes, hyphens and slashes treated as separators,
-remaining punctuation dropped, whitespace collapsed, and two documented abbreviation folds (`st` → `saint`,
-`mt` → `mount`) so that "St. Helens" and "Saint Helens" are the same query and the same place. Nothing else
-is rewritten, and no alias list is invented.
+Normalization is deterministic, applied identically to a query and to every stored name, and written down once in
+both languages — the builder emits `data/places/place-normalization-fixture.json`, and the browser is held to it
+by a test: Unicode NFKD with combining marks removed, case folded, periods, apostrophes, hyphens and slashes
+treated as separators, remaining punctuation dropped, whitespace collapsed, and three documented abbreviation
+folds (`st` → `saint`, `mt` → `mount`, `ft` → `fort`). Directional abbreviations are deliberately *not* folded:
+`n` already matches `north` by prefix, and folding a single letter would merge names that are not the same.
 
-Matching runs in tiers, in this order, and stops at the first tier that matches:
+A trailing state qualifier is taken when something remains to search for — `princeton in`, `cookeville tn`,
+`nashville tennessee`, `portland oregon` — so `new york` is a place, not a state with an empty name. A five-digit
+query is a postal code.
 
-1. **exact** normalized name
-2. **prefix** of the name (`hills` → Hillsboro)
-3. **word prefix** of any later word (`grove` → Forest Grove, Oak Grove)
-4. **one typo** — a single insertion, deletion or substitution, only for queries of at least five characters
-   and only when the first character already matches (`hilsboro` → Hillsboro; `millboro` → nothing)
+Matching runs in tiers, in this order, and the best tier that matches wins:
 
-A trailing state qualifier (`toledo wa`, `toledo, washington`, `toledo oregon`) narrows the match instead of
-being part of the name. A query shorter than **three characters** is refused rather than guessed at; the
-minimum is measured against this list (at two characters five prefixes already fill the capped list and the
-mean result count is 3.2; at three characters no prefix exceeds six and the mean is 1.4). At most eight
-results are returned, ordered by name length and then alphabetically — there is no score, no popularity
-ranking, and no wild guess for a short or unrelated query. An address-shaped query matches nothing and says so
-plainly.
+1. **zip** — an exact published ZIP Code Tabulation Area
+2. **exact** — the whole normalized name, with the state qualifier narrowing it
+3. **prefix** — the name starts with the query (`great smoky` → Great Smoky Mountains National Park)
+4. **word prefix** — a later word starts with the query (`grove` → Forest Grove, Oak Grove)
+5. **one typo** — a single insertion, deletion or substitution, only for queries of at least five characters and
+   only when the first character already matches (`princetn` → Princeton; `millboro` → nothing)
+
+Inside a tier the order is deterministic and explainable: **population** (so `evansville` leads with Evansville,
+Indiana and `springfield` with Springfield, Missouri), then a place this device chose recently, then distance to
+the centre already on screen, then the shorter name, then the name, the state and the id. No fuzzy match can
+outrank an exact one, and two runs on the same input always produce the same list. At most eight results are
+offered, each with what separates it from its namesakes:
+
+```
+Princeton, IN — Gibson County        Springfield, MO — Greene County
+Princeton, NJ — Mercer County        Yellowstone National Park, WY — National park
+47715, IN — Vanderburgh County       Gibson County, IN — County
 
 ### Behaviour
 
 * Selecting a result sets the **centre** and nothing else: the radius control keeps the radius it had, the map
-  moves its centre marker and radius preview, the coordinate fields and the coverage line update, and the URL
-  is rewritten.
-* Selecting a place never starts a search. Choose the radius, then press **Discover roads**.
+  moves its centre marker and radius preview, the coordinate fields and the coverage line update, and the URL is
+  rewritten. The chosen place is a *label* beside a search, never the search itself.
+* Selecting a place never starts a search, and reads no metric cell. Choose the radius, then press **Discover
+  roads**.
 * The search a place produces is the search its coordinates produce: the definition centre is the published
-  five-decimal interior point, the bounds come from the same `radiusBounds`, the same metric cells are
-  selected, and the same exact-radius test decides which corridors are results
-  (`tests/place-gazetteer.test.js` asserts the derived result rows are equal).
-* The URL stays coordinate-based (`?lat=…&lon=…&r=…`). A place is presentation: a recent search may be
-  labelled `Hillsboro, OR · 25 mi`, `Near Forest Grove, OR · 10 mi` for a centre that was picked or typed, or
-  `45.5268, -122.9354 · 25 mi` when no published place is close enough. Nothing about running or sharing a
-  search depends on the gazetteer.
-* Coverage semantics are unchanged: a place outside the published region reports PARTIAL or NONE exactly as a
-  typed coordinate there does, and the radius is never reduced to fit the data.
-* The field is a labelled combobox with a listbox of options: mouse and touch select, ArrowDown/ArrowUp move
-  the active option, Enter chooses it, Escape closes the list and keeps the text, and Tab closes it. It is
-  usable without the map at all.
-
-### Commands
-
-```
-npm run build:places                # fetch the pinned archive and rebuild the artifact (stdlib Python, no GIS stack)
-npm run check:places                # re-derive from the cached archive and compare bytes with the committed artifact
-npm run verify:places               # offline: source, window, ids, classes, counts and the places the tests use
-npm run verify:places:production    # opt-in: the deployed place search, promotion, PARTIAL/NONE, zero external calls
-```
+  interior point, the bounds come from the same `radiusBounds`, and the same national derived cells are selected
+  (`tests/national-place-gazetteer.test.js` asserts both, against the real national manifest when it is on the
+  machine).
+* The URL stays coordinate-based (`?lat=…&lon=…&r=…`). A place is presentation: a recent search may be labelled
+  `Princeton, IN · 25 mi`, `Near Forest Grove, OR · 10 mi` for a centre that was picked or typed, or
+  `38.3545, -87.5795 · 25 mi` when no published place is close enough.
+* Coverage semantics are unchanged: a place inside the conterminous states reports FULL, and a centre outside
+  them reports PARTIAL or NONE exactly as a typed coordinate there does. No published place is outside the
+  coverage, because the derived plane covers exactly the conterminous states and a place that could never return
+  a corridor is not offered.
+* The field is a labelled combobox with a listbox of options: mouse and touch select, ArrowDown/ArrowUp move the
+  active option, Enter chooses it, Escape closes the list and keeps the text, and Tab closes it. It is usable
+  without the map at all, and it works at 390 px.
 
 ### Known limitations
 
-* Only incorporated places and census-designated places are searchable. A named community that is not a
-  Census place is not found, and the interface says so rather than guessing at a nearby name.
-* The centre is the published **interior point**: a search centre, not a road, an entrance or a parking place.
-* The list is regional and versioned. It is rebuilt from a new pinned vintage by changing the digests in
-  `scripts/build-places.py`, never by hand-editing the artifact.
+* The conterminous states only. Alaska, Hawaii, Puerto Rico and the territories are not offered, because the
+  national derived corridor-metrics plane does not cover them: a published place there could never return a
+  result, and the field says so rather than presenting a dead end.
+* No street addresses and no runtime geocoding. An address-shaped query matches nothing, and there is no
+  external fallback service — by design, so that no search depends on a third party being up, reachable, or
+  willing. Adding one would be a separate, deliberate decision.
+* The place is the published **interior point**, not a road, an entrance or a parking place.
+* A county with a handful of incorporated places is offered by its county record, and the county record's centre
+  is the county's published interior point — useful for "what is around here", not a statement about a town.
+* Census-designated places carry no population in the estimates file, so they sort below incorporated places in
+  the same tier. They are matched by name, not by prominence.
+
+### The regional pilot artifact
+
+`data/places/or-sw-wa-portland-places.json` — the 387-place Oregon/South-Washington list the pilot shipped — is
+still committed and still verified (`npm run build:places`, `npm run check:places`, `npm run verify:places`,
+`scripts/build-places.py`), together with its schema-1 reader tests. It is the record of how the place finder
+behaved in one window, and the reason the two schemas are both readable: schema 1 is that regional list, schema 2
+is the national tiers above. Production discovery reads the national tiers.
+
+```
+
+A county says `County`; a postal code names its state and the county holding its largest part; a protected area
+names the kind of area it is. Three Springfields stay three places, told apart by state and county.
+
+| Agencies | U.S. Census Bureau (gazetteer, ZCTA relationship, population estimates); U.S. Geological Survey (federal lands, GNIS) |
+| Licence | Public domain (U.S. Government work), every source |
+| Pinned by | archive and member SHA-256 digests in `scripts/build-national-places.py`; a build that cannot verify a source refuses to run rather than publishing a list nobody can reproduce |
+| Cadence | annual (gazetteer, population estimates), decennial (ZCTA relationship), irregular (federal lands), continuous (GNIS) |
+| Commands | `npm run build:places:national`, `npm run check:places:national`, `npm run verify:places:national` |
 
 ## Search context: the centre's name, and where each road lies
 
