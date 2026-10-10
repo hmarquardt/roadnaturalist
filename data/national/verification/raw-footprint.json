@@ -1,0 +1,7400 @@
+{
+ "kind": "national-raw-promotion-footprint",
+ "schemaVersion": 1,
+ "builtAt": "2026-10-10T21:22:27Z",
+ "note": "Measured from the committed national manifests and the local derived plane, with the runtime's own selection rules: a road promotion reads every cell the corridor's **road component** occupies (the closure the runtime performs), and wetlands and hydrography are padded by the 1 km analysis distance exactly as paddedBounds does. Ecoregions are not per-cell: they are two CONUS artifacts, measured separately.",
+ "roadSelection": "component-closure",
+ "planes": {
+  "roads": {
+   "version": "tiger2025-county-v1",
+   "presentCells": 21135,
+   "emptyCells": 739,
+   "artifactBytes": 5817231464
+  },
+  "wetlands": {
+   "version": "nwi-state-2026-05-v1",
+   "presentCells": 21811,
+   "emptyCells": 63,
+   "artifactBytes": 156357316115
+  },
+  "hydrography": {
+   "version": "nhd-hr-hu8-2023-12-v1",
+   "presentCells": 21606,
+   "emptyCells": 268,
+   "artifactBytes": 26583624700
+  },
+  "ecoregions": {
+   "version": "epa-conus-2015-v1",
+   "presentCells": null,
+   "emptyCells": null,
+   "artifactBytes": 123414678
+  }
+ },
+ "analysisDistanceM": 1000,
+ "roadMarginDeg": 0.2,
+ "sampled": 172,
+ "summary": {
+  "medianBytes": 16563342,
+  "p95Bytes": 99325050,
+  "worstBytes": 198694944,
+  "bestBytes": 3472607,
+  "medianObjects": 5,
+  "worstObjects": 18,
+  "medianBytesByPlane": {
+   "roads": 1774887,
+   "wetlands": 14888627,
+   "hydrography": 1908516
+  },
+  "p95BytesByPlane": {
+   "roads": 4808800,
+   "wetlands": 86245651,
+   "hydrography": 11934870
+  },
+  "worstBytesByPlane": {
+   "roads": 11157978,
+   "wetlands": 180594783,
+   "hydrography": 28967995
+  },
+  "medianCells": {
+   "roads": 2,
+   "wetlands": 2,
+   "hydrography": 2
+  },
+  "worstCells": {
+   "roads": 14,
+   "wetlands": 6,
+   "hydrography": 6
+  },
+  "roadClosureCells": {
+   "median": 2,
+   "p95": 6,
+   "worst": 14
+  }
+ },
+ "perRegion": {
+  "pnw": {
+   "corridors": 29,
+   "medianBytes": 29237313,
+   "worstBytes": 75836851
+  },
+  "northeast": {
+   "corridors": 28,
+   "medianBytes": 19611292,
+   "worstBytes": 66607985
+  },
+  "gulf": {
+   "corridors": 29,
+   "medianBytes": 85940040,
+   "worstBytes": 198694944
+  },
+  "midwest": {
+   "corridors": 29,
+   "medianBytes": 13442506,
+   "worstBytes": 35180836
+  },
+  "plains": {
+   "corridors": 28,
+   "medianBytes": 22335483,
+   "worstBytes": 48862995
+  },
+  "southwest": {
+   "corridors": 29,
+   "medianBytes": 6128091,
+   "worstBytes": 13108859
+  }
+ },
+ "growth": {
+  "clustered": [
+   {
+    "promotions": 1,
+    "cells": {
+     "roads": 1,
+     "wetlands": 1,
+     "hydrography": 1
+    },
+    "bytes": 16563342,
+    "bytesByPlane": {
+     "roads": 1106937,
+     "wetlands": 14888627,
+     "hydrography": 567778
+    }
+   },
+   {
+    "promotions": 10,
+    "cells": {
+     "roads": 6,
+     "wetlands": 8,
+     "hydrography": 8
+    },
+    "bytes": 121315526,
+    "bytesByPlane": {
+     "roads": 5416252,
+     "wetlands": 83762592,
+     "hydrography": 32136682
+    }
+   },
+   {
+    "promotions": 100,
+    "cells": {
+     "roads": 43,
+     "wetlands": 32,
+     "hydrography": 32
+    },
+    "bytes": 567523111,
+    "bytesByPlane": {
+     "roads": 40130300,
+     "wetlands": 442101242,
+     "hydrography": 85291569
+    }
+   },
+   {
+    "promotions": 1000,
+    "cells": {
+     "roads": 70,
+     "wetlands": 45,
+     "hydrography": 45
+    },
+    "bytes": 672089810,
+    "bytesByPlane": {
+     "roads": 55622419,
+     "wetlands": 511218253,
+     "hydrography": 105249138
+    }
+   },
+   {
+    "promotions": 10000,
+    "cells": {
+     "roads": 70,
+     "wetlands": 45,
+     "hydrography": 45
+    },
+    "bytes": 672089810,
+    "bytesByPlane": {
+     "roads": 55622419,
+     "wetlands": 511218253,
+     "hydrography": 105249138
+    }
+   }
+  ],
+  "scattered": {
+   "100": {
+    "cells": {
+     "roads": 200,
+     "wetlands": 200,
+     "hydrography": 200
+    },
+    "bytes": 1725867900.5120234,
+    "bytesByPlane": {
+     "roads": 53188547.71875286,
+     "wetlands": 1429617958.4438145,
+     "hydrography": 243061394.34945598
+    }
+   },
+   "1000": {
+    "cells": {
+     "roads": 2000,
+     "wetlands": 2000,
+     "hydrography": 2000
+    },
+    "bytes": 17258679005.12023,
+    "bytesByPlane": {
+     "roads": 531885477.1875286,
+     "wetlands": 14296179584.438145,
+     "hydrography": 2430613943.49456
+    }
+   },
+   "10000": {
+    "cells": {
+     "roads": 20000,
+     "wetlands": 20000,
+     "hydrography": 20000
+    },
+    "bytes": 172586790051.20233,
+    "bytesByPlane": {
+     "roads": 5318854771.875286,
+     "wetlands": 142961795844.38144,
+     "hydrography": 24306139434.9456
+    }
+   }
+  },
+  "medianCellsPerPromotion": {
+   "roads": 2,
+   "wetlands": 2,
+   "hydrography": 2
+  },
+  "rawLakeBytes": 188881586957
+ },
+ "corridors": [
+  {
+   "region": "pnw",
+   "corridorId": "drv1-shreve-rd-c7-s1",
+   "name": "Shreve Rd",
+   "lengthM": 1609.6,
+   "wetlandArea1000M2": 456340.0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-shreve-rd-c7",
+   "bounds": [
+    -122.648802,
+    45.76522,
+    -122.648769,
+    45.779695
+   ],
+   "objects": 3,
+   "bytes": 16563342,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 14888627,
+    "hydrography": 567778
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-bacona-pisgah-home-rd-s1",
+   "name": "Bacona-Pisgah Home Rd",
+   "lengthM": 11979.9,
+   "wetlandArea1000M2": 365948.4,
+   "hydroCrossings": 8,
+   "componentCells": 2,
+   "roadComponentId": "drv1-bacona-pisgah-home-rd",
+   "bounds": [
+    -123.093256,
+    45.777849,
+    -122.967109,
+    45.793367
+   ],
+   "objects": 10,
+   "bytes": 74849685,
+   "cells": {
+    "roads": 2,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 675894,
+    "wetlands": 45205796,
+    "hydrography": 28967995
+   },
+   "cellIds": {
+    "roads": [
+     "x284_y678",
+     "x285_y678"
+    ],
+    "wetlands": [
+     "x284_y678",
+     "x284_y679",
+     "x285_y678",
+     "x285_y679"
+    ],
+    "hydrography": [
+     "x284_y678",
+     "x284_y679",
+     "x285_y678",
+     "x285_y679"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-se-evergreen-hwy-s1",
+   "name": "SE Evergreen Hwy",
+   "lengthM": 11250.0,
+   "wetlandArea1000M2": 18073096.3,
+   "hydroCrossings": 7,
+   "componentCells": 3,
+   "roadComponentId": "drv1-se-evergreen-hwy",
+   "bounds": [
+    -122.605047,
+    45.58371,
+    -122.468144,
+    45.614174
+   ],
+   "objects": 11,
+   "bytes": 45892276,
+   "cells": {
+    "roads": 3,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 4166793,
+    "wetlands": 38556796,
+    "hydrography": 3168687
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678",
+     "x287_y677",
+     "x287_y678"
+    ],
+    "wetlands": [
+     "x286_y677",
+     "x286_y678",
+     "x287_y677",
+     "x287_y678"
+    ],
+    "hydrography": [
+     "x286_y677",
+     "x286_y678",
+     "x287_y677",
+     "x287_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-dutch-canyon-rd-c1-s1",
+   "name": "Dutch Canyon Rd",
+   "lengthM": 7958.8,
+   "wetlandArea1000M2": 758099.4,
+   "hydroCrossings": 32,
+   "componentCells": 1,
+   "roadComponentId": "drv1-dutch-canyon-rd-c1",
+   "bounds": [
+    -122.981641,
+    45.740639,
+    -122.892359,
+    45.75702
+   ],
+   "objects": 3,
+   "bytes": 29237313,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 386035,
+    "wetlands": 19589304,
+    "hydrography": 9261974
+   },
+   "cellIds": {
+    "roads": [
+     "x285_y678"
+    ],
+    "wetlands": [
+     "x285_y678"
+    ],
+    "hydrography": [
+     "x285_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-ne-andresen-rd-s1",
+   "name": "NE Andresen Rd",
+   "lengthM": 6377.9,
+   "wetlandArea1000M2": 1104153.8,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-ne-andresen-rd",
+   "bounds": [
+    -122.603227,
+    45.630797,
+    -122.600075,
+    45.687331
+   ],
+   "objects": 5,
+   "bytes": 23627982,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 21620216,
+    "hydrography": 900829
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678",
+     "x287_y678"
+    ],
+    "hydrography": [
+     "x286_y678",
+     "x287_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-n-ramsey-blvd-s1",
+   "name": "N Ramsey Blvd",
+   "lengthM": 1673.7,
+   "wetlandArea1000M2": 3082690.1,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-n-ramsey-blvd",
+   "bounds": [
+    -122.7867,
+    45.623814,
+    -122.767814,
+    45.62612
+   ],
+   "objects": 5,
+   "bytes": 45414620,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 34477931,
+    "hydrography": 9829752
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x285_y678",
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x285_y678",
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-ne-109th-st-c2-s1",
+   "name": "NE 109th St",
+   "lengthM": 1755.5,
+   "wetlandArea1000M2": 659609.5,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-ne-109th-st-c2",
+   "bounds": [
+    -122.621736,
+    45.700362,
+    -122.59932,
+    45.700619
+   ],
+   "objects": 6,
+   "bytes": 25113612,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 2592567,
+    "wetlands": 21620216,
+    "hydrography": 900829
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678",
+     "x287_y678"
+    ],
+    "wetlands": [
+     "x286_y678",
+     "x287_y678"
+    ],
+    "hydrography": [
+     "x286_y678",
+     "x287_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-broadway-st-c197-s1",
+   "name": "Broadway St",
+   "lengthM": 1862.0,
+   "wetlandArea1000M2": 1455289.7,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-broadway-st-c197",
+   "bounds": [
+    -122.671117,
+    45.624935,
+    -122.670195,
+    45.642376
+   ],
+   "objects": 3,
+   "bytes": 16563342,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 14888627,
+    "hydrography": 567778
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-fullerton-rd-c13-s1",
+   "name": "Fullerton Rd",
+   "lengthM": 1945.8,
+   "wetlandArea1000M2": 1262413.1,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-fullerton-rd-c13",
+   "bounds": [
+    -122.880613,
+    45.791895,
+    -122.869192,
+    45.803974
+   ],
+   "objects": 6,
+   "bytes": 44841906,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 959600,
+    "wetlands": 31947436,
+    "hydrography": 11934870
+   },
+   "cellIds": {
+    "roads": [
+     "x285_y678",
+     "x285_y679"
+    ],
+    "wetlands": [
+     "x285_y678",
+     "x285_y679"
+    ],
+    "hydrography": [
+     "x285_y678",
+     "x285_y679"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-61st-ave-c4-s1",
+   "name": "NW 61st Ave",
+   "lengthM": 2042.7,
+   "wetlandArea1000M2": 2062797.0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nw-61st-ave-c4",
+   "bounds": [
+    -122.733623,
+    45.737868,
+    -122.733457,
+    45.756236
+   ],
+   "objects": 3,
+   "bytes": 16563342,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 14888627,
+    "hydrography": 567778
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-11th-ave-c3-s1",
+   "name": "NW 11th Ave",
+   "lengthM": 2101.4,
+   "wetlandArea1000M2": 229077.6,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nw-11th-ave-c3",
+   "bounds": [
+    -122.682266,
+    45.772297,
+    -122.679505,
+    45.790621
+   ],
+   "objects": 5,
+   "bytes": 34670263,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 31905689,
+    "hydrography": 1657637
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678",
+     "x286_y679"
+    ],
+    "hydrography": [
+     "x286_y678",
+     "x286_y679"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-94th-st-c6-s1",
+   "name": "NW 94th St",
+   "lengthM": 2224.1,
+   "wetlandArea1000M2": 865985.6,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nw-94th-st-c6",
+   "bounds": [
+    -122.698876,
+    45.689471,
+    -122.670449,
+    45.689903
+   ],
+   "objects": 3,
+   "bytes": 16563342,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 14888627,
+    "hydrography": 567778
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-rafton-rd-s1",
+   "name": "NW Rafton Rd",
+   "lengthM": 2351.5,
+   "wetlandArea1000M2": 3396857.5,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nw-rafton-rd",
+   "bounds": [
+    -122.836736,
+    45.635653,
+    -122.824111,
+    45.65097
+   ],
+   "objects": 3,
+   "bytes": 29237313,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 386035,
+    "wetlands": 19589304,
+    "hydrography": 9261974
+   },
+   "cellIds": {
+    "roads": [
+     "x285_y678"
+    ],
+    "wetlands": [
+     "x285_y678"
+    ],
+    "hydrography": [
+     "x285_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-n-north-portland-rd-s1",
+   "name": "N North Portland Rd",
+   "lengthM": 2527.6,
+   "wetlandArea1000M2": 4070150.3,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-n-north-portland-rd",
+   "bounds": [
+    -122.72467,
+    45.596093,
+    -122.704226,
+    45.613675
+   ],
+   "objects": 6,
+   "bytes": 27830444,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3294454,
+    "wetlands": 22627474,
+    "hydrography": 1908516
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y677",
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y677",
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x286_y677",
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-laframbois-rd-s1",
+   "name": "Laframbois Rd",
+   "lengthM": 2702.9,
+   "wetlandArea1000M2": 2629841.0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-laframbois-rd",
+   "bounds": [
+    -122.717176,
+    45.647082,
+    -122.694071,
+    45.663566
+   ],
+   "objects": 3,
+   "bytes": 16563342,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 14888627,
+    "hydrography": 567778
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-fruit-valley-rd-c1-s1",
+   "name": "NW Fruit Valley Rd",
+   "lengthM": 2941.3,
+   "wetlandArea1000M2": 410135.0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nw-fruit-valley-rd-c1",
+   "bounds": [
+    -122.692566,
+    45.640318,
+    -122.690403,
+    45.666603
+   ],
+   "objects": 3,
+   "bytes": 16563342,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 14888627,
+    "hydrography": 567778
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-21st-ave-c3-s1",
+   "name": "NW 21st Ave",
+   "lengthM": 3098.2,
+   "wetlandArea1000M2": 1367287.5,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nw-21st-ave-c3",
+   "bounds": [
+    -122.692838,
+    45.6832,
+    -122.691897,
+    45.710831
+   ],
+   "objects": 3,
+   "bytes": 16563342,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 14888627,
+    "hydrography": 567778
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-mountain-view-rd-c71-s1",
+   "name": "Mountain View Rd",
+   "lengthM": 3380.5,
+   "wetlandArea1000M2": 331894.5,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-mountain-view-rd-c71",
+   "bounds": [
+    -122.919935,
+    45.741807,
+    -122.893418,
+    45.760059
+   ],
+   "objects": 3,
+   "bytes": 29237313,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 386035,
+    "wetlands": 19589304,
+    "hydrography": 9261974
+   },
+   "cellIds": {
+    "roads": [
+     "x285_y678"
+    ],
+    "wetlands": [
+     "x285_y678"
+    ],
+    "hydrography": [
+     "x285_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-ne-139th-st-c2-s1",
+   "name": "NE 139th St",
+   "lengthM": 3764.6,
+   "wetlandArea1000M2": 385484.9,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-ne-139th-st-c2",
+   "bounds": [
+    -122.627128,
+    45.722047,
+    -122.579228,
+    45.72257
+   ],
+   "objects": 6,
+   "bytes": 25113612,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 2592567,
+    "wetlands": 21620216,
+    "hydrography": 900829
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678",
+     "x287_y678"
+    ],
+    "wetlands": [
+     "x286_y678",
+     "x287_y678"
+    ],
+    "hydrography": [
+     "x286_y678",
+     "x287_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-old-cornelius-pass-rd-s1",
+   "name": "NW Old Cornelius Pass Rd",
+   "lengthM": 3965.5,
+   "wetlandArea1000M2": 163160.6,
+   "hydroCrossings": 2,
+   "componentCells": 2,
+   "roadComponentId": "drv1-nw-old-cornelius-pass-rd",
+   "bounds": [
+    -122.873586,
+    45.580388,
+    -122.864226,
+    45.608344
+   ],
+   "objects": 6,
+   "bytes": 37781411,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 2183045,
+    "wetlands": 25333902,
+    "hydrography": 10264464
+   },
+   "cellIds": {
+    "roads": [
+     "x285_y677",
+     "x285_y678"
+    ],
+    "wetlands": [
+     "x285_y677",
+     "x285_y678"
+    ],
+    "hydrography": [
+     "x285_y677",
+     "x285_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-beck-rd-s1",
+   "name": "NW Beck Rd",
+   "lengthM": 4508.1,
+   "wetlandArea1000M2": 291265.2,
+   "hydroCrossings": 5,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nw-beck-rd",
+   "bounds": [
+    -122.917548,
+    45.639705,
+    -122.895361,
+    45.653397
+   ],
+   "objects": 3,
+   "bytes": 29237313,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 386035,
+    "wetlands": 19589304,
+    "hydrography": 9261974
+   },
+   "cellIds": {
+    "roads": [
+     "x285_y678"
+    ],
+    "wetlands": [
+     "x285_y678"
+    ],
+    "hydrography": [
+     "x285_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-199th-st-c1-s1",
+   "name": "NW 199th St",
+   "lengthM": 5165.7,
+   "wetlandArea1000M2": 624890.3,
+   "hydroCrossings": 6,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nw-199th-st-c1",
+   "bounds": [
+    -122.735134,
+    45.764662,
+    -122.668546,
+    45.76533
+   ],
+   "objects": 3,
+   "bytes": 16563342,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 14888627,
+    "hydrography": 567778
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-lower-river-rd-s2",
+   "name": "NW Lower River Rd",
+   "lengthM": 5699.4,
+   "wetlandArea1000M2": 11009651.8,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nw-lower-river-rd",
+   "bounds": [
+    -122.762041,
+    45.666759,
+    -122.751574,
+    45.712525
+   ],
+   "objects": 3,
+   "bytes": 16563342,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1106937,
+    "wetlands": 14888627,
+    "hydrography": 567778
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x286_y678"
+    ],
+    "hydrography": [
+     "x286_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-e-fourth-plain-blvd-s1",
+   "name": "E Fourth Plain Blvd",
+   "lengthM": 5891.6,
+   "wetlandArea1000M2": 273798.2,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-e-fourth-plain-blvd",
+   "bounds": [
+    -122.671394,
+    45.63733,
+    -122.599177,
+    45.645017
+   ],
+   "objects": 6,
+   "bytes": 25113612,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 2592567,
+    "wetlands": 21620216,
+    "hydrography": 900829
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678",
+     "x287_y678"
+    ],
+    "wetlands": [
+     "x286_y678",
+     "x287_y678"
+    ],
+    "hydrography": [
+     "x286_y678",
+     "x287_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-skyline-blvd-s4",
+   "name": "NW Skyline Blvd",
+   "lengthM": 6113.7,
+   "wetlandArea1000M2": 352993.7,
+   "hydroCrossings": 0,
+   "componentCells": 3,
+   "roadComponentId": "drv1-nw-skyline-blvd",
+   "bounds": [
+    -122.90267,
+    45.614507,
+    -122.868413,
+    45.657694
+   ],
+   "objects": 5,
+   "bytes": 33221840,
+   "cells": {
+    "roads": 3,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 4370562,
+    "wetlands": 19589304,
+    "hydrography": 9261974
+   },
+   "cellIds": {
+    "roads": [
+     "x285_y677",
+     "x285_y678",
+     "x286_y677"
+    ],
+    "wetlands": [
+     "x285_y678"
+    ],
+    "hydrography": [
+     "x285_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-pisgah-home-rd-s2",
+   "name": "Pisgah Home Rd",
+   "lengthM": 6446.7,
+   "wetlandArea1000M2": 313923.1,
+   "hydroCrossings": 8,
+   "componentCells": 4,
+   "roadComponentId": "drv1-pisgah-home-rd",
+   "bounds": [
+    -123.051428,
+    45.780723,
+    -122.990032,
+    45.81157
+   ],
+   "objects": 12,
+   "bytes": 75836851,
+   "cells": {
+    "roads": 4,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 1663060,
+    "wetlands": 45205796,
+    "hydrography": 28967995
+   },
+   "cellIds": {
+    "roads": [
+     "x284_y678",
+     "x284_y679",
+     "x285_y678",
+     "x285_y679"
+    ],
+    "wetlands": [
+     "x284_y678",
+     "x284_y679",
+     "x285_y678",
+     "x285_y679"
+    ],
+    "hydrography": [
+     "x284_y678",
+     "x284_y679",
+     "x285_y678",
+     "x285_y679"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-us-hwy-30-c9-s6",
+   "name": "US Hwy 30",
+   "lengthM": 6554.5,
+   "wetlandArea1000M2": 4396587.5,
+   "hydroCrossings": 6,
+   "componentCells": 10,
+   "roadComponentId": "drv1-us-hwy-30-c9",
+   "bounds": [
+    -122.879283,
+    45.769486,
+    -122.846184,
+    45.823267
+   ],
+   "objects": 14,
+   "bytes": 50483762,
+   "cells": {
+    "roads": 10,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 6601456,
+    "wetlands": 31947436,
+    "hydrography": 11934870
+   },
+   "cellIds": {
+    "roads": [
+     "x280_y680",
+     "x281_y680",
+     "x282_y680",
+     "x283_y680",
+     "x284_y680",
+     "x285_y678",
+     "x285_y679",
+     "x285_y680",
+     "x286_y677",
+     "x286_y678"
+    ],
+    "wetlands": [
+     "x285_y678",
+     "x285_y679"
+    ],
+    "hydrography": [
+     "x285_y678",
+     "x285_y679"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-nw-mcnamee-rd-s1",
+   "name": "NW McNamee Rd",
+   "lengthM": 7358.1,
+   "wetlandArea1000M2": 1735569.4,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nw-mcnamee-rd",
+   "bounds": [
+    -122.85403,
+    45.607352,
+    -122.831259,
+    45.649865
+   ],
+   "objects": 5,
+   "bytes": 35984401,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 386035,
+    "wetlands": 25333902,
+    "hydrography": 10264464
+   },
+   "cellIds": {
+    "roads": [
+     "x285_y678"
+    ],
+    "wetlands": [
+     "x285_y677",
+     "x285_y678"
+    ],
+    "hydrography": [
+     "x285_y677",
+     "x285_y678"
+    ]
+   }
+  },
+  {
+   "region": "pnw",
+   "corridorId": "drv1-ne-10th-ave-c5-s1",
+   "name": "NE 10th Ave",
+   "lengthM": 7813.9,
+   "wetlandArea1000M2": 739975.3,
+   "hydroCrossings": 11,
+   "componentCells": 2,
+   "roadComponentId": "drv1-ne-10th-ave-c5",
+   "bounds": [
+    -122.661719,
+    45.750893,
+    -122.661399,
+    45.821161
+   ],
+   "objects": 6,
+   "bytes": 35311688,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1748362,
+    "wetlands": 31905689,
+    "hydrography": 1657637
+   },
+   "cellIds": {
+    "roads": [
+     "x286_y678",
+     "x286_y679"
+    ],
+    "wetlands": [
+     "x286_y678",
+     "x286_y679"
+    ],
+    "hydrography": [
+     "x286_y678",
+     "x286_y679"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-hathorne-ave-c1-s1",
+   "name": "Hathorne Ave",
+   "lengthM": 1630.3,
+   "wetlandArea1000M2": 521298.4,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-hathorne-ave-c1",
+   "bounds": [
+    -70.977795,
+    42.579162,
+    -70.970619,
+    42.583655
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-lowell-st-c1-s1",
+   "name": "Lowell St",
+   "lengthM": 12864.6,
+   "wetlandArea1000M2": 3173499.3,
+   "hydroCrossings": 4,
+   "componentCells": 2,
+   "roadComponentId": "drv1-lowell-st-c1",
+   "bounds": [
+    -71.06511,
+    42.525913,
+    -70.927286,
+    42.561938
+   ],
+   "objects": 6,
+   "bytes": 21789077,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3560243,
+    "wetlands": 15410044,
+    "hydrography": 2818790
+   },
+   "cellIds": {
+    "roads": [
+     "x544_y662",
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x544_y662",
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x544_y662",
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-nahant-rd-c1-s1",
+   "name": "Nahant Rd",
+   "lengthM": 8390.0,
+   "wetlandArea1000M2": 10960168.9,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-nahant-rd-c1",
+   "bounds": [
+    -70.940037,
+    42.419177,
+    -70.90652,
+    42.457061
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-state-rte-107-c20-s3",
+   "name": "State Rte 107",
+   "lengthM": 6672.0,
+   "wetlandArea1000M2": 5584865.7,
+   "hydroCrossings": 4,
+   "componentCells": 2,
+   "roadComponentId": "drv1-state-rte-107-c20",
+   "bounds": [
+    -71.017893,
+    42.40358,
+    -70.979083,
+    42.450863
+   ],
+   "objects": 10,
+   "bytes": 32555360,
+   "cells": {
+    "roads": 2,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 3560243,
+    "wetlands": 24781008,
+    "hydrography": 4214109
+   },
+   "cellIds": {
+    "roads": [
+     "x544_y662",
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x544_y661",
+     "x544_y662",
+     "x545_y661",
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x544_y661",
+     "x544_y662",
+     "x545_y661",
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-fairmount-ave-c8-s1",
+   "name": "Fairmount Ave",
+   "lengthM": 1869.2,
+   "wetlandArea1000M2": 1152544.6,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-fairmount-ave-c8",
+   "bounds": [
+    -71.000025,
+    42.462057,
+    -70.990339,
+    42.476368
+   ],
+   "objects": 6,
+   "bytes": 21789077,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3560243,
+    "wetlands": 15410044,
+    "hydrography": 2818790
+   },
+   "cellIds": {
+    "roads": [
+     "x544_y662",
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x544_y662",
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x544_y662",
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-beacon-st-c7-s1",
+   "name": "Beacon St",
+   "lengthM": 1722.4,
+   "wetlandArea1000M2": 3161411.8,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-beacon-st-c7",
+   "bounds": [
+    -70.859298,
+    42.511479,
+    -70.8446,
+    42.517016
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-sohier-rd-s1",
+   "name": "Sohier Rd",
+   "lengthM": 1806.2,
+   "wetlandArea1000M2": 347400.6,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-sohier-rd",
+   "bounds": [
+    -70.880452,
+    42.558239,
+    -70.87843,
+    42.574089
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-green-st-c31-s1",
+   "name": "Green St",
+   "lengthM": 1942.8,
+   "wetlandArea1000M2": 2658652.2,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-green-st-c31",
+   "bounds": [
+    -70.864735,
+    42.5062,
+    -70.851954,
+    42.517182
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-summit-st-c19-s1",
+   "name": "Summit St",
+   "lengthM": 2038.4,
+   "wetlandArea1000M2": 748633.7,
+   "hydroCrossings": 3,
+   "componentCells": 1,
+   "roadComponentId": "drv1-summit-st-c19",
+   "bounds": [
+    -70.954249,
+    42.516608,
+    -70.950437,
+    42.533792
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-hull-st-c2-s1",
+   "name": "Hull St",
+   "lengthM": 2101.2,
+   "wetlandArea1000M2": 1302652.0,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-hull-st-c2",
+   "bounds": [
+    -70.845477,
+    42.579658,
+    -70.822546,
+    42.585936
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-great-woods-rd-c2-s1",
+   "name": "Great Woods Rd",
+   "lengthM": 2201.3,
+   "wetlandArea1000M2": 1476289.8,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-great-woods-rd-c2",
+   "bounds": [
+    -70.987471,
+    42.483504,
+    -70.971734,
+    42.49312
+   ],
+   "objects": 5,
+   "bytes": 19611292,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 15410044,
+    "hydrography": 2818790
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x544_y662",
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x544_y662",
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-summer-st-c32-s1",
+   "name": "Summer St",
+   "lengthM": 2390.0,
+   "wetlandArea1000M2": 1363486.5,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-summer-st-c32",
+   "bounds": [
+    -70.951862,
+    42.57274,
+    -70.9466,
+    42.59325
+   ],
+   "objects": 5,
+   "bytes": 22029445,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 16767190,
+    "hydrography": 3879797
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662",
+     "x545_y663"
+    ],
+    "hydrography": [
+     "x545_y662",
+     "x545_y663"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-dayton-st-c1-s1",
+   "name": "Dayton St",
+   "lengthM": 2568.0,
+   "wetlandArea1000M2": 1099655.5,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-dayton-st-c1",
+   "bounds": [
+    -70.987365,
+    42.570016,
+    -70.97345,
+    42.588894
+   ],
+   "objects": 5,
+   "bytes": 19611292,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 15410044,
+    "hydrography": 2818790
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x544_y662",
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x544_y662",
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-main-st-c844-s1",
+   "name": "Main St",
+   "lengthM": 2813.9,
+   "wetlandArea1000M2": 2090316.1,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-main-st-c844",
+   "bounds": [
+    -70.889075,
+    42.590816,
+    -70.875665,
+    42.609732
+   ],
+   "objects": 6,
+   "bytes": 22829674,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 2182687,
+    "wetlands": 16767190,
+    "hydrography": 3879797
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662",
+     "x545_y663"
+    ],
+    "wetlands": [
+     "x545_y662",
+     "x545_y663"
+    ],
+    "hydrography": [
+     "x545_y662",
+     "x545_y663"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-loring-ave-c1-s1",
+   "name": "Loring Ave",
+   "lengthM": 3156.5,
+   "wetlandArea1000M2": 1682118.2,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-loring-ave-c1",
+   "bounds": [
+    -70.906436,
+    42.484355,
+    -70.890679,
+    42.505201
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-chebacco-rd-c1-s1",
+   "name": "Chebacco Rd",
+   "lengthM": 3287.2,
+   "wetlandArea1000M2": 3240398.6,
+   "hydroCrossings": 4,
+   "componentCells": 2,
+   "roadComponentId": "drv1-chebacco-rd-c1",
+   "bounds": [
+    -70.830813,
+    42.594698,
+    -70.805345,
+    42.60656
+   ],
+   "objects": 10,
+   "bytes": 32753185,
+   "cells": {
+    "roads": 2,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 2182687,
+    "wetlands": 25256689,
+    "hydrography": 5313809
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662",
+     "x545_y663"
+    ],
+    "wetlands": [
+     "x545_y662",
+     "x545_y663",
+     "x546_y662",
+     "x546_y663"
+    ],
+    "hydrography": [
+     "x545_y662",
+     "x545_y663",
+     "x546_y662",
+     "x546_y663"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-highland-ave-c56-s1",
+   "name": "Highland Ave",
+   "lengthM": 3820.9,
+   "wetlandArea1000M2": 832068.5,
+   "hydroCrossings": 3,
+   "componentCells": 1,
+   "roadComponentId": "drv1-highland-ave-c56",
+   "bounds": [
+    -70.935632,
+    42.490849,
+    -70.905833,
+    42.515774
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-revere-beach-blvd-s1",
+   "name": "Revere Beach Blvd",
+   "lengthM": 4331.7,
+   "wetlandArea1000M2": 7366097.4,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-revere-beach-blvd",
+   "bounds": [
+    -70.99139,
+    42.402492,
+    -70.969319,
+    42.436091
+   ],
+   "objects": 9,
+   "bytes": 30377575,
+   "cells": {
+    "roads": 1,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 24781008,
+    "hydrography": 4214109
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x544_y661",
+     "x544_y662",
+     "x545_y661",
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x544_y661",
+     "x544_y662",
+     "x545_y661",
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-essex-st-c8-s1",
+   "name": "Essex St",
+   "lengthM": 4714.0,
+   "wetlandArea1000M2": 552160.0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-essex-st-c8",
+   "bounds": [
+    -70.951107,
+    42.464111,
+    -70.906436,
+    42.484355
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-humphrey-st-c1-s1",
+   "name": "Humphrey St",
+   "lengthM": 5851.3,
+   "wetlandArea1000M2": 3203035.9,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-humphrey-st-c1",
+   "bounds": [
+    -70.922405,
+    42.467134,
+    -70.87009,
+    42.493926
+   ],
+   "objects": 3,
+   "bytes": 9608518,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1382458,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-state-rte-114-c13-s8",
+   "name": "State Rte 114",
+   "lengthM": 6043.0,
+   "wetlandArea1000M2": 2142165.8,
+   "hydroCrossings": 1,
+   "componentCells": 3,
+   "roadComponentId": "drv1-state-rte-114-c13",
+   "bounds": [
+    -70.935487,
+    42.506979,
+    -70.891073,
+    42.537975
+   ],
+   "objects": 5,
+   "bytes": 13227181,
+   "cells": {
+    "roads": 3,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 5001121,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x544_y662",
+     "x544_y663",
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-state-rte-114-c13-s6",
+   "name": "State Rte 114",
+   "lengthM": 6185.7,
+   "wetlandArea1000M2": 2056708.4,
+   "hydroCrossings": 4,
+   "componentCells": 3,
+   "roadComponentId": "drv1-state-rte-114-c13",
+   "bounds": [
+    -71.146135,
+    42.560661,
+    -70.977397,
+    42.687999
+   ],
+   "objects": 11,
+   "bytes": 46994876,
+   "cells": {
+    "roads": 3,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 5001121,
+    "wetlands": 34500959,
+    "hydrography": 7492796
+   },
+   "cellIds": {
+    "roads": [
+     "x544_y662",
+     "x544_y663",
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x544_y662",
+     "x544_y663",
+     "x545_y662",
+     "x545_y663"
+    ],
+    "hydrography": [
+     "x544_y662",
+     "x544_y663",
+     "x545_y662",
+     "x545_y663"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-state-rte-62-c4-s2",
+   "name": "State Rte 62",
+   "lengthM": 6297.4,
+   "wetlandArea1000M2": 1570211.1,
+   "hydroCrossings": 3,
+   "componentCells": 9,
+   "roadComponentId": "drv1-state-rte-62-c4",
+   "bounds": [
+    -70.997126,
+    42.569766,
+    -70.935012,
+    42.596313
+   ],
+   "objects": 17,
+   "bytes": 53151733,
+   "cells": {
+    "roads": 9,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 11157978,
+    "wetlands": 34500959,
+    "hydrography": 7492796
+   },
+   "cellIds": {
+    "roads": [
+     "x539_y662",
+     "x540_y662",
+     "x541_y661",
+     "x541_y662",
+     "x542_y661",
+     "x542_y662",
+     "x543_y662",
+     "x544_y662",
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x544_y662",
+     "x544_y663",
+     "x545_y662",
+     "x545_y663"
+    ],
+    "hydrography": [
+     "x544_y662",
+     "x544_y663",
+     "x545_y662",
+     "x545_y663"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-us-hwy-1-alt-c1-s9",
+   "name": "US Hwy 1 Alt",
+   "lengthM": 6407.2,
+   "wetlandArea1000M2": 2519490.6,
+   "hydroCrossings": 1,
+   "componentCells": 3,
+   "roadComponentId": "drv1-us-hwy-1-alt-c1",
+   "bounds": [
+    -70.917154,
+    42.473658,
+    -70.890679,
+    42.519749
+   ],
+   "objects": 5,
+   "bytes": 11299888,
+   "cells": {
+    "roads": 3,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 3073828,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x545_y662",
+     "x545_y663",
+     "x545_y664"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-us-hwy-1-c11-s15",
+   "name": "US Hwy 1",
+   "lengthM": 6487.2,
+   "wetlandArea1000M2": 4456378.3,
+   "hydroCrossings": 5,
+   "componentCells": 6,
+   "roadComponentId": "drv1-us-hwy-1-c11",
+   "bounds": [
+    -71.028324,
+    42.433215,
+    -70.870233,
+    42.817872
+   ],
+   "objects": 18,
+   "bytes": 66607985,
+   "cells": {
+    "roads": 6,
+    "wetlands": 6,
+    "hydrography": 6
+   },
+   "bytesByPlane": {
+    "roads": 6619097,
+    "wetlands": 49383512,
+    "hydrography": 10605376
+   },
+   "cellIds": {
+    "roads": [
+     "x544_y662",
+     "x545_y662",
+     "x545_y663",
+     "x545_y664",
+     "x545_y665",
+     "x546_y665"
+    ],
+    "wetlands": [
+     "x544_y662",
+     "x544_y663",
+     "x544_y664",
+     "x545_y662",
+     "x545_y663",
+     "x545_y664"
+    ],
+    "hydrography": [
+     "x544_y662",
+     "x544_y663",
+     "x544_y664",
+     "x545_y662",
+     "x545_y663",
+     "x545_y664"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-state-rte-129-c8-s7",
+   "name": "State Rte 129",
+   "lengthM": 6575.1,
+   "wetlandArea1000M2": 3029156.5,
+   "hydroCrossings": 3,
+   "componentCells": 3,
+   "roadComponentId": "drv1-state-rte-129-c8",
+   "bounds": [
+    -71.017228,
+    42.486012,
+    -70.962645,
+    42.514315
+   ],
+   "objects": 7,
+   "bytes": 23229088,
+   "cells": {
+    "roads": 3,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 5000254,
+    "wetlands": 15410044,
+    "hydrography": 2818790
+   },
+   "cellIds": {
+    "roads": [
+     "x543_y662",
+     "x544_y662",
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x544_y662",
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x544_y662",
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-state-rte-107-c20-s1",
+   "name": "State Rte 107",
+   "lengthM": 6833.5,
+   "wetlandArea1000M2": 1563262.2,
+   "hydroCrossings": 3,
+   "componentCells": 2,
+   "roadComponentId": "drv1-state-rte-107-c20",
+   "bounds": [
+    -70.942596,
+    42.483856,
+    -70.894236,
+    42.524422
+   ],
+   "objects": 4,
+   "bytes": 11786303,
+   "cells": {
+    "roads": 2,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 3560243,
+    "wetlands": 7076430,
+    "hydrography": 1149630
+   },
+   "cellIds": {
+    "roads": [
+     "x544_y662",
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x545_y662"
+    ],
+    "hydrography": [
+     "x545_y662"
+    ]
+   }
+  },
+  {
+   "region": "northeast",
+   "corridorId": "drv1-maple-st-c24-s1",
+   "name": "Maple St",
+   "lengthM": 8059.5,
+   "wetlandArea1000M2": 2434331.0,
+   "hydroCrossings": 4,
+   "componentCells": 2,
+   "roadComponentId": "drv1-maple-st-c24",
+   "bounds": [
+    -71.0156,
+    42.565447,
+    -70.935666,
+    42.596467
+   ],
+   "objects": 10,
+   "bytes": 45553998,
+   "cells": {
+    "roads": 2,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 3560243,
+    "wetlands": 34500959,
+    "hydrography": 7492796
+   },
+   "cellIds": {
+    "roads": [
+     "x544_y662",
+     "x545_y662"
+    ],
+    "wetlands": [
+     "x544_y662",
+     "x544_y663",
+     "x545_y662",
+     "x545_y663"
+    ],
+    "hydrography": [
+     "x544_y662",
+     "x544_y663",
+     "x545_y662",
+     "x545_y663"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-mexico-st-c1-s1",
+   "name": "Mexico St",
+   "lengthM": 1629.8,
+   "wetlandArea1000M2": 106277.0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-mexico-st-c1",
+   "bounds": [
+    -90.062474,
+    30.023071,
+    -90.045132,
+    30.024105
+   ],
+   "objects": 3,
+   "bytes": 39449412,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 368258,
+    "wetlands": 38322254,
+    "hydrography": 758900
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-state-rte-47-c17-s1",
+   "name": "State Rte 47",
+   "lengthM": 12417.1,
+   "wetlandArea1000M2": 10694921.4,
+   "hydroCrossings": 3,
+   "componentCells": 2,
+   "roadComponentId": "drv1-state-rte-47-c17",
+   "bounds": [
+    -89.96626,
+    29.936827,
+    -89.938472,
+    30.014546
+   ],
+   "objects": 6,
+   "bytes": 112066898,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 791325,
+    "wetlands": 99229340,
+    "hydrography": 12046233
+   },
+   "cellIds": {
+    "roads": [
+     "x450_y599",
+     "x450_y600"
+    ],
+    "wetlands": [
+     "x450_y599",
+     "x450_y600"
+    ],
+    "hydrography": [
+     "x450_y599",
+     "x450_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-chef-menteur-hwy-c1-s6",
+   "name": "Chef Menteur Hwy",
+   "lengthM": 6760.4,
+   "wetlandArea1000M2": 15178186.3,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-chef-menteur-hwy-c1",
+   "bounds": [
+    -89.865693,
+    30.062971,
+    -89.811062,
+    30.076991
+   ],
+   "objects": 6,
+   "bytes": 118834383,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 714756,
+    "wetlands": 104179612,
+    "hydrography": 13940015
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600",
+     "x450_y600"
+    ],
+    "wetlands": [
+     "x450_y600",
+     "x451_y600"
+    ],
+    "hydrography": [
+     "x450_y600",
+     "x451_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-us-hwy-90-c12-s9",
+   "name": "US Hwy 90",
+   "lengthM": 6302.2,
+   "wetlandArea1000M2": 14051523.3,
+   "hydroCrossings": 2,
+   "componentCells": 6,
+   "roadComponentId": "drv1-us-hwy-90-c12",
+   "bounds": [
+    -89.854658,
+    30.064448,
+    -89.797871,
+    30.076991
+   ],
+   "objects": 10,
+   "bytes": 121502508,
+   "cells": {
+    "roads": 6,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3382881,
+    "wetlands": 104179612,
+    "hydrography": 13940015
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y599",
+     "x449_y600",
+     "x450_y600",
+     "x451_y600",
+     "x451_y601",
+     "x452_y601"
+    ],
+    "wetlands": [
+     "x450_y600",
+     "x451_y600"
+    ],
+    "hydrography": [
+     "x450_y600",
+     "x451_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-transcontinental-dr-c1-s1",
+   "name": "Transcontinental Dr",
+   "lengthM": 5783.3,
+   "wetlandArea1000M2": 1363449.9,
+   "hydroCrossings": 4,
+   "componentCells": 3,
+   "roadComponentId": "drv1-transcontinental-dr-c1",
+   "bounds": [
+    -90.200004,
+    29.976005,
+    -90.185806,
+    30.026062
+   ],
+   "objects": 11,
+   "bytes": 99530685,
+   "cells": {
+    "roads": 3,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 2109185,
+    "wetlands": 86245651,
+    "hydrography": 11175849
+   },
+   "cellIds": {
+    "roads": [
+     "x448_y600",
+     "x449_y599",
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x448_y599",
+     "x448_y600",
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x448_y599",
+     "x448_y600",
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-hastings-st-c1-s1",
+   "name": "Hastings St",
+   "lengthM": 1689.9,
+   "wetlandArea1000M2": 90297.9,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-hastings-st-c1",
+   "bounds": [
+    -90.200134,
+    30.012985,
+    -90.182632,
+    30.014118
+   ],
+   "objects": 6,
+   "bytes": 44925270,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 573893,
+    "wetlands": 39186024,
+    "hydrography": 5165353
+   },
+   "cellIds": {
+    "roads": [
+     "x448_y600",
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x448_y600",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x448_y600",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-lime-st-c5-s1",
+   "name": "Lime St",
+   "lengthM": 1752.8,
+   "wetlandArea1000M2": 95583.1,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-lime-st-c5",
+   "bounds": [
+    -90.190567,
+    30.000476,
+    -90.18679,
+    30.016376
+   ],
+   "objects": 9,
+   "bytes": 97789758,
+   "cells": {
+    "roads": 1,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 368258,
+    "wetlands": 86245651,
+    "hydrography": 11175849
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x448_y599",
+     "x448_y600",
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x448_y599",
+     "x448_y600",
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-selma-st-c2-s1",
+   "name": "Selma St",
+   "lengthM": 1869.3,
+   "wetlandArea1000M2": 76152.1,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-selma-st-c2",
+   "bounds": [
+    -90.064946,
+    30.00997,
+    -90.044028,
+    30.011091
+   ],
+   "objects": 5,
+   "bytes": 84404748,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 368258,
+    "wetlands": 81365443,
+    "hydrography": 2671047
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-michoud-blvd-c2-s1",
+   "name": "Michoud Blvd",
+   "lengthM": 2003.9,
+   "wetlandArea1000M2": 1157603.0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-michoud-blvd-c2",
+   "bounds": [
+    -89.92753,
+    30.020194,
+    -89.92603,
+    30.029013
+   ],
+   "objects": 3,
+   "bytes": 54823319,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 346498,
+    "wetlands": 49596951,
+    "hydrography": 4879870
+   },
+   "cellIds": {
+    "roads": [
+     "x450_y600"
+    ],
+    "wetlands": [
+     "x450_y600"
+    ],
+    "hydrography": [
+     "x450_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-marigny-st-c2-s1",
+   "name": "Marigny St",
+   "lengthM": 2069.5,
+   "wetlandArea1000M2": 0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-marigny-st-c2",
+   "bounds": [
+    -90.059922,
+    30.004747,
+    -90.058007,
+    30.02439
+   ],
+   "objects": 5,
+   "bytes": 84404748,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 368258,
+    "wetlands": 81365443,
+    "hydrography": 2671047
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-fairfield-st-c4-s1",
+   "name": "Fairfield St",
+   "lengthM": 2252.7,
+   "wetlandArea1000M2": 308315.8,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-fairfield-st-c4",
+   "bounds": [
+    -90.20317,
+    30.014228,
+    -90.181351,
+    30.016231
+   ],
+   "objects": 6,
+   "bytes": 44925270,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 573893,
+    "wetlands": 39186024,
+    "hydrography": 5165353
+   },
+   "cellIds": {
+    "roads": [
+     "x448_y600",
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x448_y600",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x448_y600",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-poplar-st-c13-s1",
+   "name": "Poplar St",
+   "lengthM": 2500.2,
+   "wetlandArea1000M2": 1808044.9,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-poplar-st-c13",
+   "bounds": [
+    -90.148155,
+    30.015817,
+    -90.122222,
+    30.016168
+   ],
+   "objects": 3,
+   "bytes": 39449412,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 368258,
+    "wetlands": 38322254,
+    "hydrography": 758900
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-baccich-st-s1",
+   "name": "Baccich St",
+   "lengthM": 2628.6,
+   "wetlandArea1000M2": 102126.4,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-baccich-st",
+   "bounds": [
+    -90.048772,
+    30.003014,
+    -90.047356,
+    30.026601
+   ],
+   "objects": 5,
+   "bytes": 84404748,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 368258,
+    "wetlands": 81365443,
+    "hydrography": 2671047
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-louis-xiv-st-s1",
+   "name": "Louis Xiv St",
+   "lengthM": 2681.6,
+   "wetlandArea1000M2": 283954.5,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-louis-xiv-st",
+   "bounds": [
+    -90.110338,
+    29.99572,
+    -90.107554,
+    30.019713
+   ],
+   "objects": 6,
+   "bytes": 85940040,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1903550,
+    "wetlands": 81365443,
+    "hydrography": 2671047
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-orion-ave-c2-s1",
+   "name": "Orion Ave",
+   "lengthM": 2756.5,
+   "wetlandArea1000M2": 252160.0,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-orion-ave-c2",
+   "bounds": [
+    -90.142112,
+    29.98805,
+    -90.140769,
+    30.013511
+   ],
+   "objects": 6,
+   "bytes": 85940040,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1903550,
+    "wetlands": 81365443,
+    "hydrography": 2671047
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-music-st-c5-s1",
+   "name": "Music St",
+   "lengthM": 2974.2,
+   "wetlandArea1000M2": 589891.9,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-music-st-c5",
+   "bounds": [
+    -90.055517,
+    30.002883,
+    -90.053953,
+    30.029647
+   ],
+   "objects": 5,
+   "bytes": 84404748,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 368258,
+    "wetlands": 81365443,
+    "hydrography": 2671047
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-harvard-ave-c5-s1",
+   "name": "Harvard Ave",
+   "lengthM": 3250.3,
+   "wetlandArea1000M2": 65020.4,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-harvard-ave-c5",
+   "bounds": [
+    -90.19329,
+    29.989063,
+    -90.186729,
+    30.016553
+   ],
+   "objects": 10,
+   "bytes": 99325050,
+   "cells": {
+    "roads": 2,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 1903550,
+    "wetlands": 86245651,
+    "hydrography": 11175849
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x448_y599",
+     "x448_y600",
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x448_y599",
+     "x448_y600",
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-saturn-blvd-c2-s1",
+   "name": "Saturn Blvd",
+   "lengthM": 3526.4,
+   "wetlandArea1000M2": 3177801.0,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-saturn-blvd-c2",
+   "bounds": [
+    -89.930777,
+    30.013952,
+    -89.909829,
+    30.031704
+   ],
+   "objects": 3,
+   "bytes": 54823319,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 346498,
+    "wetlands": 49596951,
+    "hydrography": 4879870
+   },
+   "cellIds": {
+    "roads": [
+     "x450_y600"
+    ],
+    "wetlands": [
+     "x450_y600"
+    ],
+    "hydrography": [
+     "x450_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-w-end-blvd-c1-s1",
+   "name": "W End Blvd",
+   "lengthM": 3764.6,
+   "wetlandArea1000M2": 1527567.0,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-w-end-blvd-c1",
+   "bounds": [
+    -90.115707,
+    29.994853,
+    -90.111945,
+    30.025467
+   ],
+   "objects": 6,
+   "bytes": 85940040,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1903550,
+    "wetlands": 81365443,
+    "hydrography": 2671047
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-crowder-blvd-s1",
+   "name": "Crowder Blvd",
+   "lengthM": 4091.9,
+   "wetlandArea1000M2": 2402476.9,
+   "hydroCrossings": 3,
+   "componentCells": 2,
+   "roadComponentId": "drv1-crowder-blvd",
+   "bounds": [
+    -90.000221,
+    30.008929,
+    -89.987897,
+    30.042041
+   ],
+   "objects": 10,
+   "bytes": 196026819,
+   "cells": {
+    "roads": 2,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 714756,
+    "wetlands": 180594783,
+    "hydrography": 14717280
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600",
+     "x450_y600"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600",
+     "x450_y599",
+     "x450_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600",
+     "x450_y599",
+     "x450_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-bellaire-dr-c2-s1",
+   "name": "Bellaire Dr",
+   "lengthM": 4378.4,
+   "wetlandArea1000M2": 1072008.9,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-bellaire-dr-c2",
+   "bounds": [
+    -90.123535,
+    29.979517,
+    -90.120325,
+    30.019828
+   ],
+   "objects": 6,
+   "bytes": 85940040,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1903550,
+    "wetlands": 81365443,
+    "hydrography": 2671047
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-bundy-rd-c9-s1",
+   "name": "Bundy Rd",
+   "lengthM": 4762.4,
+   "wetlandArea1000M2": 690590.0,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-bundy-rd-c9",
+   "bounds": [
+    -89.988281,
+    30.015983,
+    -89.978511,
+    30.039373
+   ],
+   "objects": 3,
+   "bytes": 54823319,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 346498,
+    "wetlands": 49596951,
+    "hydrography": 4879870
+   },
+   "cellIds": {
+    "roads": [
+     "x450_y600"
+    ],
+    "wetlands": [
+     "x450_y600"
+    ],
+    "hydrography": [
+     "x450_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-clearview-pkwy-c1-s1",
+   "name": "Clearview Pkwy",
+   "lengthM": 5496.3,
+   "wetlandArea1000M2": 1419517.0,
+   "hydroCrossings": 4,
+   "componentCells": 2,
+   "roadComponentId": "drv1-clearview-pkwy-c1",
+   "bounds": [
+    -90.189132,
+    29.975379,
+    -90.177993,
+    30.023324
+   ],
+   "objects": 10,
+   "bytes": 99325050,
+   "cells": {
+    "roads": 2,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 1903550,
+    "wetlands": 86245651,
+    "hydrography": 11175849
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y599",
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x448_y599",
+     "x448_y600",
+     "x449_y599",
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x448_y599",
+     "x448_y600",
+     "x449_y599",
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-us-hwy-90-c12-s12",
+   "name": "US Hwy 90",
+   "lengthM": 6260.4,
+   "wetlandArea1000M2": 1701685.3,
+   "hydroCrossings": 0,
+   "componentCells": 6,
+   "roadComponentId": "drv1-us-hwy-90-c12",
+   "bounds": [
+    -90.025177,
+    30.008659,
+    -89.961637,
+    30.020057
+   ],
+   "objects": 14,
+   "bytes": 198694944,
+   "cells": {
+    "roads": 6,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 3382881,
+    "wetlands": 180594783,
+    "hydrography": 14717280
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y599",
+     "x449_y600",
+     "x450_y600",
+     "x451_y600",
+     "x451_y601",
+     "x452_y601"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600",
+     "x450_y599",
+     "x450_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600",
+     "x450_y599",
+     "x450_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-morrison-rd-c9-s1",
+   "name": "Morrison Rd",
+   "lengthM": 6296.9,
+   "wetlandArea1000M2": 1642099.8,
+   "hydroCrossings": 2,
+   "componentCells": 2,
+   "roadComponentId": "drv1-morrison-rd-c9",
+   "bounds": [
+    -90.029691,
+    30.024915,
+    -89.970407,
+    30.04833
+   ],
+   "objects": 6,
+   "bytes": 94272731,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 714756,
+    "wetlands": 87919205,
+    "hydrography": 5638770
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600",
+     "x450_y600"
+    ],
+    "wetlands": [
+     "x449_y600",
+     "x450_y600"
+    ],
+    "hydrography": [
+     "x449_y600",
+     "x450_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-robert-e-lee-blvd-c2-s2",
+   "name": "Robert E Lee Blvd",
+   "lengthM": 6441.2,
+   "wetlandArea1000M2": 951897.6,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-robert-e-lee-blvd-c2",
+   "bounds": [
+    -90.113551,
+    30.018322,
+    -90.047465,
+    30.022943
+   ],
+   "objects": 3,
+   "bytes": 39449412,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 368258,
+    "wetlands": 38322254,
+    "hydrography": 758900
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-almonaster-ave-s4",
+   "name": "Almonaster Ave",
+   "lengthM": 6669.7,
+   "wetlandArea1000M2": 4157645.0,
+   "hydroCrossings": 1,
+   "componentCells": 3,
+   "roadComponentId": "drv1-almonaster-ave",
+   "bounds": [
+    -90.04593,
+    29.983442,
+    -89.955661,
+    30.010995
+   ],
+   "objects": 11,
+   "bytes": 197562111,
+   "cells": {
+    "roads": 3,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 2250048,
+    "wetlands": 180594783,
+    "hydrography": 14717280
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y599",
+     "x449_y600",
+     "x450_y600"
+    ],
+    "wetlands": [
+     "x449_y599",
+     "x449_y600",
+     "x450_y599",
+     "x450_y600"
+    ],
+    "hydrography": [
+     "x449_y599",
+     "x449_y600",
+     "x450_y599",
+     "x450_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-chef-menteur-hwy-c1-s1",
+   "name": "Chef Menteur Hwy",
+   "lengthM": 6776.3,
+   "wetlandArea1000M2": 5223443.1,
+   "hydroCrossings": 2,
+   "componentCells": 2,
+   "roadComponentId": "drv1-chef-menteur-hwy-c1",
+   "bounds": [
+    -89.963112,
+    30.019813,
+    -89.897306,
+    30.041284
+   ],
+   "objects": 4,
+   "bytes": 55191577,
+   "cells": {
+    "roads": 2,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 714756,
+    "wetlands": 49596951,
+    "hydrography": 4879870
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600",
+     "x450_y600"
+    ],
+    "wetlands": [
+     "x450_y600"
+    ],
+    "hydrography": [
+     "x450_y600"
+    ]
+   }
+  },
+  {
+   "region": "gulf",
+   "corridorId": "drv1-filmore-ave-c1-s1",
+   "name": "Filmore Ave",
+   "lengthM": 7024.2,
+   "wetlandArea1000M2": 737497.3,
+   "hydroCrossings": 4,
+   "componentCells": 1,
+   "roadComponentId": "drv1-filmore-ave-c1",
+   "bounds": [
+    -90.115259,
+    30.0109,
+    -90.046735,
+    30.013262
+   ],
+   "objects": 3,
+   "bytes": 39449412,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 368258,
+    "wetlands": 38322254,
+    "hydrography": 758900
+   },
+   "cellIds": {
+    "roads": [
+     "x449_y600"
+    ],
+    "wetlands": [
+     "x449_y600"
+    ],
+    "hydrography": [
+     "x449_y600"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-w-crystal-st-c1-s1",
+   "name": "W Crystal St",
+   "lengthM": 1610.3,
+   "wetlandArea1000M2": 0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-w-crystal-st-c1",
+   "bounds": [
+    -87.765687,
+    41.903047,
+    -87.745985,
+    41.903261
+   ],
+   "objects": 3,
+   "bytes": 11427833,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-w-jackson-blvd-c1-s1",
+   "name": "W Jackson Blvd",
+   "lengthM": 12199.9,
+   "wetlandArea1000M2": 250329.4,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-w-jackson-blvd-c1",
+   "bounds": [
+    -87.774526,
+    41.87641,
+    -87.627677,
+    41.878178
+   ],
+   "objects": 3,
+   "bytes": 11427833,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-n-lake-shore-dr-c3-s1",
+   "name": "N Lake Shore Dr",
+   "lengthM": 9456.6,
+   "wetlandArea1000M2": 18203664.4,
+   "hydroCrossings": 4,
+   "componentCells": 1,
+   "roadComponentId": "drv1-n-lake-shore-dr-c3",
+   "bounds": [
+    -87.645256,
+    41.882156,
+    -87.614057,
+    41.954655
+   ],
+   "objects": 3,
+   "bytes": 11427833,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-s-lake-shore-dr-c4-s1",
+   "name": "S Lake Shore Dr",
+   "lengthM": 12087.8,
+   "wetlandArea1000M2": 12277617.5,
+   "hydroCrossings": 1,
+   "componentCells": 3,
+   "roadComponentId": "drv1-s-lake-shore-dr-c4",
+   "bounds": [
+    -87.619572,
+    41.781516,
+    -87.57506,
+    41.882156
+   ],
+   "objects": 11,
+   "bytes": 35180836,
+   "cells": {
+    "roads": 3,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 3357722,
+    "wetlands": 26744435,
+    "hydrography": 5078679
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659",
+     "x462_y658",
+     "x462_y659"
+    ],
+    "wetlands": [
+     "x461_y658",
+     "x461_y659",
+     "x462_y658",
+     "x462_y659"
+    ],
+    "hydrography": [
+     "x461_y658",
+     "x461_y659",
+     "x462_y658",
+     "x462_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-e-41st-st-c9-s1",
+   "name": "E 41st St",
+   "lengthM": 2122.3,
+   "wetlandArea1000M2": 785096.7,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-e-41st-st-c9",
+   "bounds": [
+    -87.626362,
+    41.820047,
+    -87.60001,
+    41.820502
+   ],
+   "objects": 5,
+   "bytes": 19768249,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 14081298,
+    "hydrography": 3141796
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659",
+     "x462_y659"
+    ],
+    "hydrography": [
+     "x461_y659",
+     "x462_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-w-pope-john-paul-ii-dr-s1",
+   "name": "W Pope John Paul II Dr",
+   "lengthM": 1627.6,
+   "wetlandArea1000M2": 2446.2,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-w-pope-john-paul-ii-dr",
+   "bounds": [
+    -87.704262,
+    41.815401,
+    -87.684628,
+    41.815696
+   ],
+   "objects": 3,
+   "bytes": 11427833,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-windsor-ave-c11-s1",
+   "name": "Windsor Ave",
+   "lengthM": 1713.0,
+   "wetlandArea1000M2": 0,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-windsor-ave-c11",
+   "bounds": [
+    -87.802932,
+    41.830952,
+    -87.783108,
+    41.835244
+   ],
+   "objects": 6,
+   "bytes": 15240359,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 4559828,
+    "wetlands": 8805865,
+    "hydrography": 1874666
+   },
+   "cellIds": {
+    "roads": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x460_y659",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-van-buren-st-c18-s1",
+   "name": "Van Buren St",
+   "lengthM": 1809.7,
+   "wetlandArea1000M2": 24613.2,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-van-buren-st-c18",
+   "bounds": [
+    -87.796472,
+    41.874056,
+    -87.774627,
+    41.874589
+   ],
+   "objects": 5,
+   "bytes": 13225686,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 8805865,
+    "hydrography": 1874666
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x460_y659",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-s-kolin-ave-c4-s1",
+   "name": "S Kolin Ave",
+   "lengthM": 1938.2,
+   "wetlandArea1000M2": 6637.0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-s-kolin-ave-c4",
+   "bounds": [
+    -87.733051,
+    41.833174,
+    -87.732129,
+    41.85156
+   ],
+   "objects": 3,
+   "bytes": 11427833,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-s-laramie-ave-c2-s1",
+   "name": "S Laramie Ave",
+   "lengthM": 2030.6,
+   "wetlandArea1000M2": 186089.7,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-laramie-ave-c2",
+   "bounds": [
+    -87.752998,
+    41.792888,
+    -87.752507,
+    41.811142
+   ],
+   "objects": 6,
+   "bytes": 14975019,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 4808800,
+    "wetlands": 8349905,
+    "hydrography": 1816314
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y658",
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y658",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y658",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-wesley-ave-c4-s1",
+   "name": "Wesley Ave",
+   "lengthM": 2173.9,
+   "wetlandArea1000M2": 84205.9,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-wesley-ave-c4",
+   "bounds": [
+    -87.79053,
+    41.817815,
+    -87.789921,
+    41.837807
+   ],
+   "objects": 5,
+   "bytes": 13225686,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 8805865,
+    "hydrography": 1874666
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x460_y659",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-linden-ave-c59-s1",
+   "name": "Linden Ave",
+   "lengthM": 2284.5,
+   "wetlandArea1000M2": 0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-linden-ave-c59",
+   "bounds": [
+    -87.792629,
+    41.888527,
+    -87.791155,
+    41.909055
+   ],
+   "objects": 5,
+   "bytes": 13225686,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 8805865,
+    "hydrography": 1874666
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x460_y659",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-scoville-ave-c1-s1",
+   "name": "Scoville Ave",
+   "lengthM": 2386.5,
+   "wetlandArea1000M2": 0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-scoville-ave-c1",
+   "bounds": [
+    -87.787619,
+    41.843347,
+    -87.787015,
+    41.864805
+   ],
+   "objects": 5,
+   "bytes": 13225686,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 8805865,
+    "hydrography": 1874666
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x460_y659",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-n-kildare-ave-c1-s1",
+   "name": "N Kildare Ave",
+   "lengthM": 2455.4,
+   "wetlandArea1000M2": 0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-n-kildare-ave-c1",
+   "bounds": [
+    -87.734897,
+    41.913299,
+    -87.733762,
+    41.935368
+   ],
+   "objects": 3,
+   "bytes": 11427833,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-s-ridgeway-ave-c1-s1",
+   "name": "S Ridgeway Ave",
+   "lengthM": 2617.7,
+   "wetlandArea1000M2": 5747.8,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-s-ridgeway-ave-c1",
+   "bounds": [
+    -87.718962,
+    41.838826,
+    -87.718304,
+    41.862359
+   ],
+   "objects": 3,
+   "bytes": 11427833,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-w-strong-st-c1-s1",
+   "name": "W Strong St",
+   "lengthM": 2784.0,
+   "wetlandArea1000M2": 18491.9,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-w-strong-st-c1",
+   "bounds": [
+    -87.807114,
+    41.970074,
+    -87.773446,
+    41.970337
+   ],
+   "objects": 6,
+   "bytes": 15240359,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 4559828,
+    "wetlands": 8805865,
+    "hydrography": 1874666
+   },
+   "cellIds": {
+    "roads": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x460_y659",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-e-48th-st-c7-s1",
+   "name": "E 48th St",
+   "lengthM": 2898.0,
+   "wetlandArea1000M2": 810404.5,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-e-48th-st-c7",
+   "bounds": [
+    -87.626032,
+    41.807416,
+    -87.590652,
+    41.808087
+   ],
+   "objects": 10,
+   "bytes": 34430464,
+   "cells": {
+    "roads": 2,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 2607350,
+    "wetlands": 26744435,
+    "hydrography": 5078679
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659",
+     "x462_y659"
+    ],
+    "wetlands": [
+     "x461_y658",
+     "x461_y659",
+     "x462_y658",
+     "x462_y659"
+    ],
+    "hydrography": [
+     "x461_y658",
+     "x461_y659",
+     "x462_y658",
+     "x462_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-s-karlov-ave-c2-s1",
+   "name": "S Karlov Ave",
+   "lengthM": 3062.8,
+   "wetlandArea1000M2": 30033.0,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-s-karlov-ave-c2",
+   "bounds": [
+    -87.728119,
+    41.85163,
+    -87.727187,
+    41.880696
+   ],
+   "objects": 3,
+   "bytes": 11427833,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-s-mozart-st-c1-s1",
+   "name": "S Mozart St",
+   "lengthM": 3243.2,
+   "wetlandArea1000M2": 121489.2,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-mozart-st-c1",
+   "bounds": [
+    -87.695219,
+    41.771807,
+    -87.69443,
+    41.800968
+   ],
+   "objects": 6,
+   "bytes": 14975019,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 4808800,
+    "wetlands": 8349905,
+    "hydrography": 1816314
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y658",
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y658",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y658",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-18th-st-c19-s1",
+   "name": "18th St",
+   "lengthM": 3503.7,
+   "wetlandArea1000M2": 825.8,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-18th-st-c19",
+   "bounds": [
+    -87.803902,
+    41.855887,
+    -87.761606,
+    41.856511
+   ],
+   "objects": 6,
+   "bytes": 15240359,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 4559828,
+    "wetlands": 8805865,
+    "hydrography": 1874666
+   },
+   "cellIds": {
+    "roads": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x460_y659",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-lake-shore-dr-c33-s1",
+   "name": "Lake Shore Dr",
+   "lengthM": 3771.0,
+   "wetlandArea1000M2": 5909652.5,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-lake-shore-dr-c33",
+   "bounds": [
+    -87.619227,
+    41.85407,
+    -87.613578,
+    41.885736
+   ],
+   "objects": 3,
+   "bytes": 11427833,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-n-rockwell-st-c1-s1",
+   "name": "N Rockwell St",
+   "lengthM": 4183.1,
+   "wetlandArea1000M2": 67021.9,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-n-rockwell-st-c1",
+   "bounds": [
+    -87.694986,
+    41.975451,
+    -87.694063,
+    42.01306
+   ],
+   "objects": 6,
+   "bytes": 21490436,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3595047,
+    "wetlands": 14601239,
+    "hydrography": 3294150
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659",
+     "x461_y660"
+    ],
+    "wetlands": [
+     "x461_y659",
+     "x461_y660"
+    ],
+    "hydrography": [
+     "x461_y659",
+     "x461_y660"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-w-21st-st-c8-s1",
+   "name": "W 21st St",
+   "lengthM": 4623.6,
+   "wetlandArea1000M2": 286247.8,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-w-21st-st-c8",
+   "bounds": [
+    -87.699601,
+    41.853698,
+    -87.641753,
+    41.854317
+   ],
+   "objects": 3,
+   "bytes": 11427833,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2545155,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-s-rockwell-st-c1-s1",
+   "name": "S Rockwell St",
+   "lengthM": 5204.0,
+   "wetlandArea1000M2": 77769.7,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-rockwell-st-c1",
+   "bounds": [
+    -87.689206,
+    41.757625,
+    -87.687828,
+    41.804346
+   ],
+   "objects": 6,
+   "bytes": 14975019,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 4808800,
+    "wetlands": 8349905,
+    "hydrography": 1816314
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y658",
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y658",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y658",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-s-kildare-ave-c1-s1",
+   "name": "S Kildare Ave",
+   "lengthM": 5737.6,
+   "wetlandArea1000M2": 200867.5,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-kildare-ave-c1",
+   "bounds": [
+    -87.731467,
+    41.767657,
+    -87.729798,
+    41.819237
+   ],
+   "objects": 6,
+   "bytes": 14975019,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 4808800,
+    "wetlands": 8349905,
+    "hydrography": 1816314
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y658",
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y658",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y658",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-w-grand-ave-c1-s1",
+   "name": "W Grand Ave",
+   "lengthM": 6302.6,
+   "wetlandArea1000M2": 422598.7,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-w-grand-ave-c1",
+   "bounds": [
+    -87.701458,
+    41.890314,
+    -87.628069,
+    41.896249
+   ],
+   "objects": 4,
+   "bytes": 13442506,
+   "cells": {
+    "roads": 2,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 4559828,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-w-ogden-ave-c2-s1",
+   "name": "W Ogden Ave",
+   "lengthM": 6645.5,
+   "wetlandArea1000M2": 38175.5,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-w-ogden-ave-c2",
+   "bounds": [
+    -87.73085,
+    41.848932,
+    -87.666084,
+    41.881462
+   ],
+   "objects": 4,
+   "bytes": 13442506,
+   "cells": {
+    "roads": 2,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 4559828,
+    "wetlands": 7274937,
+    "hydrography": 1607741
+   },
+   "cellIds": {
+    "roads": [
+     "x460_y659",
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-n-central-ave-c4-s2",
+   "name": "N Central Ave",
+   "lengthM": 7134.2,
+   "wetlandArea1000M2": 100854.8,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-n-central-ave-c4",
+   "bounds": [
+    -87.76855,
+    41.944781,
+    -87.761664,
+    42.00832
+   ],
+   "objects": 6,
+   "bytes": 21490436,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3595047,
+    "wetlands": 14601239,
+    "hydrography": 3294150
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y659",
+     "x461_y660"
+    ],
+    "wetlands": [
+     "x461_y659",
+     "x461_y660"
+    ],
+    "hydrography": [
+     "x461_y659",
+     "x461_y660"
+    ]
+   }
+  },
+  {
+   "region": "midwest",
+   "corridorId": "drv1-s-loomis-blvd-s1",
+   "name": "S Loomis Blvd",
+   "lengthM": 8111.8,
+   "wetlandArea1000M2": 46481.0,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-loomis-blvd",
+   "bounds": [
+    -87.660106,
+    41.735862,
+    -87.658205,
+    41.808669
+   ],
+   "objects": 6,
+   "bytes": 14975019,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 4808800,
+    "wetlands": 8349905,
+    "hydrography": 1816314
+   },
+   "cellIds": {
+    "roads": [
+     "x461_y658",
+     "x461_y659"
+    ],
+    "wetlands": [
+     "x461_y658",
+     "x461_y659"
+    ],
+    "hydrography": [
+     "x461_y658",
+     "x461_y659"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-s-190th-st-c8-s1",
+   "name": "S 190th St",
+   "lengthM": 1610.9,
+   "wetlandArea1000M2": 93161.1,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-190th-st-c8",
+   "bounds": [
+    -96.463739,
+    40.798461,
+    -96.463729,
+    40.812948
+   ],
+   "objects": 6,
+   "bytes": 22376875,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 332314,
+    "wetlands": 16591861,
+    "hydrography": 5452700
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y653",
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y653",
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y653",
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-202nd-st-c5-s1",
+   "name": "202nd St",
+   "lengthM": 12795.5,
+   "wetlandArea1000M2": 331226.3,
+   "hydroCrossings": 9,
+   "componentCells": 1,
+   "roadComponentId": "drv1-202nd-st-c5",
+   "bounds": [
+    -96.446507,
+    40.81289,
+    -96.445248,
+    40.927906
+   ],
+   "objects": 3,
+   "bytes": 11448571,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 165407,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-n-98th-st-c1-s1",
+   "name": "N 98th St",
+   "lengthM": 8130.3,
+   "wetlandArea1000M2": 2041642.4,
+   "hydroCrossings": 8,
+   "componentCells": 2,
+   "roadComponentId": "drv1-n-98th-st-c1",
+   "bounds": [
+    -96.585752,
+    40.972351,
+    -96.581999,
+    41.045413
+   ],
+   "objects": 6,
+   "bytes": 23991047,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 314450,
+    "wetlands": 17935875,
+    "hydrography": 5740722
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654",
+     "x417_y655"
+    ],
+    "wetlands": [
+     "x417_y654",
+     "x417_y655"
+    ],
+    "hydrography": [
+     "x417_y654",
+     "x417_y655"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-mill-rd-c7-s1",
+   "name": "Mill Rd",
+   "lengthM": 11205.0,
+   "wetlandArea1000M2": 685961.0,
+   "hydroCrossings": 12,
+   "componentCells": 2,
+   "roadComponentId": "drv1-mill-rd-c7",
+   "bounds": [
+    -96.719815,
+    40.943309,
+    -96.586417,
+    40.944299
+   ],
+   "objects": 6,
+   "bytes": 23728702,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 740718,
+    "wetlands": 17241286,
+    "hydrography": 5746698
+   },
+   "cellIds": {
+    "roads": [
+     "x416_y654",
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x416_y654",
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x416_y654",
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-us-hwy-6-c28-s8",
+   "name": "US Hwy 6",
+   "lengthM": 6674.0,
+   "wetlandArea1000M2": 426503.0,
+   "hydroCrossings": 3,
+   "componentCells": 6,
+   "roadComponentId": "drv1-us-hwy-6-c28",
+   "bounds": [
+    -96.448005,
+    40.955832,
+    -96.400133,
+    41.003745
+   ],
+   "objects": 14,
+   "bytes": 48862995,
+   "cells": {
+    "roads": 6,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 2224955,
+    "wetlands": 35725112,
+    "hydrography": 10912928
+   },
+   "cellIds": {
+    "roads": [
+     "x415_y654",
+     "x416_y654",
+     "x417_y654",
+     "x417_y655",
+     "x418_y655",
+     "x418_y656"
+    ],
+    "wetlands": [
+     "x417_y654",
+     "x417_y655",
+     "x418_y654",
+     "x418_y655"
+    ],
+    "hydrography": [
+     "x417_y654",
+     "x417_y655",
+     "x418_y654",
+     "x418_y655"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-amberly-rd-c2-s1",
+   "name": "Amberly Rd",
+   "lengthM": 1865.8,
+   "wetlandArea1000M2": 96802.0,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-amberly-rd-c2",
+   "bounds": [
+    -96.542073,
+    40.906884,
+    -96.520894,
+    40.908974
+   ],
+   "objects": 3,
+   "bytes": 11448571,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 165407,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-n-190th-st-c5-s1",
+   "name": "N 190th St",
+   "lengthM": 2024.9,
+   "wetlandArea1000M2": 61789.6,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-n-190th-st-c5",
+   "bounds": [
+    -96.463746,
+    40.928324,
+    -96.46372,
+    40.946534
+   ],
+   "objects": 3,
+   "bytes": 11448571,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 165407,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-220th-st-c283-s1",
+   "name": "220th St",
+   "lengthM": 3153.3,
+   "wetlandArea1000M2": 326125.3,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-220th-st-c283",
+   "bounds": [
+    -96.417273,
+    40.968531,
+    -96.416289,
+    40.996687
+   ],
+   "objects": 5,
+   "bytes": 23842004,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 165407,
+    "wetlands": 17935875,
+    "hydrography": 5740722
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y654",
+     "x417_y655"
+    ],
+    "hydrography": [
+     "x417_y654",
+     "x417_y655"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-s-202nd-st-c1-s1",
+   "name": "S 202nd St",
+   "lengthM": 3217.8,
+   "wetlandArea1000M2": 140823.3,
+   "hydroCrossings": 2,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-202nd-st-c1",
+   "bounds": [
+    -96.445719,
+    40.783954,
+    -96.445302,
+    40.81289
+   ],
+   "objects": 6,
+   "bytes": 22376875,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 332314,
+    "wetlands": 16591861,
+    "hydrography": 5452700
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y653",
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y653",
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y653",
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-s-214th-st-c1-s1",
+   "name": "S 214th St",
+   "lengthM": 3230.3,
+   "wetlandArea1000M2": 90271.0,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-214th-st-c1",
+   "bounds": [
+    -96.426898,
+    40.783947,
+    -96.426242,
+    40.812992
+   ],
+   "objects": 6,
+   "bytes": 22376875,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 332314,
+    "wetlands": 16591861,
+    "hydrography": 5452700
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y653",
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y653",
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y653",
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-waverly-rd-c21-s1",
+   "name": "Waverly Rd",
+   "lengthM": 3411.3,
+   "wetlandArea1000M2": 128530.5,
+   "hydroCrossings": 4,
+   "componentCells": 1,
+   "roadComponentId": "drv1-waverly-rd-c21",
+   "bounds": [
+    -96.504347,
+    40.928858,
+    -96.463743,
+    40.928999
+   ],
+   "objects": 3,
+   "bytes": 11448571,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 165407,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-fletcher-ave-c3-s2",
+   "name": "Fletcher Ave",
+   "lengthM": 4818.2,
+   "wetlandArea1000M2": 142351.1,
+   "hydroCrossings": 5,
+   "componentCells": 3,
+   "roadComponentId": "drv1-fletcher-ave-c3",
+   "bounds": [
+    -96.521015,
+    40.870833,
+    -96.463714,
+    40.870976
+   ],
+   "objects": 5,
+   "bytes": 12133683,
+   "cells": {
+    "roads": 3,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 850519,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x416_y654",
+     "x417_y654",
+     "x418_y654"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-holdrege-st-c1-s3",
+   "name": "Holdrege St",
+   "lengthM": 5299.6,
+   "wetlandArea1000M2": 133931.9,
+   "hydroCrossings": 3,
+   "componentCells": 2,
+   "roadComponentId": "drv1-holdrege-st-c1",
+   "bounds": [
+    -96.428694,
+    40.827372,
+    -96.365709,
+    40.827533
+   ],
+   "objects": 6,
+   "bytes": 21997917,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 275208,
+    "wetlands": 16830474,
+    "hydrography": 4892235
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654",
+     "x418_y654"
+    ],
+    "wetlands": [
+     "x417_y654",
+     "x418_y654"
+    ],
+    "hydrography": [
+     "x417_y654",
+     "x418_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-waverly-rd-c4-s2",
+   "name": "Waverly Rd",
+   "lengthM": 5597.1,
+   "wetlandArea1000M2": 206826.3,
+   "hydroCrossings": 6,
+   "componentCells": 2,
+   "roadComponentId": "drv1-waverly-rd-c4",
+   "bounds": [
+    -96.652931,
+    40.928839,
+    -96.58631,
+    40.929265
+   ],
+   "objects": 6,
+   "bytes": 23728702,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 740718,
+    "wetlands": 17241286,
+    "hydrography": 5746698
+   },
+   "cellIds": {
+    "roads": [
+     "x416_y654",
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x416_y654",
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x416_y654",
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-davey-rd-c1-s1",
+   "name": "Davey Rd",
+   "lengthM": 5986.9,
+   "wetlandArea1000M2": 711284.8,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-davey-rd-c1",
+   "bounds": [
+    -96.516117,
+    40.986807,
+    -96.444882,
+    40.987045
+   ],
+   "objects": 4,
+   "bytes": 12023882,
+   "cells": {
+    "roads": 2,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 740718,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x416_y654",
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-adams-st-c3-s4",
+   "name": "Adams St",
+   "lengthM": 6091.1,
+   "wetlandArea1000M2": 162762.0,
+   "hydroCrossings": 5,
+   "componentCells": 3,
+   "roadComponentId": "drv1-adams-st-c3",
+   "bounds": [
+    -96.446933,
+    40.841822,
+    -96.374527,
+    40.841992
+   ],
+   "objects": 7,
+   "bytes": 22573228,
+   "cells": {
+    "roads": 3,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 850519,
+    "wetlands": 16830474,
+    "hydrography": 4892235
+   },
+   "cellIds": {
+    "roads": [
+     "x416_y654",
+     "x417_y654",
+     "x418_y654"
+    ],
+    "wetlands": [
+     "x417_y654",
+     "x418_y654"
+    ],
+    "hydrography": [
+     "x417_y654",
+     "x418_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-waverly-rd-c1-s7",
+   "name": "Waverly Rd",
+   "lengthM": 6192.5,
+   "wetlandArea1000M2": 177701.0,
+   "hydroCrossings": 6,
+   "componentCells": 4,
+   "roadComponentId": "drv1-waverly-rd-c1",
+   "bounds": [
+    -96.445967,
+    40.927902,
+    -96.374447,
+    40.92934
+   ],
+   "objects": 8,
+   "bytes": 22335483,
+   "cells": {
+    "roads": 4,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 612774,
+    "wetlands": 16830474,
+    "hydrography": 4892235
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654",
+     "x418_y654",
+     "x419_y654",
+     "x420_y654"
+    ],
+    "wetlands": [
+     "x417_y654",
+     "x418_y654"
+    ],
+    "hydrography": [
+     "x417_y654",
+     "x418_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-holdrege-st-c2-s3",
+   "name": "Holdrege St",
+   "lengthM": 6306.5,
+   "wetlandArea1000M2": 237579.0,
+   "hydroCrossings": 9,
+   "componentCells": 2,
+   "roadComponentId": "drv1-holdrege-st-c2",
+   "bounds": [
+    -96.520944,
+    40.827362,
+    -96.445992,
+    40.827507
+   ],
+   "objects": 4,
+   "bytes": 12023882,
+   "cells": {
+    "roads": 2,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 740718,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x416_y654",
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-us-hwy-6-c28-s7",
+   "name": "US Hwy 6",
+   "lengthM": 6374.4,
+   "wetlandArea1000M2": 335397.8,
+   "hydroCrossings": 4,
+   "componentCells": 6,
+   "roadComponentId": "drv1-us-hwy-6-c28",
+   "bounds": [
+    -96.511395,
+    40.925178,
+    -96.448005,
+    40.955832
+   ],
+   "objects": 8,
+   "bytes": 13508119,
+   "cells": {
+    "roads": 6,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 2224955,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x415_y654",
+     "x416_y654",
+     "x417_y654",
+     "x417_y655",
+     "x418_y655",
+     "x418_y656"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-o-st-c1-s6",
+   "name": "O St",
+   "lengthM": 6409.8,
+   "wetlandArea1000M2": 147016.6,
+   "hydroCrossings": 4,
+   "componentCells": 5,
+   "roadComponentId": "drv1-o-st-c1",
+   "bounds": [
+    -96.437634,
+    40.812866,
+    -96.361472,
+    40.813009
+   ],
+   "objects": 9,
+   "bytes": 22910794,
+   "cells": {
+    "roads": 5,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1188085,
+    "wetlands": 16830474,
+    "hydrography": 4892235
+   },
+   "cellIds": {
+    "roads": [
+     "x416_y654",
+     "x417_y654",
+     "x418_y654",
+     "x419_y654",
+     "x420_y654"
+    ],
+    "wetlands": [
+     "x417_y654",
+     "x418_y654"
+    ],
+    "hydrography": [
+     "x417_y654",
+     "x418_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-n-98th-st-c1-s2",
+   "name": "N 98th St",
+   "lengthM": 6450.7,
+   "wetlandArea1000M2": 450145.3,
+   "hydroCrossings": 4,
+   "componentCells": 2,
+   "roadComponentId": "drv1-n-98th-st-c1",
+   "bounds": [
+    -96.586417,
+    40.914347,
+    -96.585752,
+    40.972351
+   ],
+   "objects": 4,
+   "bytes": 11597614,
+   "cells": {
+    "roads": 2,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 314450,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654",
+     "x417_y655"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-church-rd-c1-s1",
+   "name": "Church Rd",
+   "lengthM": 6560.5,
+   "wetlandArea1000M2": 224220.2,
+   "hydroCrossings": 5,
+   "componentCells": 4,
+   "roadComponentId": "drv1-church-rd-c1",
+   "bounds": [
+    -96.445435,
+    40.957182,
+    -96.36732,
+    40.957869
+   ],
+   "objects": 8,
+   "bytes": 22335483,
+   "cells": {
+    "roads": 4,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 612774,
+    "wetlands": 16830474,
+    "hydrography": 4892235
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654",
+     "x418_y654",
+     "x419_y654",
+     "x420_y654"
+    ],
+    "wetlands": [
+     "x417_y654",
+     "x418_y654"
+    ],
+    "hydrography": [
+     "x417_y654",
+     "x418_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-190th-st-c120-s1",
+   "name": "190th St",
+   "lengthM": 6816.5,
+   "wetlandArea1000M2": 198944.9,
+   "hydroCrossings": 7,
+   "componentCells": 1,
+   "roadComponentId": "drv1-190th-st-c120",
+   "bounds": [
+    -96.463729,
+    40.85647,
+    -96.463714,
+    40.917772
+   ],
+   "objects": 3,
+   "bytes": 11448571,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 165407,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-bluff-rd-c8-s2",
+   "name": "Bluff Rd",
+   "lengthM": 6987.4,
+   "wetlandArea1000M2": 181579.3,
+   "hydroCrossings": 7,
+   "componentCells": 2,
+   "roadComponentId": "drv1-bluff-rd-c8",
+   "bounds": [
+    -96.462977,
+    40.914175,
+    -96.379861,
+    40.914486
+   ],
+   "objects": 6,
+   "bytes": 21997917,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 275208,
+    "wetlands": 16830474,
+    "hydrography": 4892235
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654",
+     "x418_y654"
+    ],
+    "wetlands": [
+     "x417_y654",
+     "x418_y654"
+    ],
+    "hydrography": [
+     "x417_y654",
+     "x418_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-raymond-rd-c4-s1",
+   "name": "Raymond Rd",
+   "lengthM": 7118.5,
+   "wetlandArea1000M2": 476580.1,
+   "hydroCrossings": 6,
+   "componentCells": 2,
+   "roadComponentId": "drv1-raymond-rd-c4",
+   "bounds": [
+    -96.58639,
+    40.95775,
+    -96.501621,
+    40.9579
+   ],
+   "objects": 4,
+   "bytes": 12023882,
+   "cells": {
+    "roads": 2,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 740718,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x416_y654",
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-havelock-ave-c1-s2",
+   "name": "Havelock Ave",
+   "lengthM": 7228.5,
+   "wetlandArea1000M2": 173677.0,
+   "hydroCrossings": 4,
+   "componentCells": 3,
+   "roadComponentId": "drv1-havelock-ave-c1",
+   "bounds": [
+    -96.482844,
+    40.856258,
+    -96.396907,
+    40.85647
+   ],
+   "objects": 7,
+   "bytes": 22573228,
+   "cells": {
+    "roads": 3,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 850519,
+    "wetlands": 16830474,
+    "hydrography": 4892235
+   },
+   "cellIds": {
+    "roads": [
+     "x416_y654",
+     "x417_y654",
+     "x418_y654"
+    ],
+    "wetlands": [
+     "x417_y654",
+     "x418_y654"
+    ],
+    "hydrography": [
+     "x417_y654",
+     "x418_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-fletcher-ave-c3-s1",
+   "name": "Fletcher Ave",
+   "lengthM": 7674.1,
+   "wetlandArea1000M2": 181749.3,
+   "hydroCrossings": 8,
+   "componentCells": 3,
+   "roadComponentId": "drv1-fletcher-ave-c3",
+   "bounds": [
+    -96.61228,
+    40.87075,
+    -96.521015,
+    40.871139
+   ],
+   "objects": 7,
+   "bytes": 23838503,
+   "cells": {
+    "roads": 3,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 850519,
+    "wetlands": 17241286,
+    "hydrography": 5746698
+   },
+   "cellIds": {
+    "roads": [
+     "x416_y654",
+     "x417_y654",
+     "x418_y654"
+    ],
+    "wetlands": [
+     "x416_y654",
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x416_y654",
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "plains",
+   "corridorId": "drv1-n-148th-st-c1-s1",
+   "name": "N 148th St",
+   "lengthM": 8189.5,
+   "wetlandArea1000M2": 373289.5,
+   "hydroCrossings": 6,
+   "componentCells": 1,
+   "roadComponentId": "drv1-n-148th-st-c1",
+   "bounds": [
+    -96.521116,
+    40.870833,
+    -96.517533,
+    40.943479
+   ],
+   "objects": 3,
+   "bytes": 11448571,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 165407,
+    "wetlands": 8308290,
+    "hydrography": 2974874
+   },
+   "cellIds": {
+    "roads": [
+     "x417_y654"
+    ],
+    "wetlands": [
+     "x417_y654"
+    ],
+    "hydrography": [
+     "x417_y654"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-mcdonald-dr-c4-s1",
+   "name": "E McDonald Dr",
+   "lengthM": 1609.6,
+   "wetlandArea1000M2": 95969.1,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-e-mcdonald-dr-c4",
+   "bounds": [
+    -111.882708,
+    33.523843,
+    -111.865382,
+    33.524155
+   ],
+   "objects": 3,
+   "bytes": 3472607,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-s-rural-rd-c1-s1",
+   "name": "S Rural Rd",
+   "lengthM": 12567.1,
+   "wetlandArea1000M2": 931447.6,
+   "hydroCrossings": 3,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-rural-rd-c1",
+   "bounds": [
+    -111.928683,
+    33.320009,
+    -111.926265,
+    33.432612
+   ],
+   "objects": 6,
+   "bytes": 6125943,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3809521,
+    "wetlands": 1907688,
+    "hydrography": 408734
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y616",
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y616",
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y616",
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-n-beeline-hwy-c1-s1",
+   "name": "N Beeline Hwy",
+   "lengthM": 10613.1,
+   "wetlandArea1000M2": 1882618.3,
+   "hydroCrossings": 6,
+   "componentCells": 2,
+   "roadComponentId": "drv1-n-beeline-hwy-c1",
+   "bounds": [
+    -111.843324,
+    33.465142,
+    -111.750514,
+    33.516334
+   ],
+   "objects": 6,
+   "bytes": 8066785,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3222113,
+    "wetlands": 3904506,
+    "hydrography": 940166
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617",
+     "x341_y617"
+    ],
+    "wetlands": [
+     "x340_y617",
+     "x341_y617"
+    ],
+    "hydrography": [
+     "x340_y617",
+     "x341_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-lincoln-dr-c1-s1",
+   "name": "E Lincoln Dr",
+   "lengthM": 12371.8,
+   "wetlandArea1000M2": 503896.3,
+   "hydroCrossings": 20,
+   "componentCells": 2,
+   "roadComponentId": "drv1-e-lincoln-dr-c1",
+   "bounds": [
+    -112.0367,
+    33.529401,
+    -111.907743,
+    33.538359
+   ],
+   "objects": 6,
+   "bytes": 6128091,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3562967,
+    "wetlands": 2090206,
+    "hydrography": 474918
+   },
+   "cellIds": {
+    "roads": [
+     "x339_y617",
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x339_y617",
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x339_y617",
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-hackamore-st-c1-s1",
+   "name": "E Hackamore St",
+   "lengthM": 1733.3,
+   "wetlandArea1000M2": 76425.8,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-e-hackamore-st-c1",
+   "bounds": [
+    -111.800082,
+    33.441189,
+    -111.781611,
+    33.442369
+   ],
+   "objects": 6,
+   "bytes": 8066785,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3222113,
+    "wetlands": 3904506,
+    "hydrography": 940166
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617",
+     "x341_y617"
+    ],
+    "wetlands": [
+     "x340_y617",
+     "x341_y617"
+    ],
+    "hydrography": [
+     "x340_y617",
+     "x341_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-n-62nd-st-c4-s1",
+   "name": "N 62nd St",
+   "lengthM": 1637.7,
+   "wetlandArea1000M2": 93277.5,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-n-62nd-st-c4",
+   "bounds": [
+    -111.947682,
+    33.490828,
+    -111.945271,
+    33.50468
+   ],
+   "objects": 3,
+   "bytes": 3472607,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-stonegate-cir-c1-s1",
+   "name": "E Stonegate Cir",
+   "lengthM": 1688.9,
+   "wetlandArea1000M2": 67245.4,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-e-stonegate-cir-c1",
+   "bounds": [
+    -111.833822,
+    33.569612,
+    -111.826909,
+    33.57518
+   ],
+   "objects": 3,
+   "bytes": 3472607,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-n-macdonald-c1-s1",
+   "name": "N Macdonald",
+   "lengthM": 1772.7,
+   "wetlandArea1000M2": 34731.3,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-n-macdonald-c1",
+   "bounds": [
+    -111.83431,
+    33.415109,
+    -111.833474,
+    33.431084
+   ],
+   "objects": 3,
+   "bytes": 3472607,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-n-76th-st-c7-s1",
+   "name": "N 76th St",
+   "lengthM": 1842.8,
+   "wetlandArea1000M2": 191669.0,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-n-76th-st-c7",
+   "bounds": [
+    -111.918384,
+    33.574857,
+    -111.917364,
+    33.591211
+   ],
+   "objects": 5,
+   "bytes": 7320364,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 4579929,
+    "hydrography": 965548
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617",
+     "x340_y618"
+    ],
+    "hydrography": [
+     "x340_y617",
+     "x340_y618"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-bella-vista-dr-c3-s1",
+   "name": "E Bella Vista Dr",
+   "lengthM": 1964.0,
+   "wetlandArea1000M2": 140114.2,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-e-bella-vista-dr-c3",
+   "bounds": [
+    -111.862775,
+    33.568335,
+    -111.843431,
+    33.570335
+   ],
+   "objects": 3,
+   "bytes": 3472607,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-n-westwood-c1-s1",
+   "name": "N Westwood",
+   "lengthM": 2066.1,
+   "wetlandArea1000M2": 163093.6,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-n-westwood-c1",
+   "bounds": [
+    -111.852496,
+    33.418681,
+    -111.851496,
+    33.437173
+   ],
+   "objects": 3,
+   "bytes": 3472607,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-palm-ln-c2-s1",
+   "name": "E Palm Ln",
+   "lengthM": 2197.9,
+   "wetlandArea1000M2": 19524.8,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-e-palm-ln-c2",
+   "bounds": [
+    -111.886839,
+    33.469493,
+    -111.863155,
+    33.469662
+   ],
+   "objects": 3,
+   "bytes": 3472607,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-s-terrace-rd-c1-s1",
+   "name": "S Terrace Rd",
+   "lengthM": 2332.2,
+   "wetlandArea1000M2": 0,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-terrace-rd-c1",
+   "bounds": [
+    -111.923057,
+    33.387301,
+    -111.921103,
+    33.407511
+   ],
+   "objects": 6,
+   "bytes": 6125943,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3809521,
+    "wetlands": 1907688,
+    "hydrography": 408734
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y616",
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y616",
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y616",
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-n-94th-st-c3-s1",
+   "name": "N 94th St",
+   "lengthM": 2419.4,
+   "wetlandArea1000M2": 119627.7,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-n-94th-st-c3",
+   "bounds": [
+    -111.880279,
+    33.593972,
+    -111.878326,
+    33.615195
+   ],
+   "objects": 6,
+   "bytes": 8871095,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3325618,
+    "wetlands": 4579929,
+    "hydrography": 965548
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617",
+     "x340_y618"
+    ],
+    "wetlands": [
+     "x340_y617",
+     "x340_y618"
+    ],
+    "hydrography": [
+     "x340_y617",
+     "x340_y618"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-s-solomon-c1-s1",
+   "name": "S Solomon",
+   "lengthM": 2466.4,
+   "wetlandArea1000M2": 57368.4,
+   "hydroCrossings": 0,
+   "componentCells": 2,
+   "roadComponentId": "drv1-s-solomon-c1",
+   "bounds": [
+    -111.80987,
+    33.388208,
+    -111.80972,
+    33.411513
+   ],
+   "objects": 10,
+   "bytes": 10051972,
+   "cells": {
+    "roads": 2,
+    "wetlands": 4,
+    "hydrography": 4
+   },
+   "bytesByPlane": {
+    "roads": 3809521,
+    "wetlands": 4996011,
+    "hydrography": 1246440
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y616",
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y616",
+     "x340_y617",
+     "x341_y616",
+     "x341_y617"
+    ],
+    "hydrography": [
+     "x340_y616",
+     "x340_y617",
+     "x341_y616",
+     "x341_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-6th-st-c34-s1",
+   "name": "E 6th St",
+   "lengthM": 2650.3,
+   "wetlandArea1000M2": 42029.6,
+   "hydroCrossings": 2,
+   "componentCells": 1,
+   "roadComponentId": "drv1-e-6th-st-c34",
+   "bounds": [
+    -111.831423,
+    33.425468,
+    -111.80528,
+    33.427762
+   ],
+   "objects": 5,
+   "bytes": 6619559,
+   "cells": {
+    "roads": 1,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 3904506,
+    "hydrography": 940166
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617",
+     "x341_y617"
+    ],
+    "hydrography": [
+     "x340_y617",
+     "x341_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-n-goldwater-blvd-s1",
+   "name": "N Goldwater Blvd",
+   "lengthM": 2825.7,
+   "wetlandArea1000M2": 84535.6,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-n-goldwater-blvd",
+   "bounds": [
+    -111.930676,
+    33.488058,
+    -111.926134,
+    33.507711
+   ],
+   "objects": 3,
+   "bytes": 3472607,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-desert-cove-ave-c1-s1",
+   "name": "E Desert Cove Ave",
+   "lengthM": 3213.1,
+   "wetlandArea1000M2": 74534.3,
+   "hydroCrossings": 3,
+   "componentCells": 2,
+   "roadComponentId": "drv1-e-desert-cove-ave-c1",
+   "bounds": [
+    -112.021794,
+    33.586111,
+    -111.985932,
+    33.587198
+   ],
+   "objects": 6,
+   "bytes": 6128091,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3562967,
+    "wetlands": 2090206,
+    "hydrography": 474918
+   },
+   "cellIds": {
+    "roads": [
+     "x339_y617",
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x339_y617",
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x339_y617",
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-jackrabbit-rd-c1-s1",
+   "name": "E Jackrabbit Rd",
+   "lengthM": 3403.1,
+   "wetlandArea1000M2": 97261.1,
+   "hydroCrossings": 1,
+   "componentCells": 1,
+   "roadComponentId": "drv1-e-jackrabbit-rd-c1",
+   "bounds": [
+    -111.886986,
+    33.513001,
+    -111.85455,
+    33.516829
+   ],
+   "objects": 3,
+   "bytes": 3472607,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-consolidated-c3-s1",
+   "name": "Consolidated",
+   "lengthM": 3848.0,
+   "wetlandArea1000M2": 176666.7,
+   "hydroCrossings": 2,
+   "componentCells": 2,
+   "roadComponentId": "drv1-consolidated-c3",
+   "bounds": [
+    -111.8168,
+    33.419536,
+    -111.788182,
+    33.44108
+   ],
+   "objects": 6,
+   "bytes": 8066785,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3222113,
+    "wetlands": 3904506,
+    "hydrography": 940166
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617",
+     "x341_y617"
+    ],
+    "wetlands": [
+     "x340_y617",
+     "x341_y617"
+    ],
+    "hydrography": [
+     "x340_y617",
+     "x341_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-n-frank-lloyd-wright-blvd-c1-s1",
+   "name": "N Frank Lloyd Wright Blvd",
+   "lengthM": 4121.2,
+   "wetlandArea1000M2": 309618.5,
+   "hydroCrossings": 2,
+   "componentCells": 2,
+   "roadComponentId": "drv1-n-frank-lloyd-wright-blvd-c1",
+   "bounds": [
+    -111.859596,
+    33.582449,
+    -111.835027,
+    33.611168
+   ],
+   "objects": 6,
+   "bytes": 8871095,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3325618,
+    "wetlands": 4579929,
+    "hydrography": 965548
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617",
+     "x340_y618"
+    ],
+    "wetlands": [
+     "x340_y617",
+     "x340_y618"
+    ],
+    "hydrography": [
+     "x340_y617",
+     "x340_y618"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-rio-salado-pkwy-s1",
+   "name": "E Rio Salado Pkwy",
+   "lengthM": 4687.2,
+   "wetlandArea1000M2": 1514750.6,
+   "hydroCrossings": 0,
+   "componentCells": 1,
+   "roadComponentId": "drv1-e-rio-salado-pkwy",
+   "bounds": [
+    -111.938321,
+    33.428714,
+    -111.888735,
+    33.43061
+   ],
+   "objects": 3,
+   "bytes": 3472607,
+   "cells": {
+    "roads": 1,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 1774887,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-n-96th-st-c2-s1",
+   "name": "N 96th St",
+   "lengthM": 5004.1,
+   "wetlandArea1000M2": 297268.6,
+   "hydroCrossings": 2,
+   "componentCells": 2,
+   "roadComponentId": "drv1-n-96th-st-c2",
+   "bounds": [
+    -111.874146,
+    33.570274,
+    -111.873967,
+    33.615267
+   ],
+   "objects": 6,
+   "bytes": 8871095,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3325618,
+    "wetlands": 4579929,
+    "hydrography": 965548
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617",
+     "x340_y618"
+    ],
+    "wetlands": [
+     "x340_y617",
+     "x340_y618"
+    ],
+    "hydrography": [
+     "x340_y617",
+     "x340_y618"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-mcdowell-rd-c1-s1",
+   "name": "McDowell Rd",
+   "lengthM": 5483.3,
+   "wetlandArea1000M2": 288888.6,
+   "hydroCrossings": 2,
+   "componentCells": 2,
+   "roadComponentId": "drv1-mcdowell-rd-c1",
+   "bounds": [
+    -111.80488,
+    33.466361,
+    -111.745679,
+    33.467943
+   ],
+   "objects": 6,
+   "bytes": 8066785,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3222113,
+    "wetlands": 3904506,
+    "hydrography": 940166
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617",
+     "x341_y617"
+    ],
+    "wetlands": [
+     "x340_y617",
+     "x341_y617"
+    ],
+    "hydrography": [
+     "x340_y617",
+     "x341_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-washington-st-c9-s1",
+   "name": "E Washington St",
+   "lengthM": 5829.5,
+   "wetlandArea1000M2": 177647.9,
+   "hydroCrossings": 5,
+   "componentCells": 2,
+   "roadComponentId": "drv1-e-washington-st-c9",
+   "bounds": [
+    -112.023741,
+    33.445316,
+    -111.96116,
+    33.448146
+   ],
+   "objects": 6,
+   "bytes": 6128091,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3562967,
+    "wetlands": 2090206,
+    "hydrography": 474918
+   },
+   "cellIds": {
+    "roads": [
+     "x339_y617",
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x339_y617",
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x339_y617",
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-state-rte-87-c2-s45",
+   "name": "State Rte 87",
+   "lengthM": 6148.6,
+   "wetlandArea1000M2": 757550.6,
+   "hydroCrossings": 5,
+   "componentCells": 14,
+   "roadComponentId": "drv1-state-rte-87-c2",
+   "bounds": [
+    -111.812678,
+    33.49045,
+    -111.754066,
+    33.514617
+   ],
+   "objects": 18,
+   "bytes": 13108859,
+   "cells": {
+    "roads": 14,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 8264187,
+    "wetlands": 3904506,
+    "hydrography": 940166
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y615",
+     "x340_y616",
+     "x340_y617",
+     "x341_y615",
+     "x341_y617",
+     "x342_y613",
+     "x342_y614",
+     "x342_y615",
+     "x342_y617",
+     "x342_y618",
+     "x342_y619",
+     "x343_y619",
+     "x343_y620",
+     "x343_y621"
+    ],
+    "wetlands": [
+     "x340_y617",
+     "x341_y617"
+    ],
+    "hydrography": [
+     "x340_y617",
+     "x341_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-state-rte-87-c2-s46",
+   "name": "State Rte 87",
+   "lengthM": 6501.1,
+   "wetlandArea1000M2": 1629878.6,
+   "hydroCrossings": 3,
+   "componentCells": 14,
+   "roadComponentId": "drv1-state-rte-87-c2",
+   "bounds": [
+    -111.843389,
+    33.444175,
+    -111.812678,
+    33.49045
+   ],
+   "objects": 16,
+   "bytes": 9961907,
+   "cells": {
+    "roads": 14,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 8264187,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y615",
+     "x340_y616",
+     "x340_y617",
+     "x341_y615",
+     "x341_y617",
+     "x342_y613",
+     "x342_y614",
+     "x342_y615",
+     "x342_y617",
+     "x342_y618",
+     "x342_y619",
+     "x343_y619",
+     "x343_y620",
+     "x343_y621"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-n-scottsdale-rd-c1-s2",
+   "name": "N Scottsdale Rd",
+   "lengthM": 6873.5,
+   "wetlandArea1000M2": 392555.5,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-n-scottsdale-rd-c1",
+   "bounds": [
+    -111.926151,
+    33.493136,
+    -111.925622,
+    33.554931
+   ],
+   "objects": 4,
+   "bytes": 5023338,
+   "cells": {
+    "roads": 2,
+    "wetlands": 1,
+    "hydrography": 1
+   },
+   "bytesByPlane": {
+    "roads": 3325618,
+    "wetlands": 1408558,
+    "hydrography": 289162
+   },
+   "cellIds": {
+    "roads": [
+     "x340_y617",
+     "x340_y618"
+    ],
+    "wetlands": [
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x340_y617"
+    ]
+   }
+  },
+  {
+   "region": "southwest",
+   "corridorId": "drv1-e-mcdowell-rd-c2-s1",
+   "name": "E McDowell Rd",
+   "lengthM": 7356.7,
+   "wetlandArea1000M2": 68474.1,
+   "hydroCrossings": 1,
+   "componentCells": 2,
+   "roadComponentId": "drv1-e-mcdowell-rd-c2",
+   "bounds": [
+    -112.073782,
+    33.465657,
+    -111.99448,
+    33.465821
+   ],
+   "objects": 6,
+   "bytes": 6128091,
+   "cells": {
+    "roads": 2,
+    "wetlands": 2,
+    "hydrography": 2
+   },
+   "bytesByPlane": {
+    "roads": 3562967,
+    "wetlands": 2090206,
+    "hydrography": 474918
+   },
+   "cellIds": {
+    "roads": [
+     "x339_y617",
+     "x340_y617"
+    ],
+    "wetlands": [
+     "x339_y617",
+     "x340_y617"
+    ],
+    "hydrography": [
+     "x339_y617",
+     "x340_y617"
+    ]
+   }
+  }
+ ]
+}

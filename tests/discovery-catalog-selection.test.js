@@ -299,8 +299,11 @@ test('a national search never falls back to raw regional partitions it does not 
   const { engine } = fakeEngine();
   try {
     const gis = createGisService({ engineFactory: async () => engine });
+    // A national derived pointer carries no raw cells of its own: detail reads a bounded *published raw region*,
+    // which the promotion path resolves from the committed index before it asks for raw partitions. Asking the
+    // raw reader for the derived pointer is refused as exactly that, rather than being read as raw source.
     await assert.rejects(() => gis.prepareRegionalSearch(radiusArea({ catalogUrl: 'national/derived-catalog.json',
-      catalogType: 'national' })), /not published/);
+      catalogType: 'national' })), /bounded published regions/);
   } finally { stub.restore(); }
 });
 

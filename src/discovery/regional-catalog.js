@@ -29,7 +29,10 @@ export function validateRegionalCatalog(catalog) {
     && /^[a-f0-9]{64}$/.test(catalog.roadComponentsSha256 ?? '');
   const hasNames = Boolean(catalog.roadNameCells && catalog.roadNameBounds);
   if (!hasComponents && !hasNames) throw new TypeError('Invalid regional catalog');
-  if (hasComponents && !/^regional\/[a-z0-9.-]+\.json$/.test(catalog.roadComponentsUrl)) throw new TypeError('Invalid road component index path');
+  if (hasComponents && !['regional/', ...(catalog.publication?.pathPrefixes ?? [])]
+    .some(prefix => catalog.roadComponentsUrl.startsWith(prefix) && /\.json$/.test(catalog.roadComponentsUrl))) {
+    throw new TypeError('Invalid road component index path');
+  }
   const region = catalog.region.bounds;
   const { origin, stepLon, stepLat } = catalog.grid;
   if (!region.every(Number.isFinite) || region[0] >= region[2] || region[1] >= region[3]
@@ -50,14 +53,27 @@ export function validateRegionalCatalog(catalog) {
     const ids = new Set();
     for (const part of dataset.partitions) {
       if (!part.id || ids.has(part.id) || !expected.has(part.id) || part.bounds?.length !== 4 || !part.bounds.every(Number.isFinite)
-        || !['present', 'empty'].includes(part.state) || !Number.isSafeInteger(part.featureCount)) throw new TypeError(`Invalid ${dataset.id} partition`);
+        || !['present', 'empty', 'unpublished'].includes(part.state) || !Number.isSafeInteger(part.featureCount)) throw new TypeError(`Invalid ${dataset.id} partition`);
       if (part.bounds.some((value, index) => Math.abs(value - expected.get(part.id)[index]) > 1e-8)) throw new TypeError(`Incorrect ${dataset.id} cell bounds: ${part.id}`);
       ids.add(part.id);
-      if (part.state === 'present' && !(part.url?.startsWith('regional/partitions/') && Number.isSafeInteger(part.bytes)
+      const prefixes = ['regional/partitions/', ...(catalog.publication?.pathPrefixes ?? [])];
+      if (part.state === 'present' && !(prefixes.some(prefix => part.url?.startsWith(prefix)) && Number.isSafeInteger(part.bytes)
         && /^[a-f0-9]{64}$/.test(part.sha256) && part.featureCount > 0)) throw new TypeError(`Invalid ${dataset.id} artifact ${part.id}`);
       if (part.state === 'empty' && (part.url || part.featureCount !== 0)) throw new TypeError(`Invalid empty ${dataset.id} cell ${part.id}`);
+      // A cell the region's catalog knows about but has not published: inside the rectangle, in the grid, and
+      // explicitly not available. It is a third state rather than an absence so that a partial publication can
+      // never be mistaken for a complete one - the reader refuses it instead of silently measuring half a road.
+      if (part.state === 'unpublished' && (part.url || part.bytes != null || part.sha256 != null || part.featureCount !== 0)) {
+        throw new TypeError(`Invalid unpublished ${dataset.id} cell ${part.id}`);
+      }
     }
     if (ids.size !== expected.size) throw new TypeError(`${dataset.id} omits a required regional cell`);
+  }
+  if (catalog.publication != null) {
+    if (catalog.publication.kind !== 'raw-regions' || !Array.isArray(catalog.publication.pathPrefixes)
+      || !catalog.publication.pathPrefixes.length || !catalog.publication.pathPrefixes.every(prefix => /^[a-z0-9/._-]+$/.test(prefix))) {
+      throw new TypeError('Invalid raw publication block');
+    }
   }
   return catalog;
 }
@@ -80,9 +96,15 @@ export function selectRegionalPartitions(catalog, bounds, { components = null } 
   const roadIds = new Set(initialIds);
   const closureNames = [];
   let skippedCells = 0;
+  // Cells a component continues into that this catalog does not carry at all: the region's rectangle is too
+  // small for that road. Reported rather than dropped, because a corridor composed from half a road is not the
+  // corridor the derived plane describes.
+  const publishedRoadIds = new Set(byId.get('roads').partitions.map(part => part.id));
+  const closureOutsideCells = new Set();
   const addComponent = (key, component) => {
     const added = [];
     for (const id of component.cells) {
+      if (!publishedRoadIds.has(id)) closureOutsideCells.add(id);
       if (roadIds.has(id)) continue;
       roadIds.add(id);
       added.push(id);
@@ -136,6 +158,13 @@ export function selectRegionalPartitions(catalog, bounds, { components = null } 
     wetlands: byId.get('wetlands').partitions.filter(part => intersects(part.bounds, haloBounds)),
     hydrography: byId.get('hydrography').partitions.filter(part => intersects(part.bounds, haloBounds)),
   };
+  // Published, measured-zero and not-published-yet are three different states, and a reader that treated the
+  // third as either of the first two would report a road it did not read. They are separated here, once, and the
+  // service refuses a selection that needs a cell nobody has published.
+  const unpublished = Object.fromEntries(Object.entries(selected)
+    .map(([kind, parts]) => [kind, parts.filter(part => part.state === 'unpublished').map(part => part.id)]));
+  const unpublishedCount = Object.values(unpublished).reduce((sum, ids) => sum + ids.length, 0);
+  const closureOutside = [...closureOutsideCells];
   const bytes = Object.values(selected).flat().reduce((sum, part) => sum + (part.bytes ?? 0), 0);
   const bytesOf = parts => parts.reduce((sum, part) => sum + (part.bytes ?? 0), 0);
   const closureAdded = byId.get('roads').partitions.filter(part => roadIds.has(part.id) && !initialIds.has(part.id));
@@ -155,6 +184,7 @@ export function selectRegionalPartitions(catalog, bounds, { components = null } 
     ? 'Search is outside the published regional dataset.' : 'Search or 1 km habitat halo leaves published regional coverage.',
   bounds, haloBounds, publishedBounds: region, maxAnalysisDistanceM: catalog.maxAnalysisDistanceM,
   partitions: selected, roadNameKeys: closureNames.map(entry => entry.key), bytes, closure,
+  unpublished, unpublishedCount, closureOutside, sourceReady: unpublishedCount === 0 && closureOutside.length === 0,
   counts: Object.fromEntries(Object.entries(selected).map(([kind, parts]) => [kind, parts.filter(part => part.state === 'present').length])),
   emptyCounts: Object.fromEntries(Object.entries(selected).map(([kind, parts]) => [kind, parts.filter(part => part.state === 'empty').length])) });
 }

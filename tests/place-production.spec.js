@@ -145,3 +145,109 @@ test('deployed place search resolves the named places and runs national discover
   log({ places: report.places.length, regions: report.regions.length, externalRequests: report.externalRequests });
 });
 
+// The promotion half of the production check: deep inspection reads raw road, wetland and hydrography cells,
+// which are published only inside bounded regions - so a corridor inside a seeded region must promote from
+// data.roadnaturalist.com, and a corridor outside every published region must refuse with what is missing rather
+// than fetch its way to an answer. Both are run here, against the deployed site.
+const RAW_PLANE = /\/(national\/roads|national\/wetlands|national\/hydro)\//;
+const PROMOTION_PLACES = Object.freeze([
+  ['princeton in', 'Princeton, IN'],
+  ['evansville in', 'Evansville, IN'],
+  ['nashville tennessee', 'Nashville, TN'],
+  ['portland oregon', 'Portland, OR'],
+]);
+
+test('deployed promotion reads published raw cells inside a seeded region, and refuses outside one', async ({ page }) => {
+  test.setTimeout(3600000);
+  await page.setViewportSize({ width: 1440, height: 950 });
+  const rawCells = [];
+  const failures = [];
+  const outside = [];
+  page.on('request', request => {
+    if (RAW_PLANE.test(request.url())) rawCells.push(request.url());
+    if (EVIDENCE.test(request.url())) outside.push(request.url());
+  });
+  page.on('pageerror', error => failures.push(error.message));
+
+  async function boot() {
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
+    await expect(page.locator('#discovery-place')).toBeVisible({ timeout: 180000 });
+  }
+
+  async function choosePlace(query) {
+    await page.locator('#discovery-place').fill(query);
+    await expect(page.locator('#discovery-place-results')).toBeVisible({ timeout: 120000 });
+    await page.locator('#discovery-place-results .discovery-place-option').first().click();
+    await expect(page.locator('#discovery-place-results')).toBeHidden();
+  }
+
+  // Choose the first corridor that promotes. A published region covers the road components it closed over, not
+  // every road in it, so a refusal is a legitimate answer for a particular corridor - what the check asserts is
+  // that at least one corridor in each seeded area promotes, and that a refusal names what is missing.
+  async function promoteOne(limit = 6) {
+    const rows = page.locator('#discovery-results tbody tr');
+    const count = Math.min(limit, await rows.count());
+    for (let index = 0; index < count; index += 1) {
+      const row = rows.nth(index);
+      const name = (await row.innerText()).split('\n')[0];
+      await row.locator('.discovery-row').click();
+      await page.locator('#discovery-promote').click();
+      const candidate = page.locator('#candidate-detail .detail-title');
+      const refused = page.locator('#discovery-promotion-error');
+      try {
+        await expect(candidate.or(refused)).toBeVisible({ timeout: 300000 });
+      } catch {
+        continue;
+      }
+      if (await candidate.isVisible().catch(() => false)) {
+        return { promoted: name, refusal: null, detail: (await page.locator('#candidate-detail').innerText()).slice(0, 240) };
+      }
+      const message = await refused.innerText();
+      if (!/have not been published|outside the published region/.test(message)) return { promoted: null, refusal: message, detail: null };
+      if (index === count - 1) return { promoted: null, refusal: message, detail: null };
+    }
+    return { promoted: null, refusal: 'no corridor in this area could be promoted', detail: null };
+  }
+
+  const report = { regions: [], refusal: null };
+  for (const [query, label] of PROMOTION_PLACES) {
+    await boot();
+    await choosePlace(query);
+    await page.locator('#discovery-radius-input').fill('25');
+    await page.locator('#discovery-radius-input').press('Enter');
+    await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL', { timeout: 120000 });
+    await page.locator('#discover-roads').click();
+    await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
+    const before = rawCells.length;
+    const outcome = await promoteOne();
+    const entry = { place: label, promoted: outcome.promoted, refusal: outcome.refusal,
+      rawCells: rawCells.length - before,
+      rawPlaneHost: rawCells[before] ? new URL(rawCells[before]).host : null, detail: outcome.detail };
+    report.regions.push(entry);
+    console.log('PROMOTION_PRODUCTION ' + JSON.stringify(entry));
+    expect(entry.promoted, `${label} must promote from published raw cells`).not.toBeNull();
+    expect(entry.rawCells, `${label} must read raw cells`).toBeGreaterThan(0);
+    expect(entry.rawPlaneHost, label).toBe('data.roadnaturalist.com');
+    // The detailed panel measured the reconstructed corridor: physical habitat evidence, not precomputed values.
+    expect(entry.detail, label).toMatch(/Candidate|corridor/i);
+  }
+
+  // Outside every published region: the refusal is precise, and no raw object is fetched to produce it.
+  await boot();
+  await choosePlace('yellowstone');
+  await page.locator('#discovery-radius-input').fill('25');
+  await page.locator('#discovery-radius-input').press('Enter');
+  await page.locator('#discover-roads').click();
+  await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
+  const before = rawCells.length;
+  const refusal = await promoteOne(3);
+  report.refusal = { message: refusal.refusal, promoted: refusal.promoted, rawCells: rawCells.length - before };
+  console.log('PROMOTION_PRODUCTION_REFUSAL ' + JSON.stringify(report.refusal));
+  expect(refusal.promoted).toBeNull();
+  expect(refusal.refusal).toMatch(/have not been published/);
+  expect(report.refusal.rawCells).toBe(0);
+
+  expect(outside, 'a promotion must reach no geocoder, occurrence source or Investigator endpoint').toEqual([]);
+  expect(failures).toEqual([]);
+});

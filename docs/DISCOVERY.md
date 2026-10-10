@@ -325,6 +325,96 @@ names the kind of area it is. Three Springfields stay three places, told apart b
 | Cadence | annual (gazetteer, population estimates), decennial (ZCTA relationship), irregular (federal lands), continuous (GNIS) |
 | Commands | `npm run build:places:national`, `npm run check:places:national`, `npm run verify:places:national` |
 
+## Detailed promotion from published raw regions
+
+Discovery runs on the derived corridor-metrics plane and always will: it is 2.68 GB, published everywhere, and
+answered in a couple of seconds. **Detailed** analysis is different. Opening a discovered corridor into habitat
+evidence rebuilds it from the raw road network and measures mapped wetlands and hydrography around it — which
+means the raw national planes: roads 5.8 GB, hydrography 26.6 GB, and **wetlands 156.4 GB**, about 189 GB
+together. Publishing that to answer a question about one road is the wrong trade, so it is not published. What is
+published is a **bounded region** — a rectangle of the raw planes' own 0.2° cells, for the roads a requested area
+actually needs and the habitat cells its 1 km analysis buffer reaches — and coverage grows only where someone
+asked to go deeper.
+
+### What one promotion costs, measured
+
+`npm run measure:national-raw-footprint` samples real corridors out of the derived plane in all six national
+regions and applies the runtime's own selection rules (a road promotion reads every cell the corridor's *road
+component* occupies; wetlands and hydrography are padded by the analysis distance exactly as `paddedBounds` does):
+
+| | median | p95 | worst sampled |
+| --- | --- | --- | --- |
+| Objects read | 5 | 12 | 18 |
+| Bytes read | 16.6 MB | 99.3 MB | 198.7 MB |
+| Roads | 1.8 MB | 4.8 MB | 11.2 MB |
+| Wetlands | 14.9 MB | 86.2 MB | 180.6 MB |
+| Hydrography | 1.9 MB | 11.9 MB | 29.0 MB |
+
+Road components span a median of two cells (p95 six, p99 eleven), which is what keeps the road part small; the
+wetland plane is what makes a promotion heavy, and it is why the lake stays offline. By region, the medians run
+from 6.1 MB (Southwest) to 85.9 MB (Gulf/Southeast, which is wetland country). Ecoregions are the one input that
+is not per cell: EPA publishes them as whole-CONUS layers (37.6 MB Level III and 85.8 MB Level IV), published once
+and shared by every region.
+
+
+### The publication unit, the layout and the index
+
+* **Unit:** one cell per plane, at the coordinates the national planes were already partitioned by. No second
+  spatial scheme is invented, and the objects are uploaded under the planes' *own canonical keys*
+  (`national/roads/tiger2025-county-v1/roads/x449_y642.parquet`, `national/wetlands/…`, `national/hydro/…`), so
+  the identity a cell carries is the identity its manifest published.
+* **Region:** a rectangle of those cells, published together because the reader's catalog contract is a rectangle.
+  Its catalog is an ordinary region catalog — the same shape `data/regional/manifest.json` has, read by the same
+  reader, validated by the same validator — at `raw/<region>/<version>/manifest.json`, with every cell of the
+  rectangle listed as `present` (published), `empty` (a measured zero) or `unpublished` (inside the rectangle, not
+  online). It also carries the region's road-component closure (`road-components.json`) and its digests.
+* **Index:** `data/national/raw-regions.json`, committed and staged with the application. It lists every region
+  with its version, bounds, catalog URL and digests, per-plane counts, and — the part that makes refusal instant —
+  the **ids of the cells it published**. The runtime answers "is the raw source for this corridor online?" from
+  that one small document, before fetching a catalog or an object, and never by probing object URLs one at a time.
+* **Closure:** a promoted corridor's id was composed over the whole national road network, so its road component's
+  cells — not just the cells under the corridor — must be online, or the composed road is a different road. The
+  publisher closes over components within a budget (`--max-closure-cells`, default 64) and *reports* the ones it
+  left out; the reader then refuses a corridor on such a component with the cell count rather than composing half a
+  highway. `scripts/build-national-raw-closure.py` builds the component → cells relationship from the derived
+  plane, which is the same relationship the runtime closes over.
+
+### Commands
+
+```
+npm run build:national-raw-closure        # component -> cells, from the derived plane (build volume)
+npm run measure:national-raw-footprint    # the table above, from the real planes
+npm run publish:national-raw -- --region princeton-in --bounds -87.66,38.29,-87.49,38.43 --label "Princeton, Indiana"
+npm run audit:national-raw                # re-fetch each region's catalog, components and a sample cell
+```
+
+The publisher refuses to run without the build volume, refuses a local artifact whose bytes or digest disagree with
+the manifest that declares it, never overwrites an object at an immutable key (a conflicting length is a failure,
+not a silent replacement), verifies what it uploaded before recording anything, is idempotent (an object already
+online with the right length is reused, not re-uploaded — re-publishing a whole region moves three small
+documents) and is resumable (a checkpoint per region version under the build volume). `--dry-run` prints exactly
+what would be uploaded; `--publish-ecoregions` publishes only the two CONUS layers.
+
+### When the raw source is not there
+
+```
+Detailed analysis is not yet available for this corridor because 3 raw source cells (wetlands: 2, hydrography: 1)
+have not been published. National discovery is unaffected.
+```
+
+That sentence is produced from the committed index alone: the corridor's box has no region, or a region exists and
+does not list one of the cells the reader would select. Either way nothing is fetched, the refusal names what is
+missing, and discovery — the search that produced the corridor — is untouched. A corridor whose *road component*
+reaches outside the published region is refused the same way once the region's component index has answered, which
+is one small document later and still before any cell is read.
+
+### What is online today
+
+Four seeded regions, published 2026-10-10: `princeton-in` (Indiana), `evansville-in`, `nashville-tn` and
+`portland-or` — 367 raw objects, 475.8 MB, of which 123.4 MB is the one-time CONUS ecoregion pair. Growth is
+bounded by use: a repeat promotion in the same area reuses every cell, and the working set converges on where
+people actually explore rather than on the size of the lake.
+
 ## Search context: the centre's name, and where each road lies
 
 Two presentation facts are derived from the centre a person chose. Both are measured, both are local, and

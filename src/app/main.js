@@ -34,6 +34,7 @@ import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiv
   definitionFromSearchArea, formatRadius, initialSearchSelection, interactiveSearchTemplate, placeForSearch, radiusPresets,
   readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRefusal, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
 import { createPlaceLibrary, placeMetadata, validateNationalPlaceGazetteer } from '../discovery/place-gazetteer.js';
+import { rawAvailability, rawAvailabilityMessage, validateRawRegionsIndex } from '../discovery/raw-catalog.js';
 import { nearestPlace } from '../discovery/place-gazetteer.js';
 import { centerPresentation, formatContextDirection, pendingSearchContext, runCenterPresentation, storedSearchContext } from '../discovery/search-context.js';
 import { filterAndSort } from '../discovery/filter.js';
@@ -356,23 +357,66 @@ function updateSearchPreview(state) {
 }
 
 
+// The published raw regions: a small committed index that says which raw cells are online, so a promotion can
+// answer "is the raw source for this corridor here?" from the index alone, before fetching anything. The regions
+// themselves are immutable catalogs on R2, validated by the same contract the regional reader already uses.
+const RAW_REGIONS_URL = new URL('../../data/national/raw-regions.json', import.meta.url);
+let rawRegions = null;
+let rawRegionsAttempted = false;
+
+async function loadRawRegions() {
+  if (rawRegionsAttempted) return rawRegions;
+  rawRegionsAttempted = true;
+  try {
+    rawRegions = validateRawRegionsIndex(await fetchJson(RAW_REGIONS_URL));
+  } catch {
+    // No index (or an index that does not validate) is a state, not a failure: discovery is unaffected, and the
+    // promotion below says which raw source is missing rather than crashing on a document nobody published yet.
+    rawRegions = null;
+  }
+  return rawRegions;
+}
+
+// What the published raw regions say about this corridor: available, or exactly which cells are missing. The
+// answer comes from the committed index alone - no catalog, no object, no probe - so refusal is instant and named.
+async function rawAvailabilityFor(bounds) {
+  const index = await loadRawRegions();
+  return index ? rawAvailability(index, { bounds })
+    : { region: null, available: false, missing: null, required: null };
+}
+
 // Promotion reuses the ordinary road/candidate builders, so a discovered corridor becomes a normal
 // candidate: same detail pipeline, same evidence workflow, and no Investigator probe entry required.
-// A precomputed corridor is an index, not evidence. Promotion rebuilds it from the raw regional partitions and
-// checks the id and the geometry before the corridor is allowed to become a candidate; a corridor that cannot be
-// reconstructed is refused instead of being analysed from precomputed geometry.
+// A precomputed corridor is an index, not evidence. Promotion rebuilds it from the published *raw* partitions of
+// the bounded region the corridor falls in and checks the id and the geometry before the corridor is allowed to
+// become a candidate; a corridor whose raw source is not published is refused with what is missing, and one that
+// cannot be reconstructed is refused instead of being analysed from precomputed geometry.
 async function reconstructDerivedCorridor(result) {
   const state = store.getState();
-  const catalogUrl = state.discovery.searchArea?.catalogUrl ?? null;
   const entry = state.discovery.raw?.corridors?.find(item => item.corridor?.id === result.id) ?? null;
   if (!entry) throw new Error('the precomputed row is no longer loaded');
-  const scope = await gis.prepareRegionalSearch({ bbox: entry.corridor.bounds, catalogUrl, distancesM: ANALYSIS_DISTANCES_M }, {});
-  const road = await scope.queryRoadNetwork({ bbox: entry.corridor.bounds, roadClasses: eligibleClasses(), limit: 100000 });
+  const bounds = entry.corridor.bounds;
+  // Raw detail reads the *published raw region* the corridor falls in, not the national derived pointer: the
+  // derived plane is the discovery payload and carries no raw cells at all. A corridor outside every published
+  // region is a state the person is told about, never a measured corridor. The catalog URL travels with the
+  // candidate so the detailed panel reads the same region later.
+  const availability = await rawAvailabilityFor(bounds);
+  if (!availability.available) {
+    const error = new Error(rawAvailabilityMessage(availability));
+    error.rawUnavailable = true;
+    error.missingCells = availability.missing ?? null;
+    throw error;
+  }
+  const region = availability.region;
+  const scope = await gis.prepareRegionalSearch({ bbox: bounds, catalogUrl: region.catalogUrl, catalogType: 'raw',
+    rawRegionId: region.id, distancesM: ANALYSIS_DISTANCES_M }, {});
+  const road = await scope.queryRoadNetwork({ bbox: bounds, roadClasses: eligibleClasses(), limit: 100000 });
   if (road.coverage !== COVERAGE.FULL && road.coverage !== COVERAGE.PARTIAL) {
-    throw new Error('the raw regional road network could not be read back');
+    throw new Error('the raw road network could not be read back');
   }
   const verified = verifyDerivedPromotion({ derived: entry.corridor, features: road.features });
-  return { unit: verified.unit, corridor: verified.corridor, features: verified.features };
+  return { unit: verified.unit, corridor: verified.corridor, features: verified.features,
+    dataCatalogUrl: region.catalogUrl };
 }
 
 // The search context a promotion carries: the run's own centre, how that centre was named, the run's radius, and
@@ -409,8 +453,10 @@ async function promoteDiscoveryCorridor(id) {
     writeDiscoveryMarks(store.getState().discovery.marks);
     nodes.list.scrollIntoView({ block: 'nearest' });
   } catch (error) {
-    store.noteDiscoveryPromotion(id,
-      `the corridor could not be reconstructed from the published data (${error.message})`);
+    // A missing raw source is not a failed reconstruction: the corridor was never read, and the person is told
+    // exactly what has not been published rather than that the data disagreed with itself.
+    store.noteDiscoveryPromotion(id, error.rawUnavailable ? error.message
+      : `the corridor could not be reconstructed from the published data (${error.message})`);
   }
 }
 
@@ -419,7 +465,7 @@ async function promoteDerivedResult(result, searchContext, state) {
   // The raw corridor is what becomes the candidate, so the detailed panel measures reconstructed source
   // geometry and reads raw regional habitat data - precomputed values never stand in for detailed evidence.
   return promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor, searchContext,
-    provenance: state.discovery.raw?.provenance ?? null, dataCatalogUrl: state.discovery.searchArea?.catalogUrl ?? null });
+    provenance: state.discovery.raw?.provenance ?? null, dataCatalogUrl: rebuilt.dataCatalogUrl });
 }
 
 function promoteRawResult(result, searchContext, state) {

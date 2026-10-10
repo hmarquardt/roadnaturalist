@@ -15,12 +15,12 @@ import { validateRegionalCatalog } from './regional-catalog.js';
 // contract entirely. With a declared type the same skew fails closed on the right question: the document at
 // `national/...` is not a valid national derived catalog, and the search refuses rather than being validated
 // against a schema it never claimed to satisfy.
-export const DISCOVERY_CATALOG_TYPE = Object.freeze({ REGIONAL: 'regional', NATIONAL: 'national' });
+export const DISCOVERY_CATALOG_TYPE = Object.freeze({ REGIONAL: 'regional', NATIONAL: 'national', RAW: 'raw' });
 export const DISCOVERY_CATALOG_TYPES = Object.freeze(Object.values(DISCOVERY_CATALOG_TYPE));
 
 // Where each type's catalog is published. A declared type whose path does not match is a declaration error,
 // reported as one, because guessing which of the two a URL meant is exactly how this bug happened.
-export const DISCOVERY_CATALOG_PREFIX = Object.freeze({ regional: 'regional/', national: 'national/' });
+export const DISCOVERY_CATALOG_PREFIX = Object.freeze({ regional: 'regional/', national: 'national/', raw: 'raw/' });
 
 export function isDiscoveryCatalogType(value) {
   return DISCOVERY_CATALOG_TYPES.includes(value);
@@ -28,9 +28,21 @@ export function isDiscoveryCatalogType(value) {
 
 // The one place a fetched document becomes a validated catalog. `catalogType` decides the contract; an unknown
 // type is refused rather than defaulted.
+//
+// RAW is the third type, and it is the *regional raw partition contract* applied to a bounded published region
+// of the national planes: same shape, same grid, same reader, same promotion engine. The name records which
+// plane it serves rather than inventing a second schema - and keeping it a distinct declared type is what stops a
+// national derived pointer (which has no raw cells at all) from ever being read as raw source, or the reverse.
 export function validateDiscoveryCatalog(document, catalogType) {
   if (catalogType === DISCOVERY_CATALOG_TYPE.REGIONAL) return validateRegionalCatalog(document);
   if (catalogType === DISCOVERY_CATALOG_TYPE.NATIONAL) return validateNationalDerivedCatalog(document);
+  if (catalogType === DISCOVERY_CATALOG_TYPE.RAW) {
+    const catalog = validateRegionalCatalog(document);
+    if (catalog.publication?.kind !== 'raw-regions') {
+      throw new TypeError('A raw catalog must declare its raw publication block');
+    }
+    return catalog;
+  }
   throw new TypeError(`Unknown discovery catalog type: ${String(catalogType)}`);
 }
 

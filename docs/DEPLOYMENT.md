@@ -163,6 +163,8 @@ them is special — they are static data on Pages, not R2 objects and not a Work
 present, and a staged dataset whose byte length disagrees with the manifest is a failure. `dist/` is gitignored and is
 only ever replaced when it carries the `deployment.json` marker this script writes.
 
+The raw region index (`data/national/raw-regions.json`) is the second small Pages file: `stage:pages` validates it with the runtime's own contract, stages it, and fails a release whose regions point at a derived catalog. It is what lets a promotion answer "is the raw source for this corridor online?" from one committed document instead of probing object URLs, and it is deliberately separate from the derived plane: partial raw coverage is a growing working set, never a failed discovery release. `npm run audit:national-raw` re-fetches every published region's catalog, its component closure and a sample cell, and reports anything that disagrees.
+
 Order when both change: `npm test`, `npm run test:e2e`, commit, push, `npm run deploy:worker`, `npm run deploy:pages`.
 
 The regional data planes are published and audited before a Pages release that reads them:

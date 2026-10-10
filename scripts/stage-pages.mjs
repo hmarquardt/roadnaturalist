@@ -20,6 +20,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statS
 import { execFileSync } from 'node:child_process';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { validateNationalDerivedCatalog } from '../src/discovery/national-catalog.js';
+import { validateRawRegionsIndex } from '../src/discovery/raw-catalog.js';
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
 const DIST = join(ROOT, 'dist');
@@ -64,6 +65,20 @@ function stage() {
   const nationalCatalog = validateNationalDerivedCatalog(readJson(nationalCatalogPath));
   mkdirSync(join(DIST, 'data/national'), { recursive: true });
   cpSync(nationalCatalogPath, join(DIST, 'data/national/derived-catalog.json'));
+  // The raw region index is the second small file that belongs to Pages: it answers "is the raw source for this
+  // corridor online?" without probing object URLs, and it is what lets a promotion refuse precisely instead of
+  // fetching its way to an answer. It is validated here with the very contract the runtime applies, so a release
+  // cannot ship an index the browser would reject.
+  const rawIndexPath = join(ROOT, 'data/national/raw-regions.json');
+  if (existsSync(rawIndexPath)) {
+    const rawIndex = validateRawRegionsIndex(readJson(rawIndexPath));
+    cpSync(rawIndexPath, join(DIST, 'data/national/raw-regions.json'));
+    for (const region of rawIndex.regions) {
+      if (region.catalogUrl.startsWith('national/')) regionalProblems.push(`raw region ${region.id} must not point at a derived catalog`);
+    }
+  } else {
+    regionalProblems.push('data/national/raw-regions.json is missing: raw detail coverage would be unresolvable');
+  }
 
   // Regional GeoParquet belongs to R2. The copy filter keeps raw, derived, and national build files out
   // of Pages; validate local regional artifacts against their small catalog before inventorying the site.

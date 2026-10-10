@@ -95,7 +95,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
   // validated as a national derived catalog. A document that does not satisfy the declared contract is refused
   // with that fact, rather than falling back to the other schema or being coerced into it.
   async function getDiscoveryCatalog(url, catalogType) {
-    if (catalogType !== DISCOVERY_CATALOG_TYPE.REGIONAL && catalogType !== DISCOVERY_CATALOG_TYPE.NATIONAL) {
+    if (!Object.values(DISCOVERY_CATALOG_TYPE).includes(catalogType)) {
       throw new TypeError(`Unknown discovery catalog type: ${String(catalogType)}`);
     }
     // An injected catalog is a caller's explicit choice of *both* catalog and type, so it is validated against
@@ -310,22 +310,66 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     return `(SELECT ${projection} WHERE false)`;
   }
 
+  // One selection path for both raw contracts. A published raw region and the regional pilot differ in where
+  // their cells live and how many of them are online, not in how a search box becomes a set of cells: the same
+  // grid, the same road-component closure, the same 1 km habitat halo, the same three planes.
+  async function selectRawOrRegionalPartitions(catalog, searchArea, declaredType) {
+    const components = await getRoadComponents(catalog);
+    const selection = selectRegionalPartitions(catalog, searchArea.bbox, { components });
+    return declaredType === DISCOVERY_CATALOG_TYPE.RAW
+      ? Object.freeze({ ...selection, raw: true, catalogVersion: catalog.version,
+        publication: catalog.publication ?? null })
+      : selection;
+  }
+
+  // The sentence for a corridor whose raw source is not published yet. It names how many cells are missing and
+  // which planes - the operator's next action - without pretending the corridor was measured.
+  function rawSourceRefusal(selection) {
+    const unpublished = Object.entries(selection.unpublished ?? {}).filter(([, ids]) => ids.length);
+    const outside = selection.closureOutside ?? [];
+    const parts = [];
+    if (unpublished.length) {
+      parts.push(`raw source cell${unpublished.reduce((sum, [, ids]) => sum + ids.length, 0) === 1 ? '' : 's'} `
+        + `(${unpublished.map(([plane, ids]) => `${plane}: ${ids.length}`).join(', ')}) have not been published`);
+    }
+    if (outside.length) {
+      parts.push(`the road component this corridor belongs to continues into ${outside.length} cell`
+        + `${outside.length === 1 ? '' : 's'} outside the published region`);
+    }
+    return `Detailed analysis is not yet available for this corridor because ${parts.join(', and ')}. `
+      + 'National discovery is unaffected.';
+  }
+
   async function prepareRegionalSearch(searchArea, { onProgress = () => {} } = {}) {
     const started = performance.now();
-    // Raw discovery reads a regional catalog and only a regional catalog. A search that declares the national
-    // derived plane has no published raw partitions to read, so it is refused with that reason instead of being
-    // loaded as something it never claimed to be.
-    if (areaCatalogType(searchArea) === DISCOVERY_CATALOG_TYPE.NATIONAL) {
+    // Raw discovery reads raw partitions, and only a catalog that declares them. A search that declares the
+    // national *derived* plane has no raw cells of its own: the app resolves the corridor's published raw region
+    // first (src/discovery/raw-catalog.js) and hands that catalog in, so reaching this refusal means a caller
+    // skipped that step. It is refused rather than loaded as something it never claimed to be.
+    const declaredType = areaCatalogType(searchArea);
+    if (declaredType === DISCOVERY_CATALOG_TYPE.NATIONAL) {
       const error = new Error('This search reads the national derived corridor-metrics plane. The raw road, '
-        + 'wetland and hydrography partitions behind it are not published, so raw reconstruction and detailed '
-        + 'analysis are not available for a national corridor.');
+        + 'wetland and hydrography partitions behind it live in bounded published regions, which the promotion '
+        + 'path resolves before it asks for raw detail.');
       error.derivedUnavailable = true;
       throw error;
     }
-    const catalog = await getDiscoveryCatalog(searchArea.catalogUrl, DISCOVERY_CATALOG_TYPE.REGIONAL);
+    const catalog = await getDiscoveryCatalog(searchArea.catalogUrl, declaredType);
     const manifestMs = performance.now() - started;
-    const selection = selectRegionalPartitions(catalog, searchArea.bbox, { components: await getRoadComponents(catalog) });
+    if (declaredType === DISCOVERY_CATALOG_TYPE.RAW) activeRawPublication = catalog.publication ?? null;
+    const selection = await selectRawOrRegionalPartitions(catalog, searchArea, declaredType);
     const selectionMs = performance.now() - started - manifestMs;
+    // A published region need not be a published *whole*: a cell inside a region's rectangle can be explicitly
+    // not published yet, and a corridor's road component can reach outside the rectangle altogether. Either way
+    // the raw source for this corridor is not here, and saying so now - before a single object is fetched - is
+    // the difference between a useful refusal and a road composed from half its length.
+    if (declaredType === DISCOVERY_CATALOG_TYPE.RAW && !selection.sourceReady) {
+      const error = new Error(rawSourceRefusal(selection));
+      error.rawUnavailable = true;
+      error.unpublishedCells = Object.values(selection.unpublished ?? {}).flat();
+      error.closureOutsideCells = selection.closureOutside ?? [];
+      throw error;
+    }
     // Only a search that misses the published region entirely is unavailable. A partly covered search
     // runs and reports PARTIAL: refusing to measure what is covered would hide corridors that the data
     // does describe, and pretending the uncovered part is complete is what coverage states prevent.
@@ -440,7 +484,41 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
   // Ecoregions are published per state, so a level is answered from the union of every declared layer for
   // that level. A corridor near a state line then finds its ecoregion instead of a state-line gap, and the
   // discovery batch and the detailed panel read the same union.
+  // The raw publication the current *detail* scope was prepared from. Detail is one explicit action on one
+  // candidate, and this is how its CONUS ecoregion artifacts travel with it; discovery never sets it, so a
+  // discovery batch keeps reading the layers the manifest declares. Ecoregions are the one detail input that is
+  // not partitioned per cell: EPA publishes them as whole-CONUS layers, so they are published once and shared.
+  let activeRawPublication = null;
+
+  async function openDeclaredArtifact(id, declared) {
+    const key = `raw:${id}`;
+    if (files.has(key)) return files.get(key);
+    const engine = await initialize();
+    const base = catalog?.assetBaseUrl ? new URL(catalog.assetBaseUrl) : DATA_BASE;
+    const response = await fetch(new URL(declared.url, base));
+    if (!response.ok) throw new Error(`${id} HTTP ${response.status}`);
+    const bytes = await response.arrayBuffer();
+    const byteLength = bytes.byteLength;
+    if (byteLength !== declared.bytes) throw new Error(`${id} byte count mismatch`);
+    if (declared.sha256) {
+      const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)))
+        .map(byte => byte.toString(16).padStart(2, '0')).join('');
+      if (digest !== declared.sha256) throw new Error(`${id} SHA-256 mismatch`);
+    }
+    const name = `${id}-${key}.parquet`;
+    await engine.db.registerFileBuffer(name, new Uint8Array(bytes));
+    const opened = { id, version: declared.version ?? null, source: declared.source ?? null, sha256: declared.sha256,
+      registeredName: name, url: declared.url, transferredBytes: byteLength };
+    files.set(key, opened);
+    return opened;
+  }
+
   async function ecoregionSources(level) {
+    const declared = activeRawPublication?.ecoregions?.[`l${level}`] ?? null;
+    if (declared) {
+      const opened = await openDeclaredArtifact(`epa-ecoregions-conus-l${level}`, declared);
+      return { entries: [{ id: opened.id, source: opened.source, version: opened.version }], opened: [opened] };
+    }
     const entries = (await getManifest()).datasets.filter(item => item.id.startsWith('epa-ecoregions-')
       && item.id.endsWith(`-l${level}`));
     if (!entries.length) throw new Error(`No EPA Level ${level} ecoregion dataset is declared`);

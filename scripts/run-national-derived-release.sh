@@ -92,6 +92,7 @@ settle dist/src/gis/service.js /src/gis/service.js || fail "deployment settle (f
 settle dist/src/discovery/discovery-catalog.js /src/discovery/discovery-catalog.js || fail "deployment settle (catalog selection)"
 settle dist/src/discovery/national-catalog.js /src/discovery/national-catalog.js || fail "deployment settle (national catalog)"
 settle dist/data/national/derived-catalog.json /data/national/derived-catalog.json || fail "deployment settle (national pointer)"
+settle dist/data/national/raw-regions.json /data/national/raw-regions.json || fail "deployment settle (raw region index)"
 settle dist/data/discovery/search-areas.json /data/discovery/search-areas.json || fail "deployment settle (declaration)"
 settle dist/data/places/national-places.json /data/places/national-places.json || fail "deployment settle (place core tier)"
 settle dist/data/places/national-places-zip.json /data/places/national-places-zip.json || fail "deployment settle (place postal tier)"
