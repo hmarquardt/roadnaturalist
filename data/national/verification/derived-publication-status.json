@@ -25,10 +25,10 @@
   "note": "Node + DuckDB against the published R2 plane: the six regions resolve, load and query."
  },
  "browserCutover": {
-  "status": "failed",
-  "checkedAt": "2026-10-10T22:01:35.165Z",
-  "record": null,
-  "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
+  "status": "passed",
+  "checkedAt": "2026-10-10T22:23:09.092Z",
+  "record": "data/national/verification/derived-publication-browser.txt",
+  "reason": null
  },
  "browserCutoverHistory": [
   {
@@ -88,6 +88,12 @@
   {
    "status": "failed",
    "checkedAt": "2026-10-10T21:57:25.923Z",
+   "record": null,
+   "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
+  },
+  {
+   "status": "failed",
+   "checkedAt": "2026-10-10T22:01:35.165Z",
    "record": null,
    "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
   }
