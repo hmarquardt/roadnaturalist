@@ -74,14 +74,12 @@ if [ "$SKIP_AUDIT" -eq 0 ]; then
   node scripts/check-national-derived-publication.mjs > "$WORK/precheck-final.log" 2>&1 || fail "local pre-publication audit"
   node scripts/audit-national-derived-remote.mjs --concurrency 12 --report "$WORK/audit.json" > "$WORK/audit.log" 2>&1 \
     || fail "remote audit"
-  cp "$WORK/audit.json" data/national/verification/derived-publication-remote-audit.json
   say "  publication verified by re-fetching every published object"
 fi
 
 say "stage 3 six-region production verification (Node + DuckDB, published plane)"
 node scripts/verify-national-derived-production.mjs > "$WORK/production-verify.log" 2>&1 \
   || fail "six-region production verification"
-cp "$WORK/production-verify.log" data/national/verification/derived-publication-production.txt
 say "  $(tail -1 "$WORK/production-verify.log")"
 
 say "stage 4 Pages deploy (the catalog/pointer change)"
@@ -95,6 +93,11 @@ settle dist/src/discovery/discovery-catalog.js /src/discovery/discovery-catalog.
 settle dist/src/discovery/national-catalog.js /src/discovery/national-catalog.js || fail "deployment settle (national catalog)"
 settle dist/data/national/derived-catalog.json /data/national/derived-catalog.json || fail "deployment settle (national pointer)"
 settle dist/data/discovery/search-areas.json /data/discovery/search-areas.json || fail "deployment settle (declaration)"
+
+# The R2 evidence is recorded here, after the deploy (which needs a clean tree) and before the verdict, so a
+# failed browser gate still leaves the R2 publication verification committed and correctly labelled.
+[ -f "$WORK/audit.json" ] && cp "$WORK/audit.json" data/national/verification/derived-publication-remote-audit.json
+cp "$WORK/production-verify.log" data/national/verification/derived-publication-production.txt
 
 say "stage 6 real-browser production check"
 if PRODUCTION_BASE_URL="$ORIGIN" RUN_NATIONAL_PRODUCTION=1 \
