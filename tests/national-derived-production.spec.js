@@ -43,9 +43,14 @@ test('national discovery serves six regions from the published derived plane', a
   const failures = [];
   page.on('console', message => { if (message.type() === 'error') failures.push(message.text()); });
   page.on('pageerror', error => failures.push(error.message));
+  // Discovery is the derived plane and nothing else. A raw road, wetland or hydrography cell fetched during a
+  // search would mean discovery had started depending on the deep-inspection data, which is exactly what the
+  // bounded publications exist to prevent - so the check is not that discovery was fast, it is that it never asked.
+  const rawDuringDiscovery = [];
   page.on('request', request => {
     const url = request.url();
     if (url.startsWith('blob:')) return; // the DuckDB worker's own script, same origin
+    if (/\/national\/(roads|wetlands|hydro)\//.test(new URL(url).pathname)) rawDuringDiscovery.push(url);
     if (!ALLOWED_HOSTS.has(new URL(url).hostname)) external.push(url);
   });
   await page.goto(BASE ? `${BASE}/` : '/', { waitUntil: 'domcontentloaded' });
@@ -97,5 +102,6 @@ test('national discovery serves six regions from the published derived plane', a
   }
   expect(report.every(entry => entry.coverage === 'FULL'), 'every centre is inside the national region').toBe(true);
   expect(external, 'a search must reach no host but the data origin').toEqual([]);
+  expect(rawDuringDiscovery, 'discovery reads the derived plane and never a raw road, wetland or hydrography cell').toEqual([]);
   expect(failures, 'the page must log no error').toEqual([]);
 });

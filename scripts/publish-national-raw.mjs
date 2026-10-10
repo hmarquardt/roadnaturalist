@@ -598,10 +598,9 @@ async function main() {
       online[key] = { url: declared.url, bytes: declared.bytes, sha256: declared.sha256, version: declared.version,
         published: head?.bytes === declared.bytes };
     }
-    const ecoregionState = Object.values(online).every(entry => entry.published) ? 'READY' : 'PARTIAL';
-    writeGlobalPlanes(globalPlaneEntry({ ...state, audit,
-      ecoregions: { state: ecoregionState, levels: online, note: 'EPA Level III and IV are whole-CONUS layers, ' +
-        'published once and shared by every promotion.' } }));
+    const ecoreVersion = Object.values(ecoregions)[0]?.version ?? 'unknown';
+    writeGlobalPlanes(globalPlaneEntry({ ...state, audit, ecoregions: online }),
+      ecoregionPlaneEntry({ ecoregions: online, version: ecoreVersion, base: BASE }));
     return audit.ok ? 0 : 1;
   }
   if (option('--plane') === 'roads' && flag('--audit-remote')) {
@@ -687,19 +686,29 @@ function globalPlaneEntry({ publication, publicationBytes, audit, tiles, ecoregi
     auditedAt: new Date().toISOString(), audit: { cells: audit.checked, remoteObjects: audit.remoteObjects,
       missing: audit.missingCount, sizeMismatch: audit.sizeMismatchCount, unexpected: audit.unexpected.length,
       sampled: audit.sampled.length, seconds: audit.seconds },
-    ecoregions: ecoregions ?? null,
     note: 'The complete national road raw plane is online. Detailed promotion reads its cells directly and never '
       + 'fails for want of a road cell; wetlands and hydrography remain bounded, published where people explore.' };
 }
 
-function writeGlobalPlanes(entry) {
+// A globally ready ecoregion plane is declared like any other: version, bytes, origin, and what it holds.
+function ecoregionPlaneEntry({ ecoregions, version, base }) {
+  const levels = ecoregions ?? {};
+  const online = Object.values(levels).every(entry => entry.published);
+  return { state: online ? 'READY' : 'PARTIAL', version, assetBaseUrl: base,
+    bytes: Object.values(levels).reduce((sum, entry) => sum + entry.bytes, 0),
+    levels, note: 'EPA Level III and IV ecoregions are whole-CONUS layers: published once and read by every '
+      + 'promotion, rather than partitioned per cell like the road, wetland and hydrography planes.' };
+}
+
+function writeGlobalPlanes(roads, ecoregions) {
   const index = readIndex();
-  const next = { ...index, globalPlanes: { ...(index.globalPlanes ?? {}), roads: entry },
+  const next = { ...index, globalPlanes: { ...(index.globalPlanes ?? {}), roads, ecoregions },
     updatedAt: new Date().toISOString() };
   validateRawRegionsIndex(next);
   if (!dryRun) writeFileSync(join(ROOT, RAW_INDEX_PATH), JSON.stringify(next, null, 1) + '\n');
   console.log(`${dryRun ? 'would record' : 'recorded'} ${RAW_INDEX_PATH}: globalPlanes.roads `
-    + `${entry.version} ${entry.state}, ${entry.objects.toLocaleString()} objects, ${entry.bytes.toLocaleString()} bytes`);
+    + `${roads.version} ${roads.state}, ${roads.objects.toLocaleString()} objects, ${roads.bytes.toLocaleString()} bytes; `
+    + `ecoregions ${ecoregions.state}`);
   return next;
 }
 
