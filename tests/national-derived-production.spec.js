@@ -28,7 +28,11 @@ const CENTERS = only.length ? ALL_CENTERS.filter(entry => only.includes(entry.id
 const DATA_ORIGIN = 'data.roadnaturalist.com';
 // The runtime's own declared dependencies: DuckDB-WASM from jsDelivr and its spatial/parquet extensions from the
 // DuckDB CDN. Anything else - an occurrence API, Overpass, the Investigator Worker, a tile server - is external.
-const ALLOWED_HOSTS = new Set(['127.0.0.1', 'localhost', DATA_ORIGIN, 'cdn.jsdelivr.net', 'extensions.duckdb.org']);
+const ALLOWED_HOSTS = new Set(['127.0.0.1', 'localhost', DATA_ORIGIN, 'cdn.jsdelivr.net', 'extensions.duckdb.org',
+  'roadnaturalist.com', 'www.roadnaturalist.com', 'roadnaturalist.pages.dev']);
+// With no PRODUCTION_BASE_URL this runs against the local test server; with one it runs against the deployed
+// site, which is how the cutover is proven end to end after the Pages release.
+const BASE = process.env.PRODUCTION_BASE_URL ?? null;
 
 test.skip(!process.env.RUN_NATIONAL_PRODUCTION,
   'Opt-in: the national production check reads the published R2 plane from a real browser');
@@ -44,7 +48,7 @@ test('national discovery serves six regions from the published derived plane', a
     if (url.startsWith('blob:')) return; // the DuckDB worker's own script, same origin
     if (!ALLOWED_HOSTS.has(new URL(url).hostname)) external.push(url);
   });
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.goto(BASE ? `${BASE}/` : '/', { waitUntil: 'domcontentloaded' });
   const report = [];
   for (const entry of CENTERS) {
     const outcome = await page.evaluate(async ({ center, radiusMiles }) => {
