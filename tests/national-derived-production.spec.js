@@ -13,7 +13,7 @@ import { test, expect } from '@playwright/test';
 //
 // It uses the runtime modules directly rather than the workspace DOM: that is where CORS, object paths, schema
 // and the analysis gate actually live, and it keeps the check stable while the interface changes.
-const CENTERS = [
+const ALL_CENTERS = [
   { id: 'pnw', center: [-122.92, 45.595] },
   { id: 'northeast', center: [-71.06, 42.36] },
   { id: 'gulf', center: [-90.07, 29.95] },
@@ -21,7 +21,14 @@ const CENTERS = [
   { id: 'plains', center: [-96.68, 40.81] },
   { id: 'southwest', center: [-112.07, 33.45] },
 ];
+// `NATIONAL_CENTERS=pnw,gulf` narrows the check, so a region that is already published can be proven in a
+// browser before the whole plane is.
+const only = (process.env.NATIONAL_CENTERS ?? '').split(',').filter(Boolean);
+const CENTERS = only.length ? ALL_CENTERS.filter(entry => only.includes(entry.id)) : ALL_CENTERS;
 const DATA_ORIGIN = 'data.roadnaturalist.com';
+// The runtime's own declared dependencies: DuckDB-WASM from jsDelivr and its spatial/parquet extensions from the
+// DuckDB CDN. Anything else - an occurrence API, Overpass, the Investigator Worker, a tile server - is external.
+const ALLOWED_HOSTS = new Set(['127.0.0.1', 'localhost', DATA_ORIGIN, 'cdn.jsdelivr.net', 'extensions.duckdb.org']);
 
 test.skip(!process.env.RUN_NATIONAL_PRODUCTION,
   'Opt-in: the national production check reads the published R2 plane from a real browser');
@@ -33,8 +40,9 @@ test('national discovery serves six regions from the published derived plane', a
   page.on('console', message => { if (message.type() === 'error') failures.push(message.text()); });
   page.on('pageerror', error => failures.push(error.message));
   page.on('request', request => {
-    const host = new URL(request.url()).hostname;
-    if (!['127.0.0.1', 'localhost', DATA_ORIGIN, 'cdn.jsdelivr.net'].includes(host)) external.push(request.url());
+    const url = request.url();
+    if (url.startsWith('blob:')) return; // the DuckDB worker's own script, same origin
+    if (!ALLOWED_HOSTS.has(new URL(url).hostname)) external.push(url);
   });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   const report = [];
@@ -51,7 +59,8 @@ test('national discovery serves six regions from the published derived plane', a
       const sample = run.results.slice(0, 3).map(result => ({ id: result.id, name: result.name,
         lengthM: Math.round(result.lengthM), geometry: result.geometry?.type ?? null,
         ecology: result.ecology?.ecoregionCount ?? null,
-        ecologyLevel: result.ecology?.level3?.name ?? result.ecology?.level3?.code ?? null,
+        ecologyLevel: result.ecology?.level3?.primary
+          ? `${result.ecology.level3.primary.name} (${result.ecology.level3.primary.code})` : null,
         wetland250: result.signals?.wetlands?.area250M2 ?? null,
         wetlandNearest: result.signals?.wetlands?.nearestM ?? null,
         hydro: result.signals?.hydrography?.crossingCount ?? null }));

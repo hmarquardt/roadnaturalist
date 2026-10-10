@@ -32,8 +32,10 @@ const reportPath = option('--report') ?? join(BUILD, 'work/derived-national-publ
 const catalog = validateNationalDerivedCatalog(JSON.parse(readFileSync(new URL('../data/national/derived-catalog.json', import.meta.url))));
 const base = catalog.assetBaseUrl;
 
-// Six geographically distinct centres, one per region the release must serve.
-const CENTERS = [
+// Six geographically distinct centres, one per region the release must serve. `--centers pnw,gulf` narrows the
+// check while a publication is still in flight, so a region that is already published can be proven before the
+// whole plane is.
+const ALL_CENTERS = [
   { id: 'pnw', name: 'Pacific Northwest', center: [-122.92, 45.595] },
   { id: 'northeast', name: 'Northeast', center: [-71.06, 42.36] },
   { id: 'gulf', name: 'Gulf / Southeast', center: [-90.07, 29.95] },
@@ -41,6 +43,9 @@ const CENTERS = [
   { id: 'plains', name: 'Great Plains', center: [-96.68, 40.81] },
   { id: 'southwest', name: 'Arid Southwest', center: [-112.07, 33.45] },
 ];
+const only = (option('--centers') ?? '').split(',').filter(Boolean);
+const CENTERS = only.length ? ALL_CENTERS.filter(entry => only.includes(entry.id)) : ALL_CENTERS;
+if (!CENTERS.length) throw new Error(`no centre matches --centers ${option('--centers')}`);
 
 async function fetchVerified(url, bytes, sha256) {
   const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
@@ -142,5 +147,6 @@ for (const entry of cases) {
 }
 console.log(`report: ${reportPath}`);
 if (failures.length) { console.error(`\nPRODUCTION VERIFICATION FAILED:\n  ${failures.join('\n  ')}`); process.exit(1); }
-console.log('\nPRODUCTION VERIFICATION PASSED: the published national derived plane serves all six regions from R2.');
+console.log(`\nPRODUCTION VERIFICATION PASSED: the published national derived plane served `
+  + `${cases.map(entry => entry.id).join(', ')} from R2.`);
 
