@@ -192,16 +192,23 @@ test('deployed promotion reads published raw cells inside a seeded region, and r
     for (let index = 0; index < count; index += 1) {
       const row = rows.nth(index);
       const name = (await row.innerText()).split('\n')[0];
+      // The panel may already show the previous region's candidate (candidates persist on this device), so the
+      // wait is for a *new* outcome: a title that changed, or a refusal for this attempt.
+      const before = await page.locator('#candidate-detail .detail-title').innerText().catch(() => null);
       await row.locator('.discovery-row').click();
       await page.locator('#discovery-promote').click();
       const candidate = page.locator('#candidate-detail .detail-title');
       const refused = page.locator('#discovery-promotion-error');
       try {
-        await expect(candidate.or(refused)).toBeVisible({ timeout: 300000 });
+        await expect.poll(async () => {
+          if (await refused.isVisible().catch(() => false)) return 'refused';
+          const title = await candidate.innerText().catch(() => null);
+          return title && title !== before ? 'promoted' : null;
+        }, { timeout: 300000, message: `${name} must promote or refuse` }).not.toBeNull();
       } catch {
         continue;
       }
-      if (await candidate.isVisible().catch(() => false)) {
+      if (await candidate.isVisible().catch(() => false) && await candidate.innerText() !== before) {
         return { promoted: name, refusal: null, detail: (await page.locator('#candidate-detail').innerText()).slice(0, 240) };
       }
       const message = await refused.innerText();
