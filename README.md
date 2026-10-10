@@ -46,6 +46,9 @@ npm run build:national-raw-closure  # component -> cells for raw promotion, from
 npm run measure:national-raw-footprint  # what one promotion reads, measured across the six national regions
 npm run publish:national-raw -- --region <slug> --bounds minLon,minLat,maxLon,maxLat  # publish one raw region
 npm run audit:national-raw         # re-fetch every published raw region catalog, its closure and a sample cell
+npm run publish:raw-roads          # publish the complete national road plane (21,135 objects, 5.82 GB)
+npm run audit:raw-roads            # re-audit every road object, the closure tiles in full and a digest sample
+npm run verify:raw-readiness       # derived/roads/ecoregions READY, wetlands/hydrography PARTIAL, as separate facts
 npm run benchmark:regional         # opt-in: the 10-, 25- and 50-mile radius scenarios, cold and warm, as JSON
 npm run verify:regional-equivalence # offline: batch discovery and the detailed panel measure the same habitat metrics
 npm run publish:regional           # publish a catalog's immutable partitions to the R2 data plane (idempotent)

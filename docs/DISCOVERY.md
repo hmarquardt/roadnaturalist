@@ -336,17 +336,105 @@ published is a **bounded region** — a rectangle of the raw planes' own 0.2° c
 actually needs and the habitat cells its 1 km analysis buffer reaches — and coverage grows only where someone
 asked to go deeper.
 
+## Roads are national; wetlands and hydrography grow where people explore
+
+The raw planes are no longer one shape, because publishing them all one way is not the cheapest honest answer:
+
+| plane | state | why |
+| --- | --- | --- |
+| derived corridor metrics | **READY everywhere** | 2.68 GB, the discovery payload, published once |
+| roads | **READY everywhere** | 5.82 GB — about 2 % of the raw lake, for all 21,135 cells |
+| ecoregions | **READY everywhere** | two whole-CONUS EPA layers (37.6 + 85.8 MB), published once |
+| wetlands | **PARTIAL, on demand** | 156.4 GB — published where people actually explore |
+| hydrography | **PARTIAL, on demand** | 26.6 GB — published where people actually explore |
+
+Roads were the one plane whose *bounded* publication created a refusal class: a promoted corridor's id was
+composed over the whole national road network, so rebuilding it needs every cell its **named road component**
+occupies, and a bounded region could only close over components inside its own rectangle. A corridor on a long
+highway therefore failed for want of a road cell — disproportionate complexity for the cheapest plane in the set.
+Publishing the whole road plane removes that class outright: **a promotion can no longer be refused because of
+roads**, and the only bounded question left is wetlands and hydrography. Measured (`npm run
+measure:national-raw-footprint --global-roads`), a promotion's bounded requirement falls from a median of 5
+objects / 16.6 MB to **4 objects / 15.5 MB** (p95 12 / 97.4 MB, worst 12 / 195.3 MB), and — the part that matters —
+the failure modes are gone, not the bytes.
+
+### The global roads publication
+
+```
+npm run publish:raw-roads          # the whole plane: 21,135 cells, 936 closure tiles, 5.82 GB
+npm run audit:raw-roads            # re-audit every object, the closure tiles in full and a digest sample
+npm run verify:raw-readiness       # the five statuses above, from the committed index and the origin
+npm run measure:national-raw-footprint -- --global-roads   # the bounded requirement, roads excluded
+```
+
+Objects go to the planes' **own canonical namespace** — `national/roads/tiger2025-county-v1/roads/<cell>.parquet`
+— which bounded regions already referenced, so the existing four region catalogs needed **no rewriting**: they
+stay valid, and the runtime simply prefers the global plane where it is declared ready. Two documents travel with
+it, both immutable and digest-pinned:
+
+* `national/roads/tiger2025-county-v1/publication.json` — every cell's byte count and digest, the 739 typed-empty
+  cells, and a directory of the closure tiles. Fetched once per promotion, never during discovery.
+* `national/roads/tiger2025-county-v1/components/<tile>.json` — one 1° tile of the road-component closure: which
+  named roads cross that tile and every cell each occupies. Tens of kilobytes, digest-pinned by `publication.json`.
+
+The publisher enumerates the set from the **manifest**, not from a directory scan, verifies all 21,135 local
+artifacts against the manifest's byte counts and digests before uploading anything, is idempotent and resumable
+(an object already online with the right length is reused; re-running resumes), refuses to overwrite an immutable
+key, and writes the readiness declaration **only after** the remote audit passes.
+
+### Readiness, and what "partial" means
+
+`data/national/raw-regions.json` carries a `globalPlanes` block beside its bounded regions:
+
+```json
+"globalPlanes": {
+  "roads": { "state": "READY", "version": "tiger2025-county-v1",
+             "presentCells": 21135, "emptyCells": 739, "objects": 22072, "bytes": 5863401000,
+             "pathPrefix": "national/roads/tiger2025-county-v1/roads/",
+             "publicationUrl": "national/roads/tiger2025-county-v1/publication.json",
+             "publicationBytes": 5103900, "publicationSha256": "…",
+             "closure": { "cellSpan": 5, "prefix": "national/roads/tiger2025-county-v1/components/", "tiles": 936 } },
+  "ecoregions": { "state": "READY", "levels": { "l3": {…}, "l4": {…} } }
+}
+```
+
+It is version- **and** digest-aware. A runtime that needs a roads version other than the one declared is told
+nothing is ready and refuses rather than substituting a different road network; a publication whose digest does
+not match the index is refused before it is parsed. Bounded wetlands and hydrography are `PARTIAL` by design: a
+release is not failed by them, and the release chain reports them separately from the derived plane's readiness.
+
+### The component model is kept; only its publication role changed
+
+A corridor's road component is still the thing that must be rebuilt in full, and the closure is still what makes
+the corridor id come out the same. What changed is where that relationship comes from: a globally published tile
+rather than a bounded region's own document. The four seeded regions keep their `road-components.json` — they are
+still what a reader without the global plane uses — while a reader with it reads the tiles instead. The
+publication budget (`--max-closure-cells`) still applies when a *bounded region* publishes its own roads, which is
+now only for backwards compatibility.
+
+### Rollback and recovery
+
+Nothing is ever overwritten. A new roads publication writes a new version directory, and the committed index is
+the single switch between them: to roll back, restore the previous `globalPlanes` entry (or set `state` to
+`PARTIAL`, which withdraws the availability claim without touching a byte of data). An interrupted publication is
+resumed by re-running the same command; the checkpoint under the build volume says what has been verified, and the
+origin is always re-checked before anything is recorded as online.
+
 ### What one promotion costs, measured
 
 `npm run measure:national-raw-footprint` samples real corridors out of the derived plane in all six national
 regions and applies the runtime's own selection rules (a road promotion reads every cell the corridor's *road
-component* occupies; wetlands and hydrography are padded by the analysis distance exactly as `paddedBounds` does):
+component* occupies; wetlands and hydrography are padded by the analysis distance exactly as `paddedBounds` does).
+The first row is what a promotion *reads*; the second is what it still requires to be **published**, now that roads
+are national (`--global-roads`):
 
 | | median | p95 | worst sampled |
 | --- | --- | --- | --- |
-| Objects read | 5 | 12 | 18 |
-| Bytes read | 16.6 MB | 99.3 MB | 198.7 MB |
-| Roads | 1.8 MB | 4.8 MB | 11.2 MB |
+| Objects read (all planes) | 5 | 12 | 18 |
+| Bytes read (all planes) | 16.6 MB | 99.3 MB | 198.7 MB |
+| **Objects to publish (bounded)** | **4** | **12** | **12** |
+| **Bytes to publish (bounded)** | **15.5 MB** | **97.4 MB** | **195.3 MB** |
+| Roads (read, never published per corridor) | 1.8 MB | 4.8 MB | 11.2 MB |
 | Wetlands | 14.9 MB | 86.2 MB | 180.6 MB |
 | Hydrography | 1.9 MB | 11.9 MB | 29.0 MB |
 
@@ -410,10 +498,13 @@ is one small document later and still before any cell is read.
 
 ### What is online today
 
-Four seeded regions, published 2026-10-10: `princeton-in` (Indiana), `evansville-in`, `nashville-tn` and
-`portland-or` — 367 raw objects, 475.8 MB, of which 123.4 MB is the one-time CONUS ecoregion pair. Growth is
-bounded by use: a repeat promotion in the same area reuses every cell, and the working set converges on where
-people actually explore rather than on the size of the lake.
+The whole national road plane (21,135 cells, 936 closure tiles, 5.82 GB) and the two CONUS ecoregion layers
+(123.4 MB), plus four seeded bounded regions published 2026-10-10 — `princeton-in` (Indiana), `evansville-in`,
+`nashville-tn` and `portland-or` — holding 367 objects / 475.8 MB, of which the roads are now already online. The
+bounded increment is what grows with use: a repeat promotion in the same area reuses every cell, so the working set
+converges on where people actually explore rather than on the size of the lake (clustered usage saturates around
+0.6 GB of bounded cells for the measured corridor pool; the scattered upper bound is 16.7 GB at 1,000 promotions
+against a 188.9 GB lake).
 
 ## Search context: the centre's name, and where each road lies
 

@@ -4,6 +4,7 @@ import { loadManifest } from '../services/manifest.js';
 import { selectRegionalPartitions } from '../discovery/regional-catalog.js';
 import { DISCOVERY_CATALOG_TYPE, validateDiscoveryCatalog } from '../discovery/discovery-catalog.js';
 import { areaCatalogType } from '../discovery/search-area.js';
+import { cellsForBounds, closureTileKeys, rawCellBounds } from '../discovery/raw-catalog.js';
 import { validateRoadComponents } from '../discovery/components.js';
 import { derivedAvailability, selectDerivedCells, validateDerivedManifest } from '../discovery/derived-catalog.js';
 import { DERIVED_COLUMNS, derivedMetrics, derivedUnit, derivedCorridor, queryDerivedCorridors } from './derived-query.js';
@@ -18,6 +19,12 @@ import { summarizeRoadQuery } from './road-result.js';
 const DUCKDB_VERSION = '1.30.0';
 const DUCKDB_ESM = `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/+esm`;
 const DATA_BASE = new URL('../../data/', import.meta.url);
+
+// A box grown by one cell: a road component that continues just outside the corridor's box is part of the same
+// named road, and one cell is the most it can be away for the composition tolerance to join it.
+function growBox(bounds, degrees) {
+  return [bounds[0] - degrees, bounds[1] - degrees, bounds[2] + degrees, bounds[3] + degrees];
+}
 const ROAD_DATASET_ID = 'or-roads-pilot';
 // The bounded discovery network extract: all road features of the discovery-relevant TIGER classes
 // inside the habitat analysis window. See scripts/build-road-network.py and docs/DISCOVERY.md.
@@ -152,7 +159,10 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     if (part.state === 'empty') return null;
     const key = `${catalog.version}/${part.url}/${part.sha256}`;
     if (regionalFiles.has(key)) { metrics.cacheHits++; return regionalFiles.get(key); }
-    const base = catalog.assetBaseUrl ? new URL(catalog.assetBaseUrl) : DATA_BASE;
+    // A partition may name its own origin: the global roads plane lives at the same data origin as the bounded
+    // regions today, but the reader should not depend on that, and an override that silently used the wrong base
+    // would fetch a different object than the one that was verified.
+    const base = part.base ? new URL(part.base) : catalog.assetBaseUrl ? new URL(catalog.assetBaseUrl) : DATA_BASE;
     const url = new URL(part.url, base);
     const fetchStarted = performance.now();
     const response = await fetch(url);
@@ -297,11 +307,67 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     return scope;
   }
 
-  // A selected cell that the catalog declares valid-and-empty contributes no rows but is still covered
-  // data: it means the published source has nothing there, which is a measured zero, not a failure. When
-  // every selected cell is empty the dataset has no file to read, so the relation is built from the
-  // catalog's declared column schema instead of failing. A missing artifact is a different state and
-  // still throws, because that is UNKNOWN.
+  // ---------------------------------------------------------------- global roads
+  //
+  // The national road plane is online in full. A promotion therefore does not need a bounded region to hold its
+  // roads: it reads the plane's own immutable namespace, for the cells the corridor needs and for every cell its
+  // named road component occupies. That is what removes the closure-budget refusal class - there is no budget any
+  // more, only the road's own cells - and it is why the bounded regions now exist for wetlands and hydrography.
+  //
+  // Nothing here weakens a check. The document that describes the plane is digest-pinned by the committed index,
+  // every closure tile is digest-pinned by that document, and every cell is verified against the byte count and
+  // digest the document declares. A plane whose version is not the version the region's own roads dataset was
+  // published at is refused rather than substituted.
+  const globalRoadsCache = new Map();
+
+  async function openGlobalRoadsDocument(entry) {
+    if (globalRoadsCache.has(entry.version)) return globalRoadsCache.get(entry.version);
+    const base = new URL(entry.assetBaseUrl);
+    const response = await fetch(new URL(entry.publicationUrl, base));
+    if (!response.ok) throw new Error(`the published national roads plane is unavailable: HTTP ${response.status}`);
+    const bytes = await response.arrayBuffer();
+    if (bytes.byteLength !== entry.publicationBytes) throw new Error('the roads publication is not the declared byte count');
+    const digest = await sha256Hex(bytes);
+    if (digest !== entry.publicationSha256) throw new Error('the roads publication SHA-256 does not match the index');
+    const publication = JSON.parse(new TextDecoder().decode(bytes));
+    if (publication.version !== entry.version || publication.kind !== 'national-roads-publication') {
+      throw new Error(`the roads publication is not ${entry.version}`);
+    }
+    const opened = { publication, base, present: new Map(publication.cells.map(cell => [cell.id, cell])),
+      empty: new Set(publication.emptyCells ?? []), tiles: new Map(publication.closure.tiles.map(tile => [tile.key, tile])) };
+    globalRoadsCache.set(entry.version, opened);
+    return opened;
+  }
+
+  async function openClosureTiles({ document, entry, cells, metrics }) {
+    // The tiles the corridor's own cells fall in, not one tile at the box's centre: a corridor longer than a tile
+    // registers its component under any tile its cells touch, and reading only the middle one would miss the road.
+    const keys = closureTileKeys(cells, entry.closure.cellSpan).filter(key => document.tiles.has(key));
+    const components = [];
+    for (const key of keys) {
+      const declared = document.tiles.get(key);
+      const cacheKey = `${entry.version}/tile/${declared.sha256}`;
+      if (regionalFiles.has(cacheKey)) { metrics.cacheHits += 1; components.push(...regionalFiles.get(cacheKey)); continue; }
+      const url = new URL(`${entry.closure.prefix}${key}.json`, document.base);
+      const started = performance.now();
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`closure tile ${key}: HTTP ${response.status}`);
+      const bytes = await response.arrayBuffer();
+      metrics.fetchMs += performance.now() - started;
+      if (bytes.byteLength !== declared.bytes) throw new Error(`closure tile ${key}: byte count mismatch`);
+      if (await sha256Hex(bytes) !== declared.sha256) throw new Error(`closure tile ${key}: SHA-256 mismatch`);
+      metrics.downloadedBytes += declared.bytes;
+      const opened = validateRoadComponents(JSON.parse(new TextDecoder().decode(bytes))).components;
+      regionalFiles.set(cacheKey, opened);
+      components.push(...opened);
+    }
+    return components;
+  }
+
+  // A selected cell that the catalog declares valid-and-empty contributes no rows but is still covered data: it
+  // means the published source has nothing there, which is a measured zero, not a failure. When every selected
+  // cell is empty the dataset has no file to read, so the relation is built from the catalog's declared column
+  // schema instead of failing. A missing artifact is a different state and still throws, because that is UNKNOWN.
   function emptyRelation(kind, dataset) {
     if (!Array.isArray(dataset.columns) || !dataset.columns.length) {
       throw new TypeError(`${kind}: selected partitions are empty and the catalog declares no column schema`);
@@ -310,17 +376,78 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     return `(SELECT ${projection} WHERE false)`;
   }
 
-  // One selection path for both raw contracts. A published raw region and the regional pilot differ in where
-  // their cells live and how many of them are online, not in how a search box becomes a set of cells: the same
-  // grid, the same road-component closure, the same 1 km habitat halo, the same three planes.
-  async function selectRawOrRegionalPartitions(catalog, searchArea, declaredType) {
-    const components = await getRoadComponents(catalog);
-    const selection = selectRegionalPartitions(catalog, searchArea.bbox, { components,
-      componentIds: searchArea.roadComponentIds ?? null });
-    return declaredType === DISCOVERY_CATALOG_TYPE.RAW
-      ? Object.freeze({ ...selection, raw: true, catalogVersion: catalog.version,
-        publication: catalog.publication ?? null })
-      : selection;
+  // The global road plane's cells for a corridor: the cells its box needs, plus every cell the road component it
+  // belongs to occupies. The component closure is unchanged as *logic* - a corridor id was composed over the whole
+  // national road network, so rebuilding it needs the whole road - but it no longer comes from a bounded
+  // publication, which is what removes the closure budget as a reason promotion can fail.
+  async function globalRoadsSelection({ entry, searchArea, metrics }) {
+    const document = await openGlobalRoadsDocument(entry);
+    const plane = { id: 'roads', cellStepDeg: entry.cellStepDeg };
+    const base = cellsForBounds(plane, searchArea.bbox);
+    const components = await openClosureTiles({ document, entry, cells: base,
+      metrics });
+    const named = searchArea.roadComponentIds ?? null;
+    const wanted = new Set(base);
+    let closed = 0;
+    for (const component of components) {
+      if (named && !named.includes(component.id)) continue;
+      if (!component.cells.some(id => base.includes(id))) continue;
+      closed += 1;
+      for (const id of component.cells) wanted.add(id);
+    }
+    const partitions = [];
+    for (const id of [...wanted].sort()) {
+      const present = document.present.get(id);
+      if (present) {
+        partitions.push({ id, bounds: present.bounds, state: 'present', featureCount: present.featureCount,
+          url: `${entry.pathPrefix}${id}.parquet`, bytes: present.bytes, sha256: present.sha256, base: entry.assetBaseUrl });
+        continue;
+      }
+      if (document.empty.has(id)) { partitions.push({ id, bounds: rawCellBounds(id), state: 'empty', featureCount: 0 }); continue; }
+      throw new Error(`the published national roads plane does not cover cell ${id}`);
+    }
+    return { partitions, components: closed, cells: partitions.filter(part => part.state === 'present').length };
+  }
+
+  // One selection path for both raw contracts. A published raw region and the regional pilot differ in where their
+  // cells live and how many of them are online, not in how a search box becomes a set of cells: the same grid, the
+  // same road-component closure, the same 1 km habitat halo, the same three planes.
+  async function selectRawOrRegionalPartitions(catalog, searchArea, declaredType, globalRoadsEntry = null) {
+    if (declaredType !== DISCOVERY_CATALOG_TYPE.RAW) {
+      const components = await getRoadComponents(catalog);
+      return selectRegionalPartitions(catalog, searchArea.bbox, { components });
+    }
+    const metrics = { fetchMs: 0, verifyMs: 0, registerMs: 0, downloadedBytes: 0, cacheHits: 0 };
+    if (!globalRoadsEntry) {
+      // No nationally published roads plane: the bounded region has to hold the roads as well, exactly as before.
+      const components = await getRoadComponents(catalog);
+      const selection = selectRegionalPartitions(catalog, searchArea.bbox, { components,
+        componentIds: searchArea.roadComponentIds ?? null });
+      return Object.freeze({ ...selection, raw: true, catalogVersion: catalog.version,
+        publication: catalog.publication ?? null, globalRoads: false, globalRoadsMetrics: metrics });
+    }
+    // The region's own roads dataset records the road plane version it was published from. A global plane at a
+    // different version is a different road network, and substituting it would rebuild a corridor from data the
+    // derived row never described.
+    const regionRoadsVersion = catalog.datasets.find(dataset => dataset.id === 'roads')?.version ?? null;
+    if (regionRoadsVersion !== globalRoadsEntry.version) {
+      throw new Error(`this corridor's roads were published as ${regionRoadsVersion}, but the national roads plane `
+        + `online is ${globalRoadsEntry.version}`);
+    }
+    // The bounded selection still decides wetlands and hydrography; roads are replaced by the global plane. The
+    // region's own component document is deliberately not consulted: with roads available nationally, a component
+    // that reaches outside a bounded region is no longer a reason to refuse.
+    const bounded = selectRegionalPartitions(catalog, searchArea.bbox, { components: null });
+    const roads = await globalRoadsSelection({ entry: globalRoadsEntry, searchArea, metrics });
+    const unpublished = Object.fromEntries(Object.entries(bounded.unpublished ?? {})
+      .filter(([plane]) => plane !== 'roads'));
+    const unpublishedCount = Object.values(unpublished).reduce((sum, ids) => sum + ids.length, 0);
+    return Object.freeze({ ...bounded, raw: true, catalogVersion: catalog.version,
+      publication: catalog.publication ?? null, globalRoads: true, globalRoadsMetrics: metrics,
+      globalRoadsComponents: roads.components, globalRoadsCells: roads.cells,
+      partitions: { ...bounded.partitions, roads: roads.partitions },
+      unpublished, unpublishedCount, closureOutside: [],
+      sourceReady: unpublishedCount === 0 });
   }
 
   // The sentence for a corridor whose raw source is not published yet. It names how many cells are missing and
@@ -358,7 +485,8 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     const catalog = await getDiscoveryCatalog(searchArea.catalogUrl, declaredType);
     const manifestMs = performance.now() - started;
     if (declaredType === DISCOVERY_CATALOG_TYPE.RAW) activeRawPublication = catalog.publication ?? null;
-    const selection = await selectRawOrRegionalPartitions(catalog, searchArea, declaredType);
+    const selection = await selectRawOrRegionalPartitions(catalog, searchArea, declaredType,
+      searchArea.globalRoads ?? null);
     const selectionMs = performance.now() - started - manifestMs;
     // A published region need not be a published *whole*: a cell inside a region's rectangle can be explicitly
     // not published yet, and a corridor's road component can reach outside the rectangle altogether. Either way

@@ -257,6 +257,10 @@ test('deployed promotion reads published raw cells inside a seeded region, and r
   console.log('PROMOTION_PRODUCTION_REFUSAL ' + JSON.stringify(report.refusal));
   expect(refusal.promoted).toBeNull();
   expect(refusal.refusal).toMatch(/have not been published/);
+  // Roads are published whole nationally, so they can no longer be part of the reason a promotion is refused: the
+  // message may only name the bounded planes, and the correction it implies is about wetlands or hydrography.
+  expect(refusal.refusal).toMatch(/wetlands|hydrography/);
+  expect(refusal.refusal).not.toMatch(/roads/);
   expect(report.refusal.rawCells).toBe(0);
 
   expect(outside, 'a promotion must reach no geocoder, occurrence source or Investigator endpoint').toEqual([]);

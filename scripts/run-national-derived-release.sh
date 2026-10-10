@@ -102,6 +102,15 @@ settle dist/data/places/national-places-zip.json /data/places/national-places-zi
 [ -f "$WORK/audit.json" ] && cp "$WORK/audit.json" data/national/verification/derived-publication-remote-audit.json
 cp "$WORK/production-verify.log" data/national/verification/derived-publication-production.txt
 
+say "stage 5b raw plane readiness (roads national; wetlands and hydrography bounded)"
+# Separate facts, reported separately: the derived plane and the national roads plane are READY everywhere, the
+# two CONUS ecoregion layers are READY, and bounded wetlands and hydrography are PARTIAL by design - published
+# where people explore. A partial bounded plane is not a failed national release; a *broken* claim is: an index
+# that does not validate, a globally ready plane whose documents are not online, a region whose catalog is not what
+# the index declares, or a deployed index that differs from the commit under review.
+node scripts/verify-national-raw-readiness.mjs >> "$LOG" 2>&1 || fail "raw readiness"
+grep -E '^  [a-z]+ ' "$LOG" | tail -5 >> "$LOG" 2>/dev/null || true
+
 say "stage 6 real-browser production check"
 # One verdict, two specs: the six-region national discovery check, and the place-name search that now drives it
 # (every place the brief names, plus one discovery search per region started from a typed place name). Both run

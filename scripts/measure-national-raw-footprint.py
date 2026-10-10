@@ -154,8 +154,27 @@ def component_cells(root, catalog):
     return cells
 
 
-def footprint(bbox, planes, component=None, components=None):
-    """Which raw objects a promotion of this corridor box reads, and how many bytes they are."""
+def footprint(bbox, planes, component=None, components=None, roads_global=False):
+    """Which raw objects a promotion of this corridor box reads, and how many bytes they are.
+
+    With `roads_global` the national roads plane is online in full, so the road part of a promotion stops being a
+    *publication* question and becomes a fetch question: the bounded publication cost of roads is zero, and what
+    remains is wetlands and hydrography.
+    """
+    if roads_global:
+        habitat = padded_bounds(bbox, ANALYSIS_DISTANCE_M)
+        road_cells = cells_for(expand(bbox, ROAD_MARGIN_DEG), planes["roads"]["cells"]) if component is None else []
+        wetlands = cells_for(habitat, planes["wetlands"]["cells"])
+        hydro = cells_for(habitat, planes["hydrography"]["cells"])
+        index_w = planes["wetlands"]["cells"]
+        index_h = planes["hydrography"]["cells"]
+        counts = {"roads": 0, "wetlands": len(wetlands), "hydrography": len(hydro)}
+        byte_counts = {"roads": 0,
+                       "wetlands": sum(index_w[c].get("bytes", 0) for c in wetlands if index_w[c]["state"] == "present"),
+                       "hydrography": sum(index_h[c].get("bytes", 0) for c in hydro if index_h[c]["state"] == "present")}
+        return {"cells": counts, "bytes": byte_counts, "objects": sum(counts.values()),
+                "bytesTotal": sum(byte_counts.values()), "roads": [], "wetlands": wetlands,
+                "hydrography": hydro, "roadCellsIfBounded": len(road_cells)}
     if component is not None and components is not None and components.get(component):
         # The closure: exactly the cells the corridor's own road component occupies, as the runtime selects them.
         roads = sorted(components[component])
@@ -174,7 +193,7 @@ def footprint(bbox, planes, component=None, components=None):
 
 
 
-def growth(samples, planes, promotions, components):
+def growth(samples, planes, promotions, components, roads_global=False):
     """The published working set after `promotions` promotions, as two bounds.
 
     The lower bound replays the corridors measured above (clustered: people explore near each other and return),
@@ -189,7 +208,7 @@ def growth(samples, planes, promotions, components):
     curve = []
     for step in range(promotions):
         row = pool[step % len(pool)]
-        measured = footprint([row[7], row[8], row[9], row[10]], planes, row[11], components)
+        measured = footprint([row[7], row[8], row[9], row[10]], planes, row[11], components, roads_global)
         for name in PLANES:
             for cell in measured[name]:
                 if cell in seen[name]:
@@ -201,8 +220,8 @@ def growth(samples, planes, promotions, components):
             curve.append({"promotions": step + 1, "cells": {name: len(seen[name]) for name in PLANES},
                           "bytes": sum(bytes_of.values()), "bytesByPlane": dict(bytes_of)})
     # Scattered upper bound: per-promotion distinct cells with no reuse at all, capped by the grid.
-    per_promotion = {name: percentile([len(footprint([row[7], row[8], row[9], row[10]], planes, row[11], components)[name])
-                                       for row in pool], 0.5) for name in PLANES}
+    per_promotion = {name: percentile([len(footprint([row[7], row[8], row[9], row[10]], planes, row[11], components,
+                                                        roads_global)[name]) for row in pool], 0.5) for name in PLANES}
     grid = len(planes["roads"]["cells"])
     scattered = {}
     for count in (100, 1000, 10000):
@@ -212,8 +231,10 @@ def growth(samples, planes, promotions, components):
         scattered[count] = {"cells": cells, "bytes": sum(bytes_by_plane.values()), "bytesByPlane": bytes_by_plane}
     lake = sum(entry.get("bytes", 0) for name in PLANES for entry in planes[name]["cells"].values()
                if entry["state"] == "present") + planes["ecoregions"]["bytes"]
+    fixed = (sum(entry.get("bytes", 0) for entry in planes["roads"]["cells"].values() if entry["state"] == "present")
+             + planes["ecoregions"]["bytes"]) if roads_global else planes["ecoregions"]["bytes"]
     return {"clustered": curve, "scattered": scattered, "medianCellsPerPromotion": per_promotion,
-            "rawLakeBytes": lake}
+            "fixedBytes": fixed, "rawLakeBytes": lake}
 
 
 def main():
@@ -221,6 +242,9 @@ def main():
     parser.add_argument("--per-region", type=int, default=25)
     parser.add_argument("--promotions", type=int, default=10000)
     parser.add_argument("--out", default=str(ROOT / DEFAULT_OUT))
+    parser.add_argument("--global-roads", action="store_true",
+                        help="measure bounded publication only: roads are published nationally and are a fetch, not a publication, cost")
+    parser.add_argument("--out-old", default=None, help="also write the bounded-roads measurement here for comparison")
     parser.add_argument("--no-closure", action="store_true",
                         help="use the pre-closure margin rule for roads instead of the component closure")
     args = parser.parse_args()
@@ -233,7 +257,7 @@ def main():
     rows = []
     for region, corridors in samples.items():
         for row in corridors:
-            measured = footprint([row[7], row[8], row[9], row[10]], planes, row[11], components)
+            measured = footprint([row[7], row[8], row[9], row[10]], planes, row[11], components, args.global_roads)
             rows.append({"region": region, "corridorId": row[0], "name": row[1], "lengthM": round(row[2] or 0, 1),
                          "wetlandArea1000M2": round(row[4] or 0, 1), "hydroCrossings": row[5] or 0,
                          "componentCells": len(components.get(row[11]) or []) if components else None,
@@ -273,12 +297,12 @@ def main():
                           "emptyCells": value.get("empty"), "artifactBytes": value["bytes"]}
                    for name, value in planes.items()},
         "analysisDistanceM": ANALYSIS_DISTANCE_M, "roadMarginDeg": ROAD_MARGIN_DEG,
-        "sampled": len(rows), "summary": summary,
+        "globalRoads": args.global_roads, "sampled": len(rows), "summary": summary,
         "perRegion": {region: {"corridors": len(corridors),
                                "medianBytes": percentile([row["bytes"] for row in rows if row["region"] == region], 0.5),
                                "worstBytes": max((row["bytes"] for row in rows if row["region"] == region), default=0)}
                       for region, corridors in samples.items()},
-        "growth": growth(samples, planes, args.promotions, components),
+        "growth": growth(samples, planes, args.promotions, components, args.global_roads),
         "corridors": rows,
     }
     Path(args.out).write_text(json.dumps(report, indent=1) + "\n")
@@ -289,7 +313,7 @@ def main():
     for count, point in ((report["growth"] or {}).get("scattered") or {}).items():
         print(f"  scattered {int(count):>6,} promotions -> cells {point['cells']}  bytes {round(point['bytes']):,}")
     print(f"raw lake (three planes + ecoregions): {(report['growth'] or {}).get('rawLakeBytes', 0):,} bytes")
-    print(f"wrote {Path(args.out).relative_to(ROOT)}")
+    print(f"wrote {args.out}")
 
 
 if __name__ == "__main__":

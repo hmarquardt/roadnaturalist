@@ -27,6 +27,9 @@ import { promisify } from 'node:util';
 import { IMMUTABLE_CACHE_CONTROL, JSON_TYPE, PARQUET_TYPE } from './national-derived-objects.mjs';
 import { ECOREGIONS, RAW_INDEX_PATH, cellsForBounds, ecoregionArtifacts, indexEntry, loadPlanes, localCellPath,
   objectKeyFor, paddedBounds, regionCatalog, regionRectangle } from './national-raw-objects.mjs';
+import { ROADS_PLANE, TILE_CELLS, closureTiles, roadsPublicationSet, tileDocument } from './national-roads-publication.mjs';
+
+const readText = path => readFileSync(path, 'utf8');
 
 const run = promisify(execFile);
 const WRANGLER = 'wrangler@4.135.0';
@@ -402,6 +405,181 @@ function indexEntryFor(state) {
     sha256: verified[sample.plane].get(sample.cell).sha256 } : null };
 }
 
+// A HEAD that reports what the origin actually serves, not just a length: the audit checks the immutable cache
+// header and the content type as well, because an object with the right bytes and the wrong headers is still a
+// publication mistake.
+async function remoteHead(key) {
+  const response = await fetch(new URL(key, BASE), { method: 'HEAD', headers: { 'Accept-Encoding': 'identity' },
+    signal: AbortSignal.timeout(30000) });
+  if (!response.ok) return null;
+  return { bytes: Number(response.headers.get('content-length')),
+    contentType: response.headers.get('content-type'), cacheControl: response.headers.get('cache-control') };
+}
+
+// ---------------------------------------------------------------- the whole roads plane
+
+// Verify every declared present cell against the manifest before a byte is uploaded: the file either is the
+// finalized artifact the plane published, or the publication stops. 21,135 files and 5.82 GB is about a minute of
+// reading, which is nothing compared with publishing a byte that is not what it claims to be. This is also the
+// pre-publication audit: the set comes from the manifest, not from a directory scan, so sidecars, logs and
+// leftovers cannot enter it and a typed-empty cell is not expected to have an object.
+function auditRoadsLocally({ set, root }) {
+  const started = Date.now();
+  const problems = [];
+  let bytes = 0;
+  for (const cell of set.cells) {
+    const path = join(root, `${cell.id}.parquet`);
+    if (!existsSync(path)) { problems.push(`${cell.id}: not finalized at ${path}`); continue; }
+    const payload = readFileSync(path);
+    if (payload.length !== cell.bytes) { problems.push(`${cell.id}: ${payload.length} bytes locally, ${cell.bytes} declared`); continue; }
+    if (sha256(payload) !== cell.sha256) { problems.push(`${cell.id}: local digest differs from the declared one`); continue; }
+    bytes += payload.length;
+  }
+  const seconds = Math.max((Date.now() - started) / 1000, 0.001);
+  if (problems.length) {
+    throw new Error(`the local roads audit failed: ${problems.slice(0, 5).join('; ')}`
+      + `${problems.length > 5 ? ` (+${problems.length - 5} more)` : ''}`);
+  }
+  return { cells: set.cells.length, bytes, seconds,
+    megabytesPerSecond: bytes / 1e6 / seconds };
+}
+
+function roadObject(cell, root) {
+  return { key: cell.url, path: join(root, `${cell.id}.parquet`), bytes: cell.bytes, type: PARQUET_TYPE };
+}
+
+// The closure tiles: which multi-cell components touch each 1 degree tile, each with its complete cell list.
+function writeClosureTiles({ closurePath, directory, log }) {
+  const { tiles, components } = closureTiles(readText(closurePath).split('\n'));
+  mkdirSync(directory, { recursive: true });
+  const written = [];
+  let bytes = 0;
+  for (const key of [...tiles.keys()].sort()) {
+    const document = tileDocument(key, tiles.get(key));
+    const payload = Buffer.from(JSON.stringify(document) + '\n');
+    const path = join(directory, `${key}.json`);
+    writeFileSync(path, payload);
+    bytes += payload.length;
+    written.push({ key, bytes: payload.length, sha256: sha256(payload), components: document.counts.components });
+  }
+  log(`closure: ${components.toLocaleString()} multi-cell components over ${written.length} tiles, ${bytes.toLocaleString()} bytes`);
+  return { tiles: written, bytes, components };
+}
+
+function roadsPublicationDocument({ set, tiles, publishedAt }) {
+  return { kind: 'national-roads-publication', schemaVersion: 1, version: ROADS_PLANE.version,
+    publishedAt, cellStepDeg: ROADS_PLANE.cellStepDeg, assetBaseUrl: BASE, pathPrefix: ROADS_PLANE.pathPrefix,
+    grid: { kind: 'lonlat-grid', origin: [-180, -90], stepLon: ROADS_PLANE.cellStepDeg, stepLat: ROADS_PLANE.cellStepDeg,
+      crs: 'EPSG:4326' },
+    counts: { cells: set.cells.length + set.empty.length, present: set.cells.length, empty: set.empty.length,
+      bytes: set.bytes, closureTiles: tiles.length },
+    cells: set.cells.map(cell => ({ id: cell.id, bounds: cell.bounds, bytes: cell.bytes, sha256: cell.sha256,
+      featureCount: cell.featureCount })),
+    emptyCells: set.empty.map(cell => cell.id),
+    closure: { cellSpan: TILE_CELLS, prefix: ROADS_PLANE.componentsPrefix,
+      tiles: tiles.map(tile => ({ key: tile.key, bytes: tile.bytes, sha256: tile.sha256 })) },
+    note: 'The complete national road raw plane. Discovery never reads these objects; detailed promotion reads the '
+      + 'cells a corridor occupies, and the closure tiles say which cells its named road occupies.' };
+}
+
+
+
+// List every object under a prefix, so the audit can say whether the remote inventory holds anything the manifest
+// did not ask for. Paged, because 21,135 objects is more than one page.
+async function listRemote(prefix) {
+  const keys = [];
+  let cursor = null;
+  for (let page = 0; page < 200; page += 1) {
+    const query = new URLSearchParams({ prefix, per_page: '1000' });
+    if (cursor) query.set('cursor', cursor);
+    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/r2/buckets/${BUCKET}/objects?${query}`,
+      { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(60000) });
+    if (response.status === 401 || response.status === 403) { token = await refreshToken(); continue; }
+    if (!response.ok) throw new Error(`listing ${prefix}: HTTP ${response.status} ${await response.text()}`);
+    const body = await response.json();
+    for (const object of body.result ?? []) keys.push(object.key);
+    if (!body.result_info?.is_truncated) break;
+    cursor = body.result_info.cursor ?? null;
+  }
+  return keys;
+}
+
+// A small worker pool: the pacer already bounds the write rate, so the only thing concurrency changes is how much
+// of each request's latency is hidden. Without it a 21,135-object publication is latency-bound at about one object
+// a second, which turns a forty-minute publication into a seven-hour one.
+async function inBatches(items, size, worker, onProgress = null) {
+  let cursor = 0;
+  let done = 0;
+  const workers = Array.from({ length: Math.max(1, Math.min(size, items.length)) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      await worker(items[index], index);
+      done += 1;
+      if (onProgress) onProgress(done, items[index], index);
+    }
+  });
+  await Promise.all(workers);
+}
+
+// The whole-plane publication: audit the canonical artifacts, publish every present cell and the closure tiles,
+// then the document that describes them, then verify the origin against it before anything is declared ready.
+async function publishRoadsPlane() {
+  const set = roadsPublicationSet({ readFile: readText });
+  const root = join(ROOT, ROADS_PLANE.repositoryRoot);
+  if (!existsSync(root)) throw new Error(`the finalized roads plane is not on this machine: ${root}`);
+  console.log(`roads ${set.manifest.version}: ${set.cells.length.toLocaleString()} present cells, `
+    + `${set.bytes.toLocaleString()} bytes, ${set.empty.length} typed-empty of ${set.manifest.counts.cells} grid cells`);
+  console.log(`source root: ${root} (the canonical finalized artifacts; nothing else is enumerated)`);
+  const local = auditRoadsLocally({ set, root });
+  console.log(`local audit: ${local.cells.toLocaleString()} cells match the manifest in ${local.seconds.toFixed(1)}s `
+    + `(${local.megabytesPerSecond.toFixed(1)} MB/s)`);
+
+  const versionDir = join(WORK, `roads-${ROADS_PLANE.version}`);
+  const tiles = writeClosureTiles({ closurePath: join(BUILD, 'work/raw-closure/components.jsonl'),
+    directory: join(versionDir, 'components'), log: console.log });
+  const journal = checkpoint('roads', ROADS_PLANE.version);
+
+  const started = Date.now();
+  const actions = { uploaded: 0, reused: 0, 'would-upload': 0 };
+  let uploadedBytes = 0;
+  const concurrency = Number(option('--concurrency') ?? 12);
+  await inBatches(set.cells, concurrency, async cell => {
+    const action = await ensureObject(roadObject(cell, root), []);
+    actions[action] += 1;
+    if (action === 'uploaded') uploadedBytes += cell.bytes;
+    journal.record({ key: cell.url, bytes: cell.bytes, action, at: new Date().toISOString() });
+  }, done => {
+    if (done % 500 !== 0 && done !== set.cells.length) return;
+    const elapsed = (Date.now() - started) / 1000;
+    console.log(`  ${done}/${set.cells.length} cells: ${actions.uploaded} uploaded, ${actions.reused} reused, `
+      + `${(done / elapsed).toFixed(1)} objects/s, ${(uploadedBytes / 1e6 / elapsed).toFixed(2)} MB/s, `
+      + `${(elapsed / 60).toFixed(1)} min elapsed`);
+  });
+
+  const tilesUploaded = { uploaded: 0, reused: 0 };
+  await inBatches(tiles.tiles, concurrency, async tile => {
+    const path = join(versionDir, 'components', `${tile.key}.json`);
+    const action = await ensureObject({ key: `${ROADS_PLANE.componentsPrefix}${tile.key}.json`, path,
+      bytes: tile.bytes, type: JSON_TYPE }, []);
+    tilesUploaded[action in tilesUploaded ? action : 'reused'] += 1;
+  });
+  const publication = roadsPublicationDocument({ set, tiles: tiles.tiles, publishedAt: new Date().toISOString() });
+  const publicationPath = join(versionDir, 'publication.json');
+  writeFileSync(publicationPath, JSON.stringify(publication) + '\n');
+  const publicationBytes = readFileSync(publicationPath);
+  const publicationAction = await ensureObject({ key: ROADS_PLANE.publicationUrl, path: publicationPath,
+    bytes: publicationBytes.length, type: JSON_TYPE }, []);
+  const elapsed = (Date.now() - started) / 1000;
+  console.log(`roads upload: ${JSON.stringify(actions)} cells (${uploadedBytes.toLocaleString()} bytes uploaded), `
+    + `tiles ${JSON.stringify(tilesUploaded)} (${tiles.bytes.toLocaleString()} bytes), publication.json `
+    + `${publicationAction} (${publicationBytes.length.toLocaleString()} bytes)`);
+  console.log(`elapsed ${(elapsed / 60).toFixed(1)} min; ${(set.cells.length / elapsed).toFixed(1)} objects/s; `
+    + `${((uploadedBytes + tiles.bytes + publicationBytes.length) / 1e6 / elapsed).toFixed(2)} MB/s`);
+  return { set, tiles, publication, publicationBytes, actions, uploadedBytes, tilesUploaded, elapsed,
+    local, versionDir };
+}
+
 async function main() {
   if (!existsSync(BUILD)) {
     throw new Error(`raw publication is refused: the build volume is not mounted (${BUILD}). The finalized source `
@@ -409,7 +587,122 @@ async function main() {
   }
   const ecoregions = ecoregionArtifacts(path => readFileSync(path, 'utf8'), BUILD);
 
+  // The whole-plane mode: publish the complete national roads plane, audit it, and only then declare it ready.
+  if (option('--plane') === 'roads' && flag('--all')) {
+    const state = await publishRoadsPlane();
+    const audit = await auditRoadsRemote({ publication: state.publication,
+      sample: Number(option('--sample-digests') ?? 12) });
+    const online = {};
+    for (const [key, declared] of Object.entries(ecoregions)) {
+      const head = await remoteHead(declared.url);
+      online[key] = { url: declared.url, bytes: declared.bytes, sha256: declared.sha256, version: declared.version,
+        published: head?.bytes === declared.bytes };
+    }
+    const ecoregionState = Object.values(online).every(entry => entry.published) ? 'READY' : 'PARTIAL';
+    writeGlobalPlanes(globalPlaneEntry({ ...state, audit,
+      ecoregions: { state: ecoregionState, levels: online, note: 'EPA Level III and IV are whole-CONUS layers, ' +
+        'published once and shared by every promotion.' } }));
+    return audit.ok ? 0 : 1;
+  }
+  if (option('--plane') === 'roads' && flag('--audit-remote')) {
+    const response = await fetch(new URL(ROADS_PLANE.publicationUrl, BASE));
+    if (!response.ok) throw new Error(`the roads publication is not online: HTTP ${response.status}`);
+    const publication = await response.json();
+    const stored = readIndex().globalPlanes?.roads ?? null;
+    if (stored && stored.publicationSha256 !== sha256(Buffer.from(JSON.stringify(publication) + '\n'))) {
+      console.log('note: the published publication.json digest differs from the recorded one');
+    }
+    const audit = await auditRoadsRemote({ publication, sample: Number(option('--sample-digests') ?? 12) });
+    return audit.ok ? 0 : 1;
+  }
+
   if (flag('--audit')) {
+
+// The remote audit: every expected object exists with the right length, the right content type and the immutable
+// cache header; a sample is re-fetched and hashed; every closure tile is hashed in full; and the namespace holds
+// nothing the publication did not ask for. Roads are not declared ready until this passes.
+async function auditRoadsRemote({ publication, sample = 12 }) {
+  const problems = [];
+  const missing = [];
+  const sizeMismatch = [];
+  const headerProblems = [];
+  const started = Date.now();
+  const expected = new Set([ROADS_PLANE.publicationUrl]);
+  const concurrency = Number(option('--concurrency') ?? 12);
+  await inBatches(publication.cells, concurrency, async cell => {
+    expected.add(`${ROADS_PLANE.pathPrefix}${cell.id}.parquet`);
+    const head = await remoteHead(`${ROADS_PLANE.pathPrefix}${cell.id}.parquet`);
+    if (!head) { missing.push(cell.id); return; }
+    if (head.bytes !== cell.bytes) sizeMismatch.push(cell.id);
+    if (!(head.cacheControl ?? '').includes('immutable')) headerProblems.push(`${cell.id} cache-control ${head.cacheControl}`);
+    if ((head.contentType ?? '').includes('parquet') !== true) headerProblems.push(`${cell.id} content-type ${head.contentType}`);
+  });
+  const sampled = [];
+  for (const cell of publication.cells.slice(0, sample)) {
+    const digest = await remoteDigest(`${ROADS_PLANE.pathPrefix}${cell.id}.parquet`);
+    if (!digest || digest.sha256 !== cell.sha256) problems.push(`${cell.id}: published digest differs`);
+    sampled.push(cell.id);
+  }
+  const tileProblems = [];
+  for (const tile of publication.closure.tiles) expected.add(`${publication.closure.prefix}${tile.key}.json`);
+  await inBatches(publication.closure.tiles, concurrency, async tile => {
+    const digest = await remoteDigest(`${publication.closure.prefix}${tile.key}.json`);
+    if (!digest) tileProblems.push(`${tile.key}: not published`);
+    else if (digest.sha256 !== tile.sha256) tileProblems.push(`${tile.key}: digest differs`);
+  });
+  const publicationHead = await remoteHead(ROADS_PLANE.publicationUrl);
+  if (!publicationHead) problems.push('publication.json is not published');
+  const remote = await listRemote('national/roads/');
+  const unexpected = remote.filter(key => !expected.has(key)).slice(0, 20);
+  const elapsed = (Date.now() - started) / 1000;
+  const audit = { checked: publication.cells.length, missing: missing.slice(0, 20), missingCount: missing.length,
+    sizeMismatch: sizeMismatch.slice(0, 20), sizeMismatchCount: sizeMismatch.length,
+    headerProblems: headerProblems.slice(0, 10), headerProblemCount: headerProblems.length,
+    digestProblems: problems, tileProblems, sampled, remoteObjects: remote.length, unexpected,
+    seconds: Math.round(elapsed),
+    ok: !missing.length && !sizeMismatch.length && !headerProblems.length && !problems.length
+      && !tileProblems.length && !unexpected.length };
+  console.log(`remote audit: ${audit.ok ? 'PASSED' : 'FAILED'} - ${audit.checked.toLocaleString()} cell objects, `
+    + `${publication.closure.tiles.length} closure tiles, ${remote.length.toLocaleString()} objects under national/roads/, `
+    + `${audit.seconds}s`);
+  if (missing.length || sizeMismatch.length || problems.length || tileProblems.length || unexpected.length) {
+    console.log(JSON.stringify(audit, null, 1));
+  }
+  return audit;
+}
+
+// The readiness declaration. It lives with the raw region index because that is the document the runtime already
+// loads to answer "is this corridor's raw source online?", and because a global plane and a bounded region are the
+// same question at different scopes. It is version- and digest-aware on purpose: a runtime that expects a
+// different roads version is not told that roads are ready, it is told nothing.
+function globalPlaneEntry({ publication, publicationBytes, audit, tiles, ecoregions }) {
+  return { version: publication.version, state: audit.ok ? 'READY' : 'FAILED',
+    cellStepDeg: publication.cellStepDeg, pathPrefix: publication.pathPrefix, assetBaseUrl: publication.assetBaseUrl,
+    presentCells: publication.counts.present, emptyCells: publication.counts.empty, gridCells: publication.counts.cells,
+    objects: publication.counts.present + tiles.tiles.length + 1, bytes: publication.counts.bytes + tiles.bytes + publicationBytes.length,
+    publicationUrl: ROADS_PLANE.publicationUrl, publicationBytes: publicationBytes.length,
+    publicationSha256: sha256(publicationBytes),
+    closure: { cellSpan: publication.closure.cellSpan, prefix: publication.closure.prefix,
+      tiles: publication.closure.tiles.length, bytes: tiles.bytes },
+    auditedAt: new Date().toISOString(), audit: { cells: audit.checked, remoteObjects: audit.remoteObjects,
+      missing: audit.missingCount, sizeMismatch: audit.sizeMismatchCount, unexpected: audit.unexpected.length,
+      sampled: audit.sampled.length, seconds: audit.seconds },
+    ecoregions: ecoregions ?? null,
+    note: 'The complete national road raw plane is online. Detailed promotion reads its cells directly and never '
+      + 'fails for want of a road cell; wetlands and hydrography remain bounded, published where people explore.' };
+}
+
+function writeGlobalPlanes(entry) {
+  const index = readIndex();
+  const next = { ...index, globalPlanes: { ...(index.globalPlanes ?? {}), roads: entry },
+    updatedAt: new Date().toISOString() };
+  validateRawRegionsIndex(next);
+  if (!dryRun) writeFileSync(join(ROOT, RAW_INDEX_PATH), JSON.stringify(next, null, 1) + '\n');
+  console.log(`${dryRun ? 'would record' : 'recorded'} ${RAW_INDEX_PATH}: globalPlanes.roads `
+    + `${entry.version} ${entry.state}, ${entry.objects.toLocaleString()} objects, ${entry.bytes.toLocaleString()} bytes`);
+  return next;
+}
+
     const index = readIndex();
     const wanted = option('--region');
     const regions = wanted ? index.regions.filter(region => region.id === wanted) : index.regions;

@@ -34,7 +34,7 @@ import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiv
   definitionFromSearchArea, formatRadius, initialSearchSelection, interactiveSearchTemplate, placeForSearch, radiusPresets,
   readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRefusal, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
 import { createPlaceLibrary, placeMetadata, validateNationalPlaceGazetteer } from '../discovery/place-gazetteer.js';
-import { rawAvailability, rawAvailabilityMessage, validateRawRegionsIndex } from '../discovery/raw-catalog.js';
+import { globalPlaneReady, rawAvailability, rawAvailabilityMessage, validateRawRegionsIndex } from '../discovery/raw-catalog.js';
 import { nearestPlace } from '../discovery/place-gazetteer.js';
 import { centerPresentation, formatContextDirection, pendingSearchContext, runCenterPresentation, storedSearchContext } from '../discovery/search-context.js';
 import { filterAndSort } from '../discovery/filter.js';
@@ -411,11 +411,14 @@ async function reconstructDerivedCorridor(result) {
   // A raw catalog is a data-origin document: the index says where it is served from, so the reader never assumes
   // the page's own origin. Its cells are resolved against the same origin by the catalog's own assetBaseUrl.
   const catalogUrl = new URL(region.catalogUrl, region.assetBaseUrl).href;
+  // Roads are nationally published, so the reader reads them from the plane's own namespace instead of the bounded
+  // region's: the region is then only what it now is - the wetlands and hydrography of the places people explore.
+  const globalRoads = globalPlaneReady(await loadRawRegions() ?? { kind: '', schemaVersion: 0, planes: [], regions: [] }, 'roads');
   // The corridor's own road component, named: the closure then follows exactly the road this corridor belongs to
   // instead of every road that happens to touch its box, which is what makes the rebuild both small and the same
   // composition the derived row came from.
   const scope = await gis.prepareRegionalSearch({ bbox: bounds, catalogUrl, catalogType: 'raw',
-    rawRegionId: region.id, distancesM: ANALYSIS_DISTANCES_M,
+    rawRegionId: region.id, distancesM: ANALYSIS_DISTANCES_M, globalRoads,
     roadComponentIds: entry.corridor.componentId ? [entry.corridor.componentId] : null }, {});
   const road = await scope.queryRoadNetwork({ bbox: bounds, roadClasses: eligibleClasses(), limit: 100000 });
   if (road.coverage !== COVERAGE.FULL && road.coverage !== COVERAGE.PARTIAL) {

@@ -65,7 +65,45 @@ export function validateRawRegionsIndex(document) {
       throw new TypeError(`The raw region ${region.id} does not list its published cells`);
     }
   }
+  // Planes that are online *everywhere*, declared once. Roads are the one raw plane whose complete publication is
+  // cheap (5.82 GB, about 2% of the lake), and publishing all of it removes the only refusal class the bounded
+  // model could not avoid: a corridor whose named road component spans more cells than a bounded publication
+  // closed over. The declaration is version- and digest-aware on purpose - a runtime that needs a different roads
+  // version is not told that roads are ready, and the document that describes the plane is digest-pinned here so a
+  // swapped or truncated publication is refused rather than read.
+  if (document.globalPlanes != null) {
+    for (const [plane, entry] of Object.entries(document.globalPlanes)) {
+      if (!['roads', 'ecoregions'].includes(plane)) throw new TypeError(`Unknown global plane ${plane}`);
+      if (!['READY', 'PARTIAL', 'FAILED'].includes(entry?.state)) throw new TypeError(`Invalid global plane state for ${plane}`);
+      if (typeof entry.note !== 'string' || !entry.note) throw new TypeError(`The global plane ${plane} does not say what it is`);
+      if (entry.state !== 'READY') continue;
+      if (typeof entry.version !== 'string' || !entry.version || !Number.isSafeInteger(entry.bytes)
+        || !/^https:\/\/[^/]+\/$/.test(entry.assetBaseUrl ?? '')) {
+        throw new TypeError(`The global plane ${plane} is not declared completely`);
+      }
+      if (plane === 'roads') {
+        if (entry.cellStepDeg !== RAW_CELL_STEP_DEG || !/^[a-z0-9/._-]+$/.test(entry.pathPrefix ?? '')
+          || !Number.isSafeInteger(entry.presentCells) || !Number.isSafeInteger(entry.emptyCells)
+          || !Number.isSafeInteger(entry.gridCells) || !Number.isSafeInteger(entry.objects)
+          || !/^[a-z0-9/._-]+\.json$/.test(entry.publicationUrl ?? '') || !Number.isSafeInteger(entry.publicationBytes)
+          || !/^[a-f0-9]{64}$/.test(entry.publicationSha256 ?? '')
+          || !Number.isSafeInteger(entry.closure?.cellSpan) || !/^[a-z0-9/._-]+$/.test(entry.closure?.prefix ?? '')
+          || !Number.isSafeInteger(entry.closure?.tiles)) {
+          throw new TypeError(`The global roads plane is not declared completely`);
+        }
+      }
+    }
+  }
   return document;
+}
+
+// The declared global plane a caller needs, or null. A plane that is not READY is not an availability claim, and a
+// plane whose version is not the version the caller needs is refused rather than substituted.
+export function globalPlaneReady(index, plane, expectedVersion = null) {
+  const entry = index?.globalPlanes?.[plane];
+  if (entry?.state !== 'READY') return null;
+  if (expectedVersion != null && entry.version !== expectedVersion) return null;
+  return entry;
 }
 
 // The region whose published cells cover the most of what a corridor needs, or null. Availability is decided from
@@ -98,6 +136,20 @@ export function cellsForBounds(plane, bounds) {
   return cells;
 }
 
+// Which closure tile covers a cell, and which tiles cover a set of cells: the same 1 degree tiling the publisher
+// wrote, so the reader computes the tile's identity rather than being told it. A corridor spanning more than one
+// tile reads the tiles its own cells fall in, because the component that must be closed over may be registered
+// under any of them.
+export function closureTileKey(cellId, cellSpan = 5) {
+  const match = /^x(-?\d+)_y(-?\d+)$/.exec(cellId ?? '');
+  if (!match) throw new TypeError(`Not a grid cell: ${String(cellId)}`);
+  return `${Math.floor(Number(match[1]) / cellSpan)}_${Math.floor(Number(match[2]) / cellSpan)}`;
+}
+
+export function closureTileKeys(cellIds, cellSpan = 5) {
+  return [...new Set(cellIds.map(id => closureTileKey(id, cellSpan)))].sort();
+}
+
 export function rawCellBounds(identifier) {
   const match = /^x(-?\d+)_y(-?\d+)$/.exec(identifier ?? '');
   if (!match) return null;
@@ -116,9 +168,14 @@ export function rawCellBounds(identifier) {
 // continues outside the box is deliberately not guessed at here - the region's own component index answers that
 // exactly, one small document later, and refuses with the cells rather than this check inventing a margin that
 // would refuse a promotion whose road is in fact published.
-export function rawAvailability(index, { bounds, planes = null, required = null } = {}) {
+export function rawAvailability(index, { bounds, planes = null, required = null, roadsVersion = null } = {}) {
+  // A globally ready roads plane is not a bounded question any more: every road cell is online or typed empty, so
+  // the road dimension leaves the availability answer entirely and a promotion can only be refused for the planes
+  // that are still published where people explore.
+  const globalRoads = globalPlaneReady(index, 'roads', roadsVersion);
   const wanted = required ?? Object.fromEntries(index.planes
     .filter(plane => !planes || planes.includes(plane.id))
+    .filter(plane => !(plane.id === 'roads' && globalRoads !== null))
     .map(plane => [plane.id, plane.id === 'roads'
       ? cellsForBounds(plane, bounds)
       : cellsForBounds(plane, analysisPaddingDeg(bounds))]));
@@ -135,11 +192,14 @@ export function rawAvailability(index, { bounds, planes = null, required = null 
     }
     const candidate = { region, required: wanted, missing, missingTotal, provided, available: missingTotal === 0,
       reason: missingTotal === 0 ? null : 'cells' };
-    if (candidate.available) return Object.freeze(candidate);
+    if (candidate.available) return Object.freeze({ ...candidate, globalRoads });
     if (!best || candidate.provided > best.provided) best = candidate;
   }
-  return Object.freeze(best ?? { region: null, required: wanted, missing: null, missingTotal: null,
-    provided: 0, available: false, reason: 'region' });
+  // No published region at all: the refusal names every bounded cell it would have needed, which is what an
+  // operator needs to publish, rather than a shrug.
+  const fallback = { region: null, required: wanted, missing: wanted,
+    missingTotal: Object.values(wanted).flat().length, provided: 0, available: false, reason: 'region' };
+  return Object.freeze({ ...(best ?? fallback), globalRoads });
 }
 
 // The reader's own padding rule (src/gis/habitat-result.js), mirrored here because a required-cell check that
