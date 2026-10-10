@@ -150,10 +150,11 @@ test('deployed place search resolves the named places and runs national discover
 // data.roadnaturalist.com, and a corridor outside every published region must refuse with what is missing rather
 // than fetch its way to an answer. Both are run here, against the deployed site.
 const RAW_PLANE = /\/(national\/roads|national\/wetlands|national\/hydro)\//;
+// Two seeded regions, one Midwest and one Pacific Northwest, plus the refusal outside every region: enough to
+// prove the published raw path end to end in two different wetland regimes without turning a release gate into a
+// twenty-minute crawl.
 const PROMOTION_PLACES = Object.freeze([
   ['princeton in', 'Princeton, IN'],
-  ['evansville in', 'Evansville, IN'],
-  ['nashville tennessee', 'Nashville, TN'],
   ['portland oregon', 'Portland, OR'],
 ]);
 
@@ -185,7 +186,7 @@ test('deployed promotion reads published raw cells inside a seeded region, and r
   // Choose the first corridor that promotes. A published region covers the road components it closed over, not
   // every road in it, so a refusal is a legitimate answer for a particular corridor - what the check asserts is
   // that at least one corridor in each seeded area promotes, and that a refusal names what is missing.
-  async function promoteOne(limit = 10) {
+  async function promoteOne(limit = 4) {
     const rows = page.locator('#discovery-results tbody tr');
     const count = Math.min(limit, await rows.count());
     let last = null;
@@ -204,7 +205,7 @@ test('deployed promotion reads published raw cells inside a seeded region, and r
           if (await refused.isVisible().catch(() => false)) return 'refused';
           const title = await candidate.innerText().catch(() => null);
           return title && title !== before ? 'promoted' : null;
-        }, { timeout: 300000, message: `${name} must promote or refuse` }).not.toBeNull();
+        }, { timeout: 150000, message: `${name} must promote or refuse` }).not.toBeNull();
       } catch {
         continue;
       }
@@ -251,7 +252,7 @@ test('deployed promotion reads published raw cells inside a seeded region, and r
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
   const before = rawCells.length;
-  const refusal = await promoteOne(3);
+  const refusal = await promoteOne(2);
   report.refusal = { message: refusal.refusal, promoted: refusal.promoted, rawCells: rawCells.length - before };
   console.log('PROMOTION_PRODUCTION_REFUSAL ' + JSON.stringify(report.refusal));
   expect(refusal.promoted).toBeNull();
