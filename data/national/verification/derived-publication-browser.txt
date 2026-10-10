@@ -1,0 +1,24 @@
+
+Running 1 test using 1 worker
+
+[1/1] tests/national-derived-production.spec.js:40:1 › national discovery serves six regions from the published derived plane
+  1) tests/national-derived-production.spec.js:40:1 › national discovery serves six regions from the published derived plane 
+
+    Error: page.evaluate: Error: The regional discovery catalog national/derived-catalog.json is not a valid regional catalog: Invalid regional catalog
+        at getDiscoveryCatalog (https://roadnaturalist.com/src/gis/service.js:114:13)
+        at async Object.prepareDerivedSearch (https://roadnaturalist.com/src/gis/service.js:242:21)
+        at async runDiscovery (https://roadnaturalist.com/src/discovery/run.js:35:20)
+        at async eval (eval at evaluate (:311:30), <anonymous>:25:19)
+        at async <anonymous>:337:30
+        at getDiscoveryCatalog (https://roadnaturalist.com/src/gis/service.js:114:13)
+        at async Object.prepareDerivedSearch (https://roadnaturalist.com/src/gis/service.js:242:21)
+        at async runDiscovery (https://roadnaturalist.com/src/discovery/run.js:35:20)
+        at async eval (eval at evaluate (:311:30), <anonymous>:25:19)
+        at async <anonymous>:337:30
+        at /Users/hmarquardt/roadnaturalist/tests/national-derived-production.spec.js:54:32
+
+    Error Context: test-results/national-derived-productio-737ba-the-published-derived-plane/error-context.md
+
+
+  1 failed
+    tests/national-derived-production.spec.js:40:1 › national discovery serves six regions from the published derived plane 

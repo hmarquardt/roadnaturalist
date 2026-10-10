@@ -26,10 +26,17 @@
  },
  "browserCutover": {
   "status": "failed",
-  "checkedAt": "2026-10-10T19:47:14.632Z",
+  "checkedAt": "2026-10-10T19:52:44.946Z",
   "record": null,
-  "reason": "TypeError: Invalid regional catalog at validateRegionalCatalog <- getRegionalCatalog <- prepareDerivedSearch. The browser executed the PREVIOUS release's frontend (src/gis/service.js whose getRegionalCatalog called validateRegionalCatalog(await response.json()) at line 95 and whose prepareDerivedSearch called it at line 217) while data/national/derived-catalog.json was already the national pointer: a one-version frontend/data skew on the just-created deployment, not a missing, corrupt or unaudited R2 object. The 20,863-object remote audit and the six-region Node/DuckDB verification are unaffected and remain valid."
+  "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
  },
- "browserCutoverHistory": [],
+ "browserCutoverHistory": [
+  {
+   "status": "failed",
+   "checkedAt": "2026-10-10T19:47:14.632Z",
+   "record": null,
+   "reason": "TypeError: Invalid regional catalog at validateRegionalCatalog <- getRegionalCatalog <- prepareDerivedSearch. The browser executed the PREVIOUS release's frontend (src/gis/service.js whose getRegionalCatalog called validateRegionalCatalog(await response.json()) at line 95 and whose prepareDerivedSearch called it at line 217) while data/national/derived-catalog.json was already the national pointer: a one-version frontend/data skew on the just-created deployment, not a missing, corrupt or unaudited R2 object. The 20,863-object remote audit and the six-region Node/DuckDB verification are unaffected and remain valid."
+  }
+ ],
  "note": "Two independent gates. R2 publication is verified by re-fetching every published object; the browser cutover is verified by a real browser resolving that plane through the deployed frontend. Neither is reported as the other, and the R2 verification stays valid across a browser failure."
 }
