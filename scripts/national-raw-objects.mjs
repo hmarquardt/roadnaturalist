@@ -172,7 +172,8 @@ export function regionCatalog({ regionId, version, rectangle, planes, published,
 // anything, whether a corridor's raw source is online. The counts separate published, measured-empty and
 // not-published cells, because a region's rectangle is a reuse boundary rather than a promise that every cell in
 // it exists.
-export function indexEntry({ regionId, version, rectangle, planes, verified, ecoregions, bytes, objects, roots, label }) {
+export function indexEntry({ regionId, version, rectangle, planes, verified, ecoregions, bytes, objects, roots, label,
+  assetBaseUrl }) {
   const cells = {};
   const publishedCellIds = {};
   for (const plane of planes) {
@@ -188,7 +189,7 @@ export function indexEntry({ regionId, version, rectangle, planes, verified, eco
     cells[plane.id] = { published, empty, unpublished: rectangle.cells.length - published - empty,
       version: plane.version, pathPrefix: plane.pathPrefix };
   }
-  return { id: regionId, version, bounds: rectangle.bounds, label: label ?? null,
+  return { id: regionId, version, bounds: rectangle.bounds, label: label ?? null, assetBaseUrl,
     publishedAt: new Date().toISOString(), cellStepDeg: CELL_STEP_DEG, cells, publishedCellIds,
     catalogUrl: `raw/${regionId}/${version}/manifest.json`,
     componentsUrl: `raw/${regionId}/${version}/road-components.json`,

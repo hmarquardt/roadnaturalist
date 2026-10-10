@@ -45,6 +45,11 @@ export function validateRawRegionsIndex(document) {
     if (!/^[a-f0-9]{64}$/.test(region.catalogSha256) || !Number.isSafeInteger(region.catalogBytes)) {
       throw new TypeError(`Invalid raw region catalog digest for ${region.id}`);
     }
+    // The origin the region's catalog and cells are served from. A raw catalog is a data-origin document, not an
+    // application asset, so the index names where it lives rather than the reader assuming the page's own origin.
+    if (!/^https:\/\/[^/]+\/$/.test(region.assetBaseUrl ?? '')) {
+      throw new TypeError(`The raw region ${region.id} does not name the origin its catalog is served from`);
+    }
     if (!Array.isArray(region.bounds) || region.bounds.length !== 4 || !region.bounds.every(Number.isFinite)
       || region.bounds[0] >= region.bounds[2] || region.bounds[1] >= region.bounds[3]) {
       throw new TypeError(`Invalid raw region bounds for ${region.id}`);

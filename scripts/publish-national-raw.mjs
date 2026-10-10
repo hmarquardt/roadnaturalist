@@ -257,7 +257,11 @@ function regionComponentsDocument({ closure, publishedRoadCells }) {
 // verifies before it reads a byte of it, so a region that is not in this index does not exist for production.
 function readIndex() {
   const path = join(ROOT, RAW_INDEX_PATH);
-  return existsSync(path) ? readJson(path) : { kind: 'road-discovery-raw-regions', schemaVersion: 1,
+  // An entry written before the index recorded where its catalog is served from is upgraded here, once, when the
+  // index is next written: the catalogs on R2 are unchanged, and the origin was always this one.
+  const upgrade = index => ({ ...index, regions: index.regions.map(region =>
+    ({ assetBaseUrl: BASE, ...region })) });
+  return existsSync(path) ? upgrade(readJson(path)) : { kind: 'road-discovery-raw-regions', schemaVersion: 1,
     note: 'The bounded raw regions that are online for detailed corridor analysis. Discovery never reads these: it '
       + 'runs on the derived plane, published everywhere. A corridor outside every region here is refused with '
       + 'what is missing rather than measured from partial data.',
@@ -390,7 +394,7 @@ function indexEntryFor(state) {
   const bytes = objects.reduce((sum, object) => sum + object.bytes, 0);
   const sample = objects[0] ?? null;
   return { ...indexEntry({ regionId, version, rectangle, planes, verified, ecoregions: publishedEcoregions,
-    bytes, objects: objects.length, roots, label: option('--label') ?? null }),
+    bytes, objects: objects.length, roots, label: option('--label') ?? null, assetBaseUrl: BASE }),
   catalogBytes: catalogBuffer.length, catalogSha256: sha256(catalogBuffer),
   componentsUrl: `raw/${regionId}/${version}/road-components.json`, componentsBytes: componentsBuffer.length,
   componentsSha256: sha256(componentsBuffer), catalogAction,

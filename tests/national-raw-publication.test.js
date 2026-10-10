@@ -77,7 +77,7 @@ function rawIndex({ published = null, regionBounds = REGION_BOUNDS } = {}) {
   return { kind: 'road-discovery-raw-regions', schemaVersion: 1, note: 'test',
     planes: PLANES.map(plane => ({ id: plane.id, version: 'test-v1', cellStepDeg: STEP, pathPrefix: plane.pathPrefix })),
     regions: [{ id: 'raw-test', version: 'raw-test-v1', bounds: regionBounds, label: 'raw test',
-      publishedAt: '2026-01-01T00:00:00Z', cellStepDeg: STEP,
+      publishedAt: '2026-01-01T00:00:00Z', cellStepDeg: STEP, assetBaseUrl: 'https://data.test/',
       cells: Object.fromEntries(PLANES.map(plane => [plane.id, { published: online.length, empty: 0,
         unpublished: cells.length - online.length, version: 'test-v1', pathPrefix: plane.pathPrefix }])),
       publishedCellIds: Object.fromEntries(PLANES.map(plane => [plane.id, [...online]])),
@@ -216,7 +216,8 @@ test('the region rectangle, object keys and index entry follow the published pla
   const verified = Object.fromEntries(PLANES.map(entry => [entry.id, new Map([['x288_y675',
     entry.id === 'roads' ? { key: 'k', bytes: 10, sha256: CELL_SHA, featureCount: 3 } : { empty: true }]])]));
   const entry = indexEntry({ regionId: 'raw-test', version: 'raw-test-v1', rectangle, planes, verified,
-    ecoregions: { l3: { bytes: 100 }, l4: { bytes: 200 } }, bytes: 10, objects: 1, roots: ['roads: /tmp'], label: 'test' });
+    ecoregions: { l3: { bytes: 100 }, l4: { bytes: 200 } }, bytes: 10, objects: 1, roots: ['roads: /tmp'],
+    label: 'test', assetBaseUrl: 'https://data.test/' });
   assert.equal(entry.cells.roads.published, 1);
   assert.equal(entry.cells.wetlands.empty, 1);
   assert.deepEqual(entry.publishedCellIds.roads, ['x288_y675']);
@@ -229,6 +230,8 @@ test('the region rectangle, object keys and index entry follow the published pla
 });
 
   assert.throws(() => validateRawRegionsIndex(badCatalogPath), /Invalid raw region catalog path/);
+  const noOrigin = clone(); delete noOrigin.regions[0].assetBaseUrl;
+  assert.throws(() => validateRawRegionsIndex(noOrigin), /does not name the origin/);
   const badDigest = clone(); badDigest.regions[0].catalogSha256 = 'nope';
   assert.throws(() => validateRawRegionsIndex(badDigest), /Invalid raw region catalog digest/);
   const noCellList = clone(); delete noCellList.regions[0].publishedCellIds;

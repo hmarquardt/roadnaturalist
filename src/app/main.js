@@ -408,7 +408,10 @@ async function reconstructDerivedCorridor(result) {
     throw error;
   }
   const region = availability.region;
-  const scope = await gis.prepareRegionalSearch({ bbox: bounds, catalogUrl: region.catalogUrl, catalogType: 'raw',
+  // A raw catalog is a data-origin document: the index says where it is served from, so the reader never assumes
+  // the page's own origin. Its cells are resolved against the same origin by the catalog's own assetBaseUrl.
+  const catalogUrl = new URL(region.catalogUrl, region.assetBaseUrl).href;
+  const scope = await gis.prepareRegionalSearch({ bbox: bounds, catalogUrl, catalogType: 'raw',
     rawRegionId: region.id, distancesM: ANALYSIS_DISTANCES_M }, {});
   const road = await scope.queryRoadNetwork({ bbox: bounds, roadClasses: eligibleClasses(), limit: 100000 });
   if (road.coverage !== COVERAGE.FULL && road.coverage !== COVERAGE.PARTIAL) {
@@ -416,7 +419,7 @@ async function reconstructDerivedCorridor(result) {
   }
   const verified = verifyDerivedPromotion({ derived: entry.corridor, features: road.features });
   return { unit: verified.unit, corridor: verified.corridor, features: verified.features,
-    dataCatalogUrl: region.catalogUrl };
+    dataCatalogUrl: catalogUrl };
 }
 
 // The search context a promotion carries: the run's own centre, how that centre was named, the run's radius, and
