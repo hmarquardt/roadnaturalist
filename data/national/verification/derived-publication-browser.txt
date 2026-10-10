@@ -37,29 +37,40 @@ PLACE_PRODUCTION {"query":"47715","expected":"47715, IN","first":"47715, IN · Z
 
 PLACE_PRODUCTION {"query":"great smoky mountains","expected":"Great Smoky Mountains National Park, TN","first":"Great Smoky Mountains National Park, TN · National park — National park","centre":"35.6082,-83.5018","coverage":"FULL","runnable":true}
 
-PLACE_PRODUCTION {"query":"yellowstone","expected":"Yellowstone National Park, WY","first":"Yellowstone County, MT · County — County","centre":"45.9370,-108.2767","coverage":"FULL","runnable":true}
+PLACE_PRODUCTION {"query":"yellowstone","expected":"Yellowstone National Park, WY","first":"Yellowstone National Park, WY · National park — National park","centre":"44.6204,-110.5607","coverage":"FULL","runnable":true}
+
+PLACE_PRODUCTION {"region":"Pacific Northwest","query":"portland oregon","place":"Portland, OR","elapsedMs":6433,"corridors":2347,"cellsRead":31,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi\nDuluth, MN · 10 mi\nMoab, UT · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Portland, OR · centre 45.5369, -122.6500 (custom search centre) · 2347 corridor(s) found · 30 metric cell(s) loaded (0 declared empty) · 6.9 MiB · search 6.3 s · data 5.4 s · selection 0.8 s · query 0.8 s · build 0.1 s","firstRow":"NW Sauvie Island Rd 11.0 km · S1400 · segment 2/2 6.8 mi 13.9 mi NW 513.80 ha 1 Willamette Valley (3) FULL DISCOVERED"}
+
+PLACE_PRODUCTION {"region":"Northeast","query":"boston massachusetts","place":"Boston, MA","elapsedMs":3870,"corridors":2135,"cellsRead":28,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi\nDuluth, MN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Boston, MA · centre 42.3385, -71.0182 (custom search centre) · 2135 corridor(s) found · 27 metric cell(s) loaded (2 declared empty) · 7.9 MiB · search 3.7 s · data 3.0 s · selection 0.6 s · query 0.5 s · build 0.1 s","firstRow":"Nahant Rd 8.4 km · S1400 5.2 mi 7.6 mi NE 151.63 ha 0 Northeastern Coastal Zone (59) FULL DISCOVERED"}
 
   1) tests/place-production.spec.js:38:1 › deployed place search resolves the named places and runs national discovery, with nothing outside 
 
-    Error: yellowstone
+    Error: expect(locator).toContainText(expected) failed
 
-    expect(received).toContain(expected) // indexOf
+    Locator: locator('#map .map-key')
+    Expected substring: "Boston, MA"
+    Received string:    "Schematic coordinate grid · no basemap · 25 mi · FULL"
+    Timeout: 5000ms
 
-    Expected substring: "Yellowstone National Park, WY"
-    Received string:    "Yellowstone County, MT · County — County"
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for locator('#map .map-key')
+        14 × locator resolved to <div class="map-key">Schematic coordinate grid · no basemap · 25 mi · …</div>
+           - unexpected value "Schematic coordinate grid · no basemap · 25 mi · FULL"
 
-      87 |     report.places.push(entry);
-      88 |     log(entry);
-    > 89 |     expect(labels[0], query).toContain(expected);
-         |                              ^
-      90 |     // A place inside the conterminous states is inside the published derived region, so its search is runnable.
-      91 |     expect(entry.coverage, query).toBe('FULL');
-      92 |     expect(entry.runnable, query).toBe(true);
-        at /Users/hmarquardt/roadnaturalist/tests/place-production.spec.js:89:30
+
+      126 |     // The map moved its centre to the chosen place, and the key names it.
+      127 |     await expect(page.locator('#map .search-center')).toHaveCount(1);
+    > 128 |     await expect(page.locator('#map .map-key')).toContainText(expected);
+          |                                                 ^
+      129 |   }
+      130 |
+      131 |   expect(outside, 'a place search must reach no geocoder, occurrence source or Investigator endpoint').toEqual([]);
+        at /Users/hmarquardt/roadnaturalist/tests/place-production.spec.js:128:49
 
     Error Context: test-results/place-production-deployed--081cc-covery-with-nothing-outside/error-context.md
 
 
   1 failed
     tests/place-production.spec.js:38:1 › deployed place search resolves the named places and runs national discovery, with nothing outside 
-  1 passed (28.2s)
+  1 passed (43.1s)
