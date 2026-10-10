@@ -73,10 +73,19 @@ function stage() {
   // cells against the national catalog's region, so the two must agree or a runnable centre would select no cells.
   const searchAreasPath = join(DIST, 'data/discovery/search-areas.json');
   if (existsSync(searchAreasPath)) {
-    const discovery = readJson(searchAreasPath).discoveryRegion;
+    const declaration = readJson(searchAreasPath);
+    const discovery = declaration.discoveryRegion;
     if (!discovery || discovery.bounds.length !== 4
         || discovery.bounds.some((value, index) => Math.abs(value - nationalCatalog.region.bounds[index]) > 1e-9)) {
       regionalProblems.push('the search-area discoveryRegion does not match the national catalog region');
+    }
+    // Production discovery is the interactive (centre + radius) search, so the template it takes must load the
+    // national derived catalog *by declared type*: inferred selection is what let a release whose frontend and
+    // data were one version apart validate a national pointer against the regional schema.
+    const template = (declaration.searchAreas ?? []).find(area => area.id === declaration.interactiveRadiusArea);
+    if (!template) regionalProblems.push('the search-area declaration names no interactive radius template');
+    else if (template.catalogType !== 'national' || template.catalogUrl !== 'national/derived-catalog.json') {
+      regionalProblems.push('the interactive radius template must declare and name the national derived catalog');
     }
   }
   if (existsSync(regionalPath)) {

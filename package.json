@@ -93,7 +93,8 @@
     "publish:national-derived": "node scripts/publish-national-derived.mjs",
     "audit:national-derived:remote": "node scripts/audit-national-derived-remote.mjs",
     "verify:national-derived:production": "node scripts/verify-national-derived-production.mjs",
-    "verify:national-derived:browser": "RUN_NATIONAL_PRODUCTION=1 playwright test tests/national-derived-production.spec.js --reporter=line --retries=0"
+    "verify:national-derived:browser": "RUN_NATIONAL_PRODUCTION=1 playwright test tests/national-derived-production.spec.js --reporter=line --retries=0",
+    "release:national-derived": "bash scripts/run-national-derived-release.sh"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1"

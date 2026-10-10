@@ -49,6 +49,7 @@
       "id": "or-portland-west-regional",
       "name": "Portland west region (partitioned)",
       "catalogUrl": "regional/manifest.json",
+      "catalogType": "regional",
       "bbox": [
         -123.14,
         45.48,
@@ -68,6 +69,7 @@
       "name": "Regional benchmark: 10-mile radius",
       "kind": "radius",
       "catalogUrl": "regional/manifest.json",
+      "catalogType": "regional",
       "center": [
         -122.92,
         45.595
@@ -92,6 +94,7 @@
       "name": "Regional benchmark: 25-mile radius",
       "kind": "radius",
       "catalogUrl": "regional/manifest.json",
+      "catalogType": "regional",
       "center": [
         -122.92,
         45.595
@@ -116,6 +119,7 @@
       "name": "Regional benchmark: 50-mile radius",
       "kind": "radius",
       "catalogUrl": "regional/manifest.json",
+      "catalogType": "regional",
       "center": [
         -122.92,
         45.595
@@ -140,6 +144,7 @@
       "name": "National derived: 10-mile radius",
       "kind": "radius",
       "catalogUrl": "national/derived-catalog.json",
+      "catalogType": "national",
       "derivedOnly": true,
       "center": [
         -98.5,

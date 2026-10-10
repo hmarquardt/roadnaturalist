@@ -1,0 +1,35 @@
+{
+ "kind": "national-derived-release-status",
+ "schemaVersion": 1,
+ "catalogFingerprint": "a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9",
+ "r2Publication": {
+  "status": "verified",
+  "verifiedAt": "2026-10-10T19:15:09.379Z",
+  "record": "data/national/verification/derived-publication-remote-audit.json",
+  "objects": 20863,
+  "bytes": 2681943548,
+  "manifestSha256": "87745e5878158f5f81ab11a7a1e37c51bab777fc2188be75370b4def19c2c7d1",
+  "inventory": {
+   "checked": true,
+   "remoteObjects": 20863,
+   "expectedObjects": 20863,
+   "extra": [],
+   "missing": [],
+   "sizeMismatch": []
+  },
+  "failures": 0
+ },
+ "sixRegionDataVerification": {
+  "status": "passed",
+  "record": "data/national/verification/derived-publication-production.txt",
+  "note": "Node + DuckDB against the published R2 plane: the six regions resolve, load and query."
+ },
+ "browserCutover": {
+  "status": "failed",
+  "checkedAt": "2026-10-10T19:47:14.632Z",
+  "record": null,
+  "reason": "TypeError: Invalid regional catalog at validateRegionalCatalog <- getRegionalCatalog <- prepareDerivedSearch. The browser executed the PREVIOUS release's frontend (src/gis/service.js whose getRegionalCatalog called validateRegionalCatalog(await response.json()) at line 95 and whose prepareDerivedSearch called it at line 217) while data/national/derived-catalog.json was already the national pointer: a one-version frontend/data skew on the just-created deployment, not a missing, corrupt or unaudited R2 object. The 20,863-object remote audit and the six-region Node/DuckDB verification are unaffected and remain valid."
+ },
+ "browserCutoverHistory": [],
+ "note": "Two independent gates. R2 publication is verified by re-fetching every published object; the browser cutover is verified by a real browser resolving that plane through the deployed frontend. Neither is reported as the other, and the R2 verification stays valid across a browser failure."
+}

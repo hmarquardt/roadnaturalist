@@ -1,8 +1,9 @@
 import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
 import { corridorGeometry } from '../domain/geometry.js';
 import { loadManifest } from '../services/manifest.js';
-import { selectRegionalPartitions, validateRegionalCatalog } from '../discovery/regional-catalog.js';
-import { isNationalCatalog, validateNationalDerivedCatalog } from '../discovery/national-catalog.js';
+import { selectRegionalPartitions } from '../discovery/regional-catalog.js';
+import { DISCOVERY_CATALOG_TYPE, validateDiscoveryCatalog } from '../discovery/discovery-catalog.js';
+import { areaCatalogType } from '../discovery/search-area.js';
 import { validateRoadComponents } from '../discovery/components.js';
 import { derivedAvailability, selectDerivedCells, validateDerivedManifest } from '../discovery/derived-catalog.js';
 import { DERIVED_COLUMNS, derivedMetrics, derivedUnit, derivedCorridor, queryDerivedCorridors } from './derived-query.js';
@@ -39,7 +40,8 @@ function unknown(reason, datasets = []) {
 }
 
 
-export function createGisService({ manifest = null, regionalCatalog = null, engineFactory = defaultEngineFactory } = {}) {
+export function createGisService({ manifest = null, regionalCatalog = null, regionalCatalogType = DISCOVERY_CATALOG_TYPE.REGIONAL,
+  engineFactory = defaultEngineFactory } = {}) {
   let catalog = manifest;
   const regionalCatalogCache = new Map();
   const roadComponentCache = new Map();
@@ -88,27 +90,37 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
     return opened;
   }
 
-  // The discovery catalog a search declares: either a regional catalog (raw partitions plus a regional derived
-  // plane) or the national derived catalog. Each is validated by its own contract, so a malformed national
-  // pointer fails as loudly as a malformed regional one.
-  async function getRegionalCatalog(url) {
-    if (regionalCatalog) {
-      return isNationalCatalog(regionalCatalog)
-        ? validateNationalDerivedCatalog(regionalCatalog) : validateRegionalCatalog(regionalCatalog);
+  // The discovery catalog a search declared, validated by the type the search declared - never by sniffing the
+  // fetched document. A regional catalog is validated as a regional catalog; a national derived catalog is
+  // validated as a national derived catalog. A document that does not satisfy the declared contract is refused
+  // with that fact, rather than falling back to the other schema or being coerced into it.
+  async function getDiscoveryCatalog(url, catalogType) {
+    if (catalogType !== DISCOVERY_CATALOG_TYPE.REGIONAL && catalogType !== DISCOVERY_CATALOG_TYPE.NATIONAL) {
+      throw new TypeError(`Unknown discovery catalog type: ${String(catalogType)}`);
     }
-    if (regionalCatalogCache.has(url)) return regionalCatalogCache.get(url);
+    // An injected catalog is a caller's explicit choice of *both* catalog and type, so it is validated against
+    // the declared type too: a test (or a probe) that hands the service a national catalog cannot have it read
+    // as a regional one.
+    if (regionalCatalog) return validateDiscoveryCatalog(regionalCatalog, catalogType);
+    const key = `${catalogType}:${url}`;
+    if (regionalCatalogCache.has(key)) return regionalCatalogCache.get(key);
     const response = await fetch(new URL(url, DATA_BASE));
     if (!response.ok) throw new Error(`Discovery catalog unavailable: HTTP ${response.status}`);
     const document = await response.json();
-    const national = isNationalCatalog(document);
-    let loaded = national ? validateNationalDerivedCatalog(document) : validateRegionalCatalog(document);
+    let loaded;
+    try {
+      loaded = validateDiscoveryCatalog(document, catalogType);
+    } catch (error) {
+      throw new Error(`The ${catalogType} discovery catalog ${url} is not a valid ${catalogType} catalog: ${error.message}`,
+        { cause: error });
+    }
     // Local development reads the same immutable *regional* paths from ./data. The national derived cells are not
     // in the repository (only the small pointer is), so a national catalog keeps its R2 origin even on a local
     // origin - which is exactly what lets a browser test exercise the production objects.
-    if (!national && ['localhost', '127.0.0.1'].includes(globalThis.location?.hostname)) {
+    if (catalogType === DISCOVERY_CATALOG_TYPE.REGIONAL && ['localhost', '127.0.0.1'].includes(globalThis.location?.hostname)) {
       loaded = { ...loaded, assetBaseUrl: null };
     }
-    regionalCatalogCache.set(url, loaded);
+    regionalCatalogCache.set(key, loaded);
     return loaded;
   }
 
@@ -224,13 +236,16 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
 
   async function prepareDerivedSearch(searchArea, { onProgress = () => {} } = {}) {
     const started = performance.now();
-    const catalog = await getRegionalCatalog(searchArea.catalogUrl);
+    // The catalog type the search declares decides the contract it is validated against. A national search is
+    // never validated as a regional catalog, and a regional search is never validated as a national one.
+    const catalogType = areaCatalogType(searchArea);
+    const catalog = await getDiscoveryCatalog(searchArea.catalogUrl, catalogType);
     const manifestMs = performance.now() - started;
     // A region that never published a derived plane is not a failure: it keeps the raw regional path it always
     // had. A region that publishes one and then cannot be trusted (fingerprint, digest, missing artifact) is a
     // failure, and is reported as itself rather than quietly costing the search 90 seconds.
     if (!catalog.derived) return null;
-    const national = isNationalCatalog(catalog);
+    const national = catalogType === DISCOVERY_CATALOG_TYPE.NATIONAL;
     // A regional plane is gated on the fingerprint the running code recomputes from the catalog it loaded. A
     // national plane's fingerprint also covers the Python builder and its pipeline digest, which a browser cannot
     // hash, so the reviewed catalog pins the expected fingerprint and the runtime fails closed on everything it
@@ -297,7 +312,17 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
 
   async function prepareRegionalSearch(searchArea, { onProgress = () => {} } = {}) {
     const started = performance.now();
-    const catalog = await getRegionalCatalog(searchArea.catalogUrl);
+    // Raw discovery reads a regional catalog and only a regional catalog. A search that declares the national
+    // derived plane has no published raw partitions to read, so it is refused with that reason instead of being
+    // loaded as something it never claimed to be.
+    if (areaCatalogType(searchArea) === DISCOVERY_CATALOG_TYPE.NATIONAL) {
+      const error = new Error('This search reads the national derived corridor-metrics plane. The raw road, '
+        + 'wetland and hydrography partitions behind it are not published, so raw reconstruction and detailed '
+        + 'analysis are not available for a national corridor.');
+      error.derivedUnavailable = true;
+      throw error;
+    }
+    const catalog = await getDiscoveryCatalog(searchArea.catalogUrl, DISCOVERY_CATALOG_TYPE.REGIONAL);
     const manifestMs = performance.now() - started;
     const selection = selectRegionalPartitions(catalog, searchArea.bbox, { components: await getRoadComponents(catalog) });
     const selectionMs = performance.now() - started - manifestMs;

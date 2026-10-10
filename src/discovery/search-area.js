@@ -1,4 +1,13 @@
+import { DISCOVERY_CATALOG_TYPE, catalogTypeForPath, isDiscoveryCatalogType } from './discovery-catalog.js';
+
 export const SEARCH_AREA_KIND = 'road-discovery-search-areas';
+
+// The discovery catalog a search area loads. The type is declared, and it must agree with the catalog's path
+// (see `validateSearchAreas`). A declaration that predates typed catalogs could only have meant the regional
+// catalog, so an absent type means regional - stated here once, rather than inferred per call site.
+export function areaCatalogType(area) {
+  return area?.catalogType ?? DISCOVERY_CATALOG_TYPE.REGIONAL;
+}
 
 // A radius search area declares a centre and a radius in statute miles. The bounding box is derived here
 // with the same constants the offline regional builder uses, so a "25-mile radius" search is the same
@@ -58,8 +67,22 @@ export function validateSearchAreas(declaration, manifest) {
       throw new TypeError(`Search area ${area.id} declares no required datasets`);
     }
     if (!Array.isArray(requires)) throw new TypeError(`Search area ${area.id} has a malformed requires list`);
-    if (area.catalogUrl && !/^(?:regional|national)\/[a-z0-9.-]+\.json$/.test(area.catalogUrl)) {
-      throw new TypeError(`Search area ${area.id} has an invalid discovery catalog path`);
+    // The catalog type is declared and must agree with the catalog's path. A declaration that names one type and
+    // the other's path is a declaration error, because the loader must never have to guess which contract a
+    // fetched document was written for.
+    if (area.catalogType != null && !isDiscoveryCatalogType(area.catalogType)) {
+      throw new TypeError(`Search area ${area.id} declares an unknown catalog type: ${area.catalogType}`);
+    }
+    if (area.catalogUrl) {
+      if (!/^(?:regional|national)\/[a-z0-9.-]+\.json$/.test(area.catalogUrl)) {
+        throw new TypeError(`Search area ${area.id} has an invalid discovery catalog path`);
+      }
+      const declared = areaCatalogType(area);
+      if (catalogTypeForPath(area.catalogUrl) !== declared) {
+        throw new TypeError(`Search area ${area.id} declares a ${declared} catalog but names ${area.catalogUrl}`);
+      }
+    } else if (area.catalogType != null) {
+      throw new TypeError(`Search area ${area.id} declares a catalog type but names no catalog`);
     }
     // Coverage is a union, not a single file: the ecoregion layers are published per state, so a search
     // that Oregon and Washington together cover is valid even though neither layer alone contains it.
@@ -102,6 +125,12 @@ export function validateSearchAreas(declaration, manifest) {
     if (!area) throw new TypeError(`The interactive search template ${declaration.interactiveRadiusArea} is not a declared search area`);
     if (area.kind !== 'radius' || typeof area.catalogUrl !== 'string' || !area.catalogUrl) {
       throw new TypeError('An interactive search template must be a radius area that names a discovery catalog');
+    }
+    // The interactive search path is the one production discovery takes, so its template must state the catalog
+    // type rather than inherit it by default: which contract an arbitrary centre+radius search is validated
+    // against is a production decision, not an accident of a missing field.
+    if (!isDiscoveryCatalogType(area.catalogType)) {
+      throw new TypeError('An interactive search template must declare the catalog type it loads');
     }
   }
   return declaration;

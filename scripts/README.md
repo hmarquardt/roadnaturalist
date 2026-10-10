@@ -73,6 +73,19 @@ verifies every fetched byte and digest, and runs DuckDB over them for six geogra
 `freeze-national-derived-catalog.mjs` generates the committed production discovery pointer
 (`data/national/derived-catalog.json`) from the manifest, and `--check` proves it is still current.
 `tests/national-derived-production.spec.js` runs the same six centres in a real browser against R2.
+`run-national-derived-release.sh` (`npm run release:national-derived`) is the whole release as one fail-closed
+chain: resume publication, audit, six-region verification, Pages deploy, a **settle gate** (the deployed origin
+must serve the exact staged bytes of the frontend, the catalog-selection modules, the national pointer and the
+declaration before any browser verdict), the real-browser production check, and the status record. A non-zero
+browser check prints `CHAIN FAILED at production browser verification`, records the browser cutover as failed and
+exits non-zero; it never reports success. `record-national-release-status.mjs` writes
+`data/national/verification/derived-publication-status.json`, which keeps the R2 publication gate (verified by
+re-fetching every published object) separate from the browser cutover gate (verified by a real browser), so a
+browser failure is never recorded as a data failure or the reverse. `src/discovery/discovery-catalog.js` is the
+one place a fetched discovery catalog becomes a validated catalog: the search area's declared `catalogType`
+picks the contract, and only that contract.
+
+
 
 
 `docs/ECOREGIONS.md`, `docs/ROADS.md`, `docs/DISCOVERY.md`, `docs/HABITAT.md`, `docs/OCCURRENCE.md`, and `docs/INVESTIGATOR.md` hold the exact commands, source digests, schemas, coverage extents, privacy rules, and scope. Generated small GeoParquet files are committed so local analysis works without production data hosting. `docs/DEPLOYMENT.md` holds the production topology (Pages project `roadnaturalist` for `roadnaturalist.com`, Worker `roadnaturalist-investigator` at `api.roadnaturalist.com`), its configuration, and every deploy and verification command.

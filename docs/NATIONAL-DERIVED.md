@@ -207,6 +207,24 @@ pipeline digest. The reviewed catalog therefore pins the expected fingerprint, a
 closed on everything it can check: the manifest digest, its profile and schema versions, its region, and
 every column the derived reader selects (`assertNationalDerivedCompatibility` in `src/gis/service.js`).
 
+**The catalog type is declared, not inferred.** A search area names a catalog and its `catalogType`, and
+`getDiscoveryCatalog` validates the fetched document with that type's contract and only that one - a national
+pointer is never validated as a regional catalog, never falls back to the regional schema, and is never coerced
+into it. A type that disagrees with the catalog's path is a declaration error, the interactive template must
+state its type explicitly, and a search that declares one type and is served the other's document fails with
+that fact (`src/discovery/discovery-catalog.js`). This is the contract the first cutover lacked: its browser
+check ran against the previous release's frontend while the national pointer was already live, so an
+interactive national search was validated as a regional catalog and failed as `Invalid regional catalog`.
+
+**The release is one fail-closed chain** (`npm run release:national-derived`,
+`scripts/run-national-derived-release.sh`): resume publication → audit → six-region verification → Pages deploy
+→ **settle gate** (the deployed origin must serve the exact staged bytes before any browser verdict) → real
+browser check → status record and commit. A failed browser check prints
+`CHAIN FAILED at production browser verification`, records the browser cutover as failed, and exits non-zero.
+`data/national/verification/derived-publication-status.json` reports the two gates separately - R2 publication
+(verified by re-fetching every published object) and browser cutover (verified by a real browser) - so neither is
+ever recorded as the other.
+
 **Rollback.** The cutover is additive. The regional catalog, its derived plane and the three committed
 benchmark scenarios are unchanged, so rollback is either reverting the one commit that names
 `national-10mi` as the interactive template, or pointing `interactiveRadiusArea` back at `regional-10mi`;
