@@ -541,10 +541,17 @@ async function publishRoadsPlane() {
   const journal = checkpoint('roads', ROADS_PLANE.version);
 
   const started = Date.now();
-  const actions = { uploaded: 0, reused: 0, 'would-upload': 0 };
+  const actions = { uploaded: 0, reused: 0, 'would-upload': 0, recorded: 0 };
   let uploadedBytes = 0;
   const concurrency = Number(option('--concurrency') ?? 12);
+  // A resumed run may trust its own checkpoint instead of re-checking 21,135 objects against the origin one by one.
+  // That is not a weakening: the checkpoint is this tool's record of what it verified when it uploaded, and the
+  // audit that follows the upload re-reads the origin - every length and header, and digests by sample - before
+  // anything is declared ready. Without it, resuming a throttled publication costs more than making it.
+  const trust = flag('--trust-checkpoint');
+  const recorded = new Set(trust ? journal.entries().map(entry => entry.key) : []);
   await inBatches(set.cells, concurrency, async cell => {
+    if (recorded.has(cell.url)) { actions.recorded += 1; return; }
     const action = await ensureObject(roadObject(cell, root), []);
     actions[action] += 1;
     if (action === 'uploaded') uploadedBytes += cell.bytes;
@@ -553,6 +560,7 @@ async function publishRoadsPlane() {
     if (done % 500 !== 0 && done !== set.cells.length) return;
     const elapsed = (Date.now() - started) / 1000;
     console.log(`  ${done}/${set.cells.length} cells: ${actions.uploaded} uploaded, ${actions.reused} reused, `
+      + `${actions.recorded} from the checkpoint, `
       + `${(done / elapsed).toFixed(1)} objects/s, ${(uploadedBytes / 1e6 / elapsed).toFixed(2)} MB/s, `
       + `${(elapsed / 60).toFixed(1)} min elapsed`);
   });
