@@ -1,0 +1,42 @@
+{
+ "kind": "national-derived-remote-audit",
+ "fingerprint": "a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9",
+ "directory": "derived/corridor-metrics/a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9",
+ "base": "https://data.roadnaturalist.com/",
+ "objectsAudited": 20863,
+ "expectedObjects": 20863,
+ "declaredObjects": 20863,
+ "bytesVerified": 2681943548,
+ "manifestLocalSha256": "87745e5878158f5f81ab11a7a1e37c51bab777fc2188be75370b4def19c2c7d1",
+ "manifestRemoteSha256": "87745e5878158f5f81ab11a7a1e37c51bab777fc2188be75370b4def19c2c7d1",
+ "ranges": [
+  {
+   "key": "derived/corridor-metrics/a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9/manifest.json",
+   "status": 206,
+   "bytes": 32,
+   "acceptRanges": "bytes"
+  },
+  {
+   "key": "derived/corridor-metrics/a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9/cells/x461_y659.parquet",
+   "status": 206,
+   "bytes": 32,
+   "acceptRanges": "bytes"
+  },
+  {
+   "key": "derived/corridor-metrics/a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9/cells/x276_y689.parquet",
+   "status": 206,
+   "bytes": 32,
+   "acceptRanges": "bytes"
+  }
+ ],
+ "inventory": {
+  "checked": true,
+  "remoteObjects": 20863,
+  "expectedObjects": 20863,
+  "extra": [],
+  "missing": [],
+  "sizeMismatch": []
+ },
+ "failures": [],
+ "auditedAt": "2026-10-10T19:15:09.379Z"
+}
