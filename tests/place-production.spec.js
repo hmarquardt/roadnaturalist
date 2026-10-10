@@ -105,11 +105,14 @@ test('deployed place search resolves the named places and runs national discover
     await expect(page.locator('#discovery-summary')).toContainText('25-mile radius search', { timeout: 600000 });
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 300000 });
     const row = await page.locator('#discovery-results tbody tr').first().innerText();
+    // The run's own verdict, read from the coverage banner's first (the run's) headline rather than from the
+    // panel's whole text, which also carries per-corridor coverage words further down.
+    const banner = await page.locator('#discovery .discovery-coverage strong').first().innerText();
     const entry = { region, query, place: expected, elapsedMs: Date.now() - started,
       corridors: Number(await page.locator('#discovery-count').innerText()),
       cellsRead: derivedCells.length - before,
       cellsHost: derivedCells[before] ? new URL(derivedCells[before]).host : null,
-      coverage: /Discovery coverage (FULL|PARTIAL|NONE|UNKNOWN)/.exec(await page.locator('#discovery').innerText())?.[1] ?? null,
+      coverage: /Discovery coverage (FULL|PARTIAL|NONE|UNKNOWN)/.exec(banner)?.[1] ?? null,
       recent: await page.locator('#discovery-recent').innerText(),
       summary: (await page.locator('#discovery-summary').innerText()).replace(/\n+/g, ' · '),
       firstRow: row.replace(/\s+/g, ' ').slice(0, 240) };
