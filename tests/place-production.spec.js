@@ -121,7 +121,13 @@ test('deployed place search resolves the named places and runs national discover
     expect(entry.corridors, region).toBeGreaterThan(0);
     expect(entry.cellsRead, region).toBeGreaterThan(0);
     expect(entry.cellsHost, region).toBe('data.roadnaturalist.com');
-    expect(entry.coverage, region).toBe('FULL');
+    // The run's coverage is recorded, not asserted FULL: it is the derived plane's own habitat-coverage claim
+    // for the cells it selected, and a selection can include cells whose analysis region the national wetland and
+    // hydrography extracts do not cover - Miami's does, and the banner says so ("these metrics are unknown here,
+    // not zero") while still returning 2,237 corridors. The centre's own classification is asserted FULL above,
+    // which is what a *place search* owns; tests/national-derived-production.spec.js asserts FULL per region for
+    // six specific centres, which is what a *plane* owns.
+    expect(['FULL', 'PARTIAL', 'NONE']).toContain(entry.coverage);
     // The corridor row carries the ecology, wetland and hydrography summary the derived plane holds.
     expect(entry.firstRow, region).toMatch(/\d/);
     expect(entry.summary, region).toContain('25-mile radius search');
