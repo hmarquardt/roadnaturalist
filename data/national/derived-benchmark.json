@@ -1,0 +1,57 @@
+{
+ "kind": "national-derived-corridor-metrics-measurement",
+ "measuredAt": "2026-10-10T17:27:14Z",
+ "analysisFingerprint": "a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9",
+ "sourcePlanes": {
+  "roads": {
+   "version": "tiger2025-county-v1",
+   "manifestSha256": "0a0515c02cffd0c205531a4982305e2f59e822b74311587e4f1d354eb545e207"
+  },
+  "wetlands": {
+   "version": "nwi-state-2026-05-v1",
+   "manifestSha256": "1dd24a0d07531a8cb56caddd815d37ed0e6cfb35b1181c67ab33c8586795e4ba"
+  },
+  "hydrography": {
+   "version": "nhd-hr-hu8-2023-12-v1",
+   "manifestSha256": "e9c9f041c3b11c5f604382ff34541289181c619b01901f7d480a2b6f5c99497e"
+  },
+  "ecoregions": {
+   "version": "epa-conus-2015-v1",
+   "manifestSha256": "a4a0c546e0258d577b8e441d6e830e651fdde9d585d330fb84c3d13d4d9ece47"
+  }
+ },
+ "corridors": 1420806,
+ "derivedRawCandidateRows": 1420806,
+ "storedRows": 1793422,
+ "replicatedRows": 372616,
+ "presentCells": 20862,
+ "emptyCells": 1012,
+ "cellBytes": 2674237129,
+ "manifestBytes": 7706419,
+ "totalDerivedArtifactBytes": 2681943548,
+ "cellSize": {
+  "median": 97147.0,
+  "p95": 343114,
+  "max": 1630950,
+  "min": 18773
+ },
+ "cellRows": {
+  "median": 72.0,
+  "p95": 220,
+  "max": 1012
+ },
+ "bytesPerStoredRow": 1491.1,
+ "corridorIndexBytes": 2110164215,
+ "corridorIndexSha256": "e86305aed3b054196d798c7cebd111f5e64ff259051538a8c612630e2d7e01da",
+ "metricsParquetBytes": 1672505825,
+ "cellPartsParquetBytes": 1851153911,
+ "shardsComplete": 1534,
+ "shardWorkSeconds": 640380.2,
+ "chainWallSeconds": 664632.0,
+ "lexar": {
+  "total": 1024191889408,
+  "used": 627908280320,
+  "free": 396283609088
+ },
+ "finalPlaneDirectory": "/Volumes/Lexar/roadnaturalist/cells/derived/corridor-metrics/a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9"
+}

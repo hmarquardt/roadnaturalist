@@ -1,0 +1,43 @@
+{
+ "plane": "derived-corridor-metrics",
+ "kind": "national-derived-corridor-metrics-verification",
+ "command": "uv run --python 3.12 --with duckdb --with pyarrow --with shapely --with pyproj python3 scripts/verify-national-derived.py --out /Volumes/Lexar/roadnaturalist/work/derived-national --final /Volumes/Lexar/roadnaturalist/cells/derived/corridor-metrics",
+ "exitCode": 0,
+ "analysisFingerprint": "a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9",
+ "manifest": "/Volumes/Lexar/roadnaturalist/cells/derived/corridor-metrics/a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9/manifest.json",
+ "manifestBytes": 7706419,
+ "manifestSha256": "87745e5878158f5f81ab11a7a1e37c51bab777fc2188be75370b4def19c2c7d1",
+ "outputSha256": "da7d4c4b340d01ebb6f3e2fda2ed75561742df958cb57fe4cebf9451d2d822de",
+ "sections": {
+  "corridors": {
+   "buckets": 64,
+   "corridors": 1420806,
+   "bytes": 2110164215,
+   "sha256": "e86305aed3b054196d798c7cebd111f5e64ff259051538a8c612630e2d7e01da"
+  },
+  "shards": {
+   "total": 1534,
+   "complete": 1534,
+   "rows": 1420806,
+   "withParts": 930
+  },
+  "manifest": {
+   "cells": 21874,
+   "present": 20862,
+   "storedRows": 1793422,
+   "bytes": 2674237129
+  },
+  "sampledRows": {
+   "cells": 24,
+   "rows": 1881,
+   "corridors": 1881
+  },
+  "sourceGrounded": {
+   "checked": 24,
+   "mismatches": 0,
+   "maxDelta": 0.0
+  }
+ },
+ "problems": [],
+ "recordedAt": "2026-10-10T17:28:09Z"
+}

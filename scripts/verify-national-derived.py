@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verify the national derived corridor-metrics plane: artifacts, contracts, and source-grounded metrics.
 
-    uv run --python 3.12 --with duckdb --with shapely --with pyarrow python3 scripts/verify-national-derived.py
+    uv run --python 3.12 --with duckdb --with pyarrow --with shapely --with pyproj python3 scripts/verify-national-derived.py
 
 Structural checks (always):
   - the corridor index and all 64 bucket files match their declared digests and the committed segmentation;
@@ -219,10 +219,14 @@ def habitat_metric_check(args, manifest, fingerprint, sample):
     max_delta = 0.0
     for cell in chosen_cells:
         path = args.final / fingerprint / "cells" / f"{cell['id']}.parquet"
-        rows = connection.execute("SELECT * FROM read_parquet(?) ORDER BY corridor_id LIMIT 1", [str(path)]).to_pylist()
-        if not rows:
+        result = connection.execute(
+            "SELECT corridor_id, bounds, wetland_area_1000_m2, wetland_count_1000, "
+            "hydro_flowline_length_1000_m, hydro_waterbody_area_1000_m2, hydro_crossing_count "
+            "FROM read_parquet(?) ORDER BY corridor_id LIMIT 1", [str(path)])
+        values = result.fetchone()
+        if values is None:
             continue
-        row = rows[0]
+        row = {column[0]: value for column, value in zip(result.description, values)}
         corridor_wkt = connection.execute(
             "SELECT ST_AsText(geometry) FROM read_parquet(?) WHERE corridor_id = ?",
             [str(path), row["corridor_id"]]).fetchone()[0]
@@ -267,9 +271,12 @@ def habitat_metric_check(args, manifest, fingerprint, sample):
                 "ST_Area(ST_Intersection(h.geom, (SELECT b1000 FROM cbuf))) AS area_m2 "
                 "FROM hydro h WHERE ST_Intersects(h.geom, (SELECT b1000 FROM cbuf)))").fetchone()
             flowline_length, waterbody_area = float(hydro[0]), float(hydro[1])
+            # The runtime counts every flowline that intersects the corridor line (src/gis/discovery-query.js
+            # hydroMetrics and src/gis/habitat-query.js), with no positive-overlap filter: a flowline that
+            # meets the corridor at a single point is a crossing. This re-check uses the same predicate.
             crossings = connection.execute(
-                "SELECT count(*) FROM hydro h WHERE h.layer = 'flowline' AND ST_Intersects(h.geom, (SELECT geom FROM cbuf)) "
-                "AND ST_Length(ST_Intersection(h.geom, (SELECT geom FROM cbuf))) > 0").fetchone()[0]
+                "SELECT count(*) FROM hydro h WHERE h.layer = 'flowline' "
+                "AND ST_Intersects(h.geom, (SELECT geom FROM cbuf))").fetchone()[0]
             bad_layers = connection.execute(
                 "SELECT DISTINCT layer FROM hydro WHERE layer NOT IN ('flowline', 'waterbody')").fetchall()
             if bad_layers:

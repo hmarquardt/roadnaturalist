@@ -72,7 +72,8 @@ hydrography 26.58 GB, ecoregions 0.12 GB). The derived build's own scratch is mo
 2.11 GB, metrics Parquet and per-shard cell parts of the same order, final cells ≈ 4–6 GB, and bounded
 DuckDB spill (8 GB for one metric worker by default). Peak scratch is roughly 25–35 GB,
 well inside the 387 GiB that was free when the build started; **no cleanup of raw-plane work trees was
-necessary**.
+necessary**. Measured across the completed run: corridor Parquet 2.11 GB, metrics Parquet 1.67 GB, shard cell
+parts 1.85 GB and final cells 2.68 GB, with the build volume ending at ~369 GiB free.
 
 ## Representative validation (`data/national/derived-validation.json`)
 
@@ -130,10 +131,40 @@ raw cells: the regional plane simplifies mapped wetland geometry (1 m) and can d
 byte-identical May 2026 WA package and in the national plane but are **absent from the regional raw
 partitions** — a pre-existing regional ingestion gap, recorded here rather than papered over.
 
+## The complete national plane (measured, `data/national/derived-benchmark.json`)
+
+The full run finalized, verified and measured. `verify:national-derived` is green: 1,534 of 1,534 shards
+complete and digest-valid, the corridor index matches all 64 bucket digests, the manifest declares exactly
+the 21,874-cell grid, and a deterministic sample of 24 corridors re-measured from the raw planes agrees
+exactly (0 mismatches, max delta 0). `data/national/derived-verification.json` records the verifier command,
+exit 0, the manifest digest (`87745e58…`) and the verifier output digest.
+
+| Measured | Value |
+| --- | --- |
+| Source planes | roads `tiger2025-county-v1`, wetlands `nwi-state-2026-05-v1`, hydrography `nhd-hr-hu8-2023-12-v1`, ecoregions `epa-conus-2015-v1` |
+| Analysis fingerprint | `a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9` |
+| Corridors (unique) | 1,420,806 |
+| Stored rows (after whole-row replication) | 1,793,422 (372,616 replicated) |
+| Cells declared / present / typed-empty | 21,874 / 20,862 / 1,012 |
+| Derived cells bytes | 2,674,237,129 |
+| Manifest bytes | 7,706,419 |
+| Total derived artifact bytes | 2,681,943,548 |
+| Cell size median / p95 / max | 97,147 / 343,114 / 1,630,950 |
+| Bytes per stored row | 1,491.1 |
+| Shard work (one metric worker) | 640,380 s (≈178 h) |
+
+Against the forecast made before the run: stored rows 1.79 M (forecast 1.5–2.2 M) and derived GeoParquet
+2.68 GB (forecast 3.5–5.5 GB) both landed inside the estimate, but the compute did not — 640,380 s of
+one-worker shard work against a 60–120 h single-worker forecast. The one-row-per-corridor metric work is
+not row-proportional: long national corridors and dense habitat joins dominate, so the four-worker
+projection of 20–33 h was never reached with the one-worker stability default the run used. The compute
+forecast is retired.
+
 ## Publication planning
 
 The final plane lives at `<build volume>/cells/derived/corridor-metrics/<fingerprint>/` with the manifest and
 cells. Its R2 key shape is `derived/corridor-metrics/<fingerprint>/cells/<cell>.parquet`, the same as the
-regional plane, so publication is a copy with immutable caching; no raw national plane needs to be published
-for the derived plane to work. Runtime activation (a national catalog pointer) is deliberately not part of
-this build.
+regional plane, so publication is a copy with immutable caching: **20,863 objects** (20,862 present cells
+plus the manifest), **2,681,943,548 bytes**. No raw national plane needs to be published for derived
+discovery; detailed promotion and analysis still read the raw cells through the existing service boundary.
+Runtime activation (a national catalog pointer) is deliberately not part of this build.

@@ -27,6 +27,14 @@ mkdir -p "$OUT/logs"
 
 UV_RUN=(uv run --python 3.12 --with duckdb --with shapely --with pyarrow --with pyproj --with pyshp
   python3 scripts/build-national-derived.py --out "$OUT" --final "$FINAL")
+# Verification imports the builder (which imports the regional builder), so it resolves the same transitive
+# dependency set as the build minus pyshp: duckdb, pyarrow, shapely and pyproj. Keep this list complete;
+# a missing transitive import must fail here at dependency resolution, not crash mid-verification.
+UV_VERIFY=(uv run --python 3.12 --with duckdb --with pyarrow --with shapely --with pyproj
+  python3 scripts/verify-national-derived.py --out "$OUT" --final "$FINAL")
+# Measurement reads only the finalized manifest and the JSON shard checkpoints, so it needs no GIS wheels.
+UV_MEASURE=(uv run --python 3.12 python3 scripts/measure-national-derived.py --out "$OUT" --final "$FINAL"
+  --report data/national/derived-benchmark.json)
 
 log() { printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" | tee -a "$OUT/logs/chain.log"; }
 stage_failed() {
@@ -82,12 +90,10 @@ log "stage 4/6 finalize (per-cell GeoParquet + manifest)"
 "${UV_RUN[@]}" --stage finalize > "$OUT/logs/finalize.log" 2>&1 || stage_failed "finalize"
 
 log "stage 5/6 derived verification"
-uv run --python 3.12 --with duckdb --with shapely --with pyarrow python3 scripts/verify-national-derived.py \
-  --out "$OUT" --final "$FINAL" > "$OUT/logs/verify.log" 2>&1 || stage_failed "derived verification"
+"${UV_VERIFY[@]}" > "$OUT/logs/verify.log" 2>&1 || stage_failed "derived verification"
 
 log "stage 6/6 measurement"
-uv run --python 3.12 --with pyarrow python3 scripts/measure-national-derived.py \
-  --out "$OUT" --final "$FINAL" > "$OUT/logs/measure.log" 2>&1 || stage_failed "measurement"
+"${UV_MEASURE[@]}" > "$OUT/logs/measure.log" 2>&1 || stage_failed "measurement"
 cat "$OUT/logs/measure.log" | tee -a "$OUT/logs/chain.log"
 
 log "PIPELINE COMPLETE: the national derived corridor-metrics plane finalized, verified and was measured."
