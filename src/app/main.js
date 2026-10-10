@@ -31,7 +31,7 @@ import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, wr
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDiscoveryResult } from '../discovery/lifecycle.js';
 import { defaultSearchArea, searchAreaBounds, validateSearchAreas } from '../discovery/search-area.js';
 import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiveSearchArea,
-  definitionFromSearchArea, formatRadius, initialSearchSelection, placeForSearch, radiusPresets, radiusTemplate,
+  definitionFromSearchArea, formatRadius, initialSearchSelection, interactiveSearchTemplate, placeForSearch, radiusPresets,
   readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRefusal, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
 import { placeMetadata, validatePlaceGazetteer } from '../discovery/place-gazetteer.js';
 import { nearestPlace } from '../discovery/place-gazetteer.js';
@@ -89,6 +89,10 @@ let manifest = null;
 let manifestError = null;
 let searchAreas = [];
 let publishedRegion = null;
+// The window the place gazetteer was built for. It stays the regional pilot window even after the national
+// derived plane becomes the production discovery payload, because the committed gazetteer is a bounded Oregon
+// list and validates against its own build report; national searches are run from coordinates.
+let gazetteerRegion = null;
 let declaredRadiusPresets = [];
 let radiusSearchTemplate = null;
 let places = null;
@@ -106,9 +110,13 @@ function activeSearch() { return store.getState().search; }
 async function loadSearchAreas() {
   const declaration = validateSearchAreas(await fetchJson(SEARCH_AREAS_URL), manifest);
   searchAreas = [...declaration.searchAreas];
-  publishedRegion = declaration.publishedRegion ?? null;
+  // A search is classified against the region its discovery catalog actually covers. That is the national region
+  // once the national derived plane is the production discovery payload, so a centre anywhere in the conterminous
+  // United States is runnable rather than refused as "outside the published region".
+  publishedRegion = declaration.discoveryRegion ?? declaration.publishedRegion ?? null;
+  gazetteerRegion = declaration.publishedRegion ?? null;
   declaredRadiusPresets = [...radiusPresets(declaration)];
-  radiusSearchTemplate = radiusTemplate(declaration);
+  radiusSearchTemplate = interactiveSearchTemplate(declaration);
   // Precedence is explicit and testable: a URL search, then the search this device last chose, then a
   // committed preset while the declared window stays the active search. Nothing here runs a search.
   const initial = initialSearchSelection({ search: globalThis.location?.search ?? '',
@@ -136,7 +144,7 @@ async function loadSearchAreas() {
 // place-name field (the panel says so) and nothing else: coordinates remain the search.
 async function loadPlaces() {
   try {
-    places = validatePlaceGazetteer(await fetchJson(PLACES_URL), { region: publishedRegion });
+    places = validatePlaceGazetteer(await fetchJson(PLACES_URL), { region: gazetteerRegion });
   } catch (error) {
     places = null;
     if (!store.getState().search.error) store.setSearchError(`Place names are unavailable: ${error.message}`);

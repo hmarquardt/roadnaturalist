@@ -160,11 +160,56 @@ not row-proportional: long national corridors and dense habitat joins dominate, 
 projection of 20–33 h was never reached with the one-worker stability default the run used. The compute
 forecast is retired.
 
-## Publication planning
+## Publication
 
 The final plane lives at `<build volume>/cells/derived/corridor-metrics/<fingerprint>/` with the manifest and
 cells. Its R2 key shape is `derived/corridor-metrics/<fingerprint>/cells/<cell>.parquet`, the same as the
 regional plane, so publication is a copy with immutable caching: **20,863 objects** (20,862 present cells
-plus the manifest), **2,681,943,548 bytes**. No raw national plane needs to be published for derived
-discovery; detailed promotion and analysis still read the raw cells through the existing service boundary.
-Runtime activation (a national catalog pointer) is deliberately not part of this build.
+plus the manifest), **2,681,943,548 bytes**. No raw national plane is published for derived discovery: the
+derived plane is the discovery payload, and detailed promotion/analysis keeps reading the raw cells through
+the existing service boundary and fails closed where those cells are not published.
+
+The publication set is derived from the *finalized manifest*, never a hand-written list
+(`scripts/national-derived-objects.mjs`), so the publisher, the local pre-publication audit and the remote
+audit enumerate exactly the same objects. AppleDouble `._*` files, scratch files, `finalize.json`, DuckDB
+spill and logs are therefore never part of the set even though the build volume carries them.
+
+```sh
+npm run check:national-derived-publication            # enumerate + verify every local byte and digest
+npm run publish:national-derived  -- --rate 4        # resumable, idempotent, checkpointed upload to R2
+npm run audit:national-derived:remote                # re-fetch every object and verify bytes/SHA-256/headers
+npm run verify:national-derived:production           # six-region end-to-end check against the published plane
+RUN_NATIONAL_PRODUCTION=1 npm run verify:national-derived:browser
+```
+
+`publish:national-derived` writes a JSONL checkpoint and a report under
+`<build volume>/work/derived-national-publication/`, skips any object a previous run already published
+(matching the manifest's bytes and SHA-256), and refuses to overwrite an immutable key whose remote byte
+length differs. The Cloudflare API rate-limits R2 object writes (HTTP 429, code 971), so the publisher paces
+itself (`--rate`, default 4 requests/second) rather than bursting; publication is therefore slow but
+certain, and re-running it after any interruption resumes from the checkpoint. `--via wrangler` uses the
+`wrangler r2 object put` path the regional publisher uses instead.
+
+## Production discovery pointer
+
+`data/national/derived-catalog.json` is the production discovery pointer: a small reviewed artifact that
+names the immutable national derived manifest on the data origin, the CONUS region and partition scheme it
+covers, and the analysis fingerprint the running code must see. `scripts/freeze-national-derived-catalog.mjs`
+generates it from the manifest (never by hand) and `--check` proves the committed pointer still describes the
+plane. Production discovery resolves it through the existing catalog mechanism: an interactive
+(centre + radius) search takes `national-10mi` as its template
+(`data/discovery/search-areas.json` → `interactiveRadiusArea`) and reads
+`national/derived-catalog.json`; the committed Oregon benchmark scenarios keep their own regional catalog and
+their own order.
+
+The browser cannot recompute the national fingerprint, because it also covers the Python builder and its
+pipeline digest. The reviewed catalog therefore pins the expected fingerprint, and the runtime still fails
+closed on everything it can check: the manifest digest, its profile and schema versions, its region, and
+every column the derived reader selects (`assertNationalDerivedCompatibility` in `src/gis/service.js`).
+
+**Rollback.** The cutover is additive. The regional catalog, its derived plane and the three committed
+benchmark scenarios are unchanged, so rollback is either reverting the one commit that names
+`national-10mi` as the interactive template, or pointing `interactiveRadiusArea` back at `regional-10mi`;
+`data/national/derived-catalog.json` also records `rollback` for the operator. No already-published national
+object is deleted to roll back.
+

@@ -1,7 +1,7 @@
 {
   "kind": "road-discovery-search-areas",
   "version": 1,
-  "note": "Bounded areas candidate discovery can survey. A search area must lie inside the loaded road-network extract and the loaded habitat extracts; discovery reports PARTIAL coverage rather than guessing when it does not. This is a pilot window, not national coverage.",
+  "note": "Bounded areas candidate discovery can survey. A raw area must lie inside the loaded road-network extract and the loaded habitat extracts; discovery reports PARTIAL coverage rather than guessing when it does not. A derived-first area (derivedOnly) names a discovery catalog whose plane carries its own coverage, so it declares no raw-extract requirements.",
   "publishedRegion": {
     "id": "or-sw-wa-portland",
     "name": "Greater Portland region (Oregon and south-west Washington)",
@@ -13,6 +13,18 @@
     ],
     "note": "The published regional coverage the derived corridor-metrics plane covers. It is declared here so the interface can classify a search centre as FULL, PARTIAL or NONE before any data is fetched; tests/discovery.test.js asserts it still equals the bounds of published regional/manifest.json and of the derived manifest, which are the authorities."
   },
+  "discoveryRegion": {
+    "id": "conus-2025",
+    "name": "Conterminous United States",
+    "bounds": [
+      -124.848974,
+      24.396308,
+      -66.885444,
+      49.384479
+    ],
+    "note": "The coverage the production discovery catalog declares: the published region of the national derived plane (data/national/derived-catalog.json), which a test asserts agree. A derived-first search is classified against it, so a centre anywhere in the conterminous United States is runnable. publishedRegion above stays the window the committed Oregon raw material and the place gazetteer were built for."
+  },
+  "interactiveRadiusArea": "national-10mi",
   "searchAreas": [
     {
       "id": "or-pilot-window",
@@ -122,6 +134,25 @@
         "epa-ecoregions-wa-l4"
       ],
       "note": "Committed benchmark scenario: one 50-mile radius disk on the same fixed centre, inside the published Greater Portland region with room for its 1 km habitat halo and cross-cell road continuity."
+    },
+    {
+      "id": "national-10mi",
+      "name": "National derived: 10-mile radius",
+      "kind": "radius",
+      "catalogUrl": "national/derived-catalog.json",
+      "derivedOnly": true,
+      "center": [
+        -98.5,
+        39.8
+      ],
+      "radiusMiles": 10,
+      "bbox": [
+        -98.68817163914211,
+        39.654410711054815,
+        -98.31182836085789,
+        39.94558928894518
+      ],
+      "note": "The interactive search template production discovery uses: a centre and radius anywhere in the conterminous United States, resolved through data/national/derived-catalog.json. It is derivedOnly - the national derived corridor-metrics plane is the discovery payload, and it carries its own published coverage - so it declares no raw-extract requirements. Keeping it last leaves the committed 10/25/50-mile benchmark scenarios, and their declared order, exactly as they were."
     }
   ]
 }

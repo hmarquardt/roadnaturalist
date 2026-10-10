@@ -50,12 +50,21 @@ export function validateSearchAreas(declaration, manifest) {
         throw new TypeError(`Search area ${area.id} declares bounds that do not match its ${area.radiusMiles}-mile radius`);
       }
     }
-    if (!Array.isArray(area.requires) || !area.requires.length) throw new TypeError(`Search area ${area.id} declares no required datasets`);
-    if (area.catalogUrl && !/^regional\/[a-z0-9.-]+\.json$/.test(area.catalogUrl)) throw new TypeError(`Search area ${area.id} has an invalid regional catalog path`);
+    // A derived-first area names a catalog whose plane carries its own coverage, so it declares no raw-extract
+    // requirements: the published derived region is its coverage. A raw area must still name the extracts it lies
+    // inside, so the workspace can never offer a survey the loaded data cannot cover.
+    const requires = area.requires ?? [];
+    if (!area.derivedOnly && (!Array.isArray(area.requires) || !area.requires.length)) {
+      throw new TypeError(`Search area ${area.id} declares no required datasets`);
+    }
+    if (!Array.isArray(requires)) throw new TypeError(`Search area ${area.id} has a malformed requires list`);
+    if (area.catalogUrl && !/^(?:regional|national)\/[a-z0-9.-]+\.json$/.test(area.catalogUrl)) {
+      throw new TypeError(`Search area ${area.id} has an invalid discovery catalog path`);
+    }
     // Coverage is a union, not a single file: the ecoregion layers are published per state, so a search
     // that Oregon and Washington together cover is valid even though neither layer alone contains it.
     const groups = new Map();
-    for (const datasetId of area.requires) {
+    for (const datasetId of requires) {
       const dataset = datasets.get(datasetId);
       if (!dataset) throw new TypeError(`Search area ${area.id} requires ${datasetId}, which is not in the data manifest`);
       const key = dataset.type === 'ecoregions' && Number.isInteger(dataset.level)
@@ -70,17 +79,29 @@ export function validateSearchAreas(declaration, manifest) {
       if (!inside) throw new TypeError(`Search area ${area.id} extends outside ${key}: a search area must lie inside every dataset it requires`);
     }
   }
-  // The published region the declared areas live in. It is declared here so the interface can say what a
-  // search centre will do before any data is fetched; a test asserts it still agrees with the published
-  // regional catalog and the derived manifest, which are the authorities for what is actually published.
-  if (declaration.publishedRegion != null) {
-    const region = declaration.publishedRegion;
+  // The regions a declaration names. `publishedRegion` is where the committed raw-derived material (the Oregon
+  // pilot, the regional catalog, the place gazetteer) lives; `discoveryRegion` is the coverage a derived-first
+  // search is classified against, which is national once the national derived plane is the production discovery
+  // payload. A test asserts `publishedRegion` still agrees with the regional catalog and its derived manifest,
+  // which are the authorities for what is published as raw material.
+  for (const key of ['publishedRegion', 'discoveryRegion']) {
+    const region = declaration[key];
+    if (region == null) continue;
     if (typeof region.id !== 'string' || !region.id || typeof region.name !== 'string' || !region.name) {
-      throw new TypeError('The published region needs an id and a name');
+      throw new TypeError(`The ${key} needs an id and a name`);
     }
     const bounds = region.bounds;
     if (!Array.isArray(bounds) || bounds.length !== 4 || !bounds.every(Number.isFinite) || bounds[0] >= bounds[2] || bounds[1] >= bounds[3]) {
-      throw new TypeError('The published region needs ordered finite bounds');
+      throw new TypeError(`The ${key} needs ordered finite bounds`);
+    }
+  }
+  // The declared area an interactive (centre + radius) search takes as its template. Naming it explicitly keeps
+  // the committed benchmark ordering intact while letting production discovery default to the national plane.
+  if (declaration.interactiveRadiusArea != null) {
+    const area = declaration.searchAreas.find(entry => entry.id === declaration.interactiveRadiusArea);
+    if (!area) throw new TypeError(`The interactive search template ${declaration.interactiveRadiusArea} is not a declared search area`);
+    if (area.kind !== 'radius' || typeof area.catalogUrl !== 'string' || !area.catalogUrl) {
+      throw new TypeError('An interactive search template must be a radius area that names a discovery catalog');
     }
   }
   return declaration;

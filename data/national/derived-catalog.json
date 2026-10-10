@@ -1,0 +1,79 @@
+{
+ "kind": "road-discovery-national-derived-catalog",
+ "schemaVersion": 1,
+ "project": "roadnaturalist",
+ "version": "conus-2025-v1",
+ "region": {
+  "id": "conus-2025",
+  "name": "Conterminous United States",
+  "version": "conus-grid-2025",
+  "bounds": [
+   -124.848974,
+   24.396308,
+   -66.885444,
+   49.384479
+  ],
+  "publishedBounds": [
+   -124.848974,
+   24.396308,
+   -66.885444,
+   49.384479
+  ],
+  "bounded": false,
+  "note": "The national derived corridor-metrics plane covers the conterminous states. Its cells are the only discovery payload: the raw national road, wetland and hydrography planes stay offline."
+ },
+ "grid": {
+  "kind": "lonlat-grid",
+  "stepLon": 0.2,
+  "stepLat": 0.2,
+  "origin": [
+   -180,
+   -90
+  ],
+  "crs": "EPSG:4326"
+ },
+ "maxAnalysisDistanceM": 1000,
+ "assetBaseUrl": "https://data.roadnaturalist.com/",
+ "derived": {
+  "manifestUrl": "derived/corridor-metrics/a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9/manifest.json",
+  "analysisFingerprint": "a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9",
+  "manifestSha256": "87745e5878158f5f81ab11a7a1e37c51bab777fc2188be75370b4def19c2c7d1",
+  "manifestBytes": 7706419,
+  "derivedSchemaVersion": 1,
+  "profileVersion": 3,
+  "cells": 21874,
+  "presentCells": 20862,
+  "emptyCells": 1012,
+  "corridors": 1420806,
+  "storedRows": 1793422,
+  "bytes": 2674237129,
+  "note": "The browser cannot recompute this fingerprint (it also covers the Python builder and its source digest), so the reviewed catalog pins it; the runtime still verifies the manifest digest, its profile and schema versions, its region and its columns, and fails closed otherwise."
+ },
+ "provenance": {
+  "roads": {
+   "version": "tiger2025-county-v1",
+   "manifest": "data/national/road-manifest.json",
+   "manifestSha256": "0a0515c02cffd0c205531a4982305e2f59e822b74311587e4f1d354eb545e207"
+  },
+  "wetlands": {
+   "version": "nwi-state-2026-05-v1",
+   "manifest": "data/national/wetland-manifest.json",
+   "manifestSha256": "1dd24a0d07531a8cb56caddd815d37ed0e6cfb35b1181c67ab33c8586795e4ba"
+  },
+  "hydrography": {
+   "version": "nhd-hr-hu8-2023-12-v1",
+   "manifest": "data/national/hydro-manifest.json",
+   "manifestSha256": "e9c9f041c3b11c5f604382ff34541289181c619b01901f7d480a2b6f5c99497e"
+  },
+  "ecoregions": {
+   "version": "epa-conus-2015-v1",
+   "manifest": "data/national/epa-manifest.json",
+   "manifestSha256": "a4a0c546e0258d577b8e441d6e830e651fdde9d585d330fb84c3d13d4d9ece47"
+  }
+ },
+ "rollback": {
+  "catalogUrl": "regional/manifest.json",
+  "version": "or-sw-wa-portland-v3",
+  "note": "The previous production discovery plane: a derived-first search that names no catalog, or a search area that still declares regional/manifest.json, resolves the regional derived plane again."
+ }
+}

@@ -45,6 +45,10 @@ npm run benchmark:regional         # opt-in: the 10-, 25- and 50-mile radius sce
 npm run verify:regional-equivalence # offline: batch discovery and the detailed panel measure the same habitat metrics
 npm run publish:regional           # publish a catalog's immutable partitions to the R2 data plane (idempotent)
 npm run audit:regional:remote      # read-only audit of every published object: bytes, SHA-256, CORS, Range
+npm run check:national-derived-publication # offline: enumerate and verify the national derived plane before upload
+npm run publish:national-derived   # resumable, checkpointed upload of the national derived plane to R2
+npm run audit:national-derived:remote # re-fetch every national derived object: bytes, SHA-256, CORS, headers, inventory
+npm run verify:national-derived:production # six-region end-to-end check against the published national plane
 npm run investigator:refresh       # validate the catalog, retrieve declared sources, rewrite the capture + drift baseline
 npm run build:regional             # rebuild regional GeoParquet from pinned local source archives
 node scripts/audit-regional-remote.mjs # read-only public R2 SHA/CORS/Range audit

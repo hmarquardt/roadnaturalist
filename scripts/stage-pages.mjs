@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { dirname, join, relative, resolve, sep } from 'node:path';
+import { validateNationalDerivedCatalog } from '../src/discovery/national-catalog.js';
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
 const DIST = join(ROOT, 'dist');
@@ -54,10 +55,30 @@ function stage() {
     cpSync(source, target, { recursive: statSync(source).isDirectory(),
       filter: path => !UNSTAGED_DATA.some(directory => path === directory || path.startsWith(`${directory}${sep}`)) });
   }
+  // The national derived discovery catalog is the production discovery pointer: one small, reviewed file that
+  // names the immutable national manifest on R2. The rest of data/national is build output, so it stays out of
+  // the Pages payload and this single file is staged deliberately after the filtered copy. A malformed pointer
+  // fails the deployment rather than shipping a discovery search that cannot resolve.
+  const nationalCatalogPath = join(ROOT, 'data/national/derived-catalog.json');
+  if (!existsSync(nationalCatalogPath)) throw new Error('data/national/derived-catalog.json is missing: production discovery has no national pointer');
+  const nationalCatalog = validateNationalDerivedCatalog(readJson(nationalCatalogPath));
+  mkdirSync(join(DIST, 'data/national'), { recursive: true });
+  cpSync(nationalCatalogPath, join(DIST, 'data/national/derived-catalog.json'));
+
   // Regional GeoParquet belongs to R2. The copy filter keeps raw, derived, and national build files out
   // of Pages; validate local regional artifacts against their small catalog before inventorying the site.
   const regionalPath = join(DIST, 'data/regional/manifest.json');
   const regionalProblems = [];
+  // The interface classifies a search centre against the declaration's discoveryRegion while the runtime selects
+  // cells against the national catalog's region, so the two must agree or a runnable centre would select no cells.
+  const searchAreasPath = join(DIST, 'data/discovery/search-areas.json');
+  if (existsSync(searchAreasPath)) {
+    const discovery = readJson(searchAreasPath).discoveryRegion;
+    if (!discovery || discovery.bounds.length !== 4
+        || discovery.bounds.some((value, index) => Math.abs(value - nationalCatalog.region.bounds[index]) > 1e-9)) {
+      regionalProblems.push('the search-area discoveryRegion does not match the national catalog region');
+    }
+  }
   if (existsSync(regionalPath)) {
     const regional = readJson(regionalPath);
     if (regional.assetBaseUrl !== 'https://data.roadnaturalist.com/') regionalProblems.push('regional catalog needs the Road Naturalist R2 asset base');
@@ -140,6 +161,7 @@ function stage() {
   // The probe catalog and its schema are loaded by the browser itself (src/investigator/probes/catalog.js imports
   // them), so a missing catalog would be a blank Investigator rather than a caught error at deploy time.
   for (const extra of ['data/roads/or-roads-pilot.json', 'data/discovery/search-areas.json',
+    'data/national/derived-catalog.json',
     'data/places/or-sw-wa-portland-places.json',
     'data/investigator/or-pilot-access-evidence.json',
     'data/investigator/probe-catalog.json', 'data/investigator/probe-catalog.schema.json']) {

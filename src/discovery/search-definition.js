@@ -195,6 +195,15 @@ export function radiusTemplate(declaration) {
   return radiusPresets(declaration)[0] ?? null;
 }
 
+// The declared radius area an interactive (centre + radius) search takes as its template. It is named explicitly
+// by the declaration (`interactiveRadiusArea`) so a build can point normal discovery at the national derived
+// catalog while the committed benchmark scenarios keep their own order. Falls back to the first radius scenario.
+export function interactiveSearchTemplate(declaration) {
+  const named = declaration?.interactiveRadiusArea;
+  const area = named ? (declaration?.searchAreas ?? []).find(entry => entry.id === named) : null;
+  return area ?? radiusTemplate(declaration);
+}
+
 // ------------------------------------------------------------------ URL state
 
 // The search is reproducible through the URL. Serialization writes the definition, never a query result, and

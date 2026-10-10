@@ -842,11 +842,19 @@ test('the three hand-selected pilot roads are inside the discovery extract', () 
 
 test('a search area must lie inside every dataset it requires', () => {
   const valid = validateSearchAreas(searchAreas, manifest);
-  // The committed areas: the pilot window, the older regional extent, and the three fixed-radius
-  // benchmark scenarios (10, 25 and 50 miles on one centre).
+  // The committed areas: the pilot window, the older regional extent, the three fixed-radius benchmark scenarios
+  // (10, 25 and 50 miles on one centre), and the derived-first national template production discovery uses.
   assert.deepEqual(valid.searchAreas.map(area => area.id),
-    ['or-pilot-window', 'or-portland-west-regional', 'regional-10mi', 'regional-25mi', 'regional-50mi']);
+    ['or-pilot-window', 'or-portland-west-regional', 'regional-10mi', 'regional-25mi', 'regional-50mi', 'national-10mi']);
   assert.deepEqual(valid.searchAreas[0].requires[0], 'or-roads-network-pilot');
+  // The national template is derived-first: it points at the national derived catalog and declares no raw
+  // extracts, because the derived plane carries its own published coverage.
+  assert.equal(valid.searchAreas[5].derivedOnly, true);
+  assert.equal(valid.searchAreas[5].catalogUrl, 'national/derived-catalog.json');
+  assert.equal(valid.interactiveRadiusArea, 'national-10mi');
+  const rawNational = JSON.parse(JSON.stringify(searchAreas));
+  delete rawNational.searchAreas[5].derivedOnly;
+  assert.throws(() => validateSearchAreas(rawNational, manifest), /declares no required datasets/);
   // A radius area keeps its declared bounds only if they are the bounds its radius implies.
   const mismatched = JSON.parse(JSON.stringify(searchAreas));
   mismatched.searchAreas[2].bbox = [-123.2, 45.4, -122.6, 45.8];

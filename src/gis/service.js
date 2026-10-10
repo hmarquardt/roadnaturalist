@@ -2,10 +2,11 @@ import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
 import { corridorGeometry } from '../domain/geometry.js';
 import { loadManifest } from '../services/manifest.js';
 import { selectRegionalPartitions, validateRegionalCatalog } from '../discovery/regional-catalog.js';
+import { isNationalCatalog, validateNationalDerivedCatalog } from '../discovery/national-catalog.js';
 import { validateRoadComponents } from '../discovery/components.js';
 import { derivedAvailability, selectDerivedCells, validateDerivedManifest } from '../discovery/derived-catalog.js';
-import { derivedMetrics, derivedUnit, derivedCorridor, queryDerivedCorridors } from './derived-query.js';
-import { analysisFingerprint } from '../discovery/analysis-fingerprint.js';
+import { DERIVED_COLUMNS, derivedMetrics, derivedUnit, derivedCorridor, queryDerivedCorridors } from './derived-query.js';
+import { ANALYSIS_PROFILE_VERSION, DERIVED_SCHEMA_VERSION, analysisFingerprint } from '../discovery/analysis-fingerprint.js';
 import { createAnalyticalGeometryQueries } from './analytical-geometry.js';
 import { combineCoverage, summarizeLevel } from './ecoregion-result.js';
 import { createHabitatQueries, HABITAT_DATASETS } from './habitat-query.js';
@@ -87,15 +88,24 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
     return opened;
   }
 
+  // The discovery catalog a search declares: either a regional catalog (raw partitions plus a regional derived
+  // plane) or the national derived catalog. Each is validated by its own contract, so a malformed national
+  // pointer fails as loudly as a malformed regional one.
   async function getRegionalCatalog(url) {
-    if (regionalCatalog) return validateRegionalCatalog(regionalCatalog);
+    if (regionalCatalog) {
+      return isNationalCatalog(regionalCatalog)
+        ? validateNationalDerivedCatalog(regionalCatalog) : validateRegionalCatalog(regionalCatalog);
+    }
     if (regionalCatalogCache.has(url)) return regionalCatalogCache.get(url);
     const response = await fetch(new URL(url, DATA_BASE));
-    if (!response.ok) throw new Error(`Regional manifest unavailable: HTTP ${response.status}`);
-    let loaded = validateRegionalCatalog(await response.json());
-    // Local development reads the same immutable paths from ./data; production changes only
-    // the asset origin, not partition selection, verification, or GIS analysis.
-    if (['localhost', '127.0.0.1'].includes(globalThis.location?.hostname)) {
+    if (!response.ok) throw new Error(`Discovery catalog unavailable: HTTP ${response.status}`);
+    const document = await response.json();
+    const national = isNationalCatalog(document);
+    let loaded = national ? validateNationalDerivedCatalog(document) : validateRegionalCatalog(document);
+    // Local development reads the same immutable *regional* paths from ./data. The national derived cells are not
+    // in the repository (only the small pointer is), so a national catalog keeps its R2 origin even on a local
+    // origin - which is exactly what lets a browser test exercise the production objects.
+    if (!national && ['localhost', '127.0.0.1'].includes(globalThis.location?.hostname)) {
       loaded = { ...loaded, assetBaseUrl: null };
     }
     regionalCatalogCache.set(url, loaded);
@@ -220,7 +230,12 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
     // had. A region that publishes one and then cannot be trusted (fingerprint, digest, missing artifact) is a
     // failure, and is reported as itself rather than quietly costing the search 90 seconds.
     if (!catalog.derived) return null;
-    const fingerprint = await currentAnalysisFingerprint(catalog);
+    const national = isNationalCatalog(catalog);
+    // A regional plane is gated on the fingerprint the running code recomputes from the catalog it loaded. A
+    // national plane's fingerprint also covers the Python builder and its pipeline digest, which a browser cannot
+    // hash, so the reviewed catalog pins the expected fingerprint and the runtime fails closed on everything it
+    // *can* check (see assertNationalDerivedCompatibility below).
+    const fingerprint = national ? catalog.derived.analysisFingerprint : await currentAnalysisFingerprint(catalog);
     const manifest = await getDerivedManifest(catalog);
     const availability = derivedAvailability(manifest, fingerprint);
     if (!availability.available) {
@@ -230,6 +245,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
       error.published = availability.published ?? null;
       throw error;
     }
+    if (national) assertNationalDerivedCompatibility(manifest, catalog);
     const selection = selectDerivedCells(manifest, searchArea.bbox);
     const selectionMs = performance.now() - started - manifestMs;
     if (selection.coverage === COVERAGE.NONE) {
@@ -617,6 +633,30 @@ export function createGisService({ manifest = null, regionalCatalog = null, engi
     async queryCorridor(_corridor, _options = {}) { return { coverage: COVERAGE.UNKNOWN, features: [], reason: 'General corridor layers are not connected' }; },
     diagnostics: () => ({ ...diagnostics, habitatDatasetBytes: { ...diagnostics.habitatDatasetBytes } })
   };
+}
+
+// The compatibility gate for the national derived plane.
+//
+// The full national fingerprint covers a Python pipeline (`scripts/build-national-derived.py`) and its source
+// digest, which a browser cannot recompute, so the reviewed national catalog pins the *expected* fingerprint and
+// `derivedAvailability` proves the manifest carries it. Everything the runtime *can* verify still fails closed
+// here: the manifest must be the profile and schema version this build implements, it must cover exactly the
+// region the catalog declares, and it must still carry every column the derived reader selects. A drifted build
+// therefore reports a named incompatibility instead of reading columns that are not there.
+export function assertNationalDerivedCompatibility(manifest, catalog) {
+  if (manifest.profileVersion !== ANALYSIS_PROFILE_VERSION || manifest.derivedSchemaVersion !== DERIVED_SCHEMA_VERSION) {
+    throw new Error('The published national derived plane was built for analysis profile/schema '
+      + `${manifest.profileVersion}/${manifest.derivedSchemaVersion}, but this build implements `
+      + `${ANALYSIS_PROFILE_VERSION}/${DERIVED_SCHEMA_VERSION}.`);
+  }
+  const bounds = manifest.region?.bounds ?? [];
+  if (bounds.length !== 4 || bounds.some((value, index) => Math.abs(value - catalog.region.bounds[index]) > 1e-9)) {
+    throw new Error('The published national derived plane does not cover the region the national catalog declares.');
+  }
+  const missing = DERIVED_COLUMNS.filter(column => !(manifest.schema ?? []).includes(column));
+  if (missing.length) {
+    throw new Error(`The published national derived plane is missing columns this build reads: ${missing.slice(0, 6).join(', ')}.`);
+  }
 }
 
 function validateBounds(bbox) {

@@ -8,7 +8,7 @@ import { COVERAGE } from '../domain/corridor.js';
 // query deduplicates by corridor id exactly as the raw regional reader deduplicates replicated source
 // features. The geometry comes back as GeoJSON because that is what the map, the exact-radius test, and
 // promotion all work with.
-const DERIVED_COLUMNS = [
+export const DERIVED_COLUMNS = [
   'corridor_id', 'road_component_id', 'road_unit_id', 'name', 'normalized_name', 'length_m', 'tiger_class',
   'county_names', 'counties', 'road_ids', 'road_classes', 'source_feature_ids', 'segment_index', 'segment_count',
   'geometry_repaired', 'geometry_repair_method', 'analysis_fingerprint',

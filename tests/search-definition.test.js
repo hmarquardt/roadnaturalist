@@ -8,7 +8,7 @@ import { COVERAGE } from '../src/domain/corridor.js';
 import {
   MAX_RADIUS_MILES, MAX_SEARCH_HISTORY, MIN_RADIUS_MILES, addSearchHistory,
   areaCoverage, coordinateNumber, createInteractiveSearchArea, definitionFromSearchArea,
-  initialSearchSelection, parseSearchQuery, radiusNumber, radiusPresets, radiusTemplate, readSearchDefinition,
+  initialSearchSelection, interactiveSearchTemplate, parseSearchQuery, radiusNumber, radiusPresets, radiusTemplate, readSearchDefinition,
   searchDefinitionOf, searchIsRunnable, searchRefusal, searchRegionCoverage, serializeSearchQuery,
   storedDefinition, storedHistory, withSearchQuery, CUSTOM_SEARCH_AREA_ID,
 } from '../src/discovery/search-definition.js';
@@ -150,8 +150,12 @@ test('an interactive search area is the declared radius template with its centre
   assert.equal(area.radiusMiles, definition.radiusMiles);
   assert.deepEqual([...area.bbox], [...definition.bounds]);
   assert.match(area.name, /25 mi at 45\.5950, -122\.9200/);
-  // A declared radius scenario is a preset, so its own definition builds the same area through the same path.
+  // A declared radius scenario of the template's own catalog is a preset, so its own definition builds the same
+  // area through the same path. A preset that names a *different* catalog (the derived-first national template)
+  // can only be reached by choosing that catalog as the template, so it is checked that way instead - and that is
+  // exactly what production discovery does.
   for (const preset of PRESETS) {
+    if (preset.catalogUrl !== template.catalogUrl) continue;
     const presetArea = createInteractiveSearchArea(definitionFromSearchArea(preset), { template });
     assert.equal(presetArea.radiusMiles, preset.radiusMiles);
     assert.equal(presetArea.catalogUrl, preset.catalogUrl);
@@ -161,10 +165,31 @@ test('an interactive search area is the declared radius template with its centre
     assert.equal(areaCoverage(preset, REGION).coverage, searchRegionCoverage(definitionFromSearchArea(preset), REGION).coverage,
       `${preset.id}: a preset is an ordinary search definition, so its coverage cannot differ`);
   }
+  const national = PRESETS.find(preset => preset.catalogUrl !== template.catalogUrl);
+  assert.ok(national, 'the declaration carries a derived-first national radius template');
+  const nationalArea = createInteractiveSearchArea(definition, { template: national });
+  assert.equal(nationalArea.catalogUrl, 'national/derived-catalog.json');
+  assert.deepEqual([...nationalArea.center], [...definition.center]);
+  assert.equal(nationalArea.radiusMiles, definition.radiusMiles);
   assert.throws(() => createInteractiveSearchArea(definition, { template: null }), /declared radius search area/);
   assert.throws(() => createInteractiveSearchArea(null, { template }), /search definition/);
   assert.throws(() => searchDefinitionOf([NaN, 45], 10), /finite centre/);
   assert.throws(() => searchDefinitionOf([-122, 45.595], 51), /largest search radius/);
+});
+
+test('the interactive search template production discovery uses is the declared derived-first national area', () => {
+  const template = interactiveSearchTemplate(declaration);
+  assert.equal(template.id, 'national-10mi');
+  assert.equal(template.catalogUrl, 'national/derived-catalog.json');
+  assert.equal(template.derivedOnly, true);
+  assert.equal(template.requires, undefined, 'a derived-first area names no raw extracts');
+  // The named template wins over declaration order, so the committed benchmark scenarios keep their order.
+  assert.equal(radiusTemplate(declaration).id, 'regional-10mi');
+  // A declaration that names an unknown or non-radius template is refused rather than silently ignored.
+  assert.throws(() => validateSearchAreas({ ...declaration, interactiveRadiusArea: 'nope' }, manifest),
+    /is not a declared search area/);
+  assert.throws(() => validateSearchAreas({ ...declaration, interactiveRadiusArea: 'or-pilot-window' }, manifest),
+    /must be a radius area/);
 });
 
 test('a definition carries the exact bounds its radius implies, and the committed scenarios agree with it', () => {
