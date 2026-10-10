@@ -123,9 +123,10 @@ test('deployed place search resolves the named places and runs national discover
     expect(entry.firstRow, region).toMatch(/\d/);
     expect(entry.summary, region).toContain('25-mile radius search');
     expect(entry.recent, region).toContain(expected);
-    // The map moved its centre to the chosen place, and the key names it.
+    // The map moved its centre to the chosen place; the key states the radius and the coverage it now has.
     await expect(page.locator('#map .search-center')).toHaveCount(1);
-    await expect(page.locator('#map .map-key')).toContainText(expected);
+    await expect(page.locator('#map .map-key')).toContainText('25 mi');
+    await expect(page.locator('#map .map-key')).toContainText('FULL');
   }
 
   expect(outside, 'a place search must reach no geocoder, occurrence source or Investigator endpoint').toEqual([]);
