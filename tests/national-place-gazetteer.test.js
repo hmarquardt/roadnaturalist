@@ -133,7 +133,12 @@ test('a county, a prefix and a typo each answer in their own tier', () => {
   assert.equal(prefix.results[0].type, 'national-park');
   const yellowstone = searchPlaces(library, 'yellowstone', { limit: 3 });
   assert.equal(yellowstone.tier, 'prefix');
-  assert.ok(names(yellowstone).includes('Yellowstone National Park, WY'), names(yellowstone).join(' | '));
+  // A bare name that is both a division and a place means the place: the park leads, the county is offered below.
+  assert.equal(names(yellowstone)[0], 'Yellowstone National Park, WY');
+  assert.ok(names(yellowstone).includes('Yellowstone County, MT'), names(yellowstone).join(' | '));
+  // Typing the division's own word is unaffected by that rule.
+  assert.deepEqual(names(searchPlaces(library, 'yellowstone county montana', { limit: 2 }))[0], 'Yellowstone County, MT');
+  assert.deepEqual(names(searchPlaces(library, 'orange county california', { limit: 2 }))[0], 'Orange County, CA');
   // A typo is tolerated inside a real name, and only for a query long enough to mean one.
   assert.equal(names(searchPlaces(library, 'princetn in', { limit: 3 }))[0], 'Princeton, IN');
   assert.equal(searchPlaces(library, 'princetn in', { limit: 3 }).tier, 'typo');

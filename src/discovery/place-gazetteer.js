@@ -574,10 +574,23 @@ export function searchNationalPlaces(library, rawQuery, { limit = MAX_PLACE_RESU
 }
 
 
-// Deterministic ordering inside one tier: how many people live there, then a place this device chose recently,
-// then how close it is to the centre already on screen, then the shorter and therefore more likely name, then
-// the name, the state and the id. Two runs on the same input always produce the same list.
+// Deterministic ordering inside one tier: an administrative division yields to a place, then how many people live
+// there, then a place this device chose recently, then how close it is to the centre already on screen, then the
+// shorter and therefore more likely name, then the name, the state and the id. Two runs on the same input always
+// produce the same list.
+//
+// A county is last within its tier on purpose. A county is a division rather than a place, so a bare name that is
+// both means the place: "Yellowstone" is the national park, not the Montana county, and "Orange" is the city, not
+// the 3.2-million-person county. Nothing is lost: typing the division's own word ("orange county", "gibson county
+// indiana") matches it exactly and is unaffected by this, and a county that does not match exactly is still
+// offered on the next line.
+function countyRank(place) {
+  return place.type === 'county' ? 1 : 0;
+}
+
 function compareNational(left, right, { center, recent }) {
+  const byKind = countyRank(left.entry.place) - countyRank(right.entry.place);
+  if (byKind) return byKind;
   const byPopulation = (right.entry.place.population ?? -1) - (left.entry.place.population ?? -1);
   if (byPopulation) return byPopulation;
   if (recent) {

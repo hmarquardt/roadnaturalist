@@ -256,11 +256,14 @@ Matching runs in tiers, in this order, and the best tier that matches wins:
 5. **one typo** — a single insertion, deletion or substitution, only for queries of at least five characters and
    only when the first character already matches (`princetn` → Princeton; `millboro` → nothing)
 
-Inside a tier the order is deterministic and explainable: **population** (so `evansville` leads with Evansville,
-Indiana and `springfield` with Springfield, Missouri), then a place this device chose recently, then distance to
-the centre already on screen, then the shorter name, then the name, the state and the id. No fuzzy match can
-outrank an exact one, and two runs on the same input always produce the same list. At most eight results are
-offered, each with what separates it from its namesakes:
+Inside a tier the order is deterministic and explainable: an administrative division yields to a place, then
+**population** (so `evansville` leads with Evansville, Indiana and `springfield` with Springfield, Missouri),
+then a place this device chose recently, then distance to the centre already on screen, then the shorter name,
+then the name, the state and the id. Counties last within a tier is deliberate: a county is a division rather
+than a place, so a bare name that is both means the place — `yellowstone` is the national park, not the Montana
+county — and typing the division's own word (`orange county`, `gibson county indiana`) matches it exactly and is
+unaffected. No fuzzy match can outrank an exact one, and two runs on the same input always produce the same
+list. At most eight results are offered, each with what separates it from its namesakes:
 
 ```
 Princeton, IN — Gibson County        Springfield, MO — Greene County
