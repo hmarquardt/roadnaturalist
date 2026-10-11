@@ -158,7 +158,13 @@ const PROMOTION_PLACES = Object.freeze([
   ['portland oregon', 'Portland, OR'],
 ]);
 
-test('deployed promotion reads published raw cells inside a seeded region, and refuses outside one', async ({ page }) => {
+// TWO LEVELS OF DETAIL, IN PRODUCTION.
+//
+// Selecting a corridor opens its precomputed metrics: the row the discovery run already loaded, with no source cell
+// read at all - which is what makes a corridor worth opening anywhere in the country, including where its wetland
+// and hydrography cells have never been published. Source-level evidence is a separate, explicit step, offered
+// where the bounded cells are online and explained where they are not.
+test('deployed detail opens from the precomputed row, and source evidence is a separate optional step', async ({ page }) => {
   test.setTimeout(3600000);
   await page.setViewportSize({ width: 1440, height: 950 });
   const rawCells = [];
@@ -176,93 +182,74 @@ test('deployed promotion reads published raw cells inside a seeded region, and r
     await expect(page.locator('#discovery-place')).toBeVisible({ timeout: 180000 });
   }
 
-  async function choosePlace(query) {
+  async function discovery(query) {
     await page.locator('#discovery-place').fill(query);
     await expect(page.locator('#discovery-place-results')).toBeVisible({ timeout: 120000 });
     await page.locator('#discovery-place-results .discovery-place-option').first().click();
     await expect(page.locator('#discovery-place-results')).toBeHidden();
-  }
-
-  // Choose the first corridor that promotes. A published region covers the road components it closed over, not
-  // every road in it, so a refusal is a legitimate answer for a particular corridor - what the check asserts is
-  // that at least one corridor in each seeded area promotes, and that a refusal names what is missing.
-  async function promoteOne(limit = 4) {
-    const rows = page.locator('#discovery-results tbody tr');
-    const count = Math.min(limit, await rows.count());
-    let last = null;
-    for (let index = 0; index < count; index += 1) {
-      const row = rows.nth(index);
-      const name = (await row.innerText()).split('\n')[0];
-      // The panel may already show the previous region's candidate (candidates persist on this device), so the
-      // wait is for a *new* outcome: a title that changed, or a refusal for this attempt.
-      const before = await page.locator('#candidate-detail .detail-title').innerText().catch(() => null);
-      await row.locator('.discovery-row').click();
-      await page.locator('#discovery-promote').click();
-      const candidate = page.locator('#candidate-detail .detail-title');
-      const refused = page.locator('#discovery-promotion-error');
-      try {
-        await expect.poll(async () => {
-          if (await refused.isVisible().catch(() => false)) return 'refused';
-          const title = await candidate.innerText().catch(() => null);
-          return title && title !== before ? 'promoted' : null;
-        }, { timeout: 150000, message: `${name} must promote or refuse` }).not.toBeNull();
-      } catch {
-        continue;
-      }
-      if (await candidate.isVisible().catch(() => false) && await candidate.innerText() !== before) {
-        return { promoted: name, refusal: null, detail: (await page.locator('#candidate-detail').innerText()).slice(0, 240) };
-      }
-      const message = await refused.innerText();
-      // A refusal for one corridor is a legitimate answer (its road may reach beyond what is published);
-      // the check keeps trying, because what it asserts is that the area can be explored in detail at all.
-      last = message;
-      if (index === count - 1) return { promoted: null, refusal: last, detail: null };
-    }
-    return { promoted: null, refusal: 'no corridor in this area could be promoted', detail: null };
-  }
-
-  const report = { regions: [], refusal: null };
-  for (const [query, label] of PROMOTION_PLACES) {
-    await boot();
-    await choosePlace(query);
     await page.locator('#discovery-radius-input').fill('25');
     await page.locator('#discovery-radius-input').press('Enter');
     await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL', { timeout: 120000 });
     await page.locator('#discover-roads').click();
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
-    const before = rawCells.length;
-    const outcome = await promoteOne();
-    const entry = { place: label, promoted: outcome.promoted, refusal: outcome.refusal,
-      rawCells: rawCells.length - before,
-      rawPlaneHost: rawCells[before] ? new URL(rawCells[before]).host : null, detail: outcome.detail };
-    report.regions.push(entry);
-    console.log('PROMOTION_PRODUCTION ' + JSON.stringify(entry));
-    expect(entry.promoted, `${label} must promote from published raw cells`).not.toBeNull();
-    expect(entry.rawCells, `${label} must read raw cells`).toBeGreaterThan(0);
-    expect(entry.rawPlaneHost, label).toBe('data.roadnaturalist.com');
-    // The detailed panel measured the reconstructed corridor: physical habitat evidence, not precomputed values.
-    expect(entry.detail, label).toMatch(/Candidate|corridor/i);
   }
 
-  // Outside every published region: the refusal is precise, and no raw object is fetched to produce it.
-  await boot();
-  await choosePlace('yellowstone');
-  await page.locator('#discovery-radius-input').fill('25');
-  await page.locator('#discovery-radius-input').press('Enter');
-  await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
-  const before = rawCells.length;
-  const refusal = await promoteOne(2);
-  report.refusal = { message: refusal.refusal, promoted: refusal.promoted, rawCells: rawCells.length - before };
-  console.log('PROMOTION_PRODUCTION_REFUSAL ' + JSON.stringify(report.refusal));
-  expect(refusal.promoted).toBeNull();
-  expect(refusal.refusal).toMatch(/have not been published/);
-  // Roads are published whole nationally, so they can no longer be part of the reason a promotion is refused: the
-  // message may only name the bounded planes, and the correction it implies is about wetlands or hydrography.
-  expect(refusal.refusal).toMatch(/wetlands|hydrography/);
-  expect(refusal.refusal).not.toMatch(/roads/);
-  expect(report.refusal.rawCells).toBe(0);
+  // Selecting a corridor and promoting it is the derived level: the panel opens from the row, and nothing raw is
+  // fetched to do it.
+  async function openDerivedDetail() {
+    const row = page.locator('#discovery-results tbody tr').first();
+    const name = (await row.innerText()).split('\n')[0];
+    const before = rawCells.length;
+    await row.locator('.discovery-row').click();
+    await page.locator('#discovery-promote').click();
+    const detail = page.locator('#candidate-detail');
+    await expect(detail.locator('.corridor-metrics')).toBeVisible({ timeout: 120000 });
+    return { name, rawBytes: rawCells.length - before, text: (await detail.innerText()).slice(0, 2000) };
+  }
 
-  expect(outside, 'a promotion must reach no geocoder, occurrence source or Investigator endpoint').toEqual([]);
+  const report = { seeded: [], unseeded: null };
+
+  for (const [query, label] of PROMOTION_PLACES) {
+    await boot();
+    await discovery(query);
+    const derived = await openDerivedDetail();
+    expect(derived.text, `${label}: the panel is labelled as precomputed`).toContain('Precomputed source metrics');
+    expect(derived.text, `${label}: the metrics are the stored ones`).toMatch(/Wetlands|Hydrography/);
+    expect(derived.rawBytes, `${label}: opening the detail reads no source cell`).toBe(0);
+
+    const before = rawCells.length;
+    await page.locator('#source-evidence-request').click();
+    await expect(page.locator('#candidate-detail .source-evidence-section')).toContainText('Source-backed', { timeout: 300000 });
+    await expect(page.locator('#candidate-detail .habitat-section')).toBeVisible({ timeout: 300000 });
+    const entry = { place: label, corridor: derived.name, derivedRawCells: derived.rawBytes,
+      sourceRawCells: rawCells.length - before,
+      host: before < rawCells.length ? new URL(rawCells[before]).host : null };
+    report.seeded.push(entry);
+    console.log('DETAIL_PRODUCTION ' + JSON.stringify(entry));
+    expect(entry.sourceRawCells, `${label}: the source step reads raw cells`).toBeGreaterThan(0);
+    expect(entry.host, label).toBe('data.roadnaturalist.com');
+  }
+
+  // Outside every published bounded region: the detail still opens, the metrics are still there, and the source
+  // step says exactly what is missing without fetching anything.
+  await boot();
+  await discovery('yellowstone');
+  const derived = await openDerivedDetail();
+  expect(derived.text).toContain('Precomputed source metrics');
+  expect(derived.rawBytes).toBe(0);
+  const before = rawCells.length;
+  await page.locator('#source-evidence-request').click();
+  const status = page.locator('#candidate-detail .source-evidence-section');
+  await expect(status).toContainText(/have not yet been published|has not yet been published/, { timeout: 180000 });
+  const text = await status.innerText();
+  report.unseeded = { corridor: derived.name, message: text.slice(0, 240), rawCells: rawCells.length - before };
+  console.log('DETAIL_PRODUCTION_UNSEEDED ' + JSON.stringify(report.unseeded));
+  expect(report.unseeded.rawCells, 'a missing source step must fetch nothing').toBe(0);
+  expect(text).toMatch(/precomputed national analysis values/);
+  // The corridor is still readable: the metrics the discovery row carried are on screen.
+  await expect(page.locator('#candidate-detail .corridor-metrics')).toBeVisible();
+  await expect(page.locator('#candidate-detail')).not.toContainText('Source-backed');
+
+  expect(outside, 'a detail panel must reach no geocoder, occurrence source or Investigator endpoint').toEqual([]);
   expect(failures).toEqual([]);
 });

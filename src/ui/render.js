@@ -1,4 +1,5 @@
 import { CANDIDATE_STATUS, COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
+import { EVIDENCE_TERM } from '../discovery/evidence.js';
 import { ATTRIBUTE_STATE } from '../domain/attributes.js';
 import { roadEvidenceSummary } from '../roads/road.js';
 import { roadSourceLabel } from '../roads/pilot.js';
@@ -82,7 +83,8 @@ function restoreNoteDraft(draft) {
 export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null, occurrence = null, onQueryOccurrence = null,
   investigation = null, access = null, onRunAccess = null, onExportBundle = null, onReviewAccess = null, recordedCaptureAt = null, liveOsm = false,
   workerStatus = null, workerUrl = '', declaredSourceCount = null, restored = false, persisted = false, storage = null,
-  userMeta = null, onRunAnalysis = null, onRemove = null, onFavorite = null, onNote = null, outingsUsing = 0 } = {}) {
+  userMeta = null, onRunAnalysis = null, onRemove = null, onFavorite = null, onNote = null, outingsUsing = 0,
+  onRequestSourceEvidence = null } = {}) {
   // The note draft (text, caret and focus) is taken before the panel is replaced and put back afterwards.
   const noteDraft = captureNoteDraft();
   container.replaceChildren();
@@ -105,8 +107,17 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
     restoreNoteDraft(noteDraft);
   }
   if (roads.length) container.append(roadSection(candidate, roads));
-  container.append(ecologySection(ecology));
-  container.append(habitatSection(habitat));
+  // THE TWO LEVELS, ALWAYS IN THIS ORDER. The metrics are what every corridor can show; the source-backed sections
+  // replace nothing and are appended only once the deeper step has actually run, so a panel can never show
+  // source-level numbers it does not have - and never labels precomputed ones as source-backed.
+  const sourceReady = candidate.sourceEvidence?.status === 'ready';
+  container.append(evidenceBanner(candidate, { sourceReady }));
+  if (candidate.derived) container.append(corridorMetricsSection(candidate.derived));
+  container.append(sourceEvidenceSection(candidate, { onRequest: onRequestSourceEvidence }));
+  if (sourceReady) {
+    container.append(ecologySection(ecology));
+    container.append(habitatSection(habitat));
+  }
   container.append(occurrenceSection(occurrence, onQueryOccurrence));
   // ACCESS & ROAD STATUS is its own section and its own evidence class: geometry being verified never
   // implies access, and access never borrows habitat or occurrence language.
@@ -401,6 +412,139 @@ function commonAttribute(roads, pick) {
   return values.every(value => JSON.stringify(value) === first) ? values[0] : null;
 }
 
+
+// WHERE THE NUMBERS CAME FROM. One banner per detail panel, so a person never has to infer the evidence level
+// from whether something loaded: the level, what it means, and which derived plane version it came from.
+function evidenceBanner(candidate, { sourceReady = false } = {}) {
+  const level = sourceReady ? 'source' : 'derived';
+  const node = section('Where these numbers came from');
+  node.classList.add('evidence-banner');
+  const line = el('p', 'evidence-level');
+  line.append(el('span', `tag ${level === 'source' ? 'ok' : 'unknown'}`, EVIDENCE_TERM[level].short),
+    el('span', '', ` ${EVIDENCE_TERM[level].long}`));
+  node.append(line, el('p', 'small muted', EVIDENCE_TERM[level].note));
+  if (candidate?.derivedVersion) node.append(el('p', 'small muted', `Derived plane version: ${candidate.derivedVersion}.`));
+  return node;
+}
+
+function metricRow(label, values) {
+  const row = el('li');
+  row.append(el('span', 'metrics-label', label),
+    el('span', 'metrics-value', values.filter(value => value != null && value !== '').join(' · ')));
+  return row;
+}
+
+function formatMetricArea(value) {
+  return `${Math.round(Number(value ?? 0)).toLocaleString('en-US')} m²`;
+}
+
+function formatMetricDistance(value) {
+  return value == null ? 'unknown' : `${Math.round(Number(value)).toLocaleString('en-US')} m`;
+}
+
+function ecologyPrimary(level) {
+  if (!level?.primary) return 'unknown';
+  return `${level.primary.name}${level.primary.percent ? ` (${Math.round(level.primary.percent)} %)` : ''}`;
+}
+
+// SOURCE-LEVEL EVIDENCE. The deeper step, and never automatic: an action while the cells are online, a precise
+// status while they are not. Either way the corridor above is already readable, and nothing here pretends the
+// precomputed metrics were re-measured.
+function sourceEvidenceSection(candidate, { onRequest = null } = {}) {
+  const state = candidate?.sourceEvidence ?? { status: 'unknown' };
+  const node = section('Source-level evidence');
+  node.classList.add('source-evidence-section');
+  node.append(el('p', 'small muted', EVIDENCE_TERM.source.note));
+  if (state.status === 'loading') {
+    node.append(el('p', 'small muted', 'Rebuilding this corridor from the published road network…'));
+    return node;
+  }
+  if (state.status === 'ready') {
+    const line = el('p', 'small');
+    line.append(el('span', 'tag ok', EVIDENCE_TERM.source.short));
+    node.append(line, el('p', 'small muted', 'The wetland, hydrography and ecology sections below were measured from '
+      + 'the published source data in this session.'));
+    return node;
+  }
+  if (onRequest) {
+    const button = el('button', 'primary-button', 'View source evidence');
+    button.type = 'button';
+    button.id = 'source-evidence-request';
+    button.addEventListener('click', () => onRequest());
+    node.append(button, el('p', 'small muted', 'Rebuilds this corridor from the published road network and reads the '
+      + 'published wetland and hydrography cells. It reads source data, so it is slower than the metrics above.'));
+  }
+  if (state.status === 'unavailable' || state.status === 'failed') {
+    node.append(el('p', 'small warn', state.message ?? 'Source-level evidence is not available for this corridor.'));
+    const missing = Object.entries(state.missing ?? {}).filter(([, cells]) => Array.isArray(cells) && cells.length);
+    if (missing.length) {
+      const details = el('details', 'small muted');
+      details.append(el('summary', '', 'What is missing'), el('p', 'small muted',
+        missing.map(([plane, cells]) => `${plane}: ${cells.length} raw source cell(s)`).join(' · ')));
+      node.append(details);
+    }
+  }
+  return node;
+}
+
+// CORRIDOR METRICS. The precomputed values, rendered exactly as the derived row stores them: no recalculation, no
+// inference, explicit units, and nothing described as live or verified. Every number is already in memory because
+// discovery loaded the row, which is why this panel needs no network at all.
+function corridorMetricsSection(derived) {
+  const node = section('Corridor metrics');
+  node.classList.add('corridor-metrics');
+  node.append(el('p', 'small muted', 'Precomputed source metrics: measured by the national analysis build from the '
+    + 'source datasets and stored in the derived plane. Opening this panel reads no source cells.'));
+  if (!derived) { node.append(el('p', 'small muted', 'No precomputed metrics are attached to this corridor.')); return node; }
+
+  const road = derived.road ?? null;
+  if (road) {
+    const list = el('ul', 'metrics-list');
+    list.append(metricRow('Road', [road.name ?? 'unnamed',
+      road.roadClasses?.length ? `class ${road.roadClasses.join(', ')}` : null,
+      road.lengthM == null ? null : `${(road.lengthM / 1609.344).toFixed(1)} mi`,
+      road.countyNames?.length ? road.countyNames.join(' / ') : null,
+      road.sourceFeatureCount == null ? null : `${road.sourceFeatureCount} source feature(s)`]));
+    node.append(el('h4', 'metrics-heading', 'Road'), list);
+  }
+
+  const wetlands = derived.wetlands ?? null;
+  if (wetlands) {
+    const list = el('ul', 'metrics-list');
+    list.append(metricRow('Intersects wetlands', [wetlands.intersectsCorridor ? 'yes' : 'no']));
+    for (const buffer of wetlands.buffers ?? []) {
+      list.append(metricRow(`${buffer.distanceM} m wetland area`,
+        [formatM2(buffer.areaM2), buffer.featureCount == null ? null : `${buffer.featureCount} feature(s)`]));
+    }
+    list.append(metricRow('Nearest wetland', [formatDistance(wetlands.nearestDistanceM)]));
+    const types = (wetlands.classes ?? []).map(entry => entry.label).filter(Boolean);
+    if (types.length) list.append(metricRow('Wetland types', [types.slice(0, 3).join(', ')]));
+    node.append(el('h4', 'metrics-heading', 'Wetlands'), list);
+  }
+
+  const hydro = derived.hydrography ?? null;
+  if (hydro) {
+    const list = el('ul', 'metrics-list');
+    list.append(metricRow('Stream crossings', [String(hydro.crossingCount ?? 0)]));
+    list.append(metricRow('Nearest flowing water', [formatDistance(hydro.nearestFlowingWaterM)]));
+    list.append(metricRow('Nearest standing water', [formatDistance(hydro.nearestStandingWaterM)]));
+    const thousand = (hydro.buffers ?? []).find(buffer => buffer.distanceM === 1000) ?? null;
+    if (thousand?.lengthM) list.append(metricRow('Flowline within 1000 m', [`${Math.round(thousand.lengthM)} m`]));
+    if (thousand?.areaM2) list.append(metricRow('Waterbody within 1000 m', [formatM2(thousand.areaM2)]));
+    if (hydro.names?.length) list.append(metricRow('Named water', [hydro.names.slice(0, 4).join(', ')]));
+    node.append(el('h4', 'metrics-heading', 'Hydrography'), list);
+  }
+
+  const ecology = derived.ecology ?? null;
+  if (ecology) {
+    const list = el('ul', 'metrics-list');
+    list.append(metricRow('Primary Level III', [ecologyPrimary(ecology.level3)]));
+    list.append(metricRow('Primary Level IV', [ecologyPrimary(ecology.level4)]));
+    if (ecology.transitions != null) list.append(metricRow('Ecoregion transitions', [String(ecology.transitions)]));
+    node.append(el('h4', 'metrics-heading', 'Ecology'), list);
+  }
+  return node;
+}
 
 function ecologySection(ecology) {
   const node = section('Ecological context');

@@ -550,6 +550,47 @@ converges on where people actually explore rather than on the size of the lake (
 0.6 GB of bounded cells for the measured corridor pool; the scattered upper bound is 16.7 GB at 1,000 promotions
 against a 188.9 GB lake).
 
+## Two levels of detail, and a line that is never blurred
+
+Every discovered corridor is worth opening, and what it opens *with* is stated rather than implied.
+
+**Corridor metrics — precomputed.** Selecting a corridor and promoting it builds an ordinary candidate from the
+derived row the discovery run already loaded: the corridor geometry the national build composed, the road's name,
+class, counties and segment position, the wetland areas at 250/500/1000 m with their feature counts and nearest
+distance, the stream crossings and nearest flowing and standing water, and the primary Level III and IV ecoregions.
+Nothing is fetched to show any of it, which is why the panel opens instantly and why it works in every corner of the
+country — including the overwhelming majority of it where no bounded wetland or hydrography cell has ever been
+published. These values are not estimates and they are not a re-measurement: the build measured them from the same
+source datasets and the immutable derived plane stores them, so the panel says exactly that, and the road record
+carries a third geometry claim of its own (`GEOMETRY PRECOMPUTED`) rather than borrowing "verified".
+
+**Source-level evidence — explicit and optional.** `View source evidence` is a separate button, and it is the only
+thing that reads raw source cells. It rebuilds the corridor from the published national road network, verifies it
+against the row to within a metre, then reads the published bounded wetland and hydrography cells; ecology comes
+from the globally published CONUS layers. When those cells are online the panel switches to `Source-backed` and
+shows the freshly measured sections beneath the metrics. When they are not, nothing fails: the metrics stay on
+screen and the panel says *"Source-level evidence has not yet been published for this corridor: 4 raw source cells
+(wetlands: 2, hydrography: 2) are missing. The metrics shown are the precomputed national analysis values."* — with
+the missing planes counted in a `<details>`, never the raw cell ids in the open.
+
+**Why this shape and not a thinner serving layer.** The canonical 0.2° NWI plane is 156 GB and one cell can be 188
+MB, which is what made a serving layer attractive; it was built and measured twice and rejected both times (see
+"Measured: a thinner wetlands serving layer, evaluated and rejected") — clipping is not equivalent, and replication
+does not save enough to matter. What the investigation *did* establish is that the useful detail already exists in
+the derived plane, exactly, for every corridor. So the canonical cells stay the authoritative evidence, the derived
+row becomes the honest everyday answer, and the two are labelled differently wherever they appear: `Precomputed`
+and `Source-backed`, one term each, everywhere, with no "live", no "estimated", and "verified" reserved for the
+digest checks it belongs to.
+
+Opening a corridor detail therefore costs **zero raw object requests** — the availability answer is one small
+committed index, the geometry and metrics are already in memory — and a corridor the country has never published
+raw wetland coverage for is still worth the click.
+
+```bash
+# what one corridor needs published, when the source step says it is missing
+node scripts/publish-national-raw.mjs --region <slug> --bounds minLon,minLat,maxLon,maxLat --dry-run
+```
+
 ## Search context: the centre's name, and where each road lies
 
 Two presentation facts are derived from the centre a person chose. Both are measured, both are local, and

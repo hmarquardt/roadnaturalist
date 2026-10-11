@@ -4,6 +4,8 @@ import { DEFAULT_TOLERANCE_M } from '../roads/normalize.js';
 import { coverageFlag } from './filter.js';
 import { PROMOTION_MAX_DRIFT_M } from './promotion.js';
 import { verifyPromotionSearchContext } from './search-context.js';
+import { DETAIL_LEVEL, derivedEvidence, detailLevelFor } from './evidence.js';
+import { derivedRoad } from '../roads/road.js';
 
 // Discovery lifecycle: a discovered candidate is either left alone, promoted into the ordinary
 // candidate pipeline, or dismissed. Promotion is a real promotion: it builds the same road records and
@@ -39,7 +41,8 @@ export function markDiscovery(marks, id, status) {
 }
 
 export function promoteDiscoveryResult(result, { features = [], provenance = null, toleranceM = DEFAULT_TOLERANCE_M,
-  dataCatalogUrl = null, corridor = null, searchContext = null } = {}) {
+  dataCatalogUrl = null, corridor = null, searchContext = null, derived = null, derivedVersion = null,
+  sourceEvidence = null, evidenceLevels = null } = {}) {
   const members = features.filter(feature => result.road.sourceFeatureIds.includes(String(feature.sourceFeatureId)));
   if (!members.length) throw new TypeError(`Promotion needs the source features of ${result.id}`);
   const groups = groupRoadFeatures(members);
@@ -65,6 +68,9 @@ export function promoteDiscoveryResult(result, { features = [], provenance = nul
   for (const [datasetId, entry] of entries) coverage = setDatasetCoverage(coverage, datasetId, entry);
   const candidate = createCandidate({
     id: result.id, name: result.name, status: 'discovered', roads, coverage, dataCatalogUrl,
+    derived, derivedVersion, evidenceLevels: evidenceLevels ?? derivedEvidence(),
+    detailLevel: detailLevelFor(evidenceLevels ?? derivedEvidence()),
+    sourceEvidence: sourceEvidence ?? { status: 'unknown', message: null, missing: null },
     summary: promotionSummary(result, roads),
     evidence: [
       { kind: 'MODELED', coverage: flag,
@@ -93,6 +99,53 @@ export function promoteDiscoveryResult(result, { features = [], provenance = nul
   return candidate;
 }
 
+// THE DERIVED CANDIDATE. A discovered corridor becomes an ordinary candidate from the derived row alone: its
+// geometry is the precomputed corridor, its road record says the geometry is precomputed, and its evidence levels
+// say every plane is derived. No raw cell is fetched, so this succeeds everywhere the derived plane is published -
+// which is everywhere discovery runs. The source-backed level is a separate, explicit action
+// (promoteDiscoveryResult, below), and a candidate that has only ever been derived is never presented as if its
+// wetlands and hydrography had been re-read.
+export function promoteDerivedCandidate(result, { corridor = null, derived = null, derivedVersion = null,
+  dataCatalogUrl = null, searchContext = null, provenance = null, sourceEvidence = null } = {}) {
+  if (!corridor?.geometry) throw new TypeError(`A derived candidate needs the corridor row of ${result.id}`);
+  const roads = [derivedRoad(corridor, result.road ?? {}, { derivedVersion, provenance })];
+  const flag = coverageFlag(result);
+  let coverage = createCoverage();
+  const entries = [
+    [COVERAGE_DATASET.ROAD_GEOMETRY, { coverage: flag, reason: 'Road geometry is the precomputed national analysis corridor.' }],
+    [COVERAGE_DATASET.DISCOVERY, { coverage: flag, reason: 'This corridor was found by candidate discovery, not hand-declared.' }],
+    [COVERAGE_DATASET.WETLANDS, result.coverage[COVERAGE_DATASET.WETLANDS]],
+    [COVERAGE_DATASET.HYDROGRAPHY, result.coverage[COVERAGE_DATASET.HYDROGRAPHY]],
+    [COVERAGE_DATASET.EPA_LEVEL3, result.coverage[COVERAGE_DATASET.EPA_LEVEL3]],
+    [COVERAGE_DATASET.EPA_LEVEL4, result.coverage[COVERAGE_DATASET.EPA_LEVEL4]],
+  ];
+  for (const [datasetId, entry] of entries) coverage = setDatasetCoverage(coverage, datasetId, entry);
+  const candidate = createCandidate({
+    id: result.id, name: result.name, status: 'discovered', roads, coverage, dataCatalogUrl,
+    derived, derivedVersion, summary: promotionSummary(result, roads), detailLevel: DETAIL_LEVEL.DERIVED,
+    evidenceLevels: derivedEvidence(),
+    sourceEvidence: sourceEvidence ?? { status: 'unknown', message: null, missing: null },
+    evidence: [
+      { kind: 'MODELED', coverage: flag,
+        statement: `Candidate discovery proposed this corridor from ${result.road.sourceFeatureCount} TIGER/Line 2025 road feature(s) `
+          + `named ${result.name}${result.road.segmentation.count > 1
+            ? `, divided into ${result.road.segmentation.count} contiguous discovery corridors (this is corridor ${result.road.segmentation.index})` : ''}.`,
+        provenance: { source: 'Road Naturalist candidate discovery', method: 'Name-normalized road composition, contiguous segmentation, set-oriented GIS analysis',
+          note: 'Discovery is a screening step: it measured road, wetland, hydrography, and ecoregion facts. It is not a wildlife claim.' } },
+      { kind: 'MODELED', coverage: flag,
+        statement: 'The corridor metrics shown for this corridor are precomputed: the national analysis build measured '
+          + 'them from the same source datasets and stored them in the derived plane. They are not estimates, and they '
+          + 'were not re-measured in this session.',
+        provenance: { source: 'National derived corridor-metrics plane', method: 'Precomputed corridor metrics',
+          note: 'Source-level wetland and hydrography evidence is a separate, deeper step that reads the published raw cells.' } },
+    ],
+    questions: ['Is this road publicly accessible, and under what restrictions?'],
+  });
+  const verified = verifyPromotionSearchContext(searchContext, candidate.geometry, { toleranceM: PROMOTION_MAX_DRIFT_M });
+  if (!verified.ok) throw new Error(`search context: ${verified.reason}`);
+  return verified.context ? createCandidate({ ...candidate, searchContext: verified.context }) : candidate;
+}
+
 function signalNote(result) {
   const wetlands = result.signals.wetlands;
   const hydro = result.signals.hydrography;
@@ -113,6 +166,7 @@ function dominantGroup(groups) {
 
 function promotionSummary(result, roads) {
   const miles = result.lengthM / 1609.344;
-  const counties = roads.map(road => road.county?.name).filter(Boolean).map(name => name.replace(/, Oregon$/, ''));
+  const counties = roads.flatMap(road => road.county?.name ? [road.county.name] : (road.countyNames ?? []))
+    .filter(Boolean).map(name => name.replace(/, Oregon$/, ''));
   return [`${miles.toFixed(1)} mi`, `discovered corridor`, counties.join(' / ')].filter(Boolean).join(' · ');
 }

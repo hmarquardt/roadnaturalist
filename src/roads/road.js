@@ -8,9 +8,13 @@ import { composeRoadLines, DEFAULT_TOLERANCE_M } from './normalize.js';
 // A road spanning a county boundary becomes two county-scoped road records (TIGER/Line has no
 // road-level id); a candidate corridor composes them in src/domain/corridor.js. See docs/ROADS.md.
 
-export const ROAD_GEOMETRY_STATUS = Object.freeze({ VERIFIED: 'verified', PARTIAL: 'partial', UNRESOLVED: 'unresolved' });
+export const ROAD_GEOMETRY_STATUS = Object.freeze({ VERIFIED: 'verified', PARTIAL: 'partial', UNRESOLVED: 'unresolved',
+  DERIVED: 'derived' });
 export const ROAD_ACCESS_STATUS = Object.freeze({ VERIFIED: 'verified', PROBABLE: 'probable', UNVERIFIED: 'unverified' });
 export const ROAD_GEOMETRY_STATEMENT = 'Road geometry comes from identified source data.';
+// A third claim, for a geometry nobody re-read in this session: measured by the national build, stored in the
+// derived plane, and never presented as a fresh verification.
+export const ROAD_GEOMETRY_DERIVED_STATEMENT = 'Road geometry is the precomputed national analysis corridor: it comes from the national build, not from a source cell read in this session.';
 export const ROAD_ACCESS_STATEMENT = 'Road Naturalist has not established public, legal, or practical access.';
 export const ROAD_ACCESS_CAVEAT = 'Presence in a road centerline dataset is not evidence of legal public access or of a practical wildlife road cruise.';
 
@@ -106,14 +110,17 @@ export function createRoad(group, { provenance = null, toleranceM = DEFAULT_TOLE
 }
 
 // Geometry evidence and access evidence are different claims. A verified line never implies access.
-export const ROAD_GEOMETRY_LABEL = Object.freeze({ verified: 'GEOMETRY VERIFIED', partial: 'GEOMETRY PARTIAL', unresolved: 'GEOMETRY UNRESOLVED' });
+export const ROAD_GEOMETRY_LABEL = Object.freeze({ verified: 'GEOMETRY VERIFIED', partial: 'GEOMETRY PARTIAL',
+  unresolved: 'GEOMETRY UNRESOLVED', derived: 'GEOMETRY PRECOMPUTED' });
 export const ROAD_ACCESS_LABEL = Object.freeze({ verified: 'ACCESS VERIFIED', probable: 'ACCESS PROBABLE', unverified: 'ACCESS UNVERIFIED' });
 
 export function roadEvidenceSummary(roads) {
   if (!Array.isArray(roads) || !roads.length) throw new TypeError('Evidence summary needs at least one road');
   const statuses = roads.map(road => road.evidence.geometry.status);
   const geometry = statuses.includes(ROAD_GEOMETRY_STATUS.UNRESOLVED) ? ROAD_GEOMETRY_STATUS.UNRESOLVED
-    : statuses.includes(ROAD_GEOMETRY_STATUS.PARTIAL) ? ROAD_GEOMETRY_STATUS.PARTIAL : ROAD_GEOMETRY_STATUS.VERIFIED;
+    : statuses.includes(ROAD_GEOMETRY_STATUS.PARTIAL) ? ROAD_GEOMETRY_STATUS.PARTIAL
+      : statuses.every(status => status === ROAD_GEOMETRY_STATUS.DERIVED) ? ROAD_GEOMETRY_STATUS.DERIVED
+        : ROAD_GEOMETRY_STATUS.VERIFIED;
   return Object.freeze({
     geometry: Object.freeze({ status: geometry, label: ROAD_GEOMETRY_LABEL[geometry], statement: ROAD_GEOMETRY_STATEMENT }),
     access: Object.freeze({ status: ROAD_ACCESS_STATUS.UNVERIFIED, label: ROAD_ACCESS_LABEL[ROAD_ACCESS_STATUS.UNVERIFIED],
@@ -145,4 +152,54 @@ function roadProvenance(group, sourceFeatureIds, provenance, composition) {
   });
 }
 
-
+// A road record for a corridor whose geometry comes from the derived plane, not from a fresh reconstruction.
+//
+// Same shape as a composed road, different claim: the geometry is precomputed by the national analysis build, so
+// its evidence status says exactly that instead of borrowing "verified" - nothing in this session re-verified it -
+// and its provenance names the derived plane (and the source datasets the build pinned) rather than a re-read
+// archive. This is what makes a corridor openable where the raw wetland and hydrography cells have never been
+// published, without dressing precomputed values as source-backed evidence.
+export function derivedRoad(corridor, unit = {}, { derivedVersion = null, provenance = null } = {}) {
+  if (!corridor?.geometry) throw new TypeError('A derived road needs the corridor geometry from the derived row');
+  const measured = corridorGeometry(corridor.geometry);
+  if (!measured.geometry || !Number.isFinite(measured.lengthM) || measured.lengthM <= 0) {
+    throw new TypeError('A derived road needs a usable corridor geometry');
+  }
+  const sourceFeatureIds = (unit.sourceFeatureIds ?? []).map(String);
+  const countyNames = (unit.countyNames ?? []).map(String);
+  const countyFips = (unit.countyFips ?? []).map(String).sort();
+  const composition = Object.freeze({ method: 'precomputed: composed during the national analysis build',
+    toleranceM: null, partCount: null, usedFeatureCount: sourceFeatureIds.length, maxUnresolvedGapM: null });
+  return Object.freeze({
+    id: corridor.unitId ?? unit.id ?? corridor.id, name: corridor.name ?? unit.name ?? null,
+    geometry: measured.geometry, bounds: measured.bounds, lengthM: measured.lengthM,
+    composition: Object.freeze({ ...composition, corridorSegment: Object.freeze({
+      index: corridor.segmentIndex ?? 1, count: corridor.segmentCount ?? 1,
+      method: 'contiguous vertices along the composed unit' }) }),
+    roadClass: roadClassAttribute(unit.roadClass ?? null), routeType: routeTypeAttribute(unit.routeType ?? null),
+    surface: notProvided('The selected road source publishes no surface information.'),
+    access: unknown('No access metadata has been evaluated for this road.'),
+    sourceFeatureIds, county: null,
+    countyNames, countyFips,
+    evidence: Object.freeze({
+      geometry: Object.freeze({ status: ROAD_GEOMETRY_STATUS.DERIVED, statement: ROAD_GEOMETRY_DERIVED_STATEMENT,
+        sourceFeatureCount: sourceFeatureIds.length, composition }),
+      access: Object.freeze({ status: ROAD_ACCESS_STATUS.UNVERIFIED, statement: ROAD_ACCESS_STATEMENT,
+        note: ROAD_ACCESS_CAVEAT }),
+    }),
+    provenance: Object.freeze({
+      organization: provenance?.agency ?? 'Road Naturalist',
+      dataset: 'National derived corridor-metrics plane',
+      datasetId: 'road-derived-corridor-metrics', datasetVersion: derivedVersion,
+      vintage: null, referenceUrl: null, documentationUrl: null, license: null, datasetDigest: null,
+      retrievedAt: null, sourcePublicationDate: null, sourceFeatureIds: Object.freeze(sourceFeatureIds),
+      countyFips: countyFips[0] ?? null, countyName: countyNames[0] ?? null,
+      sourceAttributes: Object.freeze({ name: corridor.name ?? unit.name ?? null, roadClass: unit.roadClass ?? null,
+        routeType: unit.routeType ?? null }),
+      sourceCrs: null, crs: 'EPSG:4326', sourceArchives: Object.freeze([]),
+      normalization: Object.freeze({ pipelineVersion: null, method: 'precomputed corridor metrics', composition }),
+      derived: true,
+    }),
+    derived: true,
+  });
+}

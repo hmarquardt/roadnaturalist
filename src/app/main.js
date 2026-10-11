@@ -479,13 +479,78 @@ async function promoteDiscoveryCorridor(id) {
   }
 }
 
+// LEVEL 1. A promotion opens the corridor's precomputed metrics: the row the discovery run already loaded, its
+// geometry as the national build composed it, and no raw cell fetched. This succeeds wherever the derived plane is
+// published - everywhere discovery runs - so a corridor is never unopenable merely because its wetland or
+// hydrography cells have not been published. What the panel shows is labelled as precomputed, because that is what
+// it is; the source-backed level is the separate action below.
 async function promoteDerivedResult(result, searchContext, state) {
-  const rebuilt = await reconstructDerivedCorridor(result);
-  // The raw corridor is what becomes the candidate, so the detailed panel measures reconstructed source
-  // geometry and reads raw regional habitat data - precomputed values never stand in for detailed evidence.
-  return promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor, searchContext,
-    provenance: state.discovery.raw?.provenance ?? null, dataCatalogUrl: rebuilt.dataCatalogUrl });
+  const entry = state.discovery.raw?.corridors?.find(item => item.corridor?.id === result.id) ?? null;
+  if (!entry) throw new Error('the precomputed row is no longer loaded');
+  const availability = await rawAvailabilityFor(entry.corridor.bounds);
+  // The availability answer is the committed index's, not a probe: one small document, already cached, and no raw
+  // object is read to produce it.
+  return promoteDerivedCandidate(result, { corridor: entry.corridor, derived: derivedMetricsFor(result),
+    derivedVersion: state.discovery.raw?.provenance?.regionVersion ?? null,
+    dataCatalogUrl: availability.available ? new URL(availability.region.catalogUrl, availability.region.assetBaseUrl).href : null,
+    searchContext, provenance: state.discovery.raw?.provenance ?? null,
+    sourceEvidence: { status: availability.available ? 'available' : 'unavailable',
+      message: availability.available ? null : rawAvailabilityMessage(availability),
+      missing: availability.missing ?? null } });
 }
+
+// The derived metrics exactly as the plane stores them, kept on the candidate so the panel renders stored values
+// rather than recomputing anything in the browser.
+function derivedMetricsFor(result) {
+  return Object.freeze({ road: result.road ?? null, ecology: result.ecology ?? null,
+    wetlands: result.signals?.wetlands ?? null, hydrography: result.signals?.hydrography ?? null,
+    coverage: result.coverage ?? null });
+}
+
+// LEVEL 2, and only ever on an explicit request. The corridor is rebuilt from the published raw road network and
+// verified against the row, then read against the published raw wetland and hydrography cells. If the row cannot be
+// reproduced, the derived candidate stays exactly as it was and the failure is reported as the source step's
+// status - never as a lost corridor.
+async function requestSourceEvidence(id) {
+  const state = store.getState();
+  const result = state.discovery.results.find(entry => entry.id === id);
+  const candidate = state.candidates.find(item => item.id === id);
+  if (!result || !candidate) return;
+  const keep = (sourceEvidence) => store.promoteDiscoveryCandidate({ ...candidate, sourceEvidence }, id);
+  store.promoteDiscoveryCandidate({ ...candidate,
+    sourceEvidence: { ...candidate.sourceEvidence, status: 'loading', message: null } }, id);
+  try {
+    const rebuilt = await reconstructDerivedCorridor(result);
+    const promoted = promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor,
+      searchContext: promotionSearchContext(result), provenance: state.discovery.raw?.provenance ?? null,
+      dataCatalogUrl: rebuilt.dataCatalogUrl, derived: candidate.derived,
+      derivedVersion: state.discovery.raw?.provenance?.regionVersion ?? null,
+      evidenceLevels: sourceEvidenceLevels({ roads: true }),
+      sourceEvidence: { status: 'ready', message: null, missing: null } });
+    store.promoteDiscoveryCandidate(promoted, id);
+    // Ecology comes from the globally published CONUS layers and habitat from the bounded cells: both are live
+    // reads, so both are source-backed once they have run.
+    await resolveEcoregions(id);
+    await resolveHabitat(id);
+  } catch (error) {
+    keep({ status: error.rawUnavailable ? 'unavailable' : 'failed',
+      message: error.rawUnavailable ? error.message
+        : `the corridor could not be reconstructed from the published source cells (${error.message})`,
+      missing: error.missingCells ?? null });
+  }
+}
+
+// Which planes a source run actually read. A plane it did not cover stays precomputed, so a partially
+// source-backed corridor is representable without pretending the other planes were re-read.
+function sourceEvidenceLevels({ roads = false, ecology = false, wetlands = false, hydrography = false } = {}) {
+  return sourceEvidence({ roads, ecology, wetlands, hydrography });
+}
+
+async function requestSourceEvidenceForSelected() {
+  const state = store.getState();
+  if (state.selectedId) await requestSourceEvidence(state.selectedId);
+}
+
 
 function promoteRawResult(result, searchContext, state) {
   // The corridor object carries the canonical geometry of the row the person selected; the candidate is
@@ -900,12 +965,14 @@ store.subscribe(state => {
   const investigation = selected ? state.investigationByCandidate[selected.id] ?? null : null;
   const accessReview = selected ? state.accessReviewByCandidate[selected.id] ?? null : null;
   const roads = selected ? state.roadsByCandidate[selected.id] ?? [] : [];
-  // Each corridor resolves its own ecological and habitat analysis when it is first selected.
-  // Occurrence evidence is never fetched automatically: only the explicit button triggers it.
-  // A candidate restored from this device is the exception: its analysis is an explicit request, so a reload
-  // never turns boot into a GIS read of the raw partitions.
+  // Selecting a corridor never reads source data by itself. A corridor whose detail is the precomputed metrics -
+  // which is every corridor until source evidence is explicitly requested - opens with no GIS read at all, and
+  // occurrence evidence was already explicit. The two exceptions are deliberate: a restored candidate (its
+  // analysis is the whole point of restoring it and the panel says so) and a candidate whose source evidence has
+  // been requested, where the habitat and ecology reads are the step the person asked for.
   const restored = Boolean(selected && state.restoredCandidateIds.includes(selected.id));
-  if (selected && !restored && drawn.resolvedId !== selected.id) {
+  const wantsSourceReads = selected?.sourceEvidence?.status === 'ready';
+  if (selected && (restored || wantsSourceReads) && drawn.resolvedId !== selected.id) {
     drawn.resolvedId = selected.id;
     resolveEcology(selected.id)
       .then(() => resolveHabitat(selected.id))
@@ -924,6 +991,7 @@ store.subscribe(state => {
     onFavorite: (id, favorite) => store.setCandidateFavorite(id, favorite),
     onNote: (id, value, options) => saveCandidateNote(id, value, options),
     onRunAnalysis: () => runCandidateAnalysis(selected?.id),
+    onRequestSourceEvidence: () => requestSourceEvidenceForSelected(),
     // The workspace checks first: a road used by a plan is removed from it only when a person says so.
     outingsUsing: selected ? store.outingsUsingCandidate(selected.id).length : 0,
     onRemove: (id, options) => store.removeCandidate(id, options),

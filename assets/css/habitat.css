@@ -4,3 +4,53 @@
 .habitat-section .road-facts dt { font-size: .66rem; }
 .habitat-section .provenance-details { margin-top: .7rem; }
 .habitat-section .small.muted { margin: .45rem 0 0; }
+
+/* THE TWO LEVELS OF DETAIL, VISIBLE AT A GLANCE.
+   The metrics block and the source-evidence block sit one after the other, and the evidence banner names which
+   level the panel is showing. Nothing here styles a precomputed value to look like a source-backed one. */
+.evidence-banner .evidence-level {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  margin: 0.2rem 0 0.35rem;
+}
+
+.corridor-metrics .metrics-heading {
+  margin: 0.6rem 0 0.2rem;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+.corridor-metrics .metrics-list {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.corridor-metrics .metrics-list li {
+  display: grid;
+  grid-template-columns: minmax(10rem, 14rem) 1fr;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-size: 0.86rem;
+}
+
+.corridor-metrics .metrics-label {
+  opacity: 0.72;
+}
+
+.corridor-metrics .metrics-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.source-evidence-section .primary-button {
+  margin: 0.2rem 0 0.35rem;
+}
+
+.source-evidence-section .warn {
+  color: #8a4b00;
+}
