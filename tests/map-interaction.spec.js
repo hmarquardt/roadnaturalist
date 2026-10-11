@@ -204,9 +204,19 @@ for (const [query, label, geography] of REGIONS) {
       .toBeLessThan(geography.lon[1]);
 
     // 5. MAP → LIST. Clicking a line selects the same corridor through the application's own code path.
+    //
+    // THE CLICK MUST LAND ON THE LINE. A `force` click at the corner of a path's bounding box hits empty space for any
+    // diagonal road: the map's proximity fallback still selects the right corridor, so the selection assertion passes
+    // while the layer itself is never clicked and never opens its card. The point used here is computed from the path's
+    // own geometry, so the click is on the drawn road the way a person's would be.
     const targetId = await requireIdOfRow(2);
     const targetPath = page.locator(`#map path[data-role="candidate"][data-corridor-id="${targetId}"]`).first();
-    await targetPath.click({ force: true, position: { x: 3, y: 3 } });
+    const onLine = await targetPath.evaluate(element => {
+      const midpoint = element.getPointAtLength(element.getTotalLength() / 2);
+      const screen = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(element.getScreenCTM());
+      return { x: screen.x, y: screen.y };
+    });
+    await page.mouse.click(onLine.x, onLine.y);
     await page.waitForTimeout(800);
     expect(await selectedId(), `${label}: a map click selects the same corridor in the list`).toBe(targetId);
     const afterMapClick = await camera();
