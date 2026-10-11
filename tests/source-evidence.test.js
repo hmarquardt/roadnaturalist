@@ -1,7 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import { createEvidenceRequests } from '../src/discovery/evidence.js';
+
+// THE EVIDENCE PATH MAY NOT CALL SOMETHING THAT DOES NOT EXIST.
+//
+// The road stage failing first hid a second, unrelated defect: the ecology stage called `resolveEcoregions`, which
+// this module has never defined, so the moment roads succeeded the panel failed on a ReferenceError. Nothing
+// static in the repository would have caught it - the module parses, and the call is well formed - so the check
+// lives here: every bare function the source-evidence path calls must be defined or imported by the module.
+test('every function the source-evidence path calls is defined by the app module', () => {
+  const source = readFileSync(new URL('../src/app/main.js', import.meta.url), 'utf8');
+  const start = source.indexOf('async function requestSourceEvidence(');
+  assert.ok(start > 0, 'the source-evidence path must exist to be checked');
+  const end = source.indexOf('\n}\n', source.indexOf('sourceEvidenceRequests.finish', start));
+  assert.ok(end > start);
+  const path = source.slice(start, end);
+  const defined = new Set([
+    ...source.matchAll(/function\s+([A-Za-z_$][\w$]*)/g),
+    ...source.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g),
+    ...source.matchAll(/import\s*\{([^}]*)\}/g),
+  ].flatMap(match => (match[1].includes(',') ? match[1].split(',') : [match[1]]).map(name => name.trim())));
+  const allowed = new Set(['Boolean', 'Number', 'String', 'Symbol', 'Error', 'Promise', 'Math', 'JSON', 'Object',
+    'Array', 'setTimeout', 'clearTimeout', 'async', 'if', 'for', 'while', 'catch', 'switch', 'typeof', 'reject']);
+  const called = [...path.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(/g)].map(match => match[1]);
+  const missing = [...new Set(called)].filter(name => !defined.has(name) && !allowed.has(name));
+  assert.deepEqual(missing, [], `the source-evidence path calls ${missing.join(', ')}, which nothing defines`);
+});
+
 
 //
 // A person can select another corridor, or the same corridor again, while a promotion is still composing its road

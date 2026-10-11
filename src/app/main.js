@@ -568,21 +568,27 @@ async function requestSourceEvidence(id) {
       evidenceStage('roads:start', { id });
       const rebuilt = await reconstructDerivedCorridor(result);
       evidenceStage('roads:done', { id, features: rebuilt.features.length });
-      const promoted = promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor,
+      const promote = (planes) => promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor,
         searchContext: promotionSearchContext(result), provenance: state.discovery.raw?.provenance ?? null,
         dataCatalogUrl: rebuilt.dataCatalogUrl, derived: current.derived,
         derivedVersion: state.discovery.raw?.provenance?.regionVersion ?? null,
-        evidenceLevels: sourceEvidenceLevels({ roads: true }),
+        evidenceLevels: sourceEvidenceLevels(planes),
         sourceEvidence: { status: 'ready', message: null, missing: null } });
       evidenceStage('assemble', { id });
       settle({ status: 'ready', message: null, missing: null });
-      store.promoteDiscoveryCandidate(promoted, id);
+      store.promoteDiscoveryCandidate(promote({ roads: true }), id);
       evidenceStage('ecology:start', { id });
-      await resolveEcoregions(id);
+      await resolveEcology(id);
       evidenceStage('ecology:done', { id });
       evidenceStage('habitat:start', { id });
       await resolveHabitat(id);
       evidenceStage('habitat:done', { id });
+      // The run posts again with the levels its reads earned: a plane that was re-read says so, and a plane that
+      // came back "not published" keeps saying precomputed, which is why a partially source-backed corridor reads
+      // as partly source rather than as wholly either.
+      const levels = { roads: true, ecology: true, ...habitatReadPlanes(id) };
+      store.promoteDiscoveryCandidate(promote(levels), id);
+      evidenceStage('levels', { id, ...levels });
       return 'ready';
     })();
     await Promise.race([work, timeout]);
@@ -606,6 +612,14 @@ async function requestSourceEvidence(id) {
 // source-backed corridor is representable without pretending the other planes were re-read.
 function sourceEvidenceLevels({ roads = false, ecology = false, wetlands = false, hydrography = false } = {}) {
   return sourceEvidence({ roads, ecology, wetlands, hydrography });
+}
+
+// Which bounded planes a habitat read actually came from. A read that fell back to "not published" leaves its plane
+// precomputed, and that is what the panel keeps saying for it.
+function habitatReadPlanes(id) {
+  const habitat = store.getState().habitatByCandidate[id] ?? null;
+  const sourced = (datasetId) => [COVERAGE.FULL, COVERAGE.PARTIAL].includes(habitat?.coverage?.[datasetId]);
+  return { wetlands: sourced(COVERAGE_DATASET.WETLANDS), hydrography: sourced(COVERAGE_DATASET.HYDROGRAPHY) };
 }
 
 async function requestSourceEvidenceForSelected() {
