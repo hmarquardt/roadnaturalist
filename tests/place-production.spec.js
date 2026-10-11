@@ -176,11 +176,19 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
   const rawCells = [];
   const failures = [];
   const outside = [];
-  const ecology = [];
+  // Where the CONUS ecology layers were actually *read*. A request may be redirected by the origin (production
+  // does exactly that for `/data/...`), so what proves the plane model is the response that carried the bytes, and
+  // separately that no origin ever answered an ecology request with a 404.
+  const ecologyReads = [];
+  const ecologyMisses = [];
   page.on('request', request => {
     if (RAW_PLANE.test(request.url())) rawCells.push(request.url());
-    if (ECOLOGY_PLANE.test(request.url())) ecology.push(request.url());
     if (EVIDENCE.test(request.url())) outside.push(request.url());
+  });
+  page.on('response', response => {
+    if (!ECOLOGY_PLANE.test(response.url())) return;
+    if (response.status() >= 400) ecologyMisses.push(`${response.status()} ${response.url()}`);
+    else ecologyReads.push(response.url());
   });
   page.on('pageerror', error => failures.push(error.message));
   // Evidence stages, printed only when EVIDENCE_DEBUG is set: the app gates its own markers the same way.
@@ -324,13 +332,14 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
   // Roads and ecoregions are global planes; wetlands and hydrography stay bounded. A CONUS layer asked of the
   // application's own origin is a request for a file it has never served, and it is the exact failure this gate
   // caught. Both the request list and the absence of console 404s are asserted, because either alone could pass.
-  expect(ecology.filter(url => !url.startsWith(ECOLOGY_ORIGIN)),
-    'no CONUS ecology layer may be requested from the application origin').toEqual([]);
-  expect(ecology.length, 'the seeded promotions must read the declared CONUS layers').toBeGreaterThan(0);
+  expect(ecologyMisses, 'no origin may answer an ecology request with an error').toEqual([]);
+  expect(ecologyReads.length, 'the seeded promotions must read the declared CONUS layers').toBeGreaterThan(0);
+  expect([...new Set(ecologyReads)].filter(url => !url.startsWith(ECOLOGY_ORIGIN)),
+    'every CONUS ecology layer must be read from its declared data origin').toEqual([]);
   const declared = new Set(['national/epa-conus-l3.parquet', 'national/epa-conus-l4.parquet']);
-  for (const url of ecology) {
+  for (const url of new Set(ecologyReads)) {
     expect(declared.has(url.replace(ECOLOGY_ORIGIN, '')), `${url} is not a declared CONUS ecology layer`).toBe(true);
   }
-  console.log('ECOLOGY_PLANE_REQUESTS ' + JSON.stringify([...new Set(ecology)]));
+  console.log('ECOLOGY_PLANE_READS ' + JSON.stringify([...new Set(ecologyReads)]));
   expect(failures).toEqual([]);
 });
