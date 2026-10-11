@@ -26,7 +26,7 @@
  },
  "browserCutover": {
   "status": "passed",
-  "checkedAt": "2026-10-10T22:23:09.092Z",
+  "checkedAt": "2026-10-11T01:02:35.096Z",
   "record": "data/national/verification/derived-publication-browser.txt",
   "reason": null
  },
@@ -96,6 +96,12 @@
    "checkedAt": "2026-10-10T22:01:35.165Z",
    "record": null,
    "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
+  },
+  {
+   "status": "passed",
+   "checkedAt": "2026-10-10T22:23:09.092Z",
+   "record": "data/national/verification/derived-publication-browser.txt",
+   "reason": null
   }
  ],
  "note": "Two independent gates. R2 publication is verified by re-fetching every published object; the browser cutover is verified by a real browser resolving that plane through the deployed frontend. Neither is reported as the other, and the R2 verification stays valid across a browser failure."
