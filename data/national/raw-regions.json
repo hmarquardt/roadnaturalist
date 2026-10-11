@@ -662,7 +662,7 @@
    }
   }
  ],
- "updatedAt": "2026-10-11T00:50:22.749Z",
+ "updatedAt": "2026-10-11T00:56:03.223Z",
  "globalPlanes": {
   "roads": {
    "version": "tiger2025-county-v1",
@@ -677,14 +677,14 @@
    "bytes": 5866868015,
    "publicationUrl": "national/roads/tiger2025-county-v1/publication.json",
    "publicationBytes": 3517716,
-   "publicationSha256": "ce86e3ee452193c84304a9583e31e71e2d0ba336b9ddbe00a903e842af399c3e",
+   "publicationSha256": "a6cd66e3c3042e885b4af99b19724c6e588b9919759afee595508fa5b6d5a9ee",
    "closure": {
     "cellSpan": 5,
     "prefix": "national/roads/tiger2025-county-v1/components/",
     "tiles": 936,
     "bytes": 46118835
    },
-   "auditedAt": "2026-10-11T00:50:22.747Z",
+   "auditedAt": "2026-10-11T00:56:03.218Z",
    "audit": {
     "cells": 21135,
     "remoteObjects": 22072,
@@ -692,7 +692,7 @@
     "sizeMismatch": 0,
     "unexpected": 0,
     "sampled": 12,
-    "seconds": 127
+    "seconds": 114
    },
    "note": "The complete national road raw plane is online. Detailed promotion reads its cells directly and never fails for want of a road cell; wetlands and hydrography remain bounded, published where people explore."
   },

@@ -105,6 +105,13 @@ async function putObject({ key, path, type }) {
   throw new Error(`${key}: still throttled or unauthenticated after retries`);
 }
 
+async function fetchBytes(key) {
+  const response = await fetch(new URL(key, BASE), { headers: { 'Accept-Encoding': 'identity' },
+    signal: AbortSignal.timeout(180000) });
+  if (!response.ok) throw new Error(`${key}: HTTP ${response.status}`);
+  return Buffer.from(await response.arrayBuffer());
+}
+
 async function remoteLength(key) {
   const response = await fetch(new URL(key, BASE), { method: 'HEAD', headers: { 'Accept-Encoding': 'identity' },
     signal: AbortSignal.timeout(30000) });
@@ -467,9 +474,12 @@ function writeClosureTiles({ closurePath, directory, log }) {
   return { tiles: written, bytes, components };
 }
 
-function roadsPublicationDocument({ set, tiles, publishedAt }) {
+function roadsPublicationDocument({ set, tiles }) {
+  // Deliberately no timestamp: this document describes content, so the same plane must produce the same bytes.
+  // A document that changed every run would give a publication a different digest for no reason and make the
+  // index's digest a statement about *when* rather than about *what*.
   return { kind: 'national-roads-publication', schemaVersion: 1, version: ROADS_PLANE.version,
-    publishedAt, cellStepDeg: ROADS_PLANE.cellStepDeg, assetBaseUrl: BASE, pathPrefix: ROADS_PLANE.pathPrefix,
+    cellStepDeg: ROADS_PLANE.cellStepDeg, assetBaseUrl: BASE, pathPrefix: ROADS_PLANE.pathPrefix,
     grid: { kind: 'lonlat-grid', origin: [-180, -90], stepLon: ROADS_PLANE.cellStepDeg, stepLat: ROADS_PLANE.cellStepDeg,
       crs: 'EPSG:4326' },
     counts: { cells: set.cells.length + set.empty.length, present: set.cells.length, empty: set.empty.length,
@@ -573,13 +583,37 @@ async function publishRoadsPlane() {
       bytes: tile.bytes, type: JSON_TYPE }, []);
     tilesUploaded[action in tilesUploaded ? action : 'reused'] += 1;
   });
-  const publication = roadsPublicationDocument({ set, tiles: tiles.tiles, publishedAt: new Date().toISOString() });
+  const publication = roadsPublicationDocument({ set, tiles: tiles.tiles });
   const publicationPath = join(versionDir, 'publication.json');
   writeFileSync(publicationPath, JSON.stringify(publication) + '\n');
-  const publicationBytes = readFileSync(publicationPath);
-  const publicationAction = await ensureObject({ key: ROADS_PLANE.publicationUrl, path: publicationPath,
-    bytes: publicationBytes.length, type: JSON_TYPE }, []);
+  let publicationBytes = readFileSync(publicationPath);
+  let publicationAction = 'uploaded';
+  // An immutable key is never overwritten, and this document is *about* a plane rather than a log of publishing it:
+  // if a publication for this version is already online it is adopted - after checking field by field that it
+  // describes exactly the set this run computed - and its bytes, and its digest, are what the index records. A
+  // document describing a different set is refused rather than written over.
+  const existingPublication = await remoteDigest(ROADS_PLANE.publicationUrl);
+  if (existingPublication) {
+    const existing = JSON.parse((await fetchBytes(ROADS_PLANE.publicationUrl)).toString());
+    const sameSet = existing.kind === publication.kind && existing.version === publication.version
+      && existing.counts?.present === publication.counts.present && existing.counts?.empty === publication.counts.empty
+      && existing.cells?.length === publication.cells.length
+      && existing.closure?.tiles?.length === publication.closure.tiles.length;
+    if (!sameSet) {
+      throw new Error('the published roads publication describes a different set than this one '
+        + `(${existing.counts?.present ?? '?'} present cells against ${publication.counts.present}); an immutable key `
+        + 'cannot be rewritten, so publish this plane under a new version instead');
+    }
+    publicationBytes = await fetchBytes(ROADS_PLANE.publicationUrl);
+    publicationAction = 'reused';
+  } else {
+    publicationAction = await ensureObject({ key: ROADS_PLANE.publicationUrl, path: publicationPath,
+      bytes: publicationBytes.length, type: JSON_TYPE }, []);
+  }
   const elapsed = (Date.now() - started) / 1000;
+  const remotePublication = await remoteDigest(ROADS_PLANE.publicationUrl);
+  if (!remotePublication) throw new Error('the roads publication is not online after the upload');
+  publication.sha256 = remotePublication.sha256;
   console.log(`roads upload: ${JSON.stringify(actions)} cells (${uploadedBytes.toLocaleString()} bytes uploaded), `
     + `tiles ${JSON.stringify(tilesUploaded)} (${tiles.bytes.toLocaleString()} bytes), publication.json `
     + `${publicationAction} (${publicationBytes.length.toLocaleString()} bytes)`);
@@ -733,7 +767,7 @@ function globalPlaneEntry({ publication, publicationBytes, audit, tiles, ecoregi
     presentCells: publication.counts.present, emptyCells: publication.counts.empty, gridCells: publication.counts.cells,
     objects: publication.counts.present + tiles.tiles.length + 1, bytes: publication.counts.bytes + tiles.bytes + publicationBytes.length,
     publicationUrl: ROADS_PLANE.publicationUrl, publicationBytes: publicationBytes.length,
-    publicationSha256: sha256(publicationBytes),
+    publicationSha256: publication.sha256 ?? sha256(publicationBytes),
     closure: { cellSpan: publication.closure.cellSpan, prefix: publication.closure.prefix,
       tiles: publication.closure.tiles.length, bytes: tiles.bytes },
     auditedAt: new Date().toISOString(), audit: { cells: audit.checked, remoteObjects: audit.remoteObjects,
