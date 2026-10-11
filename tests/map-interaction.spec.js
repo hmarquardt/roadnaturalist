@@ -57,6 +57,9 @@ for (const [query, label, geography] of REGIONS) {
       if (message.text().startsWith('MAP_FIT')) console.log(message.text());
     });
 
+    // The application's own evidence/map stage markers are silent unless this flag is set, so the trace this gate
+    // reads is opt-in exactly as it is in production.
+    await page.addInitScript(() => { globalThis.__RN_DEBUG_EVIDENCE = true; });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
 
