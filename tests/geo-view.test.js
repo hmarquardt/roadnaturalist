@@ -87,9 +87,9 @@ test('one selection state: the list selects on the map, and the map reports clic
 
 // TWO CORRIDORS, ONE CLICK: the defect this guards against was a neighbouring road whose vertex sat nearer the
 // click point winning the selection from the road that was actually clicked.
-const NEAR = { id: 'corridor-near', name: 'Near Rd',
+const NEAR = { id: 'corridor-near', name: 'Near Rd', distanceFromCenterM: 900,
   geometry: { type: 'LineString', coordinates: [[-87.5, 38.3], [-87.4, 38.31]] } };
-const CLICKED = { id: 'corridor-clicked', name: 'Clicked Rd',
+const CLICKED = { id: 'corridor-clicked', name: 'Clicked Rd', distanceFromCenterM: 1609,
   geometry: { type: 'LineString', coordinates: [[-87.5201, 38.2801], [-87.42, 38.29]] } };
 
 test('a click on a drawn line selects that corridor, not the nearest vertex', () => {
@@ -265,12 +265,16 @@ test('each drawn path carries the card for its own corridor', () => {
   const view = createGeoView({ style: {} }, { leaflet });
   view.draw({ corridors: [CLICKED, NEAR] });
   const cards = calls.polylines.filter(path => path.popup).map(path => path.popup);
-  assert.equal(cards.length, 2, 'both corridors explain themselves on the map');
+  assert.ok(cards.length >= 2, 'both corridors explain themselves on the map');
+  // A corridor may be drawn in more than one layer (a casing under the carriageway), so what matters is that the set of
+  // identities on the map is exactly the set of corridors drawn, and that no card borrows another corridor's name.
+  const identities = new Set(cards.map(html => (html.match(/data-corridor-id="([^"]*)"/) ?? [])[1]));
+  assert.deepEqual([...identities].sort(), [CLICKED.id, NEAR.id].sort(), 'the map names exactly the corridors drawn');
   const of = id => cards.find(html => html.includes(`data-corridor-id="${id}"`));
-  assert.ok(of(CLICKED.id), 'the clicked corridor has a card naming itself');
-  assert.ok(of(NEAR.id), 'the neighbour has its own, distinct card');
   assert.ok(of(CLICKED.id).includes('Clicked Rd') && !of(CLICKED.id).includes('Near Rd'),
     'a corridor card names only its own road');
+  assert.ok(of(NEAR.id).includes('Near Rd') && !of(NEAR.id).includes('Clicked Rd'),
+    'and the neighbour names only its own');
 });
 
 test('the map never reads storage, and the popup explains without a second evidence panel', () => {
