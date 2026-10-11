@@ -220,6 +220,18 @@ for (const [query, label, geography] of REGIONS) {
     // assertions reading whichever popup some other layer left in the DOM. The card is awaited instead, and every
     // assertion is scoped to the corridor whose id it must carry.
     const card = page.locator(`#map .corridor-popup[data-corridor-id="${targetId}"]`);
+    // RAW DOM EVIDENCE: what popup-ish elements exist at all, and how many candidate paths carry the clicked
+    // corridor's identity. Asked rather than inferred, because a card that never appears can mean "never bound",
+    // "bound but not opened", or "opened outside the container".
+    const popupDump = await page.evaluate(id => {
+      const map = document.querySelector('#map');
+      const paths = [...document.querySelectorAll(`#map path[data-corridor-id="${id}"]`)];
+      const pops = [...document.querySelectorAll('#map .leaflet-popup, #map .leaflet-popup-content, #map [class*="popup"]')];
+      return { candidatePaths: paths.length, withPopupRole: paths.filter(p => p.dataset.role === 'candidate').length,
+        pops: pops.slice(0, 6).map(node => ({ cls: node.className, text: (node.innerText ?? '').slice(0, 40) })),
+        panes: [...document.querySelectorAll('#map .leaflet-popup-pane')].length, mapHtml: (map?.innerHTML ?? '').length };
+    }, targetId);
+    console.log(`MAP_POPUP ${JSON.stringify({ label, clickedId: targetId, selectedId: await selectedId(), dump: popupDump })}`);
     const popupAudit = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('#map .corridor-popup')];
       const visible = cards.filter(entry => entry.offsetParent !== null);
