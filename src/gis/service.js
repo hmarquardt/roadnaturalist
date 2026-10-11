@@ -655,7 +655,15 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
       && item.id.endsWith(`-l${level}`));
     if (!entries.length) throw new Error(`No EPA Level ${level} ecoregion dataset is declared`);
     const opened = [];
-    for (const entry of entries) opened.push(await openDataset(entry.id));
+    for (const entry of entries) {
+      // A whole-CONUS layer is published on the data origin, alongside the partitions of the publication, and is far
+      // too large to ship with the application - it lives under `national/`. Resolving it against the page's own
+      // origin asks for a file the application has never served (a 404 for every read, on the origin's own log). The
+      // prepared scope's catalogue carries the publication's asset base, which is where the layer actually is; a
+      // per-state layer, by contrast, is published with the application and keeps resolving as it always has.
+      opened.push(String(entry.url ?? '').startsWith('national/')
+        ? await openDeclaredArtifact(entry.id, entry) : await openDataset(entry.id));
+    }
     return { entries, opened };
   }
 
