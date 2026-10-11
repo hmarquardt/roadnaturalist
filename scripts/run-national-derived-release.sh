@@ -115,7 +115,9 @@ say "stage 6 real-browser production check"
 # One verdict, two specs: the six-region national discovery check, and the place-name search that now drives it
 # (every place the brief names, plus one discovery search per region started from a typed place name). Both run
 # against the settled origin, so the verdict describes the build under review and not the previous release.
-if PRODUCTION_BASE_URL="$ORIGIN" RUN_NATIONAL_PRODUCTION=1 RUN_PLACE_PRODUCTION=1 \
+# `EVIDENCE_DEBUG=1` is required, not cosmetic: it is what makes the promotion emit its identity stage, and the
+# record step below refuses to record a passed browser verdict for a run that cannot show the identity contract.
+if PRODUCTION_BASE_URL="$ORIGIN" RUN_NATIONAL_PRODUCTION=1 RUN_PLACE_PRODUCTION=1 EVIDENCE_DEBUG=1 \
    npx playwright test tests/national-derived-production.spec.js tests/place-production.spec.js \
    --reporter=line --retries=0 \
    > "$WORK/browser-production.txt" 2>&1; then
