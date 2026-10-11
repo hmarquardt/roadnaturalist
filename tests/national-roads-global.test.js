@@ -249,6 +249,40 @@ test('a promotion reads roads from the global plane, including the whole compone
 });
 
 
+test('the closure follows every component touching the corridor, not only the one the row names', async () => {
+  // A discovery unit is composed from features and can span several components; the corridor id was composed over
+  // the whole national road network. Closing over just the named component reproduces a shorter road - which is
+  // exactly how source evidence failed in production.
+  const fixture = roadsFixture();
+  const other = { id: 'drv1-other-rd-c9', nameKey: 'other rd', cells: ['x288_y675', 'x289_y675'],
+    bounds: [-122.2, 45.0, -121.8, 45.2] };
+  const document = tileDocument(fixture.tile, [fixture.component, other]);
+  const tileBytes = Buffer.from(JSON.stringify(document) + '\n');
+  const publication = { ...fixture.publication,
+    closure: { ...fixture.publication.closure, tiles: [{ key: fixture.tile, bytes: tileBytes.length,
+      sha256: sha(tileBytes) }] } };
+  const publicationBytes = Buffer.from(JSON.stringify(publication) + '\n');
+  const entry = globalEntry({ publication, publicationBytes, tile: fixture.tile, tileBytes });
+  const stub = installFetch([
+    { path: 'raw/bounded-test/bounded-v1/manifest.json', json: regionCatalog() },
+    { path: 'raw/bounded-test/bounded-v1/road-components.json', bytes: REGION_COMPONENTS },
+    { path: `national/roads/${entry.version}/publication.json`, bytes: publicationBytes },
+    { path: `${entry.closure.prefix}${fixture.tile}.json`, bytes: tileBytes },
+    { match: /\/roads\/x-?\d+_y-?\d+[.]parquet$/, bytes: ROAD_BYTES },
+    { match: /national\/wetlands\/bounded-wetlands\/x-?\d+_y-?\d+[.]parquet$/, bytes: HABITAT_BYTES },
+    { match: /national\/hydrography\/bounded-hydrography\/x-?\d+_y-?\d+[.]parquet$/, bytes: HABITAT_BYTES },
+  ]);
+  const { engine } = fakeEngine();
+  try {
+    const gis = createGisService({ engineFactory: async () => engine });
+    const scope = await gis.prepareRegionalSearch(promotionArea(CORRIDOR, { globalRoads: entry,
+      roadComponentIds: ['drv1-test-rd-c1'] }), {});
+    const ids = scope.selection.partitions.roads.map(part => part.id);
+    assert.ok(ids.includes('x289_y675'), `the neighbouring component's cells are closed over too: ${ids}`);
+    assert.equal(scope.selection.globalRoadsComponents, 2);
+  } finally { stub.restore(); }
+});
+
 test('a global roads plane at another version is refused, not substituted', async () => {
   const fixture = roadsFixture();
   const entry = { ...globalEntry(fixture), version: 'tiger2024-county-v9' };

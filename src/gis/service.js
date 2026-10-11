@@ -386,11 +386,14 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     const base = cellsForBounds(plane, searchArea.bbox);
     const components = await openClosureTiles({ document, entry, cells: base,
       metrics });
-    const named = searchArea.roadComponentIds ?? null;
+    // Every component that touches the corridor's own cells is closed over, not only the one named by the row.
+    // A discovery unit is composed from features and can span several components, and the corridor id the row
+    // carries was composed over the whole national road network: restricting the closure to the named component
+    // reproduces a shorter road and the promotion verification refuses it. Roads are published nationally, so the
+    // wider closure costs a handful of cheap cells and nothing else.
     const wanted = new Set(base);
     let closed = 0;
     for (const component of components) {
-      if (named && !named.includes(component.id)) continue;
       if (!component.cells.some(id => base.includes(id))) continue;
       closed += 1;
       for (const id of component.cells) wanted.add(id);
