@@ -21,6 +21,16 @@ const DUCKDB_VERSION = '1.30.0';
 const DUCKDB_ESM = `https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@${DUCKDB_VERSION}/+esm`;
 const DATA_BASE = new URL('../../data/', import.meta.url);
 
+// A legacy raw publication declares its ecology artifacts relative to itself; giving each level entry the
+// publication's own asset base is what keeps such a declaration from resolving against whichever base a reader
+// happens to hold. No usable base means no declaration, which fails closed instead of fetching the wrong origin.
+function stampEcologyBase(ecoregions, assetBaseUrl) {
+  if (!ecoregions || typeof assetBaseUrl !== 'string' || !/^https:\/\/[^/]+\//.test(assetBaseUrl)) return null;
+  const stamped = {};
+  for (const [level, declared] of Object.entries(ecoregions)) stamped[level] = { ...declared, assetBaseUrl };
+  return stamped;
+}
+
 // A box grown by one cell: a road component that continues just outside the corridor's box is part of the same
 // named road, and one cell is the most it can be away for the composition tolerance to join it.
 function growBox(bounds, degrees) {
@@ -81,12 +91,6 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     if (files.has(datasetId)) return files.get(datasetId);
     const entry = (await getManifest()).datasets.find(dataset => dataset.id === datasetId);
     if (!entry) throw new Error(`Dataset not declared: ${datasetId}`);
-    // TEMPORARY DIAGNOSTIC: a manifest entry under `national/` is a global plane artefact and must never be read
-    // from the application origin. Say who asked, so the last wrong-origin reader can be found and fixed.
-    if (String(entry.url ?? '').startsWith('national/') && globalThis.__RN_DEBUG_EVIDENCE) {
-      console.log('sourceEvidence:national-manifest-read ' + JSON.stringify({ id: datasetId,
-        stack: (new Error('here').stack ?? '').split('\n').slice(1, 6).join(' | ') }));
-    }
     const engine = await initialize();
     // A whole-CONUS layer is published on the data origin alongside the partitions of the publication, and is far
     // too large to ship with the application: it is declared under `national/`. Asking the page's own origin for it
@@ -506,7 +510,14 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     // then quietly read the wrong origin: the declaration either holds up or the preparation fails.
     const globalEcoregions = searchArea.globalEcoregions
       ? globalEcoregionPlane({ globalPlanes: { ecoregions: searchArea.globalEcoregions } }, null) : null;
-    if (declaredType === DISCOVERY_CATALOG_TYPE.RAW) activeRawPublication = catalog.publication ?? null;
+    if (declaredType === DISCOVERY_CATALOG_TYPE.RAW) {
+      // A publication's own artifacts live where the publication does, so each declared ecology artifact carries
+      // that base. A declaration without a usable base is dropped rather than guessed at: a reader that cannot
+      // resolve an artifact says so, instead of asking the page's own origin for a file it has never served.
+      activeRawPublication = catalog.publication
+        ? { ...catalog.publication, ecoregions: stampEcologyBase(catalog.publication.ecoregions, catalog.assetBaseUrl) }
+        : null;
+    }
     const selection = await selectRawOrRegionalPartitions(catalog, searchArea, declaredType,
       searchArea.globalRoads ?? null);
     const selectionMs = performance.now() - started - manifestMs;
