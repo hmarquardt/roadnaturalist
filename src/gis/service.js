@@ -693,9 +693,26 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     const entries = (await getManifest()).datasets.filter(item => item.id.startsWith('epa-ecoregions-')
       && item.id.endsWith(`-l${level}`));
     if (!entries.length) throw new Error(`No EPA Level ${level} ecoregion dataset is declared`);
+    // A whole-CONUS layer is a global plane artefact, declared by the raw index - not something the application
+    // manifest serves. If the manifest still lists one and this reader was given no declaration, it is skipped
+    // rather than fetched from the page's own origin: answering a request for a 123 MB national layer with a
+    // same-origin URL that was never published is a 404 presented as data. Skipping fails closed - the level is
+    // simply not claimed by a reader that cannot reach it - and it never asks the wrong origin for anything.
+    const local = entries.filter(entry => !String(entry.url ?? '').startsWith('national/'));
+    const national = entries.filter(entry => String(entry.url ?? '').startsWith('national/'));
     const opened = [];
-    for (const entry of entries) opened.push(await openDataset(entry.id));
-    return { entries, opened };
+    for (const entry of local) opened.push(await openDataset(entry.id));
+    if (!local.length) {
+      // Nothing readable was declared for this level. Saying so is the fail-closed answer: the reader was not given
+      // the global plane, and reading it from the application origin is exactly the 404 this refusal replaces.
+      throw new Error(`EPA Level ${level} ecoregions are a global plane, and this reader was given no declaration `
+        + `for ${national.map(entry => entry.id).join(', ')}`);
+    }
+    if (national.length) {
+      diagnostics.skippedNationalEcoregionLayers = [...(diagnostics.skippedNationalEcoregionLayers ?? []),
+        ...national.map(entry => entry.id)];
+    }
+    return { entries: local, opened, skipped: national.map(entry => entry.id) };
   }
 
   // The union entry a level is queried through. The discovery batch asks for a dataset id, so this is the
