@@ -1,0 +1,700 @@
+{
+ "kind": "wetlands-serving-equivalence",
+ "schemaVersion": 1,
+ "servingVersion": "nwi-serving-0.1-v1",
+ "sourcePlaneVersion": "nwi-state-2026-05-v1",
+ "grid": {
+  "stepLon": 0.1,
+  "stepLat": 0.1
+ },
+ "geometry": "clipped",
+ "corridors": [
+  {
+   "corridorId": "drv1-crowder-blvd-s1",
+   "name": "Crowder Blvd",
+   "region": "gulf",
+   "canonicalCells": 4,
+   "canonicalBytes": 180594783,
+   "servingTiles": 13,
+   "servingBytes": 6220417,
+   "reductionPercent": 96.6,
+   "classes": 16,
+   "maxAreaDeltaM2": 117007.1793451129,
+   "nearestDeltaM": 0.0,
+   "idsEqual": false,
+   "classMismatches": [
+    {
+     "class": [
+      250,
+      "Freshwater Pond",
+      "PUBHx"
+     ],
+     "canonicalRows": 5,
+     "servingRows": 4,
+     "canonicalArea": 13306.3043110437,
+     "servingArea": 7697.026757247781
+    },
+    {
+     "class": [
+      250,
+      "Riverine",
+      "R2UBHx"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 1,
+     "canonicalArea": 11212.41337512494,
+     "servingArea": 2776.156196745845
+    },
+    {
+     "class": [
+      250,
+      "Riverine",
+      "R5UBFx"
+     ],
+     "canonical": true,
+     "serving": false
+    },
+    {
+     "class": [
+      500,
+      "Freshwater Pond",
+      "PUBHx"
+     ],
+     "canonicalRows": 7,
+     "servingRows": 7,
+     "canonicalArea": 28362.032594192435,
+     "servingArea": 13021.0425645462
+    },
+    {
+     "class": [
+      500,
+      "Riverine",
+      "R2UBHx"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 22581.75556188183,
+     "servingArea": 8684.889375811394
+    },
+    {
+     "class": [
+      500,
+      "Riverine",
+      "R5UBFx"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 16591.8119389434,
+     "servingArea": 2535.734500799634
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Pond",
+      "PUBHx"
+     ],
+     "canonicalRows": 14,
+     "servingRows": 14,
+     "canonicalArea": 198904.17174410186,
+     "servingArea": 183563.1817144557
+    },
+    {
+     "class": [
+      1000,
+      "Lake",
+      "L1UBHx"
+     ],
+     "canonicalRows": 1,
+     "servingRows": 1,
+     "canonicalArea": 151407.59337442604,
+     "servingArea": 34400.414029313135
+    },
+    {
+     "class": [
+      1000,
+      "Riverine",
+      "R2UBHx"
+     ],
+     "canonicalRows": 4,
+     "servingRows": 4,
+     "canonicalArea": 47550.26196011384,
+     "servingArea": 33653.3957740431
+    },
+    {
+     "class": [
+      1000,
+      "Riverine",
+      "R5UBFx"
+     ],
+     "canonicalRows": 4,
+     "servingRows": 4,
+     "canonicalArea": 28223.95755574263,
+     "servingArea": 9602.474953114097
+    }
+   ],
+   "corridorFeaturesEqual": false,
+   "status": "DIFFERS"
+  },
+  {
+   "corridorId": "drv1-us-hwy-90-c12-s12",
+   "name": "US Hwy 90",
+   "region": "gulf",
+   "canonicalCells": 4,
+   "canonicalBytes": 180594783,
+   "servingTiles": 13,
+   "servingBytes": 6220417,
+   "reductionPercent": 96.6,
+   "classes": 46,
+   "maxAreaDeltaM2": 67166.16902224287,
+   "nearestDeltaM": 0.0,
+   "idsEqual": true,
+   "classMismatches": [
+    {
+     "class": [
+      500,
+      "Estuarine and Marine Deepwater",
+      "E1UBL"
+     ],
+     "canonical": true,
+     "serving": false
+    },
+    {
+     "class": [
+      1000,
+      "Estuarine and Marine Deepwater",
+      "E1UBL"
+     ],
+     "canonical": true,
+     "serving": false
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Emergent Wetland",
+      "PEM1A"
+     ],
+     "canonicalRows": 3,
+     "servingRows": 3,
+     "canonicalArea": 125796.72859498116,
+     "servingArea": 58630.55957273829
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Forested/Shrub Wetland",
+      "PSS1Cd"
+     ],
+     "canonicalRows": 1,
+     "servingRows": 1,
+     "canonicalArea": 56086.05219958601,
+     "servingArea": 1825.39324597089
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Pond",
+      "PUBHh"
+     ],
+     "canonicalRows": 4,
+     "servingRows": 3,
+     "canonicalArea": 14841.540461006805,
+     "servingArea": 13514.819170311572
+    },
+    {
+     "class": [
+      1000,
+      "Riverine",
+      "R2UBHx"
+     ],
+     "canonicalRows": 3,
+     "servingRows": 2,
+     "canonicalArea": 18348.35781972634,
+     "servingArea": 11361.120980791835
+    },
+    {
+     "class": [
+      1000,
+      "Riverine",
+      "R5UBFx"
+     ],
+     "canonicalRows": 9,
+     "servingRows": 8,
+     "canonicalArea": 14269.07130650135,
+     "servingArea": 8306.54939500957
+    }
+   ],
+   "corridorFeaturesEqual": true,
+   "status": "DIFFERS"
+  },
+  {
+   "corridorId": "drv1-almonaster-ave-s4",
+   "name": "Almonaster Ave",
+   "region": "gulf",
+   "canonicalCells": 4,
+   "canonicalBytes": 180594783,
+   "servingTiles": 13,
+   "servingBytes": 6220417,
+   "reductionPercent": 96.6,
+   "classes": 74,
+   "maxAreaDeltaM2": 14122200.626940617,
+   "nearestDeltaM": 0.0,
+   "idsEqual": false,
+   "classMismatches": [
+    {
+     "class": [
+      250,
+      "Estuarine and Marine Deepwater",
+      "E1UBL"
+     ],
+     "canonical": true,
+     "serving": false
+    },
+    {
+     "class": [
+      250,
+      "Estuarine and Marine Wetland",
+      "E2EM1Ns"
+     ],
+     "canonicalRows": 5,
+     "servingRows": 5,
+     "canonicalArea": 37982.27508118549,
+     "servingArea": 25799.68613237658
+    },
+    {
+     "class": [
+      250,
+      "Estuarine and Marine Wetland",
+      "E2EM1P"
+     ],
+     "canonicalRows": 1,
+     "servingRows": 1,
+     "canonicalArea": 11149.300912418043,
+     "servingArea": 498.32656492966214
+    },
+    {
+     "class": [
+      250,
+      "Freshwater Emergent Wetland",
+      "PEM1Ss"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 7160.161624750561,
+     "servingArea": 3450.6249778227175
+    },
+    {
+     "class": [
+      250,
+      "Freshwater Forested/Shrub Wetland",
+      "PFO1S"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 1,
+     "canonicalArea": 300739.42492704204,
+     "servingArea": 102429.92744175212
+    },
+    {
+     "class": [
+      250,
+      "Freshwater Forested/Shrub Wetland",
+      "PSS1Rs"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 549871.7463689551,
+     "servingArea": 252292.88697870576
+    },
+    {
+     "class": [
+      500,
+      "Estuarine and Marine Deepwater",
+      "E1UBL"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 1,
+     "canonicalArea": 9257495.969083983,
+     "servingArea": 588.1858866724294
+    },
+    {
+     "class": [
+      500,
+      "Estuarine and Marine Wetland",
+      "E2EM1Ns"
+     ],
+     "canonicalRows": 5,
+     "servingRows": 5,
+     "canonicalArea": 37982.27508118549,
+     "servingArea": 25799.68613237658
+    },
+    {
+     "class": [
+      500,
+      "Estuarine and Marine Wetland",
+      "E2EM1P"
+     ],
+     "canonicalRows": 8,
+     "servingRows": 8,
+     "canonicalArea": 131359.36900949216,
+     "servingArea": 88632.84758617432
+    },
+    {
+     "class": [
+      500,
+      "Estuarine and Marine Wetland",
+      "E2EM1Ps"
+     ],
+     "canonicalRows": 1,
+     "servingRows": 1,
+     "canonicalArea": 185305.85889206218,
+     "servingArea": 172334.92597513215
+    },
+    {
+     "class": [
+      500,
+      "Freshwater Emergent Wetland",
+      "PEM1Ss"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 7160.161624750561,
+     "servingArea": 3450.6249778227175
+    },
+    {
+     "class": [
+      500,
+      "Freshwater Forested/Shrub Wetland",
+      "PFO1Ad"
+     ],
+     "canonicalRows": 1,
+     "servingRows": 1,
+     "canonicalArea": 367667.2505441028,
+     "servingArea": 107554.95311282168
+    },
+    {
+     "class": [
+      500,
+      "Freshwater Forested/Shrub Wetland",
+      "PFO1S"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 1127646.7919515683,
+     "servingArea": 169935.13868144658
+    },
+    {
+     "class": [
+      500,
+      "Freshwater Forested/Shrub Wetland",
+      "PSS1C"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 268534.89367801545,
+     "servingArea": 267758.3940729386
+    },
+    {
+     "class": [
+      500,
+      "Freshwater Forested/Shrub Wetland",
+      "PSS1Rs"
+     ],
+     "canonicalRows": 3,
+     "servingRows": 3,
+     "canonicalArea": 550064.5162632253,
+     "servingArea": 252485.65687297634
+    },
+    {
+     "class": [
+      500,
+      "Riverine",
+      "R5UBFx"
+     ],
+     "canonicalRows": 3,
+     "servingRows": 3,
+     "canonicalArea": 14784.737374473512,
+     "servingArea": 6600.033986729426
+    },
+    {
+     "class": [
+      1000,
+      "Estuarine and Marine Deepwater",
+      "E1UBL"
+     ],
+     "canonicalRows": 8,
+     "servingRows": 7,
+     "canonicalArea": 14313284.28934254,
+     "servingArea": 191083.66240192167
+    },
+    {
+     "class": [
+      1000,
+      "Estuarine and Marine Wetland",
+      "E2EM1Ns"
+     ],
+     "canonicalRows": 5,
+     "servingRows": 5,
+     "canonicalArea": 37982.27508118549,
+     "servingArea": 25799.68613237658
+    },
+    {
+     "class": [
+      1000,
+      "Estuarine and Marine Wetland",
+      "E2EM1P"
+     ],
+     "canonicalRows": 12,
+     "servingRows": 12,
+     "canonicalArea": 265833.47609867074,
+     "servingArea": 223106.9546753532
+    },
+    {
+     "class": [
+      1000,
+      "Estuarine and Marine Wetland",
+      "E2EM1Ps"
+     ],
+     "canonicalRows": 1,
+     "servingRows": 1,
+     "canonicalArea": 230239.21427438557,
+     "servingArea": 182091.0319487414
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Emergent Wetland",
+      "PEM1A"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 154734.57024946017,
+     "servingArea": 12841.451568777049
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Emergent Wetland",
+      "PEM1Ss"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 7160.161624750561,
+     "servingArea": 3450.6249778227175
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Forested/Shrub Wetland",
+      "PFO1Ad"
+     ],
+     "canonicalRows": 3,
+     "servingRows": 3,
+     "canonicalArea": 797743.3854741479,
+     "servingArea": 266584.8499813094
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Forested/Shrub Wetland",
+      "PFO1S"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 2104019.997950832,
+     "servingArea": 176654.15204574802
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Forested/Shrub Wetland",
+      "PSS1C"
+     ],
+     "canonicalRows": 4,
+     "servingRows": 4,
+     "canonicalArea": 409519.99968650343,
+     "servingArea": 408743.5000814267
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Forested/Shrub Wetland",
+      "PSS1Rs"
+     ],
+     "canonicalRows": 3,
+     "servingRows": 3,
+     "canonicalArea": 573258.2991400957,
+     "servingArea": 275679.4397498467
+    },
+    {
+     "class": [
+      1000,
+      "Freshwater Pond",
+      "PUBHh"
+     ],
+     "canonicalRows": 8,
+     "servingRows": 8,
+     "canonicalArea": 35335.47321547817,
+     "servingArea": 13921.176635013144
+    },
+    {
+     "class": [
+      1000,
+      "Lake",
+      "L2UBFh"
+     ],
+     "canonical": true,
+     "serving": false
+    },
+    {
+     "class": [
+      1000,
+      "Riverine",
+      "R2UBHx"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 63476.54414851662,
+     "servingArea": 48666.13278418327
+    },
+    {
+     "class": [
+      1000,
+      "Riverine",
+      "R5UBFx"
+     ],
+     "canonicalRows": 5,
+     "servingRows": 5,
+     "canonicalArea": 26403.800603585692,
+     "servingArea": 11733.127668294266
+    }
+   ],
+   "corridorFeaturesEqual": false,
+   "status": "DIFFERS"
+  },
+  {
+   "corridorId": "drv1-nw-fruit-valley-rd-c1-s1",
+   "name": "NW Fruit Valley Rd",
+   "region": "pnw",
+   "canonicalCells": 1,
+   "canonicalBytes": 14888627,
+   "servingTiles": 2,
+   "servingBytes": 3255668,
+   "reductionPercent": 78.1,
+   "classes": 2,
+   "maxAreaDeltaM2": 0.0,
+   "nearestDeltaM": 0.0,
+   "idsEqual": true,
+   "classMismatches": [],
+   "corridorFeaturesEqual": true,
+   "status": "equal"
+  },
+  {
+   "corridorId": "drv1-nw-21st-ave-c3-s1",
+   "name": "NW 21st Ave",
+   "region": "pnw",
+   "canonicalCells": 1,
+   "canonicalBytes": 14888627,
+   "servingTiles": 4,
+   "servingBytes": 9380585,
+   "reductionPercent": 37.0,
+   "classes": 1,
+   "maxAreaDeltaM2": 642.8083093410687,
+   "nearestDeltaM": 0.0,
+   "idsEqual": true,
+   "classMismatches": [
+    {
+     "class": [
+      1000,
+      "Riverine",
+      "R4SBC"
+     ],
+     "canonicalRows": 2,
+     "servingRows": 2,
+     "canonicalArea": 3378.4250045155527,
+     "servingArea": 2735.616695174484
+    }
+   ],
+   "corridorFeaturesEqual": true,
+   "status": "DIFFERS"
+  },
+  {
+   "corridorId": "drv1-nw-199th-st-c1-s1",
+   "name": "NW 199th St",
+   "region": "pnw",
+   "canonicalCells": 1,
+   "canonicalBytes": 14888627,
+   "servingTiles": 2,
+   "servingBytes": 6124917,
+   "reductionPercent": 58.9,
+   "classes": 69,
+   "maxAreaDeltaM2": 6440.813801734825,
+   "nearestDeltaM": 0.0,
+   "idsEqual": true,
+   "classMismatches": [
+    {
+     "class": [
+      250,
+      "Riverine",
+      "R4SBC"
+     ],
+     "canonicalRows": 7,
+     "servingRows": 7,
+     "canonicalArea": 20085.95567232397,
+     "servingArea": 17156.425807003357
+    },
+    {
+     "class": [
+      500,
+      "Riverine",
+      "R4SBC"
+     ],
+     "canonicalRows": 12,
+     "servingRows": 12,
+     "canonicalArea": 38062.27337740244,
+     "servingArea": 33536.244300296385
+    },
+    {
+     "class": [
+      1000,
+      "Riverine",
+      "R3UBH"
+     ],
+     "canonicalRows": 1,
+     "servingRows": 1,
+     "canonicalArea": 4461.692912637354,
+     "servingArea": 4087.227845538745
+    },
+    {
+     "class": [
+      1000,
+      "Riverine",
+      "R4SBC"
+     ],
+     "canonicalRows": 22,
+     "servingRows": 22,
+     "canonicalArea": 84340.97504769226,
+     "servingArea": 77900.16124595744
+    }
+   ],
+   "corridorFeaturesEqual": true,
+   "status": "DIFFERS"
+  },
+  {
+   "corridorId": "drv1-shreve-rd-c7-s1",
+   "name": "Shreve Rd",
+   "region": "pnw",
+   "canonicalCells": 1,
+   "canonicalBytes": 14888627,
+   "servingTiles": 1,
+   "servingBytes": 1547108,
+   "reductionPercent": 89.6,
+   "classes": 28,
+   "maxAreaDeltaM2": 2.9103830456733704e-11,
+   "nearestDeltaM": 0.0,
+   "idsEqual": true,
+   "classMismatches": [],
+   "corridorFeaturesEqual": true,
+   "status": "equal"
+  }
+ ],
+ "seconds": 21.0
+}

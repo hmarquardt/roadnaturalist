@@ -420,6 +420,50 @@ the single switch between them: to roll back, restore the previous `globalPlanes
 resumed by re-running the same command; the checkpoint under the build volume says what has been verified, and the
 origin is always re-checked before anything is recorded as online.
 
+### A thinner wetlands serving layer: evaluated, measured, and not adopted
+
+Wetland traffic is the last concentrated cost in a promotion: the p95 is about 97 MB and, after roads became
+global, essentially all of it is wetlands. The canonical plane is 21,811 cells / 156.36 GB, with a median cell of
+4.6 MB but a p95 of 20.3 MB, a p99 of 54.9 MB and a **largest cell of 188 MB** (3,330 cells over 10 MB, 264 over
+50 MB, 36 over 100 MB — and those over 25 MB hold only 24.9 % of the plane's bytes, so this is a *traffic* problem,
+not a storage one). Two serving layouts were built from finalized canonical cells and measured against the 172
+corridor corpus; both are implemented, and neither is deployed:
+
+```bash
+uv run --python 3.12 --with duckdb --with pyarrow python3 scripts/prototype-wetlands-serving.py --corridors 12
+uv run --python 3.12 --with duckdb --with pyarrow python3 scripts/serve-wetlands.py --verify 6
+```
+
+**Candidate 1 — finer fixed subcells with whole features replicated by bounding box.** Exact by construction: the
+reader prefilters on `min_lon/max_lon/min_lat/max_lat` and dedupes `count(DISTINCT source_feature_id)`, so a layout
+that puts each feature in every subcell its *box* intersects answers identically. Measured on the corpus it saves
+**only 17 %** (826.9 MB against 998.2 MB of canonical cells) and costs **1.8× (0.1°) to 3.5× (0.05°) the storage**,
+because in wetland country one feature is often a whole floodplain and its box covers most of the cell.
+
+**Candidate 2 — geometry clipped to 0.1° and 0.05° subcells.** This is where the bytes are: **10.2 %** of canonical
+at 0.1° and **4.3 %** at 0.05°, with the worst sampled corridor falling from 180.6 MB to 7.2 MB and 1.7 MB
+respectively, in 13 tiles. It is also **not equivalent**, and that is why it is not adopted. Comparing the reader's
+own SQL — the same `ST_Intersection`/`ST_Area`/`count(DISTINCT …)` statements `src/gis/habitat-query.js` runs —
+over canonical cells and over serving tiles for seven real corridors gave **2 equal, 5 different**: missing
+`source_feature_id`s in two of them, and area deltas up to **14.1 km²** (median 6.4 × 10³ m²). Two causes, both
+inherent to cutting: the canonical geometry is measured after projecting to EPSG:5070, so a cut made in EPSG:4326
+puts a straight line where the projection has a curve, and the difference lands *inside* the buffer whenever a tile
+boundary crosses it; and `ST_Intersection` on very large NWI polygons loses parts outright.
+
+**Conclusion.** Under the two rules this project holds — exact semantics, and verify-every-byte-before-use (a
+partial HTTP range read cannot be checked against a digest, so the serving layer would have to give up that check)
+— the wetland promotion cost is the price of re-measuring from source, and the measured target of 10–20 MB at p95
+is not reachable. The canonical 0.2° plane therefore stays the serving layer: bounded wetland cells remain exactly
+what they are, whole-cell, digest-verified, and cached immutably. A serving layer that *is* equivalent may be
+narrower than either candidate but is not cheaper: the fetch is floored by the features whose bounding box reaches
+the corridor, which is what the reader's own prefilter already asks for.
+
+The verifier stays in the tree as the standing gate for any future attempt: a serving layer must answer the
+reader's statements identically for geographically distinct corridors
+(`data/national/verification/wetlands-serving-equivalence.json`) before it can be published, and the prototype
+records are kept beside it (`wetlands-serving-prototype.json`, `-clipped.json`). Nothing about the current
+production path changed, and no canonical or serving wetland object was published.
+
 ### What one promotion costs, measured
 
 `npm run measure:national-raw-footprint` samples real corridors out of the derived plane in all six national
