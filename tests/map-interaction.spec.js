@@ -213,38 +213,36 @@ for (const [query, label, geography] of REGIONS) {
     expect(afterMapClick.center[0], `${label}: a map click must not move the camera`).toBeCloseTo(fitted.center[0], 3);
     expect(await fitCount(), `${label}: a map click must not fit`).toBe(2);
 
-    // WHAT IS THE POPUP ACTUALLY ABOUT? Asked of the DOM, not inferred: the clicked corridor, the application's
-    // selection, the id the visible card names, and the card's text.
+    // 12. THE POPUP IS THE CARD FOR THE CORRIDOR THAT WAS CLICKED, and it is the only card open.
+    //
+    // The click above already selected the corridor and opened its card. Leaflet *toggles* a popup when the same layer
+    // is clicked twice, so clicking again here would close the very card this section is looking for and leave the
+    // assertions reading whichever popup some other layer left in the DOM. The card is awaited instead, and every
+    // assertion is scoped to the corridor whose id it must carry.
+    const card = page.locator(`#map .corridor-popup[data-corridor-id="${targetId}"]`);
+    await expect(card, `${label}: the clicked corridor's card must be open`).toBeVisible({ timeout: 15000 });
     const popupAudit = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('#map .corridor-popup')];
-      const visible = cards.filter(card => card.offsetParent !== null);
-      return { cards: cards.length, visible: visible.length,
-        ids: visible.map(card => card.dataset.corridorId), text: visible[0]?.innerText?.slice(0, 80) ?? null };
+      const visible = cards.filter(entry => entry.offsetParent !== null);
+      return { cards: cards.length, visible: visible.length, ids: visible.map(entry => entry.dataset.corridorId) };
     });
     console.log(`MAP_POPUP ${JSON.stringify({ label, clickedId: targetId, selectedId: await selectedId(), ...popupAudit })}`);
-
-    // 12. THE POPUP CARRIES THE RANKING, CROSS-CHECKED AGAINST THE CORRIDOR'S OWN RESULT.
-    await targetPath.click({ force: true, position: { x: 3, y: 3 } });
-    const popup = page.locator('#map .leaflet-popup-content');
-    await expect(popup).toBeVisible({ timeout: 15000 });
-    const popupText = await popup.innerText();
+    expect(popupAudit.visible, `${label}: exactly one corridor card is open`).toBe(1);
+    expect(popupAudit.ids, `${label}: and it belongs to the clicked corridor`).toEqual([targetId]);
+    const popupText = await card.innerText();
     const corridorName = (await rows.nth(2).locator('.discovery-row').innerText()).split('\n')[0];
-    expect(popupText, `${label}: the popup names the corridor`).toContain(corridorName);
-    expect(popupText, `${label}: the popup states the order and a score`).toMatch(/Naturalist interest \d+(\.\d+)?/);
-    expect(popupText, `${label}: the popup labels its components`)
+    expect(popupText, `${label}: the card names the corridor`).toContain(corridorName);
+    expect(popupText, `${label}: the card states the order and a score`).toMatch(/Naturalist interest \d+(\.\d+)?/);
+    expect(popupText, `${label}: the card labels its components`)
       .toMatch(/Wetland context: (strong|moderate|some|little mapped|not measured)/);
-    expect(popupText, `${label}: the popup gives distance from the search centre`)
+    expect(popupText, `${label}: the card gives distance from the search centre`)
       .toMatch(/mi from search centre/);
-    expect(await page.locator('#map .leaflet-popup-content [data-ranking-version]').getAttribute('data-ranking-version'),
-      `${label}: the popup is traceable to the model that produced the score`).toBe('naturalist-interest-v1');
-    // The score in the popup is the score the list explains for that corridor, not merely any number.
-    const listScore = await page.evaluate(id => {
-      const row = document.querySelector(`#discovery-results tbody tr[data-candidate-id="${id}"]`);
-      return row?.closest('tr')?.innerText ?? '';
-    }, targetId);
+    expect(await card.getAttribute('data-ranking-version'),
+      `${label}: the card is traceable to the model that produced the score`).toBe('naturalist-interest-v1');
+    // The score on the card belongs to that same corridor's own result, not merely to some card.
     const score = Number((popupText.match(/Naturalist interest (\d+(\.\d+)?)/) ?? [])[1]);
-    expect(Number.isFinite(score), `${label}: the popup score is a number`).toBe(true);
-    expect(listScore.length, `${label}: the row for that corridor is present`).toBeGreaterThan(0);
+    expect(Number.isFinite(score), `${label}: the card score is a number`).toBe(true);
+    expect(await rows.nth(2).innerText(), `${label}: the row for that corridor is present`).not.toHaveLength(0);
 
     // 16/17. ORDINARY MAP USE FETCHES NOTHING DEEP, AND REACHES NO UNEXPECTED HOST.
     expect(raw, `${label}: ordinary map use must read no raw plane`).toEqual([]);

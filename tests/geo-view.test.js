@@ -242,6 +242,37 @@ test('pick mode hands a coordinate back and does not touch the search definition
   assert.deepEqual(selected, ['a']);
 });
 
+test('the card on the map names the corridor it describes, from that corridor alone', () => {
+  // IDENTITY IS A FIELD OF THE DESCRIPTOR, never something read back out of the road name: the id, the name, the model
+  // version and the score on one card all have to come from the same object.
+  const mine = { id: 'corridor-mine', name: 'Mine Rd', ranking: { version: 'naturalist-interest-v1', score: 61.5 },
+    geometry: { type: 'LineString', coordinates: [[-87.5, 38.3], [-87.4, 38.31]] },
+    distanceFromCenterM: 1609.344, components: { wetland: 'strong' } };
+  const html = popupHtml(mine);
+  assert.match(html, /data-corridor-id="corridor-mine"/, 'the card carries the descriptor id');
+  assert.match(html, /data-ranking-version="naturalist-interest-v1"/, 'and the model that scored it');
+  assert.match(html, /Mine Rd/);
+  assert.match(html, /Naturalist interest 61\.5/);
+  // A card built from another corridor cannot inherit either the id or the name of this one.
+  const other = popupHtml({ id: 'corridor-other', name: 'Other Rd', ranking: { version: 'v9' } });
+  assert.match(other, /data-corridor-id="corridor-other"/);
+  assert.ok(!/corridor-mine/.test(other), 'one card never claims another corridor identity');
+  assert.ok(!/Mine Rd/.test(other), 'nor another corridor name');
+});
+
+test('each drawn path carries the card for its own corridor', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [CLICKED, NEAR] });
+  const cards = calls.polylines.filter(path => path.popup).map(path => path.popup);
+  assert.equal(cards.length, 2, 'both corridors explain themselves on the map');
+  const of = id => cards.find(html => html.includes(`data-corridor-id="${id}"`));
+  assert.ok(of(CLICKED.id), 'the clicked corridor has a card naming itself');
+  assert.ok(of(NEAR.id), 'the neighbour has its own, distinct card');
+  assert.ok(of(CLICKED.id).includes('Clicked Rd') && !of(CLICKED.id).includes('Near Rd'),
+    'a corridor card names only its own road');
+});
+
 test('the map never reads storage, and the popup explains without a second evidence panel', () => {
   const source = readFileSync(new URL('../src/map/geo-view.js', import.meta.url), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
