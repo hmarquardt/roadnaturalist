@@ -50,7 +50,12 @@ for (const [query, label, geography] of REGIONS) {
       if (DEEP_DATA.test(url)) deep.push(url);
     });
     page.on('pageerror', error => pageErrors.push(error.message));
-    page.on('console', message => { if (message.type() === 'error') pageErrors.push(message.text()); });
+    page.on('console', message => {
+      if (message.type() === 'error') pageErrors.push(message.text());
+      // The application's own trace of the automatic fit, printed only when it is enabled, so the ordering can be
+      // read from a run instead of inferred from the source.
+      if (message.text().startsWith('MAP_FIT')) console.log(message.text());
+    });
 
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
