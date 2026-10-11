@@ -136,6 +136,18 @@ for (const [query, label, geography] of REGIONS) {
 
     // The real gesture: the map's own box, well inside it, away from the zoom control and any popup.
     const box = await page.locator('#map').boundingBox();
+    // What is actually under the pointer at the drag point: if it is not the map container or a Leaflet pane,
+    // something is sitting on the map and the gesture never reaches Leaflet.
+    const under = await page.evaluate(({ x, y }) => {
+      const element = document.elementFromPoint(x, y);
+      const trail = [];
+      for (let node = element; node && trail.length < 6; node = node.parentElement) {
+        trail.push(`${node.tagName?.toLowerCase()}\${node.id ? '#' + node.id : ''}\${node.className && typeof node.className === 'string' ? '.' + node.className.split(' ').slice(0, 2).join('.') : ''}`);
+      }
+      return { trail, leaflet: Boolean(element?.closest?.('.leaflet-container')) };
+    }, { x: box.x + box.width * 0.6, y: box.y + box.height * 0.55 });
+    console.log(`MAP_DRAG ${JSON.stringify({ label, kind: 'probe', under: under.trail, reachesLeaflet: under.leaflet,
+      box: { width: Math.round(box.width), height: Math.round(box.height) } })}`);
     await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.55);
     await page.mouse.down();
     await page.mouse.move(box.x + box.width * 0.35, box.y + box.height * 0.35, { steps: 12 });
