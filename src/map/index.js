@@ -10,11 +10,24 @@ import { createGeoView } from './geo-view.js';
 export function createMapView(container, options = {}) {
   const view = globalThis.__RN_SCHEMATIC_MAP
     ? createCorridorMap(container, options) : createGeoView(container, options);
-  // One interface, two implementations. The schematic map named two methods differently, so the application only
-  // ever sees the deliberate geographic API and the switch cannot leak a naming difference into a crash.
-  const aliases = { setSearch: 'setSearchPreview', fitResults: 'fit', fitSelected: 'fit' };
-  for (const [name, alternative] of Object.entries(aliases)) {
-    if (typeof view[name] !== 'function' && typeof view[alternative] === 'function') view[name] = view[alternative];
+  // One interface, two implementations. The schematic map named two methods differently, and neither implementation
+  // offers every method of the documented API - so the difference is absorbed here rather than allowed to reach the
+  // application, where a missing method would be a boot failure. Anything genuinely absent becomes a no-op that
+  // reports "not available", which is what a caller can act on anyway.
+  const aliases = { setSearch: ['setSearchPreview'], fitResults: ['fit'], fitSelected: ['fit'] };
+  const missing = [];
+  for (const [name, alternatives] of Object.entries(aliases)) {
+    if (typeof view[name] === 'function') continue;
+    const alternative = alternatives.find(candidate => typeof view[candidate] === 'function');
+    if (alternative) view[name] = view[alternative]; else missing.push(name);
   }
+  const API = ['draw', 'setSearch', 'setSelected', 'setSavedRoads', 'setOuting', 'setPickMode', 'setBasemap',
+    'fitResults', 'fitSelected', 'destroy'];
+  for (const name of API) {
+    if (typeof view[name] === 'function') continue;
+    missing.push(name);
+    view[name] = () => false;
+  }
+  view.missingMethods = Object.freeze([...new Set(missing)]);
   return view;
 }
