@@ -152,6 +152,10 @@ test('deployed place search resolves the named places and runs national discover
 // data.roadnaturalist.com, and a corridor outside every published region must refuse with what is missing rather
 // than fetch its way to an answer. Both are run here, against the deployed site.
 const RAW_PLANE = /\/(national\/roads|national\/wetlands|national\/hydro)\//;
+// The global ecoregion plane: two whole-CONUS layers, published once on the data origin. They must never be
+// asked of the application's own origin, which serves no such file - the 404 that made this gate red.
+const ECOLOGY_PLANE = /national\/epa-conus-l[34]\.parquet$/;
+const ECOLOGY_ORIGIN = 'https://data.roadnaturalist.com/';
 // Two seeded regions, one Midwest and one Pacific Northwest, plus the refusal outside every region: enough to
 // prove the published raw path end to end in two different wetland regimes without turning a release gate into a
 // twenty-minute crawl.
@@ -172,8 +176,10 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
   const rawCells = [];
   const failures = [];
   const outside = [];
+  const ecology = [];
   page.on('request', request => {
     if (RAW_PLANE.test(request.url())) rawCells.push(request.url());
+    if (ECOLOGY_PLANE.test(request.url())) ecology.push(request.url());
     if (EVIDENCE.test(request.url())) outside.push(request.url());
   });
   page.on('pageerror', error => failures.push(error.message));
@@ -314,5 +320,17 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
   await expect(page.locator('#candidate-detail')).not.toContainText('Source-backed');
 
   expect(outside, 'a detail panel must reach no geocoder, occurrence source or Investigator endpoint').toEqual([]);
+  // GLOBAL ECOREGIONS ARE READ FROM THEIR OWN DECLARED ORIGIN.
+  // Roads and ecoregions are global planes; wetlands and hydrography stay bounded. A CONUS layer asked of the
+  // application's own origin is a request for a file it has never served, and it is the exact failure this gate
+  // caught. Both the request list and the absence of console 404s are asserted, because either alone could pass.
+  expect(ecology.filter(url => !url.startsWith(ECOLOGY_ORIGIN)),
+    'no CONUS ecology layer may be requested from the application origin').toEqual([]);
+  expect(ecology.length, 'the seeded promotions must read the declared CONUS layers').toBeGreaterThan(0);
+  const declared = new Set(['national/epa-conus-l3.parquet', 'national/epa-conus-l4.parquet']);
+  for (const url of ecology) {
+    expect(declared.has(url.replace(ECOLOGY_ORIGIN, '')), `${url} is not a declared CONUS ecology layer`).toBe(true);
+  }
+  console.log('ECOLOGY_PLANE_REQUESTS ' + JSON.stringify([...new Set(ecology)]));
   expect(failures).toEqual([]);
 });

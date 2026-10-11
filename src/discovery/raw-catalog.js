@@ -92,6 +92,10 @@ export function validateRawRegionsIndex(document) {
           throw new TypeError(`The global roads plane is not declared completely`);
         }
       }
+      // A READY ecoregion plane has to arrive with both whole-CONUS layers declared - version, byte count and digest
+      // for each. Refusing an incomplete declaration here, at the index boundary, is what keeps it from surfacing
+      // later as a 404 against whichever origin a reader happened to guess.
+      if (plane === 'ecoregions') globalEcoregionPlane(document, entry.version);
     }
   }
   return document;
@@ -104,6 +108,42 @@ export function globalPlaneReady(index, plane, expectedVersion = null) {
   if (entry?.state !== 'READY') return null;
   if (expectedVersion != null && entry.version !== expectedVersion) return null;
   return entry;
+}
+
+// The declared global ecoregion plane a caller may read, or null.
+//
+// Roads and ecoregions are the two raw planes published *everywhere*, and both are declared once in the raw index
+// rather than by each bounded region. A plane that is not READY is not an availability claim, and a plane whose
+// version is not the version the caller needs is refused rather than substituted. A READY plane whose Level III and
+// IV declarations are incomplete is refused outright: the alternative - quietly falling back to a same-origin URL
+// that was never published - is a 404 dressed up as data, and it asks the wrong origin for a 123 MB layer.
+export function globalEcoregionPlane(index, expectedVersion = null) {
+  const entry = globalPlaneReady(index, 'ecoregions', expectedVersion);
+  if (!entry) return null;
+  for (const level of ['l3', 'l4']) {
+    const declared = entry.levels?.[level] ?? null;
+    if (!declared || !/^[a-z0-9/._-]+\.parquet$/.test(declared.url ?? '') || !Number.isSafeInteger(declared.bytes)
+      || declared.bytes <= 0 || !/^[a-f0-9]{64}$/.test(declared.sha256 ?? '') || declared.version !== entry.version) {
+      throw new TypeError(`The global ecoregions plane is READY but does not declare Level ${level} completely`);
+    }
+  }
+  return entry;
+}
+
+// Where a declared artifact is read from.
+//
+// A declaration carries its own asset base, and that is what is used: the answer must not depend on whichever base
+// some earlier preparation happened to assign to the reader, because two scopes prepared against different
+// publications are read in the same process. The fallback exists for declarations that predate the base being
+// carried - a bounded region's own catalog, which is served where its own cells are.
+export function declaredArtifactUrl(declared, fallbackBase = null) {
+  if (!declared || typeof declared.url !== 'string' || !declared.url) {
+    throw new TypeError('A declared artifact must name the url it is read from');
+  }
+  const base = [declared.assetBaseUrl, fallbackBase]
+    .find(candidate => typeof candidate === 'string' && /^https:\/\/[^/]+\//.test(candidate));
+  if (!base) throw new TypeError(`The declared artifact ${declared.url} names no usable asset base`);
+  return new URL(declared.url, base).href;
 }
 
 // The region whose published cells cover the most of what a corridor needs, or null. Availability is decided from

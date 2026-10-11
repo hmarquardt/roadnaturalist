@@ -38,7 +38,8 @@ import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiv
   definitionFromSearchArea, formatRadius, initialSearchSelection, interactiveSearchTemplate, placeForSearch, radiusPresets,
   readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRefusal, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
 import { createPlaceLibrary, placeMetadata, validateNationalPlaceGazetteer } from '../discovery/place-gazetteer.js';
-import { globalPlaneReady, rawAvailability, rawAvailabilityMessage, validateRawRegionsIndex } from '../discovery/raw-catalog.js';
+import { globalEcoregionPlane, globalPlaneReady, rawAvailability, rawAvailabilityMessage, validateRawRegionsIndex }
+  from '../discovery/raw-catalog.js';
 import { nearestPlace } from '../discovery/place-gazetteer.js';
 import { centerPresentation, formatContextDirection, pendingSearchContext, runCenterPresentation, storedSearchContext } from '../discovery/search-context.js';
 import { filterAndSort } from '../discovery/filter.js';
@@ -417,12 +418,17 @@ async function reconstructDerivedCorridor(result) {
   const catalogUrl = new URL(region.catalogUrl, region.assetBaseUrl).href;
   // Roads are nationally published, so the reader reads them from the plane's own namespace instead of the bounded
   // region's: the region is then only what it now is - the wetlands and hydrography of the places people explore.
-  const globalRoads = globalPlaneReady(await loadRawRegions() ?? { kind: '', schemaVersion: 0, planes: [], regions: [] }, 'roads');
+  // The two global raw planes, declared once by the published index rather than by this bounded region: roads are
+  // read from the national plane, and the whole-CONUS ecoregion layers are read from theirs. Wetlands and
+  // hydrography remain bounded, and the region is what it now is - those two planes, where people explore.
+  const rawIndex = await loadRawRegions() ?? { kind: '', schemaVersion: 0, planes: [], regions: [] };
+  const globalRoads = globalPlaneReady(rawIndex, 'roads');
+  const globalEcoregions = globalEcoregionPlane(rawIndex);
   // The corridor's own road component, named: the closure then follows exactly the road this corridor belongs to
   // instead of every road that happens to touch its box, which is what makes the rebuild both small and the same
   // composition the derived row came from.
   const scope = await gis.prepareRegionalSearch({ bbox: bounds, catalogUrl, catalogType: 'raw',
-    rawRegionId: region.id, distancesM: ANALYSIS_DISTANCES_M, globalRoads,
+    rawRegionId: region.id, distancesM: ANALYSIS_DISTANCES_M, globalRoads, globalEcoregions,
     roadComponentIds: entry.corridor.componentId ? [entry.corridor.componentId] : null }, {});
   const road = await scope.queryRoadNetwork({ bbox: bounds, roadClasses: eligibleClasses(), limit: 100000 });
   evidenceStage('roads:query', { id: result.id, globalRoads: Boolean(scope.selection?.globalRoads),
@@ -455,7 +461,7 @@ async function reconstructDerivedCorridor(result) {
     segmentCount: Number(result.road?.segmentation?.count ?? entry.corridor.segmentCount ?? 1),
     geometryDriftM: verified.drift });
   return { unit: verified.unit, corridor: verified.corridor, features: verified.features,
-    dataCatalogUrl: catalogUrl, identity };
+    dataCatalogUrl: catalogUrl, identity, scope };
 }
 
 // The search context a promotion carries: the run's own centre, how that centre was named, the run's radius, and
@@ -587,10 +593,10 @@ async function requestSourceEvidence(id) {
       settle({ status: 'ready', message: null, missing: null });
       store.promoteDiscoveryCandidate(promote({ roads: true }), id);
       evidenceStage('ecology:start', { id });
-      await resolveEcology(id);
+      await resolveEcology(id, rebuilt.scope ?? null);
       evidenceStage('ecology:done', { id });
       evidenceStage('habitat:start', { id });
-      await resolveHabitat(id);
+      await resolveHabitat(id, rebuilt.scope ?? null);
       evidenceStage('habitat:done', { id });
       // The run posts again with the levels its reads earned: a plane that was re-read says so, and a plane that
       // came back "not published" keeps saying precomputed, which is why a partially source-backed corridor reads

@@ -4,7 +4,8 @@ import { loadManifest } from '../services/manifest.js';
 import { selectRegionalPartitions } from '../discovery/regional-catalog.js';
 import { DISCOVERY_CATALOG_TYPE, validateDiscoveryCatalog } from '../discovery/discovery-catalog.js';
 import { areaCatalogType } from '../discovery/search-area.js';
-import { cellsForBounds, closureTileKeys, rawCellBounds } from '../discovery/raw-catalog.js';
+import { cellsForBounds, closureTileKeys, declaredArtifactUrl, globalEcoregionPlane, rawCellBounds }
+  from '../discovery/raw-catalog.js';
 import { validateRoadComponents } from '../discovery/components.js';
 import { derivedAvailability, selectDerivedCells, validateDerivedManifest } from '../discovery/derived-catalog.js';
 import { DERIVED_COLUMNS, derivedMetrics, derivedUnit, derivedCorridor, queryDerivedCorridors } from './derived-query.js';
@@ -86,8 +87,9 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     // is a request for a file the application has never served - a 404 on every read that needs it. The scope's own
     // catalogue carries the publication's asset base, so that is where a national layer resolves; everything else
     // (the per-state layers published with the application) keeps resolving exactly as it always has.
-    const url = new URL(entry.url, String(entry.url ?? '').startsWith('national/') && activeAssetBaseUrl
-      ? new URL(activeAssetBaseUrl) : DATA_BASE);
+    // This path is the *manifest* fallback: layers that ship with the application. A plane published on the data
+    // origin is declared by the raw index and opened through openDeclaredArtifact, which carries its own base.
+    const url = new URL(entry.url, DATA_BASE);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`${datasetId} HTTP ${response.status}`);
     const bytes = await response.arrayBuffer();
@@ -493,8 +495,12 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     }
     const catalog = await getDiscoveryCatalog(searchArea.catalogUrl, declaredType);
     const manifestMs = performance.now() - started;
+    // The global ecoregion plane, declared by the raw index and threaded in by whoever prepared this scope. It is
+    // validated here as well as at the index boundary, so a scope cannot be prepared with a half-declared plane and
+    // then quietly read the wrong origin: the declaration either holds up or the preparation fails.
+    const globalEcoregions = searchArea.globalEcoregions
+      ? globalEcoregionPlane({ globalPlanes: { ecoregions: searchArea.globalEcoregions } }, null) : null;
     if (declaredType === DISCOVERY_CATALOG_TYPE.RAW) activeRawPublication = catalog.publication ?? null;
-    activeAssetBaseUrl = catalog.assetBaseUrl ?? catalog.publication?.assetBaseUrl ?? activeAssetBaseUrl;
     const selection = await selectRawOrRegionalPartitions(catalog, searchArea, declaredType,
       searchArea.globalRoads ?? null);
     const selectionMs = performance.now() - started - manifestMs;
@@ -554,6 +560,10 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     }
     const scope = {
       selection,
+      // Global planes (roads, ecoregions) travel with the scope that was prepared for them; bounded planes
+      // (wetlands, hydrography) stay where they were published. Ecology is read from the declaration, not from
+      // whichever asset base was assigned to the service last.
+      getEcoregions(corridor) { return getEcoregions(corridor, { globalEcoregions }); },
       timing: Object.freeze({ manifestMs: Math.round(manifestMs), selectionMs: Math.round(selectionMs),
         loadMs: Object.freeze(loadMs), fetchMs: Math.round(partitionMetrics.fetchMs),
         verifyMs: Math.round(partitionMetrics.verifyMs), registerMs: Math.round(partitionMetrics.registerMs),
@@ -628,17 +638,16 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
   // discovery batch keeps reading the layers the manifest declares. Ecoregions are the one detail input that is
   // not partitioned per cell: EPA publishes them as whole-CONUS layers, so they are published once and shared.
   let activeRawPublication = null;
-  // The origin the prepared publication's own artifacts live on. `catalog` is shadowed inside the preparation
-  // functions, so a declared artifact could only ever resolve against the application manifest - which is why a
-  // whole-CONUS layer declared under `national/` was asked of the page's own origin and answered with a 404.
-  let activeAssetBaseUrl = null;
 
+  // A declared artifact resolves against its own declared asset base. That is the whole point of carrying the base
+  // on the declaration: a global plane is published on the data origin and a bounded region's cells on the region's
+  // own, and neither may depend on which base some earlier preparation happened to assign to the service.
   async function openDeclaredArtifact(id, declared) {
     const key = `raw:${id}`;
     if (files.has(key)) return files.get(key);
     const engine = await initialize();
-    const base = catalog?.assetBaseUrl ? new URL(catalog.assetBaseUrl) : DATA_BASE;
-    const response = await fetch(new URL(declared.url, base));
+    const url = declaredArtifactUrl(declared, catalog?.assetBaseUrl ?? DATA_BASE.href);
+    const response = await fetch(url);
     if (!response.ok) throw new Error(`${id} HTTP ${response.status}`);
     const bytes = await response.arrayBuffer();
     const byteLength = bytes.byteLength;
@@ -651,12 +660,31 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     const name = `${id}-${key}.parquet`;
     await engine.db.registerFileBuffer(name, new Uint8Array(bytes));
     const opened = { id, version: declared.version ?? null, source: declared.source ?? null, sha256: declared.sha256,
-      registeredName: name, url: declared.url, transferredBytes: byteLength };
+      registeredName: name, url, transferredBytes: byteLength };
     files.set(key, opened);
     return opened;
   }
 
-  async function ecoregionSources(level) {
+  // Which artifact answers an EPA level, in order of authority:
+  //
+  //   1. the global ecoregion plane a source-evidence scope was prepared with - the declaration the raw index
+  //      carries for the plane that is published everywhere (roads and ecoregions are global; wetlands and
+  //      hydrography are bounded);
+  //   2. a legacy raw publication that declares its own CONUS ecology artifacts;
+  //   3. the application manifest, for the regional/local cases that genuinely read layers shipped with the app.
+  //
+  // The order matters: a whole-CONUS layer is not a bounded region's artefact, and resolving it off the page's own
+  // origin asks for a file the application has never served.
+  async function ecoregionSources(level, { globalEcoregions = null } = {}) {
+    const global = globalEcoregions?.levels?.[`l${level}`] ?? null;
+    if (global) {
+      // The level entry travels with the plane's own asset base and version, so the artifact resolves itself and is
+      // verified against the declaration that published it.
+      const opened = await openDeclaredArtifact(`epa-ecoregions-conus-l${level}`,
+        { ...global, assetBaseUrl: globalEcoregions.assetBaseUrl, version: globalEcoregions.version,
+          source: { plane: 'ecoregions', version: globalEcoregions.version } });
+      return { entries: [{ id: opened.id, source: opened.source, version: opened.version }], opened: [opened] };
+    }
     const declared = activeRawPublication?.ecoregions?.[`l${level}`] ?? null;
     if (declared) {
       const opened = await openDeclaredArtifact(`epa-ecoregions-conus-l${level}`, declared);
@@ -684,7 +712,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     return match ? ecoregionUnionEntry(id, Number(match[1])) : openDataset(id);
   }
 
-  async function queryLevel(level, wkt, bounds) {
+  async function queryLevel(level, wkt, bounds, { globalEcoregions = null } = {}) {
     const { opened } = await ecoregionSources(level);
     const engine = await initialize();
     // WKT is generated solely from validated numeric GeoJSON coordinates.
@@ -777,7 +805,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
   // whether a corridor needed repair. See src/gis/analytical-geometry.js.
   const analytical = createAnalyticalGeometryQueries({ initialize });
 
-  async function getEcoregions(corridor) {
+  async function getEcoregions(corridor, { globalEcoregions = null } = {}) {
     let datasets = [];
     try {
       // Ecoregion overlap is a line/polygon intersection, but it is measured against the same analytical
@@ -795,7 +823,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
       const started = performance.now();
       const errors = [];
       const attempt = async level => {
-        try { return await queryLevel(level, wkt, geometry.bounds); }
+        try { return await queryLevel(level, wkt, geometry.bounds, { globalEcoregions }); }
         catch (error) { errors.push(`Level ${level}: ${error.message}`); return { coverage: COVERAGE.UNKNOWN, primary: null, intersections: [], spansMultiple: false, measuredM: null, routeLengthM: null }; }
       };
       const level3 = await attempt(3);
