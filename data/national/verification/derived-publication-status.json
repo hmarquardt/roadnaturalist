@@ -4,7 +4,7 @@
  "catalogFingerprint": "a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9",
  "r2Publication": {
   "status": "verified",
-  "verifiedAt": "2026-10-11T14:32:36.922Z",
+  "verifiedAt": "2026-10-11T15:44:08.394Z",
   "record": "data/national/verification/derived-publication-remote-audit.json",
   "objects": 20863,
   "bytes": 2681943548,
@@ -26,7 +26,7 @@
  },
  "browserCutover": {
   "status": "passed",
-  "checkedAt": "2026-10-11T14:34:25.810Z",
+  "checkedAt": "2026-10-11T15:46:03.769Z",
   "record": "data/national/verification/derived-publication-browser.txt",
   "reason": null
  },
@@ -120,7 +120,29 @@
    "checkedAt": "2026-10-11T13:18:22.380Z",
    "record": null,
    "reason": "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
+  },
+  {
+   "status": "passed",
+   "checkedAt": "2026-10-11T14:34:25.810Z",
+   "record": "data/national/verification/derived-publication-browser.txt",
+   "reason": null
   }
  ],
+ "identityEvidence": {
+  "corridorName": "River Rd",
+  "derivedId": "drv1-river-rd-c226-s1",
+  "reconstructedId": "drv1-river-rd-c1-s1",
+  "idsDiffer": true,
+  "identityBasis": "source_feature_ids_exact",
+  "sourceFeatureCount": 1,
+  "sourceFeatureMatch": "exact",
+  "segmentIndex": 1,
+  "segmentCount": 1,
+  "geometryDriftM": {
+   "derivedToSource": 0,
+   "sourceToDerived": 0
+  },
+  "sourceEvidence": "Source-backed"
+ },
  "note": "Two independent gates. R2 publication is verified by re-fetching every published object; the browser cutover is verified by a real browser resolving that plane through the deployed frontend. Neither is reported as the other, and the R2 verification stays valid across a browser failure."
 }
