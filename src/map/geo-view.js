@@ -161,6 +161,10 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     let activeCentre = null;
     let activeRadiusM = null;
     let fitCount = 0;
+    let movements = 0;
+    // Counted rather than inferred: a drag that never reaches Leaflet leaves this at zero.
+    map.on('moveend', () => { movements += 1; });
+
     map.on('click', event => {
       // In pick mode the map is an input surface and nothing else: it hands the coordinate back and does not touch
       // the search definition, which stays the domain layer's business.
@@ -335,6 +339,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       camera: () => ({ center: [map.getCenter().lng, map.getCenter().lat], zoom: map.getZoom() }),
       searchGeometry: () => ({ center: activeCentre, radiusM: activeRadiusM }),
       fitCount: () => fitCount,
+      movementCount: () => movements,
       // A person's own viewport survives a redraw, and the map remembers it: `bounds()` exists for tests and
       // diagnostics rather than for the application to store.
       bounds: () => map.getBounds?.() ?? null,

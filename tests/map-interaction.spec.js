@@ -54,7 +54,7 @@ for (const [query, label, geography] of REGIONS) {
       if (message.type() === 'error') pageErrors.push(message.text());
       // The application's own trace of the automatic fit, printed only when it is enabled, so the ordering can be
       // read from a run instead of inferred from the source.
-      if (message.text().startsWith('MAP_FIT') || message.text().startsWith('MAP_PATH')) {
+      if (/^MAP_(FIT|PATH|DRAG)/.test(message.text())) {
         console.log(message.text());
       }
     });
@@ -110,7 +110,13 @@ for (const [query, label, geography] of REGIONS) {
     expect(await selectedId(), `${label}: the clicked row is the selected one`).toBe(firstId);
     await expect(page.locator(`#map path[data-role="candidate"][data-corridor-id="${firstId}"]`)).toHaveCount(1);
 
-    // 6/9. THE USER OWNS THE CAMERA. Pan and zoom deliberately, then assert ordinary changes leave it alone.
+    // 6/9. THE USER OWNS THE CAMERA - AND THE GESTURE HAS TO BE A REAL ONE.
+    //
+    // A drag synthesised with DOM MouseEvents from inside the page is not necessarily a drag as Leaflet understands
+    // it, so both are measured here: the synthetic attempt first (recorded, not asserted, because ignoring untrusted
+    // synthetic events is legitimate), then a real Playwright mouse gesture, which is what a person actually does.
+    const beforeDrag = await camera();
+    const movementsBefore = await page.evaluate(() => globalThis.__RN_MAP.movements());
     await page.evaluate(() => {
       const container = document.querySelector('#map');
       const bounds = container.getBoundingClientRect();
@@ -120,11 +126,29 @@ for (const [query, label, geography] of REGIONS) {
       at('mousemove', 260, 220);
       at('mousemove', 190, 170);
       at('mouseup', 190, 170);
-      container.dispatchEvent(new WheelEvent('wheel', { deltaY: -240, bubbles: true, cancelable: true }));
     });
-    await page.waitForTimeout(1000);
-    const moved = await camera();
-    expect(moved.center[0], `${label}: the drag must have moved the camera`).not.toBeCloseTo(initial.center[0], 5);
+    await page.waitForTimeout(600);
+    const afterSynthetic = await camera();
+    const movementsAfterSynthetic = await page.evaluate(() => globalThis.__RN_MAP.movements());
+    console.log(`MAP_DRAG ${JSON.stringify({ label, kind: 'synthetic',
+      moved: afterSynthetic.center[0] !== beforeDrag.center[0] || afterSynthetic.center[1] !== beforeDrag.center[1],
+      zoomChanged: afterSynthetic.zoom !== beforeDrag.zoom, movements: movementsAfterSynthetic - movementsBefore })}`);
+
+    // The real gesture: the map's own box, well inside it, away from the zoom control and any popup.
+    const box = await page.locator('#map').boundingBox();
+    await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.55);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.35, box.y + box.height * 0.35, { steps: 12 });
+    await page.mouse.up();
+    await page.waitForTimeout(900);
+    const afterMouse = await camera();
+    const movementsAfterMouse = await page.evaluate(() => globalThis.__RN_MAP.movements());
+    const movedByMouse = afterMouse.center[0] !== afterSynthetic.center[0] || afterMouse.center[1] !== afterSynthetic.center[1];
+    console.log(`MAP_DRAG ${JSON.stringify({ label, kind: 'mouse', moved: movedByMouse,
+      zoomChanged: afterMouse.zoom !== afterSynthetic.zoom, movements: movementsAfterMouse - movementsAfterSynthetic })}`);
+    expect(movedByMouse, `${label}: a real mouse drag must move the map`).toBe(true);
+    expect(afterMouse.zoom, `${label}: a pan must not change the zoom`).toBeCloseTo(afterSynthetic.zoom, 5);
+    const moved = afterMouse;
 
     // Selection must not move it.
     const secondId = await requireIdOfRow(1);
