@@ -456,7 +456,7 @@ function sourceEvidenceSection(candidate, { onRequest = null } = {}) {
   node.classList.add('source-evidence-section');
   node.append(el('p', 'small muted', EVIDENCE_TERM.source.note));
   if (state.status === 'loading') {
-    node.append(el('p', 'small muted', 'Rebuilding this corridor from the published road network…'));
+    node.append(el('p', 'small muted', 'Loading source-level evidence…'));
     return node;
   }
   if (state.status === 'ready') {

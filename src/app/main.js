@@ -512,32 +512,85 @@ function derivedMetricsFor(result) {
 // verified against the row, then read against the published raw wetland and hydrography cells. If the row cannot be
 // reproduced, the derived candidate stays exactly as it was and the failure is reported as the source step's
 // status - never as a lost corridor.
+//
+// A request always ends. Every stage is named, every rejection is caught and mapped to a terminal status, and the
+// whole operation is bounded by a timeout, because a panel that says "loading" forever is worse than one that says
+// the source step failed: it hides the failure and cannot be retried. The stage markers are silent unless
+// `globalThis.__RN_DEBUG_EVIDENCE` is set, which is how a test or a developer watches the path without leaving
+// noise in production.
+const SOURCE_EVIDENCE_TIMEOUT_MS = () => Number(globalThis.__RN_SOURCE_TIMEOUT_MS ?? 120000);
+
+function evidenceStage(stage, detail = {}) {
+  if (!globalThis.__RN_DEBUG_EVIDENCE) return;
+  console.log(`sourceEvidence:${stage} ` + JSON.stringify({ at: Date.now(), ...detail }));
+}
+
+// One request per candidate, identified by a token: a completion that belongs to a corridor the person has since
+// left must not overwrite the corridor they are looking at.
+const sourceEvidenceRequests = new Map();
+
 async function requestSourceEvidence(id) {
   const state = store.getState();
   const result = state.discovery.results.find(entry => entry.id === id);
-  const candidate = state.candidates.find(item => item.id === id);
-  if (!result || !candidate) return;
-  const keep = (sourceEvidence) => store.promoteDiscoveryCandidate({ ...candidate, sourceEvidence }, id);
-  store.promoteDiscoveryCandidate({ ...candidate,
-    sourceEvidence: { ...candidate.sourceEvidence, status: 'loading', message: null } }, id);
+  if (!result) return;
+  const candidate = () => store.getState().candidates.find(item => item.id === id) ?? null;
+  const current = candidate();
+  if (!current) return;
+  if (current.sourceEvidence?.status === 'loading') { evidenceStage('ignored:already-loading', { id }); return; }
+  if (current.sourceEvidence?.status === 'ready') { evidenceStage('ignored:already-source', { id }); return; }
+  const token = Symbol(id);
+  sourceEvidenceRequests.set(id, token);
+  const mine = () => sourceEvidenceRequests.get(id) === token;
+  const settle = (sourceEvidence) => {
+    const live = candidate();
+    if (!live || !mine()) { evidenceStage('dropped:stale-or-gone', { id, status: sourceEvidence.status }); return; }
+    store.promoteDiscoveryCandidate({ ...live, sourceEvidence }, id);
+    evidenceStage('render', { id, status: sourceEvidence.status });
+  };
+  settle({ ...current.sourceEvidence, status: 'loading', message: null, missing: null });
+  evidenceStage('start', { id, corridor: result.name });
+
+  let timer = null;
   try {
-    const rebuilt = await reconstructDerivedCorridor(result);
-    const promoted = promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor,
-      searchContext: promotionSearchContext(result), provenance: state.discovery.raw?.provenance ?? null,
-      dataCatalogUrl: rebuilt.dataCatalogUrl, derived: candidate.derived,
-      derivedVersion: state.discovery.raw?.provenance?.regionVersion ?? null,
-      evidenceLevels: sourceEvidenceLevels({ roads: true }),
-      sourceEvidence: { status: 'ready', message: null, missing: null } });
-    store.promoteDiscoveryCandidate(promoted, id);
-    // Ecology comes from the globally published CONUS layers and habitat from the bounded cells: both are live
-    // reads, so both are source-backed once they have run.
-    await resolveEcoregions(id);
-    await resolveHabitat(id);
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(Object.assign(new Error(`source evidence took longer than ${SOURCE_EVIDENCE_TIMEOUT_MS() / 1000} s`),
+        { sourceTimeout: true })), SOURCE_EVIDENCE_TIMEOUT_MS());
+    });
+    const work = (async () => {
+      evidenceStage('roads:start', { id });
+      const rebuilt = await reconstructDerivedCorridor(result);
+      evidenceStage('roads:done', { id, features: rebuilt.features.length });
+      const promoted = promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor,
+        searchContext: promotionSearchContext(result), provenance: state.discovery.raw?.provenance ?? null,
+        dataCatalogUrl: rebuilt.dataCatalogUrl, derived: current.derived,
+        derivedVersion: state.discovery.raw?.provenance?.regionVersion ?? null,
+        evidenceLevels: sourceEvidenceLevels({ roads: true }),
+        sourceEvidence: { status: 'ready', message: null, missing: null } });
+      evidenceStage('assemble', { id });
+      settle({ status: 'ready', message: null, missing: null });
+      store.promoteDiscoveryCandidate(promoted, id);
+      evidenceStage('ecology:start', { id });
+      await resolveEcoregions(id);
+      evidenceStage('ecology:done', { id });
+      evidenceStage('habitat:start', { id });
+      await resolveHabitat(id);
+      evidenceStage('habitat:done', { id });
+      return 'ready';
+    })();
+    await Promise.race([work, timeout]);
+    evidenceStage('complete', { id });
   } catch (error) {
-    keep({ status: error.rawUnavailable ? 'unavailable' : 'failed',
-      message: error.rawUnavailable ? error.message
-        : `the corridor could not be reconstructed from the published source cells (${error.message})`,
-      missing: error.missingCells ?? null });
+    // Every rejection ends here, whatever stage produced it, and the derived metrics above are never touched.
+    const unavailable = Boolean(error?.rawUnavailable);
+    evidenceStage(unavailable ? 'unavailable' : 'error', { id, name: error?.name ?? 'Error',
+      message: error?.message ?? String(error), stack: (error?.stack ?? '').split('\n').slice(0, 4).join(' | ') });
+    settle({ status: unavailable ? 'unavailable' : 'failed',
+      message: unavailable ? error.message
+        : `Source-level evidence could not be loaded. ${error?.sourceTimeout ? error.message + '. ' : ''}The precomputed corridor metrics above remain available.`,
+      missing: error?.missingCells ?? null });
+  } finally {
+    if (timer) clearTimeout(timer);
+    if (mine()) sourceEvidenceRequests.delete(id);
   }
 }
 

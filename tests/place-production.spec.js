@@ -175,8 +175,18 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
     if (EVIDENCE.test(request.url())) outside.push(request.url());
   });
   page.on('pageerror', error => failures.push(error.message));
+  // Evidence stages, printed only when EVIDENCE_DEBUG is set: the app gates its own markers the same way.
+  const stages = [];
+  page.on('console', message => {
+    const text = message.text();
+    if (text.startsWith('sourceEvidence:')) { stages.push(text); console.log('STAGE ' + text); }
+    if (message.type() === 'error') failures.push(text);
+  });
 
   async function boot() {
+    await page.addInitScript(({ debug, timeoutMs }) => {
+      if (debug) { globalThis.__RN_DEBUG_EVIDENCE = true; globalThis.__RN_SOURCE_TIMEOUT_MS = timeoutMs; }
+    }, { debug: Boolean(process.env.EVIDENCE_DEBUG), timeoutMs: Number(process.env.EVIDENCE_TIMEOUT_MS ?? 90000) });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
     await expect(page.locator('#discovery-place')).toBeVisible({ timeout: 180000 });
@@ -224,9 +234,17 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
     await expect(metrics, `${label}: the stored road values are shown`).toContainText('Road');
     expect(derived.rawBytes, `${label}: opening the detail reads no source cell`).toBe(0);
 
+    const started = Date.now();
     const before = rawCells.length;
     await page.locator('#source-evidence-request').click();
-    await expect(page.locator('#candidate-detail .source-evidence-section')).toContainText('Source-backed', { timeout: 300000 });
+    const section = page.locator('#candidate-detail .source-evidence-section');
+    await expect(section).toContainText('Source-backed', { timeout: 300000 }).catch(async error => {
+      console.log(`SOURCE_STUCK ${label} after ${Math.round((Date.now() - started) / 1000)} s`);
+      console.log(`SOURCE_SECTION ${(await section.innerText()).replace(/\n/g, ' | ').slice(0, 400)}`);
+      console.log(`SOURCE_STAGES ${JSON.stringify(stages.slice(-12))}`);
+      throw error;
+    });
+    console.log(`SOURCE_SECONDS ${label} ${((Date.now() - started) / 1000).toFixed(1)}`);
     await expect(page.locator('#candidate-detail .habitat-section')).toBeVisible({ timeout: 300000 });
     const entry = { place: label, corridor: derived.name, derivedRawCells: derived.rawBytes,
       sourceRawCells: rawCells.length - before,
