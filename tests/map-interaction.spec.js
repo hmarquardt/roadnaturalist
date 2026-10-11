@@ -70,7 +70,10 @@ for (const [query, label, geography] of REGIONS) {
     const selectedId = () => page.evaluate(() =>
       document.querySelector('#discovery-results tbody tr.selected .discovery-row')?.dataset?.candidateId ?? null);
 
-    // 22. GEOGRAPHY SANITY: a lat/lon inversion or a stale-region camera shows up here immediately.
+    // 22. GEOGRAPHY SANITY: a lat/lon inversion or a stale-region camera shows up here immediately. The automatic
+    // fit is animated, so the camera is allowed a moment to arrive before its position is judged.
+    await expect.poll(async () => (await camera()).center[0], { timeout: 30000,
+      message: `${label}: the new search must fit its results` }).toBeGreaterThan(geography.lon[0]);
     const initial = await camera();
     expect(initial.center[0], `${label}: longitude`).toBeGreaterThan(geography.lon[0]);
     expect(initial.center[0], `${label}: longitude`).toBeLessThan(geography.lon[1]);
