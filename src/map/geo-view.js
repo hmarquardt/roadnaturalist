@@ -190,12 +190,17 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         if (!lines) { skipped += 1; continue; }
         for (const line of lines) {
           const path = leaflet.polyline(line, styleFor(corridor));
-          // The corridor's own id travels with its line, so a click target is found without guessing at pixels.
-          mark(path, { role: 'candidate', corridorId: corridor.id });
           // Drawing order is list order, so the map's stacking matches the order the person is reading.
           if (Number.isFinite(corridor.distanceFromCenterM)) path.bindPopup(popupHtml(corridor));
-
+          // THE METADATA GOES ON AFTER LEAFLET HAS MADE THE ELEMENT. Leaflet creates a path's SVG element only when
+          // the path joins the map, so stamping it before `addLayer` stamps nothing: the line is drawn and its
+          // identity is nowhere in the DOM. The identification is therefore applied on the map's own `add` event and
+          // once immediately after adding, which covers the first insertion and every later re-add.
+          const decorate = () => mark(path, { role: 'candidate', corridorId: corridor.id,
+            selected: corridor.id === selectedId });
+          if (typeof path.on === 'function') path.on('add', decorate);
           layer.addLayer(path);
+          decorate();
           drawn += 1;
         }
       }

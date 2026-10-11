@@ -14,10 +14,20 @@ import { basemapFailureNote, boundsOfGeometries, createGeoView, popupHtml, toLat
 
 function fakeLeaflet({ failMap = false } = {}) {
   const calls = { tileLayers: [], polylines: [], circles: 0, circleMarkers: 0, rectangles: 0, fits: [], removed: 0 };
-  const layer = () => ({ added: [], handlers: {},
+  // The fake models the lifecycle that caused the real bug: a path has no DOM element until it is added, so a test
+  // can tell the difference between stamping metadata before and after Leaflet has created the element.
+  const layer = ({ createElementOnAdd = false } = {}) => ({ added: [], handlers: {}, element: null, attributes: {},
+    getElement() { return this.element; },
+    setAttribute(name, value) { this.attributes[name] = value; return this; },
     on(event, handler) { this.handlers[event] = handler; return this; },
-    addTo(map) { this.added.push(map); return this; },
-    addLayer(entry) { this.added.push(entry); return this; },
+    addTo(map) { this.added.push(map); this.element = { setAttribute: (n, v) => { this.attributes[n] = v; } };
+      this.handlers.add?.(); return this; },
+    addLayer(entry) { this.added.push(entry);
+      if (entry && typeof entry === 'object' && !entry.element && (entry.handlers || entry.bindPopup)) {
+        entry.element = { setAttribute: (name, value) => { entry.attributes[name] = value; } };
+        entry.handlers.add?.();
+      }
+      return this; },
     clearLayers() { this.added.length = 0; return this; },
     bindPopup(html) { this.popup = html; return this; },
     bindTooltip(text) { this.tooltip = text; return this; } });
@@ -33,8 +43,9 @@ function fakeLeaflet({ failMap = false } = {}) {
   const leaflet = { map() { if (failMap) throw new Error('no WebGL, no canvas, no map'); return map; },
     tileLayer(url, options) { const created = layer(); created.url = url; created.options = options;
       calls.tileLayers.push(created); return created; },
-    polyline(latlngs, options) { const created = layer(); created.latlngs = latlngs; created.options = options;
-      calls.polylines.push(created); return created; },
+    // A path is created WITHOUT an element, exactly as Leaflet does.
+    polyline(latlngs, options) { const created = layer({ createElementOnAdd: true }); created.latlngs = latlngs;
+      created.options = options; calls.polylines.push(created); return created; },
     circle() { calls.circles += 1; return layer(); },
     circleMarker() { calls.circleMarkers += 1; return layer(); },
     rectangle() { calls.rectangles += 1; return layer(); },
