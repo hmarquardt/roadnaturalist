@@ -28,6 +28,17 @@ const LINE_STYLE = Object.freeze({
   selectedSaved: Object.freeze({ color: '#b45309', weight: 6, opacity: 1, dashArray: '8 5' }),
 });
 
+// Identifying attributes for the shapes that carry meaning: applied when the element exists, skipped in a
+// non-browser test double. Nothing in the application depends on them; a click target and an automated check do.
+function mark(path, attributes) {
+  const element = path?.getElement?.() ?? null;
+  if (!element?.setAttribute) return false;
+  for (const [name, value] of Object.entries(attributes)) {
+    element.setAttribute(name.startsWith('data-') ? name : `data-${name}`, String(value));
+  }
+  return true;
+}
+
 // A geometry is drawn only if it is a usable line: anything else is skipped and counted, because one malformed row
 // must never take the whole map down.
 export function toLatLngs(geometry) {
@@ -65,7 +76,10 @@ export function popupHtml(corridor) {
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
   const parts = [];
   if (Number.isFinite(corridor?.ranking?.score)) {
-    parts.push(`<p class="map-popup-score"><strong>Naturalist interest ${corridor.ranking.score}</strong></p>`);
+    // The version travels with the card: a screenshot of a score is only interpretable beside the model that
+    // produced it, and the model is versioned precisely so that stays true.
+    parts.push(`<p class="map-popup-score"><strong>Naturalist interest ${corridor.ranking.score}</strong>`
+      + `<span class="map-popup-version" data-ranking-version="${escape(corridor.ranking.version ?? '')}"> </span></p>`);
     for (const [key, label] of [['wetland', 'Wetland context'], ['water', 'Water context'],
       ['ecologicalVariety', 'Ecological variety']]) {
       const component = corridor.ranking.components?.[key] ?? null;
@@ -86,7 +100,8 @@ export function popupHtml(corridor) {
 export function unavailableView(reason) {
   return { available: false, reason, draw: () => false, setSelected: () => false, setSearch: () => false,
     setSavedRoads: () => false, setOuting: () => false, setPickMode: () => false, setBasemap: () => false,
-    fitResults: () => false, fitSelected: () => false, selectedId: () => null, destroy: () => {} };
+    fitResults: () => false, fitSelected: () => false, selectedId: () => null, destroy: () => {},
+    camera: () => null, searchGeometry: () => ({ center: null, radiusM: null }), fitCount: () => 0 };
 }
 
 // What a tile layer does when a tile cannot be fetched. The provider is a third party: its refusal, its rate limit
@@ -136,6 +151,9 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     let corridors = [];
     let savedRoads = [];
     let outing = null;
+    let activeCentre = null;
+    let activeRadiusM = null;
+    let fitCount = 0;
     map.on('click', event => {
       // In pick mode the map is an input surface and nothing else: it hands the coordinate back and does not touch
       // the search definition, which stays the domain layer's business.
@@ -172,6 +190,8 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         if (!lines) { skipped += 1; continue; }
         for (const line of lines) {
           const path = leaflet.polyline(line, styleFor(corridor));
+          // The corridor's own id travels with its line, so a click target is found without guessing at pixels.
+          mark(path, { role: 'candidate', corridorId: corridor.id });
           // Drawing order is list order, so the map's stacking matches the order the person is reading.
           if (Number.isFinite(corridor.distanceFromCenterM)) path.bindPopup(popupHtml(corridor));
 
@@ -189,12 +209,14 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       if (!search) return true;
       if (search.kind === 'radius' && Array.isArray(search.center)) {
         const center = [search.center[1], search.center[0]];
-        leaflet.circleMarker(center, { radius: 4, color: '#111827', weight: 2, fillColor: '#ffffff', fillOpacity: 1 })
-          .bindTooltip('Search centre').addTo(layers.search);
+        activeCentre = center;
+        mark(leaflet.circleMarker(center, { radius: 4, color: '#111827', weight: 2, fillColor: '#ffffff',
+          fillOpacity: 1 }).bindTooltip('Search centre').addTo(layers.search), { role: 'search-center' });
         if (Number.isFinite(search.radiusMiles)) {
-          leaflet.circle(center, { radius: search.radiusMiles * 1609.344, color: '#111827', weight: 1.5,
-            opacity: 0.8, fill: false, dashArray: '6 4' }).bindTooltip('Requested search radius')
-            .addTo(layers.search);
+          activeRadiusM = search.radiusMiles * 1609.344;
+          mark(leaflet.circle(center, { radius: activeRadiusM, color: '#111827', weight: 1.5, opacity: 0.8,
+            fill: false, dashArray: '6 4' }).bindTooltip('Requested search radius').addTo(layers.search),
+          { role: 'search-radius' });
         }
         return true;
       }
@@ -268,6 +290,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         const bounds = boundsOfGeometries(corridors.map(corridor => corridor.geometry));
         if (!bounds) { onNotice({ kind: 'empty', note: 'No mapped corridor geometry to fit.' }); return false; }
         map.fitBounds(bounds, { padding: [24, 24] });
+        fitCount += 1;
         return true;
       },
       fitSelected() {
@@ -278,6 +301,11 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         return true;
       },
       selectedId: () => selectedId,
+      // A read-only view of where the camera is and what the search geometry is, so the browser interaction gate can
+      // verify the contract without reaching into Leaflet from the test. Nothing in the application reads these.
+      camera: () => ({ center: [map.getCenter().lng, map.getCenter().lat], zoom: map.getZoom() }),
+      searchGeometry: () => ({ center: activeCentre, radiusM: activeRadiusM }),
+      fitCount: () => fitCount,
       // A person's own viewport survives a redraw, and the map remembers it: `bounds()` exists for tests and
       // diagnostics rather than for the application to store.
       bounds: () => map.getBounds?.() ?? null,

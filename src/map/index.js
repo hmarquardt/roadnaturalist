@@ -30,5 +30,19 @@ export function createMapView(container, options = {}) {
     view[name] = () => false;
   }
   view.missingMethods = Object.freeze([...new Set(missing)]);
+  // A narrow, read-only diagnostic: which implementation is running, where the camera is, and what the search
+  // geometry is. The browser interaction gate needs to fail if the application silently fell back to another
+  // renderer, and it needs to measure the camera without reaching into Leaflet from the test. Nothing in the
+  // application reads this, so it cannot become a second source of truth.
+  const implementation = globalThis.__RN_SCHEMATIC_MAP ? 'schematic' : 'geo';
+  globalThis.__RN_MAP = Object.freeze({
+    implementation,
+    available: view.available !== false,
+    missingMethods: view.missingMethods,
+    camera: () => view.camera?.() ?? null,
+    searchGeometry: () => view.searchGeometry?.() ?? { center: null, radiusM: null },
+    fitCount: () => view.fitCount?.() ?? 0,
+    note: 'Diagnostic surface for the map interaction gate. Read-only; the application never consults it.',
+  });
   return view;
 }
