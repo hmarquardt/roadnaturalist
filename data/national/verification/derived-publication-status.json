@@ -4,7 +4,7 @@
  "catalogFingerprint": "a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9",
  "r2Publication": {
   "status": "verified",
-  "verifiedAt": "2026-10-11T15:44:08.394Z",
+  "verifiedAt": "2026-10-11T16:27:13.211Z",
   "record": "data/national/verification/derived-publication-remote-audit.json",
   "objects": 20863,
   "bytes": 2681943548,
@@ -26,7 +26,7 @@
  },
  "browserCutover": {
   "status": "passed",
-  "checkedAt": "2026-10-11T15:46:03.769Z",
+  "checkedAt": "2026-10-11T16:29:10.348Z",
   "record": "data/national/verification/derived-publication-browser.txt",
   "reason": null
  },
@@ -124,6 +124,12 @@
   {
    "status": "passed",
    "checkedAt": "2026-10-11T14:34:25.810Z",
+   "record": "data/national/verification/derived-publication-browser.txt",
+   "reason": null
+  },
+  {
+   "status": "passed",
+   "checkedAt": "2026-10-11T15:46:03.769Z",
    "record": "data/national/verification/derived-publication-browser.txt",
    "reason": null
   }
