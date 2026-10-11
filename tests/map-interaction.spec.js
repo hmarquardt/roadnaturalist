@@ -235,14 +235,22 @@ for (const [query, label, geography] of REGIONS) {
     // RAW DOM EVIDENCE: what popup-ish elements exist at all, and how many candidate paths carry the clicked
     // corridor's identity. Asked rather than inferred, because a card that never appears can mean "never bound",
     // "bound but not opened", or "opened outside the container".
-    const popupDump = await page.evaluate(id => {
-      const map = document.querySelector('#map');
-      const paths = [...document.querySelectorAll(`#map path[data-corridor-id="${id}"]`)];
+    const popupDump = await page.evaluate(({ id, x, y }) => {
+      const L = window.L;
+      const element = document.querySelector(`#map path[data-corridor-id="${id}"]`);
+      // Ask Leaflet itself, not the markup: a corridor the adapter never carded can never open a card. The element is
+      // keyed in Leaflet's own registry, and the map is reachable from the container the same way.
+      const key = element && L?.stamp ? L.stamp(element) : null;
+      const container = document.querySelector('#map .leaflet-container') ?? document.querySelector('#map');
+      const mapKey = container ? container._leaflet_id : null;
+      const map = mapKey != null ? (window.__RN_MAP?.map ?? null) : null;
+      const layer = map && key != null ? map._layers?.[key] ?? null : null;
       const pops = [...document.querySelectorAll('#map .leaflet-popup, #map .leaflet-popup-content, #map [class*="popup"]')];
-      return { candidatePaths: paths.length, withPopupRole: paths.filter(p => p.dataset.role === 'candidate').length,
-        pops: pops.slice(0, 6).map(node => ({ cls: node.className, text: (node.innerText ?? '').slice(0, 40) })),
-        panes: [...document.querySelectorAll('#map .leaflet-popup-pane')].length, mapHtml: (map?.innerHTML ?? '').length };
-    }, targetId);
+      return { id, carded: window.__RN_MAP?.cardIds?.().includes(id) ?? null, cardIds: window.__RN_MAP?.cardIds?.().length ?? null,
+        boundPopup: layer ? Boolean(layer.getPopup?.()) : null,
+        pops: pops.slice(0, 4).map(node => ({ cls: node.className, text: (node.innerText ?? '').slice(0, 40) })),
+        under: (() => { const top = document.elementFromPoint(x, y); return { tag: top?.tagName ?? null, id: top?.dataset?.corridorId ?? null }; })() };
+    }, { id: targetId, x: probe.x, y: probe.y });
     console.log(`MAP_POPUP ${JSON.stringify({ label, clickedId: targetId, selectedId: await selectedId(), dump: popupDump })}`);
     const popupAudit = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('#map .corridor-popup')];

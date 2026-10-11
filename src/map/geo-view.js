@@ -167,6 +167,10 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     let activeRadiusM = null;
     let fitCount = 0;
     let movements = 0;
+    // WHICH CORRIDORS CARRY A CARD on the map, recorded as they are bound. A corridor whose distance from the search
+    // centre was never measured has nothing to explain, so it is drawn without one; this list is the difference between
+    // "no card was written" and "a card exists but did not open".
+    const cardedIds = new Set();
     // Counted rather than inferred: a drag that never reaches Leaflet leaves this at zero.
     map.on('moveend', () => { movements += 1; });
 
@@ -214,7 +218,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         for (const line of lines) {
           const path = leaflet.polyline(line, styleFor(corridor));
           // Drawing order is list order, so the map's stacking matches the order the person is reading.
-          if (Number.isFinite(corridor.distanceFromCenterM)) path.bindPopup(popupHtml(corridor));
+          if (Number.isFinite(corridor.distanceFromCenterM)) { cardedIds.add(corridor.id); path.bindPopup(popupHtml(corridor)); }
           // THE METADATA GOES ON AFTER LEAFLET HAS MADE THE ELEMENT. Leaflet creates a path's SVG element only when
           // the path joins the map, so stamping it before `addLayer` stamps nothing: the line is drawn and its
           // identity is nowhere in the DOM. The identification is therefore applied on the map's own `add` event and
@@ -365,6 +369,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       searchGeometry: () => ({ center: activeCentre, radiusM: activeRadiusM }),
       fitCount: () => fitCount,
       movementCount: () => movements,
+      cardIds: () => [...cardedIds],
       // A person's own viewport survives a redraw, and the map remembers it: `bounds()` exists for tests and
       // diagnostics rather than for the application to store.
       bounds: () => map.getBounds?.() ?? null,

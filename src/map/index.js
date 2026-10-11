@@ -43,6 +43,7 @@ export function createMapView(container, options = {}) {
     searchGeometry: () => view.searchGeometry?.() ?? { center: null, radiusM: null },
     fitCount: () => view.fitCount?.() ?? 0,
     movements: () => view.movementCount?.() ?? 0,
+    cardIds: () => view.cardIds?.() ?? [],
     note: 'Diagnostic surface for the map interaction gate. Read-only; the application never consults it.',
   });
   return view;
