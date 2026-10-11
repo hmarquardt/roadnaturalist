@@ -144,7 +144,7 @@ const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverla
   savedRoads: null, savedMeta: null, savedDurable: null, savedStorage: null, savedEcology: null, savedHabitat: null,
   savedOutingSelection: null, savedOutings: null,
   outings: null, outingStorage: null, outingSelection: null, selectedOuting: null,
-  discoveryNodes: null, discoverySignature: null, searchKey: null };
+  discoveryNodes: null, discoverySignature: null, searchKey: null, fittedSearchKey: null };
 
 function activeSearch() { return store.getState().search; }
 
@@ -1162,8 +1162,10 @@ store.subscribe(state => {
   // The key is only marked handled once the fit has actually happened: at the moment a search changes the results
   // may not be drawn yet, and recording the key before there was geometry to fit would lose the one automatic
   // camera move this application is allowed to make.
-  if (searchKey !== drawn.searchKey && discoveryLayer?.corridors?.length) {
-    drawn.searchKey = searchKey;
+  // Its own field on purpose:  belongs to the search-preview path, and reusing it here would mean
+  // the fit never happened at all - the key was already recorded long before there was geometry to fit.
+  if (searchKey !== drawn.fittedSearchKey && discoveryLayer?.corridors?.length) {
+    drawn.fittedSearchKey = searchKey;
     map.fitResults();
   }
   const discoveryKey = `${state.discovery.status}|${state.discovery.selectedId}|${discoveryLayer?.corridors.length ?? 0}|${discoveryLayer?.promotedIds.join(',') ?? ''}`;
