@@ -203,7 +203,11 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
     await row.locator('.discovery-row').click();
     await page.locator('#discovery-promote').click();
     const detail = page.locator('#candidate-detail');
-    await expect(detail.locator('.corridor-metrics')).toBeVisible({ timeout: 120000 });
+    const refused = page.locator('#discovery-promotion-error');
+    await expect(detail.locator('.corridor-metrics').or(refused)).toBeVisible({ timeout: 120000 });
+    if (await refused.isVisible().catch(() => false)) {
+      throw new Error(`${name}: the detail never opened - ${await refused.innerText()}`);
+    }
     return { name, rawBytes: rawCells.length - before, text: (await detail.innerText()).slice(0, 2000) };
   }
 
