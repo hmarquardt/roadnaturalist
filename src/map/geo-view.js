@@ -98,7 +98,12 @@ export function popupHtml(corridor) {
   if (Number.isFinite(corridor?.distanceFromCenterM)) {
     parts.push(`<p>${(corridor.distanceFromCenterM / 1609.344).toFixed(1)} mi from search centre</p>`);
   }
-  return `<div class="map-popup"><strong>${escape(corridor?.name ?? 'Unnamed corridor')}</strong>${parts.join('')}</div>`;
+  // THE WRAPPER NAMES THE CORRIDOR THE CARD DESCRIBES, taken from the descriptor itself rather than from its
+  // displayed name: the id, the name, the score and the component labels all come from one object, so a card can be
+  // attributed without reading the road name back out of it.
+  const wrapper = `<div class="map-popup corridor-popup" data-corridor-id="${escape(corridor?.id ?? '')}"`
+    + ` data-ranking-version="${escape(corridor?.ranking?.version ?? '')}">`;
+  return `${wrapper}<strong>${escape(corridor?.name ?? 'Unnamed corridor')}</strong>${parts.join('')}</div>`;
 }
 
 

@@ -54,7 +54,7 @@ for (const [query, label, geography] of REGIONS) {
       if (message.type() === 'error') pageErrors.push(message.text());
       // The application's own trace of the automatic fit, printed only when it is enabled, so the ordering can be
       // read from a run instead of inferred from the source.
-      if (/^MAP_(FIT|PATH)/.test(message.text())) {
+      if (/^MAP_(FIT|PATH|POPUP)/.test(message.text())) {
         console.log(message.text());
       }
     });
@@ -212,6 +212,16 @@ for (const [query, label, geography] of REGIONS) {
     const afterMapClick = await camera();
     expect(afterMapClick.center[0], `${label}: a map click must not move the camera`).toBeCloseTo(fitted.center[0], 3);
     expect(await fitCount(), `${label}: a map click must not fit`).toBe(2);
+
+    // WHAT IS THE POPUP ACTUALLY ABOUT? Asked of the DOM, not inferred: the clicked corridor, the application's
+    // selection, the id the visible card names, and the card's text.
+    const popupAudit = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll('#map .corridor-popup')];
+      const visible = cards.filter(card => card.offsetParent !== null);
+      return { cards: cards.length, visible: visible.length,
+        ids: visible.map(card => card.dataset.corridorId), text: visible[0]?.innerText?.slice(0, 80) ?? null };
+    });
+    console.log(`MAP_POPUP ${JSON.stringify({ label, clickedId: targetId, selectedId: await selectedId(), ...popupAudit })}`);
 
     // 12. THE POPUP CARRIES THE RANKING, CROSS-CHECKED AGAINST THE CORRIDOR'S OWN RESULT.
     await targetPath.click({ force: true, position: { x: 3, y: 3 } });
