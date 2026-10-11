@@ -65,7 +65,7 @@ export async function runSourceEvidence({ run, steps, onStage = () => {} }) {
     if (!run.isCurrent()) { stage('discarded', { id, step: label }); return false; }
     const value = await mutate();
     if (!run.isCurrent()) { stage('discarded:late', { id, step: label }); return false; }
-    stage(label, { id });
+    stage(`step:${label}`, { id });
     return value === undefined ? true : value;
   };
   try {

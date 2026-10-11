@@ -39,91 +39,109 @@ PLACE_PRODUCTION {"query":"great smoky mountains","expected":"Great Smoky Mounta
 
 PLACE_PRODUCTION {"query":"yellowstone","expected":"Yellowstone National Park, WY","first":"Yellowstone National Park, WY · National park — National park","centre":"44.6204,-110.5607","coverage":"FULL","runnable":true}
 
-PLACE_PRODUCTION {"region":"Pacific Northwest","query":"portland oregon","place":"Portland, OR","elapsedMs":6104,"corridors":2347,"cellsRead":31,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi\nDuluth, MN · 10 mi\nMoab, UT · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Portland, OR · centre 45.5369, -122.6500 (custom search centre) · 2347 corridor(s) found · 30 metric cell(s) loaded (0 declared empty) · 6.9 MiB · search 6.0 s · data 5.0 s · selection 0.9 s · query 0.8 s · build 0.1 s","firstRow":"NW Sauvie Island Rd 11.0 km · S1400 · segment 2/2 6.8 mi 13.9 mi NW 513.80 ha 1 Willamette Valley (3) FULL DISCOVERED"}
+PLACE_PRODUCTION {"region":"Pacific Northwest","query":"portland oregon","place":"Portland, OR","elapsedMs":5966,"corridors":2347,"cellsRead":31,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi\nDuluth, MN · 10 mi\nMoab, UT · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Portland, OR · centre 45.5369, -122.6500 (custom search centre) · 2347 corridor(s) found · 30 metric cell(s) loaded (0 declared empty) · 6.9 MiB · search 5.9 s · data 5.0 s · selection 0.8 s · query 0.7 s · build 0.1 s","firstRow":"NW Sauvie Island Rd 11.0 km · S1400 · segment 2/2 6.8 mi 13.9 mi NW 513.80 ha 1 Willamette Valley (3) FULL DISCOVERED"}
 
-PLACE_PRODUCTION {"region":"Northeast","query":"boston massachusetts","place":"Boston, MA","elapsedMs":3613,"corridors":2135,"cellsRead":28,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi\nDuluth, MN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Boston, MA · centre 42.3385, -71.0182 (custom search centre) · 2135 corridor(s) found · 27 metric cell(s) loaded (2 declared empty) · 7.9 MiB · search 3.5 s · data 2.9 s · selection 0.6 s · query 0.5 s · build 0.1 s","firstRow":"Nahant Rd 8.4 km · S1400 5.2 mi 7.6 mi NE 151.63 ha 0 Northeastern Coastal Zone (59) FULL DISCOVERED"}
+PLACE_PRODUCTION {"region":"Northeast","query":"boston massachusetts","place":"Boston, MA","elapsedMs":3881,"corridors":2135,"cellsRead":28,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi\nDuluth, MN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Boston, MA · centre 42.3385, -71.0182 (custom search centre) · 2135 corridor(s) found · 27 metric cell(s) loaded (2 declared empty) · 7.9 MiB · search 3.8 s · data 3.1 s · selection 0.6 s · query 0.5 s · build 0.1 s","firstRow":"Nahant Rd 8.4 km · S1400 5.2 mi 7.6 mi NE 151.63 ha 0 Northeastern Coastal Zone (59) FULL DISCOVERED"}
 
-PLACE_PRODUCTION {"region":"Gulf/Southeast","query":"miami florida","place":"Miami, FL","elapsedMs":2391,"corridors":2237,"cellsRead":15,"cellsHost":"data.roadnaturalist.com","coverage":"NONE","recent":"RECENT SEARCHES\nMiami, FL · 25 mi\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Miami, FL · centre 25.7752, -80.2086 (custom search centre) · 2237 corridor(s) found · 14 metric cell(s) loaded (2 declared empty) · 2.9 MiB · search 2.3 s · data 1.9 s · selection 0.4 s · query 0.4 s · build 0.1 s","firstRow":"8th St SW 8.8 km · S1200 · segment 3/7 5.5 mi 22.0 mi W 398.75 ha 2 Southern Florida Coastal Plain (76) NONE DISCOVERED"}
+PLACE_PRODUCTION {"region":"Gulf/Southeast","query":"miami florida","place":"Miami, FL","elapsedMs":2478,"corridors":2237,"cellsRead":15,"cellsHost":"data.roadnaturalist.com","coverage":"NONE","recent":"RECENT SEARCHES\nMiami, FL · 25 mi\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi\nGibson County, IN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Miami, FL · centre 25.7752, -80.2086 (custom search centre) · 2237 corridor(s) found · 14 metric cell(s) loaded (2 declared empty) · 2.9 MiB · search 2.4 s · data 1.9 s · selection 0.4 s · query 0.4 s · build 0.1 s","firstRow":"8th St SW 8.8 km · S1200 · segment 3/7 5.5 mi 22.0 mi W 398.75 ha 2 Southern Florida Coastal Plain (76) NONE DISCOVERED"}
 
-PLACE_PRODUCTION {"region":"Midwest/Great Lakes","query":"minneapolis minnesota","place":"Minneapolis, MN","elapsedMs":3803,"corridors":3410,"cellsRead":31,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nMinneapolis, MN · 25 mi\nMiami, FL · 25 mi\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Minneapolis, MN · centre 44.9633, -93.2683 (custom search centre) · 3410 corridor(s) found · 30 metric cell(s) loaded (0 declared empty) · 5.8 MiB · search 3.7 s · data 3.0 s · selection 0.6 s · query 0.6 s · build 0.1 s","firstRow":"Indian Rd 4.1 km · S1400 2.5 mi 14.8 mi SW 185.88 ha 1 North Central Hardwood Forests (51) FULL DISCOVERED"}
+PLACE_PRODUCTION {"region":"Midwest/Great Lakes","query":"minneapolis minnesota","place":"Minneapolis, MN","elapsedMs":4073,"corridors":3410,"cellsRead":31,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nMinneapolis, MN · 25 mi\nMiami, FL · 25 mi\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi\n47715, IN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Minneapolis, MN · centre 44.9633, -93.2683 (custom search centre) · 3410 corridor(s) found · 30 metric cell(s) loaded (0 declared empty) · 5.8 MiB · search 4.0 s · data 3.2 s · selection 0.6 s · query 0.6 s · build 0.1 s","firstRow":"Indian Rd 4.1 km · S1400 2.5 mi 14.8 mi SW 185.88 ha 1 North Central Hardwood Forests (51) FULL DISCOVERED"}
 
-PLACE_PRODUCTION {"region":"Great Plains","query":"omaha nebraska","place":"Omaha, NE","elapsedMs":3877,"corridors":1897,"cellsRead":31,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nOmaha, NE · 25 mi\nMinneapolis, MN · 25 mi\nMiami, FL · 25 mi\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Omaha, NE · centre 41.2627, -96.0535 (custom search centre) · 1897 corridor(s) found · 30 metric cell(s) loaded (0 declared empty) · 4.0 MiB · search 3.6 s · data 3.1 s · selection 0.5 s · query 0.4 s · build 0.1 s","firstRow":"Desoto Ave 6.4 km · S1400 · segment 2/3 4.0 mi 15.9 mi N 152.69 ha 1 Western Corn Belt Plains (47) FULL DISCOVERED"}
+PLACE_PRODUCTION {"region":"Great Plains","query":"omaha nebraska","place":"Omaha, NE","elapsedMs":3876,"corridors":1897,"cellsRead":31,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nOmaha, NE · 25 mi\nMinneapolis, MN · 25 mi\nMiami, FL · 25 mi\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi\nGreat Smoky Mountains National Park, TN · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Omaha, NE · centre 41.2627, -96.0535 (custom search centre) · 1897 corridor(s) found · 30 metric cell(s) loaded (0 declared empty) · 4.0 MiB · search 3.7 s · data 3.2 s · selection 0.4 s · query 0.4 s · build 0.0 s","firstRow":"Desoto Ave 6.4 km · S1400 · segment 2/3 4.0 mi 15.9 mi N 152.69 ha 1 Western Corn Belt Plains (47) FULL DISCOVERED"}
 
-PLACE_PRODUCTION {"region":"Southwest","query":"phoenix arizona","place":"Phoenix, AZ","elapsedMs":2937,"corridors":2562,"cellsRead":21,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nPhoenix, AZ · 25 mi\nOmaha, NE · 25 mi\nMinneapolis, MN · 25 mi\nMiami, FL · 25 mi\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Phoenix, AZ · centre 33.5722, -112.0901 (custom search centre) · 2562 corridor(s) found · 20 metric cell(s) loaded (0 declared empty) · 4.4 MiB · search 2.8 s · data 2.3 s · selection 0.5 s · query 0.4 s · build 0.1 s","firstRow":"Salt River Shore 3.4 km · S1400 2.1 mi 11.3 mi SE 96.53 ha 0 Sonoran Basin and Range (81) FULL DISCOVERED"}
+PLACE_PRODUCTION {"region":"Southwest","query":"phoenix arizona","place":"Phoenix, AZ","elapsedMs":3121,"corridors":2562,"cellsRead":21,"cellsHost":"data.roadnaturalist.com","coverage":"FULL","recent":"RECENT SEARCHES\nPhoenix, AZ · 25 mi\nOmaha, NE · 25 mi\nMinneapolis, MN · 25 mi\nMiami, FL · 25 mi\nBoston, MA · 25 mi\nPortland, OR · 25 mi\nPortland, OR · 10 mi\nYellowstone National Park, WY · 10 mi","summary":"SEARCH SUMMARY · 25-mile radius search · Phoenix, AZ · centre 33.5722, -112.0901 (custom search centre) · 2562 corridor(s) found · 20 metric cell(s) loaded (0 declared empty) · 4.4 MiB · search 3.0 s · data 2.5 s · selection 0.5 s · query 0.4 s · build 0.1 s","firstRow":"Salt River Shore 3.4 km · S1400 2.1 mi 11.3 mi SE 96.53 ha 0 Sonoran Basin and Range (81) FULL DISCOVERED"}
 
 PLACE_PRODUCTION {"places":11,"regions":6,"externalRequests":0}
 
-[3/3] tests/place-production.spec.js:173:1 › deployed detail opens from the precomputed row, and source evidence is a separate optional step
-tests/place-production.spec.js:173:1 › deployed detail opens from the precomputed row, and source evidence is a separate optional step
-STAGE sourceEvidence:render {"at":1791733538233,"id":"drv1-river-rd-c226-s1","status":"loading"}
+[3/3] tests/place-production.spec.js:178:1 › deployed detail opens from the precomputed row, and source evidence is a separate optional step
+tests/place-production.spec.js:178:1 › deployed detail opens from the precomputed row, and source evidence is a separate optional step
+STAGE sourceEvidence:render {"at":1791735926739,"id":"drv1-river-rd-c226-s1","status":"loading"}
 
-STAGE sourceEvidence:start {"at":1791733538233,"id":"drv1-river-rd-c226-s1","corridor":"River Rd"}
+STAGE sourceEvidence:loading {"at":1791735926739,"id":"drv1-river-rd-c226-s1"}
 
-STAGE sourceEvidence:roads:start {"at":1791733538234,"id":"drv1-river-rd-c226-s1"}
+STAGE sourceEvidence:start {"at":1791735926740,"id":"drv1-river-rd-c226-s1","corridor":"River Rd"}
 
-STAGE sourceEvidence:roads:query {"at":1791733541349,"id":"drv1-river-rd-c226-s1","globalRoads":true,"cells":27,"features":31086,"coverage":"FULL","components":67}
+STAGE sourceEvidence:roads:start {"at":1791735926740,"id":"drv1-river-rd-c226-s1"}
 
-STAGE sourceEvidence:roads:done {"at":1791733541901,"id":"drv1-river-rd-c226-s1","features":31086}
+STAGE sourceEvidence:roads:query {"at":1791735929881,"id":"drv1-river-rd-c226-s1","globalRoads":true,"cells":27,"features":31086,"coverage":"FULL","components":67}
 
-STAGE sourceEvidence:assemble {"at":1791733541901,"id":"drv1-river-rd-c226-s1"}
+STAGE sourceEvidence:roads:done {"at":1791735930439,"id":"drv1-river-rd-c226-s1","features":31086}
 
-STAGE sourceEvidence:render {"at":1791733541912,"id":"drv1-river-rd-c226-s1","status":"ready"}
+STAGE sourceEvidence:render {"at":1791735930455,"id":"drv1-river-rd-c226-s1","status":"ready"}
 
-STAGE sourceEvidence:ecology:start {"at":1791733541918,"id":"drv1-river-rd-c226-s1"}
+STAGE sourceEvidence:promote-roads {"at":1791735930456,"id":"drv1-river-rd-c226-s1"}
 
-STAGE sourceEvidence:ecology:done {"at":1791733541918,"id":"drv1-river-rd-c226-s1"}
+STAGE sourceEvidence:ecology:start {"at":1791735930456,"id":"drv1-river-rd-c226-s1"}
 
-STAGE sourceEvidence:habitat:start {"at":1791733541918,"id":"drv1-river-rd-c226-s1"}
+STAGE sourceEvidence:ecology:done {"at":1791735930456,"id":"drv1-river-rd-c226-s1"}
+
+STAGE sourceEvidence:ecology {"at":1791735930460,"id":"drv1-river-rd-c226-s1"}
+
+STAGE sourceEvidence:habitat:start {"at":1791735930460,"id":"drv1-river-rd-c226-s1"}
 
 SOURCE_SECONDS Princeton, IN 3.8
 
-STAGE sourceEvidence:habitat:done {"at":1791733546168,"id":"drv1-river-rd-c226-s1"}
+STAGE sourceEvidence:habitat:done {"at":1791735934263,"id":"drv1-river-rd-c226-s1"}
 
-STAGE sourceEvidence:levels {"at":1791733546180,"id":"drv1-river-rd-c226-s1","roads":true,"ecology":true,"wetlands":true,"hydrography":true}
+STAGE sourceEvidence:habitat {"at":1791735934263,"id":"drv1-river-rd-c226-s1"}
 
-STAGE sourceEvidence:identity {"at":1791733546180,"corridorName":"River Rd","derivedId":"drv1-river-rd-c226-s1","reconstructedId":"drv1-river-rd-c1-s1","idsDiffer":true,"identityBasis":"source_feature_ids_exact","sourceFeatureCount":1,"sourceFeatureMatch":"exact","segmentIndex":1,"segmentCount":1,"geometryDriftM":{"derivedToSource":0,"sourceToDerived":0},"sourceEvidence":"Source-backed"}
+STAGE sourceEvidence:render {"at":1791735934280,"id":"drv1-river-rd-c226-s1","status":"ready"}
 
-STAGE sourceEvidence:complete {"at":1791733546180,"id":"drv1-river-rd-c226-s1"}
+STAGE sourceEvidence:promote-levels {"at":1791735934280,"id":"drv1-river-rd-c226-s1"}
 
-IDENTITY_PRODUCTION {"at":1791733546180,"corridorName":"River Rd","derivedId":"drv1-river-rd-c226-s1","reconstructedId":"drv1-river-rd-c1-s1","idsDiffer":true,"identityBasis":"source_feature_ids_exact","sourceFeatureCount":1,"sourceFeatureMatch":"exact","segmentIndex":1,"segmentCount":1,"geometryDriftM":{"derivedToSource":0,"sourceToDerived":0},"sourceEvidence":"Source-backed"}
+STAGE sourceEvidence:levels {"at":1791735934281,"id":"drv1-river-rd-c226-s1","roads":true,"ecology":true,"wetlands":true,"hydrography":true}
+
+STAGE sourceEvidence:identity {"at":1791735934281,"corridorName":"River Rd","derivedId":"drv1-river-rd-c226-s1","reconstructedId":"drv1-river-rd-c1-s1","idsDiffer":true,"identityBasis":"source_feature_ids_exact","sourceFeatureCount":1,"sourceFeatureMatch":"exact","segmentIndex":1,"segmentCount":1,"geometryDriftM":{"derivedToSource":0,"sourceToDerived":0},"sourceEvidence":"Source-backed"}
+
+STAGE sourceEvidence:identity {"at":1791735934281,"id":"drv1-river-rd-c226-s1"}
+
+STAGE sourceEvidence:complete {"at":1791735934282,"id":"drv1-river-rd-c226-s1"}
+
+IDENTITY_PRODUCTION {"at":1791735934281,"corridorName":"River Rd","derivedId":"drv1-river-rd-c226-s1","reconstructedId":"drv1-river-rd-c1-s1","idsDiffer":true,"identityBasis":"source_feature_ids_exact","sourceFeatureCount":1,"sourceFeatureMatch":"exact","segmentIndex":1,"segmentCount":1,"geometryDriftM":{"derivedToSource":0,"sourceToDerived":0},"sourceEvidence":"Source-backed"}
 
 DETAIL_PRODUCTION {"place":"Princeton, IN","corridor":"River Rd","derivedRawCells":0,"sourceRawCells":31,"host":"data.roadnaturalist.com"}
 
-STAGE sourceEvidence:render {"at":1791733554060,"id":"drv1-nw-sauvie-island-rd-c1-s2","status":"loading"}
+STAGE sourceEvidence:render {"at":1791735941415,"id":"drv1-nw-sauvie-island-rd-c1-s2","status":"loading"}
 
-STAGE sourceEvidence:start {"at":1791733554060,"id":"drv1-nw-sauvie-island-rd-c1-s2","corridor":"NW Sauvie Island Rd"}
+STAGE sourceEvidence:loading {"at":1791735941415,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
 
-STAGE sourceEvidence:roads:start {"at":1791733554060,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
+STAGE sourceEvidence:start {"at":1791735941415,"id":"drv1-nw-sauvie-island-rd-c1-s2","corridor":"NW Sauvie Island Rd"}
 
-STAGE sourceEvidence:roads:query {"at":1791733556924,"id":"drv1-nw-sauvie-island-rd-c1-s2","globalRoads":true,"cells":14,"features":32498,"coverage":"FULL","components":26}
+STAGE sourceEvidence:roads:start {"at":1791735941415,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
 
-STAGE sourceEvidence:roads:done {"at":1791733557514,"id":"drv1-nw-sauvie-island-rd-c1-s2","features":32498}
+STAGE sourceEvidence:roads:query {"at":1791735944014,"id":"drv1-nw-sauvie-island-rd-c1-s2","globalRoads":true,"cells":14,"features":32498,"coverage":"FULL","components":26}
 
-STAGE sourceEvidence:assemble {"at":1791733557514,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
+STAGE sourceEvidence:roads:done {"at":1791735944595,"id":"drv1-nw-sauvie-island-rd-c1-s2","features":32498}
 
-STAGE sourceEvidence:render {"at":1791733557526,"id":"drv1-nw-sauvie-island-rd-c1-s2","status":"ready"}
+STAGE sourceEvidence:render {"at":1791735944607,"id":"drv1-nw-sauvie-island-rd-c1-s2","status":"ready"}
 
-STAGE sourceEvidence:ecology:start {"at":1791733557534,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
+STAGE sourceEvidence:promote-roads {"at":1791735944607,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
 
-STAGE sourceEvidence:ecology:done {"at":1791733557534,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
+STAGE sourceEvidence:ecology:start {"at":1791735944607,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
 
-STAGE sourceEvidence:habitat:start {"at":1791733557534,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
+STAGE sourceEvidence:ecology:done {"at":1791735944607,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
 
-SOURCE_SECONDS Portland, OR 3.5
+STAGE sourceEvidence:ecology {"at":1791735944617,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
+
+STAGE sourceEvidence:habitat:start {"at":1791735944617,"id":"drv1-nw-sauvie-island-rd-c1-s2"}
+
+SOURCE_SECONDS Portland, OR 3.3
 
 DETAIL_PRODUCTION {"place":"Portland, OR","corridor":"NW Sauvie Island Rd","derivedRawCells":0,"sourceRawCells":18,"host":"data.roadnaturalist.com"}
 
-STAGE sourceEvidence:render {"at":1791733563540,"id":"drv1-e-entrance-rd-c1-s5","status":"loading"}
+STAGE sourceEvidence:render {"at":1791735951144,"id":"drv1-e-entrance-rd-c1-s5","status":"loading"}
 
-STAGE sourceEvidence:start {"at":1791733563540,"id":"drv1-e-entrance-rd-c1-s5","corridor":"E Entrance Rd"}
+STAGE sourceEvidence:loading {"at":1791735951144,"id":"drv1-e-entrance-rd-c1-s5"}
 
-STAGE sourceEvidence:roads:start {"at":1791733563540,"id":"drv1-e-entrance-rd-c1-s5"}
+STAGE sourceEvidence:start {"at":1791735951144,"id":"drv1-e-entrance-rd-c1-s5","corridor":"E Entrance Rd"}
 
-STAGE sourceEvidence:unavailable {"at":1791733563540,"id":"drv1-e-entrance-rd-c1-s5","name":"Error","message":"Detailed analysis is not yet available for this corridor because 2 raw source cells (wetlands: 1, hydrography: 1) have not been published. National discovery is unaffected.","stack":"Error: Detailed analysis is not yet available for this corridor because 2 raw source cells (wetlands: 1, hydrography: 1) have not been published. National discovery is unaffected. |     at reconstructDerivedCorridor (https://roadnaturalist.com/src/app/main.js:410:19) |     at async https://roadnaturalist.com/src/app/main.js:584:23 |     at async requestSourceEvidence (https://roadnaturalist.com/src/app/main.js:614:5)"}
+STAGE sourceEvidence:roads:start {"at":1791735951144,"id":"drv1-e-entrance-rd-c1-s5"}
 
-STAGE sourceEvidence:render {"at":1791733563543,"id":"drv1-e-entrance-rd-c1-s5","status":"unavailable"}
+STAGE sourceEvidence:render {"at":1791735951147,"id":"drv1-e-entrance-rd-c1-s5","status":"unavailable"}
 
 DETAIL_PRODUCTION_UNSEEDED {"corridor":"E Entrance Rd","message":"Source-level evidence\n\nMeasured now from the published source cells: the corridor rebuilt from the raw road network and read against the published wetland and hydrography cells.\n\nView source evidence\n\nRebuilds this corridor from the publish","rawCells":0}
+
+GLOBAL_READS {"roads":["https://data.roadnaturalist.com/national/roads/tiger2025-county-v1/publication.json","https://data.roadnaturalist.com/national/roads/tiger2025-county-v1/components/92_128.json","https://data.roadnaturalist.com/national/roads/tiger2025-county-v1/roads/x449_y642.parquet"],"roadsFrom":99,"ecology":["https://data.roadnaturalist.com/national/epa-conus-l3.parquet","https://data.roadnaturalist.com/national/epa-conus-l4.parquet"]}
 
 ECOLOGY_PLANE_READS ["https://data.roadnaturalist.com/national/epa-conus-l3.parquet","https://data.roadnaturalist.com/national/epa-conus-l4.parquet"]
 
