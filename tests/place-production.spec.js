@@ -156,6 +156,11 @@ const RAW_PLANE = /\/(national\/roads|national\/wetlands|national\/hydro)\//;
 // asked of the application's own origin, which serves no such file - the 404 that made this gate red.
 const ECOLOGY_PLANE = /national\/epa-conus-l[34]\.parquet$/;
 const ECOLOGY_ORIGIN = 'https://data.roadnaturalist.com/';
+// The global roads plane: published once on the data origin, like the CONUS ecology layers. An attempt against the
+// application's own origin is a request for a partition it has never served.
+const GLOBAL_ROADS = /\/national\/roads\//;
+const GLOBAL_PLANE_ORIGIN = 'https://data.roadnaturalist.com/';
+const APP_ORIGIN = /^https:\/\/(www\.)?roadnaturalist\.com\/|^https:\/\/[a-z0-9-]+\.roadnaturalist\.pages\.dev\/|^https?:\/\/localhost/;
 // Two seeded regions, one Midwest and one Pacific Northwest, plus the refusal outside every region: enough to
 // prove the published raw path end to end in two different wetland regimes without turning a release gate into a
 // twenty-minute crawl.
@@ -181,11 +186,20 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
   // separately that no origin ever answered an ecology request with a 404.
   const ecologyReads = [];
   const ecologyMisses = [];
+  const roadReads = [];
+  const pageOriginGlobalPlane = [];
   page.on('request', request => {
-    if (RAW_PLANE.test(request.url())) rawCells.push(request.url());
-    if (EVIDENCE.test(request.url())) outside.push(request.url());
+    const url = request.url();
+    if (RAW_PLANE.test(url)) rawCells.push(url);
+    if (EVIDENCE.test(url)) outside.push(url);
+    // A global plane must never be asked of the application's own origin. Both global planes are checked here -
+    // roads as well as ecoregions - because they share one mechanism and only one of them used to be guarded.
+    if ((GLOBAL_ROADS.test(url) || ECOLOGY_PLANE.test(url)) && !url.startsWith(GLOBAL_PLANE_ORIGIN) && APP_ORIGIN.test(url)) {
+      pageOriginGlobalPlane.push(url);
+    }
   });
   page.on('response', response => {
+    if (GLOBAL_ROADS.test(response.url()) && response.status() < 400) roadReads.push(response.url());
     if (!ECOLOGY_PLANE.test(response.url())) return;
     if (response.status() >= 400) ecologyMisses.push(`${response.status()} ${response.url()}`);
     else ecologyReads.push(response.url());
@@ -333,6 +347,13 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
   // application's own origin is a request for a file it has never served, and it is the exact failure this gate
   // caught. Both the request list and the absence of console 404s are asserted, because either alone could pass.
   expect(ecologyMisses, 'no origin may answer an ecology request with an error').toEqual([]);
+  // GLOBAL ROADS GET THE SAME PROTECTION AS GLOBAL ECOREGIONS.
+  expect(pageOriginGlobalPlane, 'a global plane may never be requested from the application origin').toEqual([]);
+  expect(roadReads.length, 'the source step must read the global roads plane').toBeGreaterThan(0);
+  expect([...new Set(roadReads)].filter(url => !url.startsWith(GLOBAL_PLANE_ORIGIN)),
+    'every global road read must come from the declared data origin').toEqual([]);
+  console.log('GLOBAL_READS ' + JSON.stringify({ roads: [...new Set(roadReads)].slice(0, 3),
+    roadsFrom: roadReads.length, ecology: [...new Set(ecologyReads)] }));
   expect(ecologyReads.length, 'the seeded promotions must read the declared CONUS layers').toBeGreaterThan(0);
   expect([...new Set(ecologyReads)].filter(url => !url.startsWith(ECOLOGY_ORIGIN)),
     'every CONUS ecology layer must be read from its declared data origin').toEqual([]);

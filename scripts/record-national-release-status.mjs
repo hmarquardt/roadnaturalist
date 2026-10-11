@@ -16,7 +16,7 @@
 // browser outcomes are kept as history rather than overwritten.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
-import { identityEvidenceProblems, parseIdentityEvidence, recordIdentityEvidence, representativeExercised,
+import { identityEvidenceProblems, parseIdentityEvidence, recordIdentityEvidence,
   representativePayload } from '../src/discovery/identity-evidence.js';
 
 const OUTPUT = 'data/national/verification/derived-publication-status.json';
@@ -45,13 +45,18 @@ const browserOutput = browserRecord && existsSync(browserRecord) ? readFileSync(
 // The derived id of a corridor is a build identity and may carry a national component ordinal; a windowed
 // reconstruction may number the same road differently. That is safe only because verification rests on source
 // feature membership, segment position and geometry, so the release records one real divergence rather than the
-// claim that ids always agree. If the run exercised the representative corridor and the evidence is missing,
-// unreadable, or weaker than the contract, this record refuses to exist - the release fails instead of passing on
-// a line it cannot prove.
+// claim that ids always agree.
+//
+// The requirement is unconditional for a canonical release. It used to be inferred from whether the browser output
+// appeared to have exercised the representative corridor, which meant a future change to the browser test could
+// quietly stop exercising identity evidence and still produce a passed verdict. Now a passed browser verdict without
+// the representative evidence is refused, and `--identity-optional` is the one explicit, documented way to record a
+// diagnostic run that is not a canonical release.
 const identity = parseIdentityEvidence(browserOutput);
+const required = !args.includes('--identity-optional');
 const identityProblems = browser === 'passed'
   ? [ ...(browserOutput ? [] : [`the browser record ${browserRecord ?? '(none)'} is missing, so no identity evidence could be read`]),
-      ...identityEvidenceProblems(identity, { required: representativeExercised(browserOutput) }) ]
+      ...identityEvidenceProblems(identity, { required }) ]
   : [];
 if (identityProblems.length) {
   throw new Error('the browser record carries no usable identity evidence:\n  - ' + identityProblems.join('\n  - '));

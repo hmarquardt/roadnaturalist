@@ -155,6 +155,10 @@ export function identityEvidenceProblems(state = {}, { required = false } = {}) 
     problems.push(`no identity evidence was recorded for ${REPRESENTATIVE_IDENTITY.derivedId}, the build id of the `
       + 'representative corridor');
   }
+  if (required && representative && representative.corridorName !== REPRESENTATIVE_IDENTITY.corridor) {
+    problems.push(`${REPRESENTATIVE_IDENTITY.derivedId} was recorded for ${representative.corridorName ?? 'no corridor'}, `
+      + `not ${REPRESENTATIVE_IDENTITY.corridor}: the canonical release proves the contract with the known divergence`);
+  }
   if (required && representative && !representative.idsDiffer) {
     problems.push(`${REPRESENTATIVE_IDENTITY.derivedId} reconstructed under its own build id, so this run does not show `
       + 'that a diverging reconstruction is still verified by source identity');

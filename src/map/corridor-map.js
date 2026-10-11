@@ -69,7 +69,7 @@ export function createCorridorMap(container, { onSelect, onPickCoordinate } = {}
     if (container.querySelector('.map-placeholder')) return;
     const empty = document.createElement('div');
     empty.className = 'map-placeholder';
-    empty.innerHTML = '<div><strong>No corridor loaded</strong><p>Discover roads in the Oregon pilot area, or open the road pilot, to place real road geometry here. A search centre can be chosen on this map or typed in the discovery panel.</p></div>';
+    empty.innerHTML = '<div><strong>No corridor loaded</strong><p>Search a place or address to run national road discovery, or open the road pilot for the original demonstration area. A search centre can be chosen on this map or typed in the discovery panel.</p></div>';
     container.append(empty);
   }
 
@@ -98,7 +98,7 @@ export function createCorridorMap(container, { onSelect, onPickCoordinate } = {}
       if (selected) drawSelected(selected);
       content.append(text('map-label', 20, 35, projection.readout()));
       content.append(text('map-badge', 20, 660, selected?.badge ?? discovery?.badge
-        ?? 'OREGON ROAD PILOT · REAL ROAD GEOMETRY · ACCESS UNVERIFIED'));
+        ?? 'NATIONAL ROAD DISCOVERY · REAL ROAD GEOMETRY · ACCESS UNVERIFIED'));
     }
     viewBox();
     drawSearchLayer();

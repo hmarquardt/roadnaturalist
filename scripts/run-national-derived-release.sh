@@ -22,7 +22,7 @@
 # together: the last cutover's browser check ran against the previous release's `src/gis/service.js` while
 # `data/national/derived-catalog.json` was already the national pointer, and an interactive national search was
 # therefore validated as a regional catalog.
-set -uo pipefail
+set -euo pipefail   # fail closed: an unguarded command failure stops the chain
 cd "$(dirname "$0")/.."
 
 BUILD="${ROADNATURALIST_BUILD_VOLUME:-/Volumes/Lexar/roadnaturalist}"
@@ -99,8 +99,10 @@ settle dist/data/places/national-places-zip.json /data/places/national-places-zi
 
 # The R2 evidence is recorded here, after the deploy (which needs a clean tree) and before the verdict, so a
 # failed browser gate still leaves the R2 publication verification committed and correctly labelled.
-[ -f "$WORK/audit.json" ] && cp "$WORK/audit.json" data/national/verification/derived-publication-remote-audit.json
-cp "$WORK/production-verify.log" data/national/verification/derived-publication-production.txt
+if [ -f "$WORK/audit.json" ]; then
+  cp "$WORK/audit.json" data/national/verification/derived-publication-remote-audit.json || fail "remote audit copy"
+fi
+cp "$WORK/production-verify.log" data/national/verification/derived-publication-production.txt || fail "data verification copy"
 
 say "stage 5b raw plane readiness (roads national; wetlands and hydrography bounded)"
 # Separate facts, reported separately: the derived plane and the national roads plane are READY everywhere, the
@@ -121,22 +123,24 @@ if PRODUCTION_BASE_URL="$ORIGIN" RUN_NATIONAL_PRODUCTION=1 RUN_PLACE_PRODUCTION=
    npx playwright test tests/national-derived-production.spec.js tests/place-production.spec.js \
    --reporter=line --retries=0 \
    > "$WORK/browser-production.txt" 2>&1; then
-  cp "$WORK/browser-production.txt" data/national/verification/derived-publication-browser.txt
+  cp "$WORK/browser-production.txt" data/national/verification/derived-publication-browser.txt \
+    || fail "browser record copy"
   # The record step is a gate, not a formality: it refuses to write a passed status when the representative
-  # build-id/reconstruction-id divergence is missing or weaker than the identity contract. `set -uo pipefail` has no
+  # build-id/reconstruction-id divergence is missing or weaker than the identity contract. `set -e` is on
   # -e, so its failure has to be handed to `fail` explicitly or the chain would commit and claim completion anyway.
   node scripts/record-national-release-status.mjs --browser passed \
     --record data/national/verification/derived-publication-browser.txt || fail "identity evidence record"
-  git add -A
-  git commit -q -m "Record the national derived release: R2 publication verified and browser cutover passed"
+  git add -A || fail "git add"
+  git commit -q -m "Record the national derived release: R2 publication verified and browser cutover passed" \
+    || fail "git commit"
   git push origin main >> "$LOG" 2>&1 || fail "push"
   say "  production browser verification passed"
   say "CHAIN COMPLETE"
 else
-  cp "$WORK/browser-production.txt" data/national/verification/derived-publication-browser.txt
+  cp "$WORK/browser-production.txt" data/national/verification/derived-publication-browser.txt || true
   node scripts/record-national-release-status.mjs --browser failed \
     --reason "the deployed browser check failed; see data/national/verification/derived-publication-browser.txt"
-  git add -A
+  git add -A || true
   git commit -q -m "Record the national derived release status: R2 publication verified, browser cutover failed" || true
   git push origin main >> "$LOG" 2>&1 || true
   fail "production browser verification"

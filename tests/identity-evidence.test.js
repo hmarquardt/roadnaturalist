@@ -1,4 +1,6 @@
+
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 import { IDENTITY_STAGE, REPRESENTATIVE_IDENTITY, identityEvidenceProblems, identityStagePayload,
@@ -105,4 +107,18 @@ test('the recorded block is the representative payload, summarised', () => {
   assert.equal(block.sourceFeatureCount, 9);
   assert.deepEqual(block.geometryDriftM, { derivedToSource: 0, sourceToDerived: 0 });
   assert.ok(JSON.stringify(block).length < 400, 'the artefact stays small');
+});
+
+test('a canonical release requires the representative evidence unconditionally', () => {
+  const recorder = readFileSync(new URL('../scripts/record-national-release-status.mjs', import.meta.url), 'utf8');
+  // The requirement must not be inferred from whether the browser output looks like it exercised the case: that is
+  // how a future test change could quietly stop covering identity and still produce a passed release.
+  assert.match(recorder, /const required = !args\.includes\('--identity-optional'\)/,
+    'the recorder must require identity evidence by default, with one explicit documented opt-out');
+  assert.ok(!/representativeExercised\(browserOutput\)/.test(recorder),
+    'the requirement must not depend on a heuristic about the browser output');
+  // And a record naming the representative build id for some other corridor is refused.
+  const wrongName = { ...PAYLOAD, corridorName: 'Some Other Rd' };
+  assert.match(identityEvidenceProblems(parseIdentityEvidence(line(wrongName)), { required: true }).join(' '),
+    /not River Rd/);
 });

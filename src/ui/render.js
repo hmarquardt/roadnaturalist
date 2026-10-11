@@ -32,7 +32,8 @@ export function renderCandidates(container, state, onSelect) {
     return;
   }
   if (!state.candidates.length) {
-    container.append(empty('No corridor loaded', 'Open the Oregon road pilot to load real road-centerline geometry and resolve its EPA ecoregions.'));
+    container.append(empty('No corridor loaded', 'Search a place or address in the discovery panel to run national discovery, '
+      + 'or open the road pilot for the original demonstration area.'));
     return;
   }
   for (const candidate of state.candidates) {

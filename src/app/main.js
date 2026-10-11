@@ -32,6 +32,7 @@ import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, wr
   writeDiscoverySearch, writeDiscoverySearchHistory } from '../discovery/persistence.js';
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDerivedCandidate, promoteDiscoveryResult } from '../discovery/lifecycle.js';
 import { createEvidenceRequests, detailLevelFor, evidenceLabel, sourceEvidence, unavailableMessage } from '../discovery/evidence.js';
+import { SOURCE_EVIDENCE_TIMEOUT_MS, createSourceEvidenceRun, runSourceEvidence } from '../discovery/source-evidence-run.js';
 import { identityStagePayload } from '../discovery/identity-evidence.js';
 import { defaultSearchArea, searchAreaBounds, validateSearchAreas } from '../discovery/search-area.js';
 import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiveSearchArea,
@@ -543,8 +544,6 @@ function derivedMetricsFor(result) {
 // the source step failed: it hides the failure and cannot be retried. The stage markers are silent unless
 // `globalThis.__RN_DEBUG_EVIDENCE` is set, which is how a test or a developer watches the path without leaving
 // noise in production.
-const SOURCE_EVIDENCE_TIMEOUT_MS = () => Number(globalThis.__RN_SOURCE_TIMEOUT_MS ?? 120000);
-
 function evidenceStage(stage, detail = {}) {
   if (!globalThis.__RN_DEBUG_EVIDENCE) return;
   console.log(`sourceEvidence:${stage} ` + JSON.stringify({ at: Date.now(), ...detail }));
@@ -563,71 +562,86 @@ async function requestSourceEvidence(id) {
   if (!current) return;
   if (current.sourceEvidence?.status === 'loading') { evidenceStage('ignored:already-loading', { id }); return; }
   if (current.sourceEvidence?.status === 'ready') { evidenceStage('ignored:already-source', { id }); return; }
-  const mine = sourceEvidenceRequests.begin(id);
-  const settle = (sourceEvidence) => {
-    const live = candidate();
-    if (!live || !mine()) { evidenceStage('dropped:stale-or-gone', { id, status: sourceEvidence.status }); return; }
-    store.promoteDiscoveryCandidate({ ...live, sourceEvidence }, id);
-    evidenceStage('render', { id, status: sourceEvidence.status });
-  };
-  settle({ ...current.sourceEvidence, status: 'loading', message: null, missing: null });
-  evidenceStage('start', { id, corridor: result.name });
 
-  let timer = null;
-  try {
-    const timeout = new Promise((_, reject) => {
-      timer = setTimeout(() => reject(Object.assign(new Error(`source evidence took longer than ${SOURCE_EVIDENCE_TIMEOUT_MS() / 1000} s`),
-        { sourceTimeout: true })), SOURCE_EVIDENCE_TIMEOUT_MS());
-    });
-    const work = (async () => {
+  // THE RUN OWNS THIS CORRIDOR UNTIL IT IS CLOSED, EXACTLY ONCE.
+  //
+  // The request token names the current request and the run carries the timeout, the signal and the terminal state,
+  // so a request that has timed out, been superseded, or already finished cannot write anything afterwards - not a
+  // status, not an ecology or habitat result, and never an identity record as though it had succeeded. Work that
+  // cannot be aborted (a DuckDB query in a browser) is allowed to finish internally; its result is discarded.
+  const mine = sourceEvidenceRequests.begin(id);
+  const run = createSourceEvidenceRun({ id, isOwner: mine });
+  const writeStatus = (sourceEvidence) => {
+    if (!candidate()) return false;
+    store.promoteDiscoveryCandidate({ ...candidate(), sourceEvidence }, id);
+    evidenceStage('render', { id, status: sourceEvidence.status });
+    return true;
+  };
+  const writeCandidate = (promoted) => {
+    if (!candidate()) return false;
+    store.promoteDiscoveryCandidate(promoted, id);
+    evidenceStage('render', { id, status: 'ready' });
+    return true;
+  };
+  const promote = (planes, built) => promoteDiscoveryResult(result, { features: built.features,
+    corridor: built.corridor, searchContext: promotionSearchContext(result),
+    provenance: state.discovery.raw?.provenance ?? null, dataCatalogUrl: built.dataCatalogUrl,
+    derived: current.derived, derivedVersion: state.discovery.raw?.provenance?.regionVersion ?? null,
+    evidenceLevels: sourceEvidenceLevels(planes),
+    sourceEvidence: { status: 'ready', message: null, missing: null } });
+  const steps = {
+    corridorName: result.name,
+    loading: () => writeStatus({ ...current.sourceEvidence, status: 'loading', message: null, missing: null }),
+    reconstruct: async () => {
       evidenceStage('roads:start', { id });
-      const rebuilt = await reconstructDerivedCorridor(result);
-      evidenceStage('roads:done', { id, features: rebuilt.features.length });
-      const promote = (planes) => promoteDiscoveryResult(result, { features: rebuilt.features, corridor: rebuilt.corridor,
-        searchContext: promotionSearchContext(result), provenance: state.discovery.raw?.provenance ?? null,
-        dataCatalogUrl: rebuilt.dataCatalogUrl, derived: current.derived,
-        derivedVersion: state.discovery.raw?.provenance?.regionVersion ?? null,
-        evidenceLevels: sourceEvidenceLevels(planes),
-        sourceEvidence: { status: 'ready', message: null, missing: null } });
-      evidenceStage('assemble', { id });
-      settle({ status: 'ready', message: null, missing: null });
-      store.promoteDiscoveryCandidate(promote({ roads: true }), id);
+      return reconstructDerivedCorridor(result);
+    },
+    promote: (planes, built) => writeCandidate(promote(planes, built)),
+    ecology: async (built) => {
       evidenceStage('ecology:start', { id });
-      await resolveEcology(id, rebuilt.scope ?? null);
+      await resolveEcology(id, built?.scope ?? null, run);
       evidenceStage('ecology:done', { id });
+      return true;
+    },
+    habitat: async (built) => {
       evidenceStage('habitat:start', { id });
-      await resolveHabitat(id, rebuilt.scope ?? null);
+      await resolveHabitat(id, built?.scope ?? null, run);
       evidenceStage('habitat:done', { id });
-      // The run posts again with the levels its reads earned: a plane that was re-read says so, and a plane that
-      // came back "not published" keeps saying precomputed, which is why a partially source-backed corridor reads
-      // as partly source rather than as wholly either.
-      const levels = { roads: true, ecology: true, ...habitatReadPlanes(id) };
-      store.promoteDiscoveryCandidate(promote(levels), id);
+      return true;
+    },
+    // The run posts again with the levels its reads earned: a plane that was re-read says so, and a plane that came
+    // back "not published" keeps saying precomputed, so a partially source-backed corridor reads as partly source.
+    levels: () => ({ roads: true, ecology: true, ...habitatReadPlanes(id) }),
+    identity: (built) => {
+      const levels = steps.levels();
       evidenceStage('levels', { id, ...levels });
-      // The one durable line this whole path exists to justify: the build id, the id the windowed reconstruction
-      // gave the same road, and the source-grounded evidence that they are the same corridor. Counts and booleans
-      // only, so the release can commit it.
-      evidenceStage('identity', identityStagePayload({ identity: rebuilt.identity,
+      evidenceStage('identity', identityStagePayload({ identity: built.identity,
         evidenceLevel: evidenceLabel(detailLevelFor(sourceEvidenceLevels(levels))) }));
-      return 'ready';
-    })();
-    await Promise.race([work, timeout]);
-    evidenceStage('complete', { id });
-  } catch (error) {
-    // Every rejection ends here, whatever stage produced it, and the derived metrics above are never touched.
-    const unavailable = Boolean(error?.rawUnavailable);
-    evidenceStage(unavailable ? 'unavailable' : 'error', { id, name: error?.name ?? 'Error',
-      message: error?.message ?? String(error), stack: (error?.stack ?? '').split('\n').slice(0, 4).join(' | ') });
-    // The one sentence a person reads when the deeper level is not published: the same vocabulary the panel and
-    // the tests agree on, with the bounded planes counted and roads never named (roads are published nationally).
-    const bounded = Object.fromEntries(Object.entries(error?.missingCells ?? {})
-      .filter(([plane]) => plane !== 'roads'));
-    settle({ status: unavailable ? 'unavailable' : 'failed',
-      message: unavailable ? unavailableMessage(bounded)
-        : `Source-level evidence could not be loaded. ${error?.sourceTimeout ? error.message + '. ' : ''}The precomputed corridor metrics above remain available.`,
-      missing: error?.missingCells ?? null });
+      return true;
+    },
+    terminal: async ({ error, unavailable }) => {
+      // The one sentence a person reads when the deeper level is not published: the same vocabulary the panel and
+      // the tests agree on, with the bounded planes counted and roads never named (roads are published nationally).
+      const bounded = Object.fromEntries(Object.entries(error?.missingCells ?? {})
+        .filter(([plane]) => plane !== 'roads'));
+      writeStatus({ status: unavailable ? 'unavailable' : 'failed',
+        message: unavailable ? unavailableMessage(bounded)
+          : `Source-level evidence could not be loaded. ${error?.sourceTimeout ? error.message + '. ' : ''}The precomputed corridor metrics above remain available.`,
+        missing: error?.missingCells ?? null });
+    },
+  };
+  // A timeout is a terminal outcome of this run, so the run itself writes the terminal state - the panel must never
+  // sit on "loading" - and no stage that finishes later may touch the corridor again.
+  run.onClose(async (closed) => {
+    if (closed !== 'timeout') return;
+    evidenceStage('timeout', { id, ms: SOURCE_EVIDENCE_TIMEOUT_MS() });
+    await steps.terminal({ error: Object.assign(new Error(`source evidence took longer than ${SOURCE_EVIDENCE_TIMEOUT_MS() / 1000} s`),
+      { sourceTimeout: true }) });
+  });
+  try {
+    const outcome = await runSourceEvidence({ run, steps, onStage: evidenceStage });
+    if (outcome === 'ready') evidenceStage('complete', { id });
   } finally {
-    if (timer) clearTimeout(timer);
     sourceEvidenceRequests.finish(id, mine);
   }
 }
@@ -684,11 +698,15 @@ async function runCandidateAnalysis(id) {
 // hydrography cells are published on the data origin, so a reader without one asks the page's own origin for them
 // and collects a 404 for a file the application never served; the prepared scope carries the publication's asset
 // base, which is why the habitat read has always been given one.
-async function resolveEcology(id, service = null) {
+async function resolveEcology(id, service = null, run = null) {
   const state = store.getState();
   if (state.ecologyByCandidate[id]) return;
   const candidate = state.candidates.find(item => item.id === id);
   if (!candidate) return;
+  // Ownership is checked at every write, not only around the whole call: a source run that has timed out must not
+  // leave an ecology result - or a coverage row - behind for a corridor the panel has already declared failed.
+  const owns = () => !run || run.isCurrent();
+  if (!owns()) { evidenceStage('discarded', { id, step: 'ecology' }); return; }
   store.setEcologyResult(id, { coverage: COVERAGE.UNKNOWN, diagnostics: { status: 'loading', reason: 'Resolving EPA ecoregions…' } });
   const index = await loadRawRegions() ?? { kind: '', schemaVersion: 0, planes: [], regions: [] };
   // Ecology is a global plane, so the declaration travels with the read whether or not this corridor has a prepared
@@ -697,17 +715,21 @@ async function resolveEcology(id, service = null) {
   const reader = service ?? gis;
   const globalEcoregions = globalEcoregionPlane(index);
   const ecology = summarizeEcoregions(await reader.getEcoregions(candidate.geometry, { globalEcoregions }));
+  if (!owns()) { evidenceStage('discarded:late', { id, step: 'ecology' }); return; }
   store.setEcologyResult(id, ecology);
   for (const [datasetId, level] of [[COVERAGE_DATASET.EPA_LEVEL3, ecology.level3], [COVERAGE_DATASET.EPA_LEVEL4, ecology.level4]]) {
+    if (!owns()) { evidenceStage('discarded:late', { id, step: 'ecology-coverage' }); return; }
     store.setCoverage(id, datasetId, { coverage: level?.coverage ?? COVERAGE.UNKNOWN, reason: ecology.diagnostics?.status === 'partial' ? ecology.diagnostics.reason : null });
   }
 }
 
-async function resolveHabitat(id, service = null) {
+async function resolveHabitat(id, service = null, run = null) {
   const state = store.getState();
   if (state.habitatByCandidate[id]) return;
   const candidate = state.candidates.find(item => item.id === id);
   if (!candidate) return;
+  const owns = () => !run || run.isCurrent();
+  if (!owns()) { evidenceStage('discarded', { id, step: 'habitat' }); return; }
   store.setHabitatResult(id, { diagnostics: { status: 'loading', reason: 'Analyzing wetlands and hydrography…' } });
   let habitat;
   try {
@@ -719,8 +741,10 @@ async function resolveHabitat(id, service = null) {
       hydrography: { coverage: error.coverage ?? COVERAGE.UNKNOWN, reason: error.message },
       diagnostics: { status: 'unavailable', reason: error.message } });
   }
+  if (!owns()) { evidenceStage('discarded:late', { id, step: 'habitat' }); return; }
   store.setHabitatResult(id, habitat);
   for (const [datasetId, coverage] of Object.entries(habitat.coverage)) {
+    if (!owns()) { evidenceStage('discarded:late', { id, step: 'habitat-coverage' }); return; }
     store.setCoverage(id, datasetId, { coverage, reason: habitatReason(habitat, datasetId) });
   }
 }
