@@ -222,11 +222,15 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
           // THE LINE IS AUTHORITATIVE FOR ITS OWN CLICK. The path carries the descriptor it was drawn from, so a
           // click on it selects exactly that corridor; the map-level handler then leaves the event alone. Pick mode
           // keeps precedence: the line declines the click and lets the map answer with the coordinate.
+          //
+          // THE CLICK IS NOT SWALLOWED. Stopping propagation here would also stop Leaflet's own layer-click listener,
+          // which is what opens the corridor's card, so a selection would silently lose its explanation. Bubbling is
+          // left intact instead; the map handler recognises the line's identity on `propagatedFrom` and declines to
+          // answer a click that has already been answered.
           path.corridorId = corridor.id;
           if (typeof path.on === 'function') {
-            path.on('click', event => {
+            path.on('click', () => {
               if (pickMode) return;
-              leaflet.DomEvent?.stopPropagation?.(event);
               onSelect(corridor.id);
             });
           }

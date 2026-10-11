@@ -220,13 +220,13 @@ for (const [query, label, geography] of REGIONS) {
     // assertions reading whichever popup some other layer left in the DOM. The card is awaited instead, and every
     // assertion is scoped to the corridor whose id it must carry.
     const card = page.locator(`#map .corridor-popup[data-corridor-id="${targetId}"]`);
-    await expect(card, `${label}: the clicked corridor's card must be open`).toBeVisible({ timeout: 15000 });
     const popupAudit = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('#map .corridor-popup')];
       const visible = cards.filter(entry => entry.offsetParent !== null);
       return { cards: cards.length, visible: visible.length, ids: visible.map(entry => entry.dataset.corridorId) };
     });
     console.log(`MAP_POPUP ${JSON.stringify({ label, clickedId: targetId, selectedId: await selectedId(), ...popupAudit })}`);
+    await expect(card, `${label}: the clicked corridor's card must be open`).toBeVisible({ timeout: 15000 });
     expect(popupAudit.visible, `${label}: exactly one corridor card is open`).toBe(1);
     expect(popupAudit.ids, `${label}: and it belongs to the clicked corridor`).toEqual([targetId]);
     const popupText = await card.innerText();
