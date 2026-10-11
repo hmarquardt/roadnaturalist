@@ -54,7 +54,9 @@ for (const [query, label, geography] of REGIONS) {
       if (message.type() === 'error') pageErrors.push(message.text());
       // The application's own trace of the automatic fit, printed only when it is enabled, so the ordering can be
       // read from a run instead of inferred from the source.
-      if (message.text().startsWith('MAP_FIT')) console.log(message.text());
+      if (message.text().startsWith('MAP_FIT') || message.text().startsWith('MAP_PATH')) {
+        console.log(message.text());
+      }
     });
 
     // The application's own evidence/map stage markers are silent unless this flag is set, so the trace this gate

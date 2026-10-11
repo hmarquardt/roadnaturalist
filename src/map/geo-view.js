@@ -185,6 +185,8 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       layer.clearLayers();
       let drawn = 0;
       let skipped = 0;
+      let markedPaths = 0;
+      const pathAudit = [];
       for (const corridor of entries) {
         const lines = toLatLngs(corridor.geometry);
         if (!lines) { skipped += 1; continue; }
@@ -200,9 +202,24 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
             selected: corridor.id === selectedId });
           if (typeof path.on === 'function') path.on('add', decorate);
           layer.addLayer(path);
-          decorate();
+          const marked = decorate();
+          // TEMPORARY (this task): why the metadata does or does not land, asked of the object itself.
+          if (globalThis.__RN_DEBUG_EVIDENCE && pathAudit.length < 3) {
+            pathAudit.push({ id: corridor.id, getElement: typeof path.getElement, element: Boolean(path.getElement?.()),
+              internalPath: Boolean(path._path), onMap: Boolean(path._map), marked,
+              interactive: Boolean(path.options?.interactive) });
+          }
+          if (marked) markedPaths += 1;
           drawn += 1;
         }
+      }
+      if (globalThis.__RN_DEBUG_EVIDENCE) {
+        const inDom = typeof window !== 'undefined' && window.document
+          ? window.document.querySelectorAll('#map path').length : -1;
+        const identified = typeof window !== 'undefined' && window.document
+          ? window.document.querySelectorAll('#map path[data-corridor-id]').length : -1;
+        console.log('MAP_PATH ' + JSON.stringify({ layer: layer === layers.results ? 'results' : 'other', drawn, skipped,
+          markedPaths, domPaths: inDom, identified, sample: pathAudit }));
       }
       return { drawn, skipped };
     }
