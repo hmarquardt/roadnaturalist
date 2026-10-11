@@ -14,7 +14,7 @@ import { attributeName, basemapFailureNote, boundsOfGeometries, createGeoView, p
 // enough for that, and it keeps the test about behaviour rather than about pixels.
 
 function fakeLeaflet({ failMap = false } = {}) {
-  const calls = { tileLayers: [], polylines: [], circles: 0, circleMarkers: 0, rectangles: 0, fits: [], removed: 0 };
+  const calls = { tileLayers: [], polylines: [], opened: [], closed: 0, circles: 0, circleMarkers: 0, rectangles: 0, fits: [], removed: 0 };
   // The fake models the lifecycle that caused the real bug: a path has no DOM element until it is added, so a test
   // can tell the difference between stamping metadata before and after Leaflet has created the element.
   const layer = ({ createElementOnAdd = false } = {}) => ({ added: [], handlers: {}, element: null, attributes: {},
@@ -32,10 +32,12 @@ function fakeLeaflet({ failMap = false } = {}) {
       return this; },
     clearLayers() { this.added.length = 0; return this; },
     bindPopup(html) { this.popup = html; return this; },
+    openPopup() { calls.opened.push(this); return this; },
     bindTooltip(text) { this.tooltip = text; return this; } });
   const map = { handlers: {}, layers: [], bounds: [[38.1, -87.9], [38.5, -87.2]],
     on(event, handler) { this.handlers[event] = handler; return this; },
     off() {}, remove() { calls.removed += 1; },
+    closePopup() { calls.closed += 1; return this; },
     setView(view) { this.view = view; return this; },
     fitBounds(bounds, options) { calls.fits.push({ bounds, options }); this.bounds = bounds; return this; },
     getBounds() { return this.bounds; },
@@ -275,6 +277,40 @@ test('each drawn path carries the card for its own corridor', () => {
     'a corridor card names only its own road');
   assert.ok(of(NEAR.id).includes('Near Rd') && !of(NEAR.id).includes('Clicked Rd'),
     'and the neighbour names only its own');
+});
+
+test('a click on a line opens that corridor card, after the re-draw the selection causes', () => {
+  // THE CARD MUST SURVIVE THE RE-DRAW. Selecting a corridor makes the application re-render the map, which clears every
+  // layer: any card Leaflet opened as part of the click dies with its layer. The card is therefore opened against the
+  // layer that exists *after* the re-draw, and it is the clicked corridor's card.
+  const { leaflet, calls } = fakeLeaflet();
+  const selected = [];
+  let view = null;
+  view = createGeoView({ style: {} }, { leaflet, onSelect: id => {
+    selected.push(id);
+    view.draw({ corridors: [CLICKED, NEAR], selectedId: id });
+  } });
+  view.draw({ corridors: [CLICKED, NEAR] });
+  const path = calls.polylines.filter(item => item.corridorId === CLICKED.id).at(-1);
+  path.emit('click', { latlng: { lat: 38.29, lng: -87.5 }, propagatedFrom: path });
+  assert.deepEqual(selected, [CLICKED.id], 'the line click selected its own corridor once');
+  assert.equal(calls.opened.length, 1, 'exactly one card is opened, not none and not several');
+  assert.match(calls.opened[0].popup, new RegExp(`data-corridor-id="${CLICKED.id}"`),
+    'and the card opened is the clicked corridor card');
+  assert.equal(calls.closed, 1, 'any previous card is closed first, so only one is ever open');
+});
+
+test('clicking a second corridor leaves the second corridor as the active card', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  let view = null;
+  view = createGeoView({ style: {} }, { leaflet, onSelect: id => view.draw({ corridors: [CLICKED, NEAR], selectedId: id }) });
+  view.draw({ corridors: [CLICKED, NEAR] });
+  const pathOf = id => calls.polylines.filter(item => item.corridorId === id).at(-1);
+  pathOf(CLICKED.id).emit('click', { latlng: { lat: 38.29, lng: -87.5 }, propagatedFrom: pathOf(CLICKED.id) });
+  pathOf(NEAR.id).emit('click', { latlng: { lat: 38.3, lng: -87.5 }, propagatedFrom: pathOf(NEAR.id) });
+  const last = calls.opened.at(-1).popup;
+  assert.match(last, new RegExp(`data-corridor-id="${NEAR.id}"`), 'the corridor clicked last owns the active card');
+  assert.ok(!last.includes(`data-corridor-id="${CLICKED.id}"`), 'and the earlier corridor card is not the active one');
 });
 
 test('the map never reads storage, and the popup explains without a second evidence panel', () => {

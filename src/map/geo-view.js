@@ -171,6 +171,18 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     // centre was never measured has nothing to explain, so it is drawn without one; this list is the difference between
     // "no card was written" and "a card exists but did not open".
     const cardedIds = new Set();
+    // THE PATH THAT CARRIES EACH CARD, so the card can be re-opened after a re-draw. Selecting a corridor re-renders the
+    // map, and re-rendering clears the layers; a popup Leaflet opened as part of the click is therefore destroyed with
+    // the layer it belonged to, and the selection would be left with nothing to read. One corridor, one card.
+    const cardedPaths = new Map();
+    let cardToOpen = null;
+    function showCardFor(id) {
+      if (id == null) return;
+      const path = cardedPaths.get(id);
+      if (!path) return;
+      map.closePopup?.();
+      path.openPopup?.();
+    }
     // Counted rather than inferred: a drag that never reaches Leaflet leaves this at zero.
     map.on('moveend', () => { movements += 1; });
 
@@ -184,7 +196,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       // point would win the selection from the road the person actually clicked.
       if (event?.propagatedFrom?.corridorId) return;
       const hit = hitTest(event.latlng);
-      if (hit) onSelect(hit.id);
+      if (hit) { cardToOpen = hit.id; onSelect(hit.id); }
     });
     function hitTest(latlng) {
       let best = null;
@@ -208,6 +220,8 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     }
     function paint(layer, entries) {
       layer.clearLayers();
+      // The cards follow the layers: a path that is no longer drawn cannot show a card.
+      if (layer === layers.results) cardedPaths.clear();
       let drawn = 0;
       let skipped = 0;
       let markedPaths = 0;
@@ -218,7 +232,11 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         for (const line of lines) {
           const path = leaflet.polyline(line, styleFor(corridor));
           // Drawing order is list order, so the map's stacking matches the order the person is reading.
-          if (Number.isFinite(corridor.distanceFromCenterM)) { cardedIds.add(corridor.id); path.bindPopup(popupHtml(corridor)); }
+          if (Number.isFinite(corridor.distanceFromCenterM)) {
+            cardedIds.add(corridor.id);
+            cardedPaths.set(corridor.id, path);
+            path.bindPopup(popupHtml(corridor));
+          }
           // THE METADATA GOES ON AFTER LEAFLET HAS MADE THE ELEMENT. Leaflet creates a path's SVG element only when
           // the path joins the map, so stamping it before `addLayer` stamps nothing: the line is drawn and its
           // identity is nowhere in the DOM. The identification is therefore applied on the map's own `add` event and
@@ -235,6 +253,9 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
           if (typeof path.on === 'function') {
             path.on('click', () => {
               if (pickMode) return;
+              // A click on the line asks for that corridor's card along with the selection, so the card survives the
+              // re-draw the selection triggers.
+              cardToOpen = corridor.id;
               onSelect(corridor.id);
             });
           }
@@ -325,6 +346,9 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         for (const line of toLatLngs(selected?.geometry) ?? []) {
           leaflet.polyline(line, { ...styleFor(selected), interactive: false }).addTo(layers.selected);
         }
+        // ONE CARD, FOR THE CORRIDOR THAT WAS JUST ASKED FOR. The map has finished re-drawing, so a card requested by a
+        // click is opened against the layer that now carries it - never against the layer the click destroyed.
+        if (cardToOpen) { showCardFor(cardToOpen); cardToOpen = null; }
         return Boolean(selected);
       },
       setSearch,
