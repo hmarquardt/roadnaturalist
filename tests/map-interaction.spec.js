@@ -54,7 +54,7 @@ for (const [query, label, geography] of REGIONS) {
       if (message.type() === 'error') pageErrors.push(message.text());
       // The application's own trace of the automatic fit, printed only when it is enabled, so the ordering can be
       // read from a run instead of inferred from the source.
-      if (/^MAP_(FIT|PATH|DRAG)/.test(message.text())) {
+      if (/^MAP_(FIT|PATH)/.test(message.text())) {
         console.log(message.text());
       }
     });
@@ -135,19 +135,14 @@ for (const [query, label, geography] of REGIONS) {
       zoomChanged: afterSynthetic.zoom !== beforeDrag.zoom, movements: movementsAfterSynthetic - movementsBefore })}`);
 
     // The real gesture: the map's own box, well inside it, away from the zoom control and any popup.
+    // A REAL GESTURE NEEDS REAL SCREEN COORDINATES. The map panel sits below the fold on this viewport, so
+    // `boundingBox()` reports a viewport position that is off-screen: `document.elementFromPoint` returns null
+    // there, and a real mouse drag never touches Leaflet at all (its movement count stays at zero). Scrolling the
+    // map into view first is what makes the gesture real, and it is the difference between proving the product
+    // and blaming it.
+    await page.locator('#map').scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
     const box = await page.locator('#map').boundingBox();
-    // What is actually under the pointer at the drag point: if it is not the map container or a Leaflet pane,
-    // something is sitting on the map and the gesture never reaches Leaflet.
-    const under = await page.evaluate(({ x, y }) => {
-      const element = document.elementFromPoint(x, y);
-      const trail = [];
-      for (let node = element; node && trail.length < 6; node = node.parentElement) {
-        trail.push(`${node.tagName?.toLowerCase()}\${node.id ? '#' + node.id : ''}\${node.className && typeof node.className === 'string' ? '.' + node.className.split(' ').slice(0, 2).join('.') : ''}`);
-      }
-      return { trail, leaflet: Boolean(element?.closest?.('.leaflet-container')) };
-    }, { x: box.x + box.width * 0.6, y: box.y + box.height * 0.55 });
-    console.log(`MAP_DRAG ${JSON.stringify({ label, kind: 'probe', under: under.trail, reachesLeaflet: under.leaflet,
-      box: { width: Math.round(box.width), height: Math.round(box.height) } })}`);
     await page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.55);
     await page.mouse.down();
     await page.mouse.move(box.x + box.width * 0.35, box.y + box.height * 0.35, { steps: 12 });
