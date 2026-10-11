@@ -14,7 +14,8 @@ export function createMapView(container, options = {}) {
   // offers every method of the documented API - so the difference is absorbed here rather than allowed to reach the
   // application, where a missing method would be a boot failure. Anything genuinely absent becomes a no-op that
   // reports "not available", which is what a caller can act on anyway.
-  const aliases = { setSearch: ['setSearchPreview'], fitResults: ['fit'], fitSelected: ['fit'] };
+  const aliases = { setSearch: ['setSearchPreview'], setSearchPreview: ['setSearch'], fitResults: ['fit'],
+    fitSelected: ['fit'] };
   const missing = [];
   for (const [name, alternatives] of Object.entries(aliases)) {
     if (typeof view[name] === 'function') continue;

@@ -362,7 +362,7 @@ function updateSearchPreview(state) {
     preview.bounds?.join(','), preview.regionBounds?.join(','), preview.label, state.search.picking].join('|');
   if (drawn.searchKey === key) return;
   drawn.searchKey = key;
-  map.setSearchPreview(preview.bounds ? preview : null);
+  map.setSearch(preview.bounds ? preview : null);
   map.setPickMode(state.search.picking);
 }
 
@@ -1242,7 +1242,7 @@ function previewSearch(patch) {
     { region: publishedRegion });
   if (!result.ok) return;
   const coverage = result.coverage;
-  map.setSearchPreview({ kind: 'radius', center: result.definition.center,
+  map.setSearch({ kind: 'radius', center: result.definition.center,
     radiusMiles: result.definition.radiusMiles, bounds: result.definition.bounds,
     coverage: coverage?.coverage ?? COVERAGE.UNKNOWN, regionBounds: publishedRegion?.bounds ?? null,
     label: `${formatRadius(result.definition.radiusMiles)} · ${coverage?.coverage ?? COVERAGE.UNKNOWN}` });
