@@ -86,8 +86,8 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     // is a request for a file the application has never served - a 404 on every read that needs it. The scope's own
     // catalogue carries the publication's asset base, so that is where a national layer resolves; everything else
     // (the per-state layers published with the application) keeps resolving exactly as it always has.
-    const url = new URL(entry.url, String(entry.url ?? '').startsWith('national/') && catalog?.assetBaseUrl
-      ? new URL(catalog.assetBaseUrl) : DATA_BASE);
+    const url = new URL(entry.url, String(entry.url ?? '').startsWith('national/') && activeAssetBaseUrl
+      ? new URL(activeAssetBaseUrl) : DATA_BASE);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`${datasetId} HTTP ${response.status}`);
     const bytes = await response.arrayBuffer();
@@ -494,6 +494,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     const catalog = await getDiscoveryCatalog(searchArea.catalogUrl, declaredType);
     const manifestMs = performance.now() - started;
     if (declaredType === DISCOVERY_CATALOG_TYPE.RAW) activeRawPublication = catalog.publication ?? null;
+    activeAssetBaseUrl = catalog.assetBaseUrl ?? catalog.publication?.assetBaseUrl ?? activeAssetBaseUrl;
     const selection = await selectRawOrRegionalPartitions(catalog, searchArea, declaredType,
       searchArea.globalRoads ?? null);
     const selectionMs = performance.now() - started - manifestMs;
@@ -627,6 +628,10 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
   // discovery batch keeps reading the layers the manifest declares. Ecoregions are the one detail input that is
   // not partitioned per cell: EPA publishes them as whole-CONUS layers, so they are published once and shared.
   let activeRawPublication = null;
+  // The origin the prepared publication's own artifacts live on. `catalog` is shadowed inside the preparation
+  // functions, so a declared artifact could only ever resolve against the application manifest - which is why a
+  // whole-CONUS layer declared under `national/` was asked of the page's own origin and answered with a 404.
+  let activeAssetBaseUrl = null;
 
   async function openDeclaredArtifact(id, declared) {
     const key = `raw:${id}`;
