@@ -76,7 +76,7 @@ for (const [query, label, geography] of REGIONS) {
     const camera = () => page.evaluate(() => globalThis.__RN_MAP.camera());
     const fitCount = () => page.evaluate(() => globalThis.__RN_MAP.fitCount());
     const selectedId = () => page.evaluate(() =>
-      document.querySelector('#discovery-results tbody tr.selected .discovery-row')?.dataset?.candidateId ?? null);
+      document.querySelector('#discovery-results tbody tr.selected')?.dataset?.candidateId ?? null);
 
     // 22. GEOGRAPHY SANITY: a lat/lon inversion or a stale-region camera shows up here immediately. The automatic
     // fit is animated, so the camera is allowed a moment to arrive before its position is judged - and the fit is
@@ -95,8 +95,15 @@ for (const [query, label, geography] of REGIONS) {
     const rows = page.locator('#discovery-results tbody tr');
     const rowCount = Math.min(await rows.count(), 10);
     expect(rowCount, `${label}: discovery must produce candidates`).toBeGreaterThan(1);
-    const idOfRow = index => rows.nth(index).locator('.discovery-row').getAttribute('data-candidate-id');
-    const firstId = await idOfRow(0);
+    // The corridor id belongs to the row element, which is the stable contract the list renders; reading it from
+    // the button inside it yields nothing and turns into the literal string "null".
+    const idOfRow = index => rows.nth(index).getAttribute('data-candidate-id');
+    const requireIdOfRow = async index => {
+      const id = await idOfRow(index);
+      expect(id, `${label}: row ${index} must carry its corridor id, not ${JSON.stringify(id)}`).toBeTruthy();
+      return id;
+    };
+    const firstId = await requireIdOfRow(0);
     await rows.nth(0).locator('.discovery-row').click();
     expect(await selectedId(), `${label}: the clicked row is the selected one`).toBe(firstId);
     await expect(page.locator(`#map path[data-role="candidate"][data-corridor-id="${firstId}"]`)).toHaveCount(1);
@@ -118,7 +125,7 @@ for (const [query, label, geography] of REGIONS) {
     expect(moved.center[0], `${label}: the drag must have moved the camera`).not.toBeCloseTo(initial.center[0], 5);
 
     // Selection must not move it.
-    const secondId = await idOfRow(1);
+    const secondId = await requireIdOfRow(1);
     await rows.nth(1).locator('.discovery-row').click();
     await page.waitForTimeout(400);
     const afterSelection = await camera();
@@ -158,7 +165,7 @@ for (const [query, label, geography] of REGIONS) {
       .toBeLessThan(geography.lat[1]);
 
     // 5. MAP → LIST. Clicking a line selects the same corridor through the application's own code path.
-    const targetId = await idOfRow(2);
+    const targetId = await requireIdOfRow(2);
     const targetPath = page.locator(`#map path[data-role="candidate"][data-corridor-id="${targetId}"]`).first();
     await targetPath.click({ force: true, position: { x: 3, y: 3 } });
     await page.waitForTimeout(800);
@@ -183,7 +190,7 @@ for (const [query, label, geography] of REGIONS) {
       `${label}: the popup is traceable to the model that produced the score`).toBe('naturalist-interest-v1');
     // The score in the popup is the score the list explains for that corridor, not merely any number.
     const listScore = await page.evaluate(id => {
-      const row = document.querySelector(`#discovery-results tbody tr .discovery-row[data-candidate-id="${id}"]`);
+      const row = document.querySelector(`#discovery-results tbody tr[data-candidate-id="${id}"]`);
       return row?.closest('tr')?.innerText ?? '';
     }, targetId);
     const score = Number((popupText.match(/Naturalist interest (\d+(\.\d+)?)/) ?? [])[1]);
