@@ -28,6 +28,7 @@ import { IMMUTABLE_CACHE_CONTROL, JSON_TYPE, PARQUET_TYPE } from './national-der
 import { ECOREGIONS, RAW_INDEX_PATH, cellsForBounds, ecoregionArtifacts, indexEntry, loadPlanes, localCellPath,
   objectKeyFor, paddedBounds, regionCatalog, regionRectangle } from './national-raw-objects.mjs';
 import { ROADS_PLANE, TILE_CELLS, closureTiles, roadsPublicationSet, tileDocument } from './national-roads-publication.mjs';
+import { validateRawRegionsIndex } from '../src/discovery/raw-catalog.js';
 
 const readText = path => readFileSync(path, 'utf8');
 
@@ -625,6 +626,50 @@ async function main() {
 
   if (flag('--audit')) {
 
+    const index = readIndex();
+    const wanted = option('--region');
+    const regions = wanted ? index.regions.filter(region => region.id === wanted) : index.regions;
+    if (!regions.length) console.log('no raw region is recorded in the index yet');
+    let failed = 0;
+    for (const region of regions) {
+      const outcome = await auditRegion(region);
+      console.log(`AUDIT ${JSON.stringify(outcome)}`);
+      failed += outcome.problems.length;
+    }
+    return failed ? 1 : 0;
+  }
+  if (flag('--publish-ecoregions')) {
+    console.log(`ecoregions ${JSON.stringify(await publishEcoregions({ ecoregions }))}`);
+    return 0;
+  }
+
+  const state = await publishOneRegion();
+  const documented = await publishOneRegionDocuments(state);
+  const entry = indexEntryFor(documented);
+  const nextIndex = { ...state.index,
+    planes: state.planes.map(plane => ({ id: plane.id, version: plane.version, cellStepDeg: 0.2,
+      pathPrefix: plane.pathPrefix, manifest: plane.manifest })),
+    regions: [...state.index.regions.filter(region => region.id !== state.regionId), entry]
+      .sort((left, right) => left.id.localeCompare(right.id)),
+    updatedAt: new Date().toISOString() };
+  // The index is validated by the very contract the runtime applies to it, so a publication cannot commit an
+  // index the browser would refuse.
+  validateRawRegionsIndex(nextIndex);
+  if (!dryRun) writeFileSync(join(ROOT, RAW_INDEX_PATH), JSON.stringify(nextIndex, null, 1) + '\n');
+
+  for (const plane of state.planes) {
+    const entries = [...state.verified[plane.id].values()];
+    console.log(`${plane.id}: ${state.objects.filter(object => object.plane === plane.id).length} published, `
+      + `${entries.filter(value => value.empty).length} measured empty`);
+  }
+  console.log(`objects ${JSON.stringify(documented.actions)}; raw bytes ${entry.bytes.toLocaleString()}`);
+  console.log(`ecoregions ${JSON.stringify(Object.fromEntries(Object.entries(documented.publishedEcoregions)
+    .map(([key, value]) => [key, value.action])))} (${entry.ecoregionBytes.toLocaleString()} bytes)`);
+  console.log(`${dryRun ? 'would record' : 'recorded'} ${RAW_INDEX_PATH}: ${state.regionId} ${state.version}, `
+    + `catalog ${documented.catalogBuffer.length} bytes`);
+  return 0;
+}
+
 // The remote audit: every expected object exists with the right length, the right content type and the immutable
 // cache header; a sample is re-fetched and hashed; every closure tile is hashed in full; and the namespace holds
 // nothing the publication did not ask for. Roads are not declared ready until this passes.
@@ -718,51 +763,6 @@ function writeGlobalPlanes(roads, ecoregions) {
     + `${roads.version} ${roads.state}, ${roads.objects.toLocaleString()} objects, ${roads.bytes.toLocaleString()} bytes; `
     + `ecoregions ${ecoregions.state}`);
   return next;
-}
-
-    const index = readIndex();
-    const wanted = option('--region');
-    const regions = wanted ? index.regions.filter(region => region.id === wanted) : index.regions;
-    if (!regions.length) console.log('no raw region is recorded in the index yet');
-    let failed = 0;
-    for (const region of regions) {
-      const outcome = await auditRegion(region);
-      console.log(`AUDIT ${JSON.stringify(outcome)}`);
-      failed += outcome.problems.length;
-    }
-    return failed ? 1 : 0;
-  }
-  if (flag('--publish-ecoregions')) {
-    console.log(`ecoregions ${JSON.stringify(await publishEcoregions({ ecoregions }))}`);
-    return 0;
-  }
-
-  const state = await publishOneRegion();
-  const documented = await publishOneRegionDocuments(state);
-  const entry = indexEntryFor(documented);
-  const nextIndex = { ...state.index,
-    planes: state.planes.map(plane => ({ id: plane.id, version: plane.version, cellStepDeg: 0.2,
-      pathPrefix: plane.pathPrefix, manifest: plane.manifest })),
-    regions: [...state.index.regions.filter(region => region.id !== state.regionId), entry]
-      .sort((left, right) => left.id.localeCompare(right.id)),
-    updatedAt: new Date().toISOString() };
-  // The index is validated by the very contract the runtime applies to it, so a publication cannot commit an
-  // index the browser would refuse.
-  const { validateRawRegionsIndex } = await import('../src/discovery/raw-catalog.js');
-  validateRawRegionsIndex(nextIndex);
-  if (!dryRun) writeFileSync(join(ROOT, RAW_INDEX_PATH), JSON.stringify(nextIndex, null, 1) + '\n');
-
-  for (const plane of state.planes) {
-    const entries = [...state.verified[plane.id].values()];
-    console.log(`${plane.id}: ${state.objects.filter(object => object.plane === plane.id).length} published, `
-      + `${entries.filter(value => value.empty).length} measured empty`);
-  }
-  console.log(`objects ${JSON.stringify(documented.actions)}; raw bytes ${entry.bytes.toLocaleString()}`);
-  console.log(`ecoregions ${JSON.stringify(Object.fromEntries(Object.entries(documented.publishedEcoregions)
-    .map(([key, value]) => [key, value.action])))} (${entry.ecoregionBytes.toLocaleString()} bytes)`);
-  console.log(`${dryRun ? 'would record' : 'recorded'} ${RAW_INDEX_PATH}: ${state.regionId} ${state.version}, `
-    + `catalog ${documented.catalogBuffer.length} bytes`);
-  return 0;
 }
 
 main().then(code => { process.exitCode = code; })

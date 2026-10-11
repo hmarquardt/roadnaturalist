@@ -378,6 +378,7 @@
    }
   },
   {
+   "assetBaseUrl": "https://data.roadnaturalist.com/",
    "id": "portland-or",
    "version": "raw-20261010-215857",
    "bounds": [
@@ -387,7 +388,6 @@
     46.400000000000006
    ],
    "label": "Portland,\\ Oregon",
-   "assetBaseUrl": "https://data.roadnaturalist.com/",
    "publishedAt": "2026-10-10T21:59:05.379Z",
    "cellStepDeg": 0.2,
    "cells": {
@@ -662,5 +662,62 @@
    }
   }
  ],
- "updatedAt": "2026-10-10T21:59:05.379Z"
+ "updatedAt": "2026-10-11T00:50:22.749Z",
+ "globalPlanes": {
+  "roads": {
+   "version": "tiger2025-county-v1",
+   "state": "READY",
+   "cellStepDeg": 0.2,
+   "pathPrefix": "national/roads/tiger2025-county-v1/roads/",
+   "assetBaseUrl": "https://data.roadnaturalist.com/",
+   "presentCells": 21135,
+   "emptyCells": 739,
+   "gridCells": 21874,
+   "objects": 22072,
+   "bytes": 5866868015,
+   "publicationUrl": "national/roads/tiger2025-county-v1/publication.json",
+   "publicationBytes": 3517716,
+   "publicationSha256": "ce86e3ee452193c84304a9583e31e71e2d0ba336b9ddbe00a903e842af399c3e",
+   "closure": {
+    "cellSpan": 5,
+    "prefix": "national/roads/tiger2025-county-v1/components/",
+    "tiles": 936,
+    "bytes": 46118835
+   },
+   "auditedAt": "2026-10-11T00:50:22.747Z",
+   "audit": {
+    "cells": 21135,
+    "remoteObjects": 22072,
+    "missing": 0,
+    "sizeMismatch": 0,
+    "unexpected": 0,
+    "sampled": 12,
+    "seconds": 127
+   },
+   "note": "The complete national road raw plane is online. Detailed promotion reads its cells directly and never fails for want of a road cell; wetlands and hydrography remain bounded, published where people explore."
+  },
+  "ecoregions": {
+   "state": "READY",
+   "version": "epa-conus-2015-v1",
+   "assetBaseUrl": "https://data.roadnaturalist.com/",
+   "bytes": 123414678,
+   "levels": {
+    "l3": {
+     "url": "national/epa-conus-l3.parquet",
+     "bytes": 37567531,
+     "sha256": "982931a4f2f30264ca1933d4111fc118650adda9023c2057a1ee2928e96c6ba4",
+     "version": "epa-conus-2015-v1",
+     "published": true
+    },
+    "l4": {
+     "url": "national/epa-conus-l4.parquet",
+     "bytes": 85847147,
+     "sha256": "1f994e9d7fe6abbd97f67f9697d703472ec1398d3ed40e8c347c1f1e5efda9d3",
+     "version": "epa-conus-2015-v1",
+     "published": true
+    }
+   },
+   "note": "EPA Level III and IV ecoregions are whole-CONUS layers: published once and read by every promotion, rather than partitioned per cell like the road, wetland and hydrography planes."
+  }
+ }
 }
