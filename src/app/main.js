@@ -586,11 +586,16 @@ async function requestSourceEvidence(id) {
       evidenceStage('assemble', { id });
       settle({ status: 'ready', message: null, missing: null });
       store.promoteDiscoveryCandidate(promote({ roads: true }), id);
+      // One prepared publication scope for the rest of the run: ecology and habitat both read published artifacts
+      // that live on the data origin, so one scope is prepared here and shared rather than each read resolving its
+      // own (and one of them resolving against the page's own origin, which serves no such file).
+      const sourceScope = current.dataCatalogUrl
+        ? await gis.prepareRegionalSearch({ bbox: result.corridor.bounds, catalogUrl: current.dataCatalogUrl }) : null;
       evidenceStage('ecology:start', { id });
-      await resolveEcology(id);
+      await resolveEcology(id, sourceScope);
       evidenceStage('ecology:done', { id });
       evidenceStage('habitat:start', { id });
-      await resolveHabitat(id);
+      await resolveHabitat(id, sourceScope);
       evidenceStage('habitat:done', { id });
       // The run posts again with the levels its reads earned: a plane that was re-read says so, and a plane that
       // came back "not published" keeps saying precomputed, which is why a partially source-backed corridor reads
@@ -674,20 +679,24 @@ async function runCandidateAnalysis(id) {
   }
 }
 
-async function resolveEcology(id) {
+// Both reads take an optional prepared publication scope. The CONUS ecology layers and the bounded wetland and
+// hydrography cells are published on the data origin, so a reader without one asks the page's own origin for them
+// and collects a 404 for a file the application never served; the prepared scope carries the publication's asset
+// base, which is why the habitat read has always been given one.
+async function resolveEcology(id, service = null) {
   const state = store.getState();
   if (state.ecologyByCandidate[id]) return;
   const candidate = state.candidates.find(item => item.id === id);
   if (!candidate) return;
   store.setEcologyResult(id, { coverage: COVERAGE.UNKNOWN, diagnostics: { status: 'loading', reason: 'Resolving EPA ecoregions…' } });
-  const ecology = summarizeEcoregions(await gis.getEcoregions(candidate.geometry));
+  const ecology = summarizeEcoregions(await (service ?? gis).getEcoregions(candidate.geometry));
   store.setEcologyResult(id, ecology);
   for (const [datasetId, level] of [[COVERAGE_DATASET.EPA_LEVEL3, ecology.level3], [COVERAGE_DATASET.EPA_LEVEL4, ecology.level4]]) {
     store.setCoverage(id, datasetId, { coverage: level?.coverage ?? COVERAGE.UNKNOWN, reason: ecology.diagnostics?.status === 'partial' ? ecology.diagnostics.reason : null });
   }
 }
 
-async function resolveHabitat(id) {
+async function resolveHabitat(id, service = null) {
   const state = store.getState();
   if (state.habitatByCandidate[id]) return;
   const candidate = state.candidates.find(item => item.id === id);
@@ -695,8 +704,8 @@ async function resolveHabitat(id) {
   store.setHabitatResult(id, { diagnostics: { status: 'loading', reason: 'Analyzing wetlands and hydrography…' } });
   let habitat;
   try {
-    const habitatService = candidate.dataCatalogUrl
-      ? await gis.prepareRegionalSearch({ bbox: candidate.corridor.bounds, catalogUrl: candidate.dataCatalogUrl }) : gis;
+    const habitatService = service ?? (candidate.dataCatalogUrl
+      ? await gis.prepareRegionalSearch({ bbox: candidate.corridor.bounds, catalogUrl: candidate.dataCatalogUrl }) : gis);
     habitat = summarizeHabitat(await habitatService.getHabitatContext(candidate.geometry));
   } catch (error) {
     habitat = summarizeHabitat({ wetlands: { coverage: error.coverage ?? COVERAGE.UNKNOWN, reason: error.message },

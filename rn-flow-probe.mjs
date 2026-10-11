@@ -1,0 +1,23 @@
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch();
+const page = await (await browser.newContext()).newPage();
+page.on('response', response => {
+  if (response.status() >= 400) console.log('HTTP', response.status(), response.url());
+});
+page.on('console', message => { if (message.type() === 'error') console.log('CONSOLE', message.text()); });
+await page.goto('https://roadnaturalist.pages.dev', { waitUntil: 'domcontentloaded' });
+await page.locator('#discover-roads').waitFor({ state: 'visible', timeout: 180000 });
+await page.locator('#discovery-place').fill('princeton in');
+await page.locator('#discovery-place-results .discovery-place-option').first().waitFor({ timeout: 120000 });
+await page.locator('#discovery-place-results .discovery-place-option').first().click();
+await page.locator('#discovery-radius-input').fill('25');
+await page.locator('#discovery-radius-input').press('Enter');
+await page.locator('#discover-roads').click();
+await page.locator('#discovery-results tbody tr').first().waitFor({ timeout: 600000 });
+await page.locator('#discovery-results tbody tr').first().locator('.discovery-row').click();
+await page.locator('#discovery-promote').click();
+await page.locator('#candidate-detail .corridor-metrics').first().waitFor({ timeout: 120000 });
+console.log('DERIVED OPEN — no source click');
+await page.waitForTimeout(25000);
+console.log('PROBE DONE');
+await browser.close();
