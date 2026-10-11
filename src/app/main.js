@@ -243,7 +243,9 @@ async function discoverRoads() {
       eligibility: run.eligibility, raw: { ...run.raw, provenance: run.roadQuery.provenance }, searchArea, marks });
     // THE ONE AUTOMATIC CAMERA MOVE, ASKED FOR HERE. A run that has just become authoritative asks for a single fit
     // of its own results; the request is spent on the next render that has geometry, and nothing else asks.
-    discoveryFit.request(run.searchArea?.id ?? searchArea?.id ?? null);
+    const completion = run.searchArea?.id ?? searchArea?.id ?? null;
+    discoveryFit.request(completion);
+    mapFitStage('request', { identity: completion, pending: discoveryFit.pending() != null });
     rememberSearch(run.searchArea);
   } catch (error) {
     discoveryFit.cancel();
@@ -556,6 +558,13 @@ function derivedMetricsFor(result) {
 // the source step failed: it hides the failure and cannot be retried. The stage markers are silent unless
 // `globalThis.__RN_DEBUG_EVIDENCE` is set, which is how a test or a developer watches the path without leaving
 // noise in production.
+// TEMPORARY (this task): the exact ordering of the automatic fit, so the trace answers the question instead of a
+// reading of the code. Silent unless the evidence flag is set, which the browser specs set and production does not.
+function mapFitStage(stage, detail = {}) {
+  if (!globalThis.__RN_DEBUG_EVIDENCE) return;
+  console.log(`MAP_FIT ${JSON.stringify({ stage, ...detail })}`);
+}
+
 function evidenceStage(stage, detail = {}) {
   if (!globalThis.__RN_DEBUG_EVIDENCE) return;
   console.log(`sourceEvidence:${stage} ` + JSON.stringify({ at: Date.now(), ...detail }));
@@ -1165,7 +1174,15 @@ store.subscribe(state => {
   // EXACTLY ONE AUTOMATIC FIT PER COMPLETED SEARCH. The request was made where the run completed and is spent here,
   // once, at the first render that actually has that search's geometry. It is not inferred from state: selecting,
   // sorting, saving, promoting or finishing an analysis has no request to spend and cannot move the camera.
-  if (discoveryFit.consume({ hasGeometry: Boolean(discoveryLayer?.corridors?.length) })) map.fitResults();
+  const mapFit = { status: state.discovery.status ?? null, identity: discoveryFit.pending(),
+    pending: discoveryFit.pending() != null, hasGeometry: Boolean(discoveryLayer?.corridors?.length),
+    visible: discoveryLayer?.corridors?.length ?? 0, results: state.discovery.results.length,
+    rendered: drawn.corridors.length };
+  mapFitStage('consume', mapFit);
+  if (discoveryFit.consume({ hasGeometry: mapFit.hasGeometry })) {
+    mapFitStage('fit', { identity: mapFit.identity, rendered: mapFit.rendered });
+    map.fitResults();
+  }
   const discoveryKey = `${state.discovery.status}|${state.discovery.selectedId}|${discoveryLayer?.corridors.length ?? 0}|${discoveryLayer?.promotedIds.join(',') ?? ''}`;
   if (selected?.id !== drawn.selectedId || drawn.corridors.length !== state.candidates.length
     || drawn.overlay !== overlay || drawn.occurrenceOverlay !== occurrenceOverlay || drawn.discoveryKey !== discoveryKey) {
