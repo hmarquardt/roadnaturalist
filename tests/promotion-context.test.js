@@ -255,7 +255,10 @@ test('a promotion with no context, an explicit place, or coordinates keeps worki
 function derivedPromotionCase(features, { segmentIndex = 1, center = CENTER, radiusMiles = 25, repaired = false } = {}) {
   const unit = buildDiscoveryUnits(features).units[0];
   const corridor = segmentUnit(unit).corridors[segmentIndex - 1];
-  const derived = { id: corridor.id, name: corridor.name, geometry: corridor.geometry, geometry_repaired: repaired };
+  // The row's identity is its source features - what the build records and what a windowed read reproduces -
+  // together with the segment position, never the build's component ordinal.
+  const derived = { id: corridor.id, name: corridor.name, geometry: corridor.geometry, geometry_repaired: repaired,
+    sourceFeatureIds: [...unit.sourceFeatureIds], segmentIndex, segmentCount: segmentUnit(unit).corridors.length };
   const verified = verifyDerivedPromotion({ derived, features });
   const measured = corridorContextFromCenter(center, derived.geometry);
   const result = discoveryResult({ unit, corridor, fromCenter: measured });

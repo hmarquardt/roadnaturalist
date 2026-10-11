@@ -263,9 +263,109 @@ function rebuiltCorridor() {
   return segmentUnit(buildDiscoveryUnits(RAW_FEATURES).units[0]).corridors[0];
 }
 
+// THE IDENTITY A RECONSTRUCTION IS VERIFIED AGAINST IS SOURCE-GROUNDED, NOT THE BUILD'S ORDINAL.
+//
+// `drv1-<name>-c<N>` numbers a name's connected components across the whole nation, so a windowed read composes the
+// same road under a different ordinal. These tests hold both halves: the same road verifies whatever ordinal it
+// carries, and a row that is not the same road never verifies - by membership, by segmentation, or by geometry.
+
+test('a reconstruction verifies by source identity even when the composed unit carries a different ordinal', () => {
+  const corridor = rebuiltCorridor();
+  // The row as the build wrote it: the same features, under a build-local component ordinal.
+  const derived = { id: 'drv1-nw-example-rd-c226-s1', name: 'NW Example Rd', geometry: corridor.geometry,
+    sourceFeatureIds: ['f1'], segmentIndex: 1, segmentCount: 1 };
+  const verified = verifyDerivedPromotion({ derived, features: RAW_FEATURES });
+  assert.equal(verified.corridor.id, corridor.id, 'the reconstructed corridor is returned, not the build id');
+  assert.notEqual(verified.corridor.id, derived.id, 'the ordinal really did differ, as it does in production');
+  assert.deepEqual(verified.sourceFeatureIds, ['f1']);
+  assert.equal(verified.driftM, 0);
+  assert.equal(verified.derivedId, derived.id, 'the build identity is kept beside the reconstruction');
+});
+
+test('a row with a missing source feature does not verify, however close the geometry is', () => {
+  const corridor = rebuiltCorridor();
+  assert.throws(() => verifyDerivedPromotion({ derived: { id: 'drv1-nw-example-rd-s1', geometry: corridor.geometry,
+    sourceFeatureIds: ['f1', 'f2'], segmentIndex: 1, segmentCount: 1 }, features: RAW_FEATURES }),
+  /does not compose the corridor this row describes/);
+});
+
+test('a row with an extra source feature does not verify', () => {
+  const corridor = rebuiltCorridor();
+  assert.throws(() => verifyDerivedPromotion({ derived: { id: 'drv1-nw-example-rd-s1', geometry: corridor.geometry,
+    sourceFeatureIds: [], segmentIndex: 1, segmentCount: 1 }, features: RAW_FEATURES }),
+  /carries no source feature identity/);
+  assert.throws(() => verifyDerivedPromotion({ derived: { id: 'drv1-nw-example-rd-s1', geometry: corridor.geometry,
+    sourceFeatureIds: ['f2'], segmentIndex: 1, segmentCount: 1 }, features: RAW_FEATURES }),
+  /does not compose the corridor this row describes/);
+});
+
+test('a duplicated road name is disambiguated by source features, not by the name', () => {
+  const near = { roadId: 'tiger-2025-or-41051-example-rd', name: 'NW Example Rd', roadClass: 'S1400', routeType: 'M',
+    countyFips: '41051', countyName: 'Multnomah County, Oregon', sourceFeatureId: 'other-1', part: 1,
+    geometry: { type: 'LineString', coordinates: line(3000).map(([lon, lat]) => [lon + 0.02, lat]) } };
+  const features = [...RAW_FEATURES, near];
+  const corridor = rebuiltCorridor();
+  const units = buildDiscoveryUnits(features).units;
+  assert.ok(units.length > 1, 'the same name really does compose more than one component here');
+  // The row's own features select its own component, and the neighbouring same-named road is not it.
+  const verified = verifyDerivedPromotion({ derived: { id: 'drv1-nw-example-rd-c9-s1', geometry: corridor.geometry,
+    sourceFeatureIds: ['f1'], segmentIndex: 1, segmentCount: 1 }, features });
+  assert.ok(verified.unit.sourceFeatureIds.map(String).includes('f1'));
+  assert.ok(!verified.unit.sourceFeatureIds.map(String).includes('other-1'));
+  // And a row claiming the other component's features does not verify against this geometry.
+  assert.throws(() => verifyDerivedPromotion({ derived: { id: 'drv1-nw-example-rd-c9-s1', geometry: corridor.geometry,
+    sourceFeatureIds: ['other-1'], segmentIndex: 1, segmentCount: 1 }, features }), /differs from the precomputed row/);
+});
+
+test('an ambiguous reconstruction fails closed instead of choosing a unit', () => {
+  // Two identical features of one name in the same place compose one component, so ambiguity has to be built
+  // deliberately: a row whose source set is satisfied by two composed units.
+  const twin = { ...RAW_FEATURES[0], sourceFeatureId: 'twin-1' };
+  const doubled = [RAW_FEATURES[0], { ...RAW_FEATURES[0], sourceFeatureId: 'f1b' }];
+  const units = buildDiscoveryUnits(doubled).units;
+  assert.equal(units.length, 1, 'the doubled features compose one unit — ambiguity needs a different construction');
+  assert.throws(() => verifyDerivedPromotion({ derived: { id: 'drv1-nw-example-rd-s1',
+    geometry: rebuiltCorridor().geometry, sourceFeatureIds: ['f1', 'f1b'], segmentIndex: 1, segmentCount: 1 },
+    features: doubled }), /differs from the precomputed row|does not compose/);
+  void twin;
+});
+
+test('a segment the composed road does not have fails verification', () => {
+  const corridor = rebuiltCorridor();
+  assert.throws(() => verifyDerivedPromotion({ derived: { id: 'drv1-nw-example-rd-s2', geometry: corridor.geometry,
+    sourceFeatureIds: ['f1'], segmentIndex: 2, segmentCount: 2 }, features: RAW_FEATURES }),
+  /segment 2|segment\(s\)/);
+});
+
+test('the same road verifies from a window that renumbers its components (the production failure, reproduced)', () => {
+  // The build composes every name across the nation and numbers that name's components in order. A window composes
+  // far fewer features, so the same road lands under a different ordinal - exactly what gave `drv1-river-rd-c226-s1`
+  // an id that a promotion of the same road could not find. Here the full set holds the road alone (no ordinal at
+  // all) and the window holds it beside two other same-named components, which renumbers it.
+  const others = [1, 5].map((step, index) => ({ ...RAW_FEATURES[0], sourceFeatureId: `other-${index + 1}`,
+    geometry: { type: 'LineString', coordinates: line(3000).map(([lon, lat]) => [lon + 0.05 * step, lat]) } }));
+  const windowFeatures = [...RAW_FEATURES, ...others];
+  const full = buildDiscoveryUnits(RAW_FEATURES).units[0];
+  const windowed = buildDiscoveryUnits(windowFeatures).units;
+  assert.equal(full.id, 'drv1-nw-example-rd', 'composed alone, the road needs no component ordinal');
+  const promoted = windowed.filter(unit => unit.sourceFeatureIds.map(String).includes('f1'));
+  assert.equal(promoted.length, 1, 'exactly one composed component holds the road this row describes');
+  assert.equal(promoted[0].id, 'drv1-nw-example-rd-c1', 'in this window the same road is component 1 of 3');
+  assert.notEqual(promoted[0].id, full.id, 'the ordinal really did change, which is why an id comparison failed');
+  // The build's row - the id it published, and the identity it really describes.
+  const row = { id: full.id + '-s1', name: 'NW Example Rd', geometry: segmentUnit(full).corridors[0].geometry,
+    sourceFeatureIds: ['f1'], segmentIndex: 1, segmentCount: 1 };
+  const verified = verifyDerivedPromotion({ derived: row, features: windowFeatures });
+  assert.equal(verified.corridor.id, 'drv1-nw-example-rd-c1-s1');
+  assert.notEqual(verified.corridor.id, row.id, 'reconstruction is verified by source identity, not by the ordinal');
+  assert.deepEqual(verified.unit.sourceFeatureIds.map(String), ['f1'], 'the road was selected, not a neighbour');
+  assert.equal(verified.driftM, 0);
+});
+
 test('promotion reconstructs the raw corridor and verifies its identity and geometry', () => {
   const corridor = rebuiltCorridor();
-  const derived = { id: corridor.id, geometry: corridor.geometry };
+  const derived = { id: corridor.id, geometry: corridor.geometry, sourceFeatureIds: ['f1'],
+    segmentIndex: 1, segmentCount: 1 };
   const verified = verifyDerivedPromotion({ derived, features: RAW_FEATURES });
   assert.equal(verified.corridor.id, derived.id);
   assert.equal(verified.driftM, 0);
@@ -278,20 +378,23 @@ test('promotion refuses a derived row whose geometry the raw network does not re
   const corridor = rebuiltCorridor();
   const shifted = { type: 'LineString', coordinates: corridor.geometry.coordinates.map(([lon, lat]) => [lon + 0.001, lat]) };
   assert.ok(maxDriftM(shifted, corridor.geometry) > 50, 'the shifted corridor really is far enough apart to matter');
-  assert.throws(() => verifyDerivedPromotion({ derived: { id: corridor.id, geometry: shifted }, features: RAW_FEATURES }),
+  assert.throws(() => verifyDerivedPromotion({ derived: { id: corridor.id, geometry: shifted, sourceFeatureIds: ['f1'],
+    segmentIndex: 1, segmentCount: 1 }, features: RAW_FEATURES }),
     /the raw corridor differs from the precomputed row/);
 });
 
 test('promotion refuses a truncated precomputed corridor even when every cached point lies on the raw line', () => {
   const corridor = rebuiltCorridor();
   const short = { type: 'LineString', coordinates: corridor.geometry.coordinates.slice(0, 2) };
-  assert.throws(() => verifyDerivedPromotion({ derived: { id: corridor.id, geometry: short }, features: RAW_FEATURES }),
+  assert.throws(() => verifyDerivedPromotion({ derived: { id: corridor.id, geometry: short, sourceFeatureIds: ['f1'],
+    segmentIndex: 1, segmentCount: 1 }, features: RAW_FEATURES }),
     /the raw corridor differs from the precomputed row/);
 });
 
-test('promotion refuses a corridor id the raw regional network does not compose', () => {
-  assert.throws(() => verifyDerivedPromotion({ derived: { id: 'drv1-not-in-this-window-s1', geometry: rebuiltCorridor().geometry },
-    features: RAW_FEATURES }), /does not compose this corridor id/);
+test('promotion refuses a row whose source features this window does not compose', () => {
+  assert.throws(() => verifyDerivedPromotion({ derived: { id: 'drv1-not-in-this-window-s1', geometry: rebuiltCorridor().geometry,
+    sourceFeatureIds: ['not-here-1'], segmentIndex: 1, segmentCount: 1 }, features: RAW_FEATURES }),
+  /does not compose the corridor this row describes/);
 });
 
 test('promotion verification refuses to run without the precomputed row it is checking', () => {

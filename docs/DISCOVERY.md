@@ -573,6 +573,26 @@ screen and the panel says *"Source-level evidence has not yet been published for
 (wetlands: 2, hydrography: 2) are missing. The metrics shown are the precomputed national analysis values."* — with
 the missing planes counted in a `<details>`, never the raw cell ids in the open.
 
+**Two identities, and why they are not the same string.** A derived corridor is identified in the product by the id
+the build published — `drv1-<normalized-name>-c<N>-s<M>` — and that id is immutable: it is what URLs, saved
+candidates and the derived plane itself refer to. It is *not* what a reconstruction is verified against. The
+builder composes every road name across the whole nation and numbers that name's connected components in order
+(`scripts/build-national-derived.py` walks `components.each_name`), so `c<N>` is a national ordinal. A promotion
+reads a handful of cells, composes the same name over far fewer features and numbers those components again — so the
+same physical road legitimately lands under a different ordinal. Measured in production: promoting
+`drv1-river-rd-c226-s1` composed 18,964 units over 31,086 features and never contained that id, while the road
+itself was in front of it.
+
+Verification therefore uses the row's **`source_feature_ids`** — the TIGER/Line features of one connected component
+of one normalized name, source-grounded and identical in the build and at runtime — together with the row's segment
+index and count. The reconstruction must compose a unit whose source feature set is *exactly* the row's (not a
+superset: an extra feature is a different road group; not a subset: a missing feature is an incomplete road), the
+segment count must agree, the requested segment must exist, and that segment's geometry must match the row's to
+within a metre, checked in both directions. Two composed units satisfying one row is ambiguity, and ambiguity fails
+closed rather than being resolved by taking the first match. That is strictly stronger than comparing a generated
+string: it checks membership, segmentation and geometry. The build id travels beside the reconstruction as
+provenance (`verifyDerivedPromotion` returns it as `derivedId`) and is never rewritten.
+
 **Why this shape and not a thinner serving layer.** The canonical 0.2° NWI plane is 156 GB and one cell can be 188
 MB, which is what made a serving layer attractive; it was built and measured twice and rejected both times (see
 "Measured: a thinner wetlands serving layer, evaluated and rejected") — clipping is not equivalent, and replication

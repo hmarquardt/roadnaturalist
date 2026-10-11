@@ -119,7 +119,12 @@ export function derivedUnit(row, geometry, bounds) {
 
 export function derivedCorridor(row, geometry, bounds) {
   return { id: String(row.corridor_id), name: row.name, geometry, bounds, lengthM: Number(row.length_m),
-    unitId: String(row.road_unit_id), segmentIndex: Number(row.segment_index), segmentCount: Number(row.segment_count),
+    unitId: String(row.road_unit_id), componentId: String(row.road_component_id ?? ''),
+    // The source features of this road component: the stable identity a raw reconstruction is verified against, and
+    // the one field of the row that a windowed read can be expected to reproduce exactly (the id's `c<N>` is a
+    // national ordinal and cannot be).
+    sourceFeatureIds: Object.freeze((row.source_feature_ids ?? []).map(String)),
+    segmentIndex: Number(row.segment_index), segmentCount: Number(row.segment_count),
     geometryForAnalysis: { repaired: Boolean(row.geometry_repaired), method: row.geometry_repair_method,
       note: 'Precomputed from verified regional GIS; the raw corridor is reconstructed and verified on promotion.' } };
 }

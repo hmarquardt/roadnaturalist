@@ -31,7 +31,7 @@ import { comparisonIds, savedCounts } from '../state/saved-roads.js';
 import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, writeDiscoveryMarks,
   writeDiscoverySearch, writeDiscoverySearchHistory } from '../discovery/persistence.js';
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDerivedCandidate, promoteDiscoveryResult } from '../discovery/lifecycle.js';
-import { sourceEvidence } from '../discovery/evidence.js';
+import { createEvidenceRequests, sourceEvidence } from '../discovery/evidence.js';
 import { defaultSearchArea, searchAreaBounds, validateSearchAreas } from '../discovery/search-area.js';
 import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiveSearchArea,
   definitionFromSearchArea, formatRadius, initialSearchSelection, interactiveSearchTemplate, placeForSearch, radiusPresets,
@@ -432,14 +432,16 @@ async function reconstructDerivedCorridor(result) {
   }
   let verified;
   try {
-    verified = verifyDerivedPromotion({ derived: entry.corridor, features: road.features });
+    verified = verifyDerivedPromotion({ derived: entry.corridor, features: road.features,
+      sourceFeatureIds: result.road?.sourceFeatureIds ?? entry.corridor.sourceFeatureIds ?? null,
+      segmentIndex: result.road?.segmentation?.index ?? entry.corridor.segmentIndex ?? null,
+      segmentCount: result.road?.segmentation?.count ?? entry.corridor.segmentCount ?? null });
   } catch (error) {
-    const units = buildDiscoveryUnits(road.features ?? []).units;
-    evidenceStage('roads:verify-failed', { id: result.id, name: (entry.corridor.name ?? null),
-      wantedId: entry.corridor.id, units: units.length,
-      unitIds: units.map(unit => unit.id).slice(0, 6),
-      corridorIds: units.flatMap(unit => segmentUnit(unit).corridors.map(corridor => corridor.id)).slice(0, 8),
-      error: error.message });
+    // The verifier names what it could not match, including the closest composed units, when the evidence flag is
+    // on; here it is only recorded that the road stage failed, with the counts that make the failure legible.
+    evidenceStage('roads:verify-failed', { id: result.id, name: entry.corridor.name ?? null,
+      wantedId: entry.corridor.id, wantedFeatures: (result.road?.sourceFeatureIds ?? entry.corridor.sourceFeatureIds ?? []).length,
+      features: road.features?.length ?? null, error: error.message });
     throw new Error(`${error.message} - this corridor's road needs raw source cells that the published region does `
       + 'not hold, so it cannot be rebuilt here yet. National discovery is unaffected.');
   }
@@ -535,7 +537,7 @@ function evidenceStage(stage, detail = {}) {
 
 // One request per candidate, identified by a token: a completion that belongs to a corridor the person has since
 // left must not overwrite the corridor they are looking at.
-const sourceEvidenceRequests = new Map();
+const sourceEvidenceRequests = createEvidenceRequests();
 
 async function requestSourceEvidence(id) {
   const state = store.getState();
@@ -546,9 +548,7 @@ async function requestSourceEvidence(id) {
   if (!current) return;
   if (current.sourceEvidence?.status === 'loading') { evidenceStage('ignored:already-loading', { id }); return; }
   if (current.sourceEvidence?.status === 'ready') { evidenceStage('ignored:already-source', { id }); return; }
-  const token = Symbol(id);
-  sourceEvidenceRequests.set(id, token);
-  const mine = () => sourceEvidenceRequests.get(id) === token;
+  const mine = sourceEvidenceRequests.begin(id);
   const settle = (sourceEvidence) => {
     const live = candidate();
     if (!live || !mine()) { evidenceStage('dropped:stale-or-gone', { id, status: sourceEvidence.status }); return; }
@@ -598,7 +598,7 @@ async function requestSourceEvidence(id) {
       missing: error?.missingCells ?? null });
   } finally {
     if (timer) clearTimeout(timer);
-    if (mine()) sourceEvidenceRequests.delete(id);
+    sourceEvidenceRequests.finish(id, mine);
   }
 }
 

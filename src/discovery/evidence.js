@@ -76,3 +76,26 @@ export function unavailableMessage(missing, { detail = false } = {}) {
     + 'shown are the precomputed national analysis values. National discovery is unaffected.';
   return detail ? `${message} Missing cells: ${cells.join(', ')}.` : message;
 }
+
+// WHO OWNS A SOURCE-EVIDENCE RUN.
+//
+// A selection can change while a promotion is still composing its road network. The run that finishes later must
+// not write its metrics over the corridor the person is now looking at, so every run takes an identity token when it
+// starts and may only settle while it still holds it. This is the whole of the guard, kept here as plain bookkeeping
+// so it can be tested directly rather than only through the panel.
+export function createEvidenceRequests() {
+  const tokens = new Map();
+  return {
+    begin(id) {
+      const token = Symbol(String(id));
+      tokens.set(String(id), token);
+      return () => tokens.get(String(id)) === token;
+    },
+    finish(id, isMine) {
+      if (isMine()) tokens.delete(String(id));
+    },
+    pending() {
+      return tokens.size;
+    },
+  };
+}
