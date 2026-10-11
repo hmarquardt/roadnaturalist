@@ -67,7 +67,8 @@ export function createCandidate(raw) {
       sourceFeatureIds: Object.freeze(roads.flatMap(road => road.sourceFeatureIds ?? [])),
       sourceFeatureCount: roads.reduce((total, road) => total + (road.composition?.sourceFeatureCount ?? road.sourceFeatureIds?.length ?? 0), 0),
       partCount: roads.reduce((total, road) => total + (road.composition?.partCount ?? 1), 0),
-      sourceCounties: Object.freeze([...new Set(roads.map(road => road.county?.name).filter(Boolean))]),
+      sourceCounties: Object.freeze([...new Set(roads.flatMap(road => road.county?.name ? [road.county.name]
+        : (road.countyNames ?? [])).filter(Boolean))]),
       maxUnresolvedGapM: maximum(roads.map(road => road.composition?.maxUnresolvedGapM)),
     }),
     coverage: raw.coverage ?? createCoverage(),

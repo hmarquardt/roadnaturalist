@@ -339,7 +339,7 @@ function roadSection(candidate, roads) {
     ['Length', `${(candidate.corridor.lengthM / 1609.344).toFixed(1)} mi  ·  ${Math.round(candidate.corridor.lengthM).toLocaleString('en-US')} m`],
     ['Road class', attributeText(commonAttribute(roads, road => road.roadClass), 'Multiple source classes')],
     ['Route type', attributeText(commonAttribute(roads, road => road.routeType), 'Multiple route types')],
-    ['Counties', (candidate.corridor.sourceCounties.join(' · ') || 'Not recorded')],
+    ['Counties', ((candidate.corridor.sourceCounties ?? []).join(' · ') || 'Not recorded')],
     ['Source features', `${candidate.corridor.sourceFeatureCount} feature(s) in ${candidate.corridor.roadCount} county-scoped road record(s)`],
     ['Geometry source', roadSourceLabel(roads)],
     ['Surface', attributeText(roads[0].surface)],

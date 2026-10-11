@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { DETAIL_LEVEL, EVIDENCE_SOURCE, derivedEvidence, detailEvidence, detailLevelFor, evidenceLabel,
   sourceEvidence, unavailableMessage } from '../src/discovery/evidence.js';
 import { promoteDerivedCandidate } from '../src/discovery/lifecycle.js';
+import { roadEvidenceSummary } from '../src/roads/road.js';
 
 // TWO LEVELS OF DETAIL, AND A LINE THAT IS NEVER BLURRED.
 //
@@ -72,6 +73,13 @@ test('a discovered corridor becomes a candidate from the derived row alone, with
     assert.equal(candidate.roads[0].evidence.geometry.status, 'derived');
     assert.match(candidate.roads[0].evidence.geometry.statement, /precomputed/i);
     assert.match(candidate.summary, /Test County/, 'a derived road still names its counties');
+    // The road panel reads the corridor's county list and the shared evidence summary: both must work for a road
+    // whose geometry was never reconstructed in this session.
+    assert.deepEqual(candidate.corridor.sourceCounties, ['Test County']);
+    const summary = roadEvidenceSummary(candidate.roads);
+    assert.equal(summary.geometry.status, 'derived');
+    assert.equal(summary.geometry.label, 'GEOMETRY PRECOMPUTED');
+    assert.match(summary.geometry.label, /PRECOMPUTED/);
     assert.ok(candidate.summary.includes('1.0 mi'), candidate.summary);
     assert.equal(candidate.roads[0].composition.corridorSegment.count, 2);
     // The evidence trail says what the metrics are, in as many words.
