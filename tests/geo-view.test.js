@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { TILE_PROVIDERS, tileProvider } from '../src/map/basemap.js';
-import { basemapFailureNote, boundsOfGeometries, createGeoView, popupHtml, toLatLngs, unavailableView }
+import { attributeName, basemapFailureNote, boundsOfGeometries, createGeoView, popupHtml, toLatLngs,
+  unavailableView }
   from '../src/map/geo-view.js';
 
 // THE MAP'S CONTRACT, WITHOUT A BROWSER.
@@ -57,6 +58,14 @@ const GEO = { type: 'LineString', coordinates: [[-87.5, 38.3], [-87.4, 38.31]] }
 const corridor = (id, overrides = {}) => ({ id, name: `Road ${id}`, geometry: GEO, distanceFromCenterM: 5200,
   ranking: { score: 72.4, components: { wetland: { value: 74.7, measured: true }, water: { value: 40, measured: true },
     ecologicalVariety: { value: null, measured: false } } }, ...overrides });
+
+test('the identifying attributes are named the way SVG keeps them', () => {
+  // SVG preserves attribute case, so a camelCase key would produce data-corridorId and match no selector.
+  assert.equal(attributeName('role'), 'data-role');
+  assert.equal(attributeName('corridorId'), 'data-corridor-id');
+  assert.equal(attributeName('selected'), 'data-selected');
+  assert.equal(attributeName('data-spatial-extent'), 'data-spatial-extent');
+});
 
 test('geometry is converted to geographic coordinates, and malformed geometry is refused rather than thrown', () => {
 

@@ -30,12 +30,19 @@ const LINE_STYLE = Object.freeze({
 
 // Identifying attributes for the shapes that carry meaning: applied when the element exists, skipped in a
 // non-browser test double. Nothing in the application depends on them; a click target and an automated check do.
+//
+// The name is kebab-cased on the way out, because these are SVG elements and SVG preserves attribute case: setting
+// `corridorId` produces the literal attribute `data-corridorId`, which no `[data-corridor-id]` selector will ever
+// match. The DOM contract is the kebab-case name, so the conversion belongs here, in one place.
+export function attributeName(name) {
+  if (String(name).startsWith('data-')) return String(name);
+  return `data-${String(name).replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`;
+}
+
 function mark(path, attributes) {
   const element = path?.getElement?.() ?? null;
   if (!element?.setAttribute) return false;
-  for (const [name, value] of Object.entries(attributes)) {
-    element.setAttribute(name.startsWith('data-') ? name : `data-${name}`, String(value));
-  }
+  for (const [name, value] of Object.entries(attributes)) element.setAttribute(attributeName(name), String(value));
   return true;
 }
 
