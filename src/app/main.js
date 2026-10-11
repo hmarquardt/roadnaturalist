@@ -593,8 +593,12 @@ async function requestSourceEvidence(id) {
       // person is told.
       let sourceScope = null;
       try {
+        // `catalogType: 'raw'` is what makes the scope carry the raw publication's own declarations - the CONUS
+        // ecology layers among them - so ecology and habitat resolve every artifact against the publication's asset
+        // base instead of the page's own origin. The road promotion reads the same catalog the same way.
         sourceScope = current.dataCatalogUrl
-          ? await gis.prepareRegionalSearch({ bbox: current.corridor.bounds, catalogUrl: current.dataCatalogUrl }) : null;
+          ? await gis.prepareRegionalSearch({ bbox: current.corridor.bounds, catalogUrl: current.dataCatalogUrl,
+            catalogType: 'raw' }) : null;
       } catch (error) {
         evidenceStage('scope:unavailable', { id, message: error?.message ?? String(error) });
       }
