@@ -1,6 +1,7 @@
 import { COVERAGE, COVERAGE_DATASET, setCandidateCoverage } from '../domain/corridor.js';
 import { createStore } from '../state/store.js';
 import { createMapView } from '../map/index.js';
+import { createFitRequests } from '../map/fit-request.js';
 import { ACCESS_FINDING_LABELS, renderCandidates, renderDetail, renderContext } from '../ui/render.js';
 import { loadManifest } from '../services/manifest.js';
 import { createGisService } from '../gis/service.js';
@@ -119,6 +120,7 @@ async function defaultInaturalistTransport(url, { timeoutMs = 20000, headers = {
     signal: typeof AbortSignal?.timeout === 'function' ? AbortSignal.timeout(timeoutMs) : undefined,
   });
 }
+const discoveryFit = createFitRequests();
 const map = createMapView(document.getElementById('map'), { onSelect: id => selectDiscoveryFromMap(id),
   onBasemap: ({ note }) => { if (nodes.basemapNote) nodes.basemapNote.textContent = note ?? ''; },
   onPickCoordinate: center => selectSearchCenter(center) });
@@ -144,7 +146,7 @@ const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverla
   savedRoads: null, savedMeta: null, savedDurable: null, savedStorage: null, savedEcology: null, savedHabitat: null,
   savedOutingSelection: null, savedOutings: null,
   outings: null, outingStorage: null, outingSelection: null, selectedOuting: null,
-  discoveryNodes: null, discoverySignature: null, searchKey: null, fittedSearchKey: null };
+  discoveryNodes: null, discoverySignature: null, searchKey: null };
 
 function activeSearch() { return store.getState().search; }
 
@@ -222,6 +224,7 @@ async function discoverRoads() {
   const resolved = resolveActiveSearchArea();
   const marks = state.discovery.marks ?? readDiscoveryMarks();
   if (resolved.error) {
+    discoveryFit.cancel();
     store.failDiscovery({ error: resolved.error, marks, coverage: resolved.coverage ?? null,
       searchArea: resolved.area ?? state.discovery.searchArea ?? null });
     return;
@@ -231,14 +234,19 @@ async function discoverRoads() {
   try {
     const run = await runDiscovery({ gis, searchArea, marks, onProgress: phase => store.setDiscoveryPhase(phase) });
     if (run.status !== 'ready') {
+      discoveryFit.cancel();
       store.failDiscovery({ coverage: run.coverage, searchArea, marks,
         error: `${run.roadQuery.reason ?? run.roadQuery.note ?? 'The road-network extract could not be read.'} A failed query is not an empty search area.` });
       return;
     }
     store.finishDiscovery({ results: run.results, coverage: run.coverage, diagnostics: run.diagnostics,
       eligibility: run.eligibility, raw: { ...run.raw, provenance: run.roadQuery.provenance }, searchArea, marks });
+    // THE ONE AUTOMATIC CAMERA MOVE, ASKED FOR HERE. A run that has just become authoritative asks for a single fit
+    // of its own results; the request is spent on the next render that has geometry, and nothing else asks.
+    discoveryFit.request(run.searchArea?.id ?? searchArea?.id ?? null);
     rememberSearch(run.searchArea);
   } catch (error) {
+    discoveryFit.cancel();
     store.failDiscovery({ searchArea, marks, error: error.message,
       coverage: { coverage: error.coverage ?? COVERAGE.UNKNOWN, reason: error.message, counts: {} } });
   }
@@ -1154,20 +1162,10 @@ store.subscribe(state => {
   const overlay = state.habitatOverlay && state.habitatOverlay.candidateId === selected?.id ? state.habitatOverlay : null;
   const occurrenceOverlay = state.occurrenceOverlay && state.occurrenceOverlay.candidateId === selected?.id ? state.occurrenceOverlay : null;
   const discoveryLayer = discoveryDescriptors(state);
-  // A COMPLETELY NEW SEARCH IS THE ONE THING THAT MOVES THE CAMERA BY ITSELF. The search definition changing is what
-  // distinguishes a new search from every later interaction, and the fit happens once, when geometry exists - after
-  // that, selecting, sorting, filtering or finishing an analysis leaves the viewport exactly where a person put it.
-  const searchKey = JSON.stringify([state.search.areaId ?? null, state.search.definition ?? null,
-    state.search.radiusMiles ?? null]);
-  // The key is only marked handled once the fit has actually happened: at the moment a search changes the results
-  // may not be drawn yet, and recording the key before there was geometry to fit would lose the one automatic
-  // camera move this application is allowed to make.
-  // Its own field on purpose: the search-preview path owns `searchKey`, and reusing it here meant the fit never
-  // happened - the key had already been recorded long before there was any geometry to fit.
-  if (searchKey !== drawn.fittedSearchKey && discoveryLayer?.corridors?.length) {
-    drawn.fittedSearchKey = searchKey;
-    map.fitResults();
-  }
+  // EXACTLY ONE AUTOMATIC FIT PER COMPLETED SEARCH. The request was made where the run completed and is spent here,
+  // once, at the first render that actually has that search's geometry. It is not inferred from state: selecting,
+  // sorting, saving, promoting or finishing an analysis has no request to spend and cannot move the camera.
+  if (discoveryFit.consume({ hasGeometry: Boolean(discoveryLayer?.corridors?.length) })) map.fitResults();
   const discoveryKey = `${state.discovery.status}|${state.discovery.selectedId}|${discoveryLayer?.corridors.length ?? 0}|${discoveryLayer?.promotedIds.join(',') ?? ''}`;
   if (selected?.id !== drawn.selectedId || drawn.corridors.length !== state.candidates.length
     || drawn.overlay !== overlay || drawn.occurrenceOverlay !== occurrenceOverlay || drawn.discoveryKey !== discoveryKey) {
