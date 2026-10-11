@@ -1,12 +1,12 @@
-manifest: 7,706,419 bytes in 550 ms, fingerprint a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9
-pnw: FULL - 24/24 cells, 5.91 MB, fetched in 2366 ms
-northeast: FULL - 27/29 cells, 7.93 MB, fetched in 2924 ms
-gulf: FULL - 24/25 cells, 2.49 MB, fetched in 1866 ms
-midwest: FULL - 22/30 cells, 9.74 MB, fetched in 3163 ms
-plains: FULL - 20/20 cells, 2.19 MB, fetched in 1671 ms
-southwest: FULL - 25/25 cells, 4.76 MB, fetched in 2423 ms
+manifest: 7,706,419 bytes in 551 ms, fingerprint a13a883c16f6d6e897407eab0de325ea355f5edeb292ecfb36b092f9ea959ee9
+pnw: FULL - 24/24 cells, 5.91 MB, fetched in 2324 ms
+northeast: FULL - 27/29 cells, 7.93 MB, fetched in 3001 ms
+gulf: FULL - 24/25 cells, 2.49 MB, fetched in 1891 ms
+midwest: FULL - 22/30 cells, 9.74 MB, fetched in 3178 ms
+plains: FULL - 20/20 cells, 2.19 MB, fetched in 1641 ms
+southwest: FULL - 25/25 cells, 4.76 MB, fetched in 2496 ms
 
-DuckDB (358 ms) over 142 distinct cells:
+DuckDB (627 ms) over 142 distinct cells:
   pnw        FULL    corridors=2855 ecology=3406 wetland=3406 hydro=3406 geometry=3406 medianLen=3584
   northeast  FULL    corridors=3992 ecology=4739 wetland=4739 hydro=4739 geometry=4739 medianLen=3194.4
   gulf       FULL    corridors=1609 ecology=1933 wetland=1933 hydro=1933 geometry=1933 medianLen=3481.2
