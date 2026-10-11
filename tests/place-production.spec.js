@@ -220,7 +220,8 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
     expect(derived.text, `${label}: the panel is labelled as precomputed`).toContain('Precomputed source metrics');
     const metrics = page.locator('#candidate-detail .corridor-metrics');
     await expect(metrics, `${label}: wetland metrics are shown`).toContainText(/Wetlands|Hydrography/);
-    await expect(metrics, `${label}: the values are rendered with units`).toContainText(/m²|m/);
+    await expect(metrics, `${label}: the stored wetland and hydrography values are shown`).toContainText('Nearest wetland');
+    await expect(metrics, `${label}: the stored road values are shown`).toContainText('Road');
     expect(derived.rawBytes, `${label}: opening the detail reads no source cell`).toBe(0);
 
     const before = rawCells.length;
