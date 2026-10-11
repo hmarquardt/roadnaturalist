@@ -81,7 +81,13 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     const entry = (await getManifest()).datasets.find(dataset => dataset.id === datasetId);
     if (!entry) throw new Error(`Dataset not declared: ${datasetId}`);
     const engine = await initialize();
-    const url = new URL(entry.url, DATA_BASE);
+    // A whole-CONUS layer is published on the data origin alongside the partitions of the publication, and is far
+    // too large to ship with the application: it is declared under `national/`. Asking the page's own origin for it
+    // is a request for a file the application has never served - a 404 on every read that needs it. The scope's own
+    // catalogue carries the publication's asset base, so that is where a national layer resolves; everything else
+    // (the per-state layers published with the application) keeps resolving exactly as it always has.
+    const url = new URL(entry.url, String(entry.url ?? '').startsWith('national/') && catalog?.assetBaseUrl
+      ? new URL(catalog.assetBaseUrl) : DATA_BASE);
     const response = await fetch(url);
     if (!response.ok) throw new Error(`${datasetId} HTTP ${response.status}`);
     const bytes = await response.arrayBuffer();
@@ -655,15 +661,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
       && item.id.endsWith(`-l${level}`));
     if (!entries.length) throw new Error(`No EPA Level ${level} ecoregion dataset is declared`);
     const opened = [];
-    for (const entry of entries) {
-      // A whole-CONUS layer is published on the data origin, alongside the partitions of the publication, and is far
-      // too large to ship with the application - it lives under `national/`. Resolving it against the page's own
-      // origin asks for a file the application has never served (a 404 for every read, on the origin's own log). The
-      // prepared scope's catalogue carries the publication's asset base, which is where the layer actually is; a
-      // per-state layer, by contrast, is published with the application and keeps resolving as it always has.
-      opened.push(String(entry.url ?? '').startsWith('national/')
-        ? await openDeclaredArtifact(entry.id, entry) : await openDataset(entry.id));
-    }
+    for (const entry of entries) opened.push(await openDataset(entry.id));
     return { entries, opened };
   }
 
