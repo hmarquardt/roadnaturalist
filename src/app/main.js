@@ -1177,7 +1177,10 @@ store.subscribe(state => {
   const discoveryKey = `${state.discovery.status}|${state.discovery.selectedId}|${discoveryLayer?.corridors.length ?? 0}|${discoveryLayer?.promotedIds.join(',') ?? ''}`;
   if (selected?.id !== drawn.selectedId || drawn.corridors.length !== state.candidates.length
     || drawn.overlay !== overlay || drawn.occurrenceOverlay !== occurrenceOverlay || drawn.discoveryKey !== discoveryKey) {
-    drawn.corridors = corridorDescriptors(state);
+    // The map is given the discovery layer's corridors as well as the promoted candidates: a search's results are
+    // the geometry a person is looking at, and a map that only ever drew promoted candidates would show nothing for
+    // a search - which is also why the completed search had nothing to fit.
+    drawn.corridors = [...(discoveryLayer?.corridors ?? []), ...corridorDescriptors(state)];
     drawn.overlay = overlay;
     drawn.occurrenceOverlay = occurrenceOverlay;
     drawn.discoveryKey = discoveryKey;
