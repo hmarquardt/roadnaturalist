@@ -586,27 +586,11 @@ async function requestSourceEvidence(id) {
       evidenceStage('assemble', { id });
       settle({ status: 'ready', message: null, missing: null });
       store.promoteDiscoveryCandidate(promote({ roads: true }), id);
-      // One prepared publication scope for the rest of the run: ecology and habitat both read published artifacts
-      // that live on the data origin, so one scope is prepared here and shared rather than each read resolving its
-      // own (and one of them resolving against the page's own origin, which serves no such file). A publication that
-      // cannot be prepared is not fatal here: the reads themselves report what is missing, which is where the
-      // person is told.
-      let sourceScope = null;
-      try {
-        // `catalogType: 'raw'` is what makes the scope carry the raw publication's own declarations - the CONUS
-        // ecology layers among them - so ecology and habitat resolve every artifact against the publication's asset
-        // base instead of the page's own origin. The road promotion reads the same catalog the same way.
-        sourceScope = current.dataCatalogUrl
-          ? await gis.prepareRegionalSearch({ bbox: current.corridor.bounds, catalogUrl: current.dataCatalogUrl,
-            catalogType: 'raw' }) : null;
-      } catch (error) {
-        evidenceStage('scope:unavailable', { id, message: error?.message ?? String(error) });
-      }
       evidenceStage('ecology:start', { id });
-      await resolveEcology(id, sourceScope);
+      await resolveEcology(id);
       evidenceStage('ecology:done', { id });
       evidenceStage('habitat:start', { id });
-      await resolveHabitat(id, sourceScope);
+      await resolveHabitat(id);
       evidenceStage('habitat:done', { id });
       // The run posts again with the levels its reads earned: a plane that was re-read says so, and a plane that
       // came back "not published" keeps saying precomputed, which is why a partially source-backed corridor reads
