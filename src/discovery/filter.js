@@ -1,4 +1,5 @@
 import { COVERAGE } from '../domain/corridor.js';
+import { naturalistInterest } from './ranking.js';
 
 // Filters and sorts are deterministic and local: discovery measures every corridor once, and the
 // interface only selects and orders what was measured. Every sort dimension is a raw measured value,
@@ -14,7 +15,14 @@ export const SORT_OPTIONS = Object.freeze([
   Object.freeze({ key: 'crossings', label: 'Mapped water crossings', unit: 'count', direction: 'desc' }),
   Object.freeze({ key: 'ecoregionTransitions', label: 'Ecoregion transitions', unit: 'count', direction: 'desc' }),
   Object.freeze({ key: 'ecoregionCount', label: 'Distinct ecoregions', unit: 'count', direction: 'desc' }),
+  // The one ordering that is not a raw measured value: an exploration heuristic over mapped physical context. It is
+  // listed last and named as an order rather than a measurement, so it can never be mistaken for one.
+  Object.freeze({ key: 'naturalistInterest', label: 'Naturalist interest (exploration order)', unit: 'score',
+    direction: 'desc', heuristic: true, version: naturalistInterest({}).version }),
 ]);
+
+// Shown wherever the order is offered, so the claim is never implicit.
+export const NATURALIST_INTEREST_NOTE = 'An exploration order built from mapped physical context - wetland area at '  + 'the analysis distances, proximity to water, mapped crossings, and ecological variety. It is not a wildlife '  + 'prediction, an access or safety statement, or a claim that one road is better.';
 export const DEFAULT_SORT = 'wetlandArea250';
 export const DEFAULT_SORT_NOTE = 'Display default only: it orders the table by one measured value. '
   + 'It is not a ranking, a score, or a statement that the first road is better than the last.';
@@ -71,6 +79,7 @@ export function sortResults(results, sortKey = DEFAULT_SORT) {
       case 'crossings': return result.signals.hydrography.crossingCount;
       case 'ecoregionTransitions': return result.ecology.transitions;
       case 'ecoregionCount': return result.ecology.ecoregionCount;
+      case 'naturalistInterest': return naturalistInterest(result).score;
       default: return result.signals.wetlands.area250M2;
     }
   };

@@ -16,6 +16,59 @@ search area -> bounded road network -> eligible road units -> deterministic segm
      -> filter / sort / inspect -> promote -> normal candidate -> existing evidence workflow
 ```
 
+## The exploration order (`naturalist-interest-v1`)
+
+Discovery's sorts were, until now, all raw measured values. `Naturalist interest` is the first ordering that is a
+*model*, so it is implemented as one pure module (`src/discovery/ranking.js`), versioned, and explained in the panel
+rather than asserted.
+
+**Inputs.** Only measurements the discovery analysis already made, so ranking costs no raw read of any plane:
+wetland `nearestM` / `area250M2` / `area500M2` / `area1000M2` / `intersectsCorridor`; hydrography `crossingCount` /
+`nearestFlowingM` / `nearestStandingM` / `flowlineLength1000M`; ecology `ecoregionCount` / `transitions`; and each
+plane's coverage state.
+
+**Transforms.** Every quantity is bounded before it is weighted: `saturate(v, half) = v / (v + half)` gives
+diminishing returns (half credit at 10 ha within 250 m, 30 ha within 500 m, 100 ha within 1 km, 3 crossings, 1 extra
+ecoregion, 2 transitions, 5 km of flowline), and `proximity(d, scale) = 1 / (1 + d / scale)` decays distance
+(0.5 at 250 m for wetlands, 200 m for flowing water, 400 m for standing water). Twenty crossings are therefore not
+twenty times one, and 100 ha of wetland is not ten times 10 ha.
+
+**Weights.** `wetland 0.45`, `water 0.35`, `ecologicalVariety 0.20`. Wetland is weighted `0.4/0.25/0.15` across the
+250 m/500 m/1 km buffers plus `0.2` proximity; water is `0.4` crossings, `0.3` flowing, `0.15` standing, `0.15`
+flowline; variety is `0.6` extra ecoregions, `0.4` transitions. The score is a weighted mean over the components
+that were measured, scaled to 0-100.
+
+**Missing data.** A component whose coverage is absent is omitted from the mean, named in `missing`, and reported
+through `evidenceFraction` — an unmeasured wetland never reads as "no wetland". A corridor with no covered component
+has `score: null` and orders last.
+
+**Not a prediction.** Length is deliberately *not* scored (a long corridor gains nothing for intersecting more
+habitat); the wording everywhere is "exploration order", never a wildlife probability, a recommendation, or an
+access or safety statement, and each corridor's panel carries the standing note that says so.
+
+## The planning map: decision, and what is deliberately not built yet
+
+The current `src/map/corridor-map.js` is a fitted SVG schematic with no basemap and a viewport that resets on
+redraw. It is not suitable for planning and will be replaced behind a narrow interface rather than extended.
+
+**Decision: Leaflet 1.9.4, vendored.** Reasons: it is small and mature, handles raster basemap tiles plus GeoJSON
+line overlays at the candidate counts a 25-mile search produces (hundreds, not millions), needs no WebGL, and can be
+pinned and vendored into the repository so the runtime has no CDN dependency. MapLibre GL is rejected *for now*: its
+vector-tile pipeline is capability we do not need, with a larger bundle, a WebGL requirement, and more to vendor.
+The decision is revisitable if candidate counts or cartography demands it; it is recorded here so the next slice
+starts from a decision rather than a debate.
+
+**Basemap:** OpenStreetMap raster tiles with visible attribution, behind a one-line provider setting so the source
+is replaceable, and degrade-tolerant by design: if tiles fail, corridor geometry, the candidate list and the
+analysis are unaffected — basemap failure is a visualization problem, never a discovery failure.
+
+**Not built in this slice, and named as the immediate next work:** the adapter (`src/map/geo-view.js`) with
+list↔map selection synchronisation and viewport ownership (fit on a new search, on Fit results, on Fit selected;
+preserve on selection, sort, filter, overlay and evidence changes), the geographic rendering of candidate geometry,
+the search centre and *requested radius* (never the processing bbox), saved-road descriptors passed in by the state
+layer rather than read from storage, the score rendered by weight/opacity rather than colour alone, and the browser
+verification that measures render and selection timings at the maximum displayed candidate count.
+
 ## What discovery is not
 
 * **Not a score.** There is no wildlife value, likelihood, biodiversity index, or "best road". Every

@@ -1,3 +1,4 @@
+import { naturalistInterest } from './ranking.js';
 import { COVERAGE, COVERAGE_DATASET, createCandidate, createCoverage, setDatasetCoverage } from '../domain/corridor.js';
 import { corridorRoad, createRoad, groupRoadFeatures } from '../roads/road.js';
 import { DEFAULT_TOLERANCE_M } from '../roads/normalize.js';
@@ -143,12 +144,39 @@ export function promoteDerivedCandidate(result, { corridor = null, derived = nul
           + 'were not re-measured in this session.',
         provenance: { source: 'National derived corridor-metrics plane', method: 'Precomputed corridor metrics',
           note: 'Source-level wetland and hydrography evidence is a separate, deeper step that reads the published raw cells.' } },
+      ...rankingEvidence(result),
     ],
     questions: ['Is this road publicly accessible, and under what restrictions?'],
   });
   const verified = verifyPromotionSearchContext(searchContext, candidate.geometry, { toleranceM: PROMOTION_MAX_DRIFT_M });
   if (!verified.ok) throw new Error(`search context: ${verified.reason}`);
   return verified.context ? createCandidate({ ...candidate, searchContext: verified.context }) : candidate;
+}
+
+// WHY THIS ROAD SURFACED, AND WHAT IT IS NOT.
+//
+// The exploration order is shown as its own evidence entry so the panel explains the ordering rather than asserting
+// it: the score, the fraction of the order that was actually measured, one sentence per component derived from that
+// component's own values, and the standing statement that this is context - not wildlife, access, safety or a
+// verdict about the road.
+function rankingEvidence(result) {
+  const ranking = naturalistInterest(result);
+  if (ranking.score == null) {
+    return [{ kind: 'MODELED', coverage: COVERAGE.UNKNOWN,
+      statement: `Naturalist interest is not computed for this corridor: no measured physical context is covered `
+        + `(${ranking.missing.join(', ')}), so it is ordered last rather than scored as though nothing were there.`,
+      provenance: { source: 'Road Naturalist exploration order', method: ranking.version,
+        note: 'Missing measurements are never treated as zero.' } }];
+  }
+  const measured = ranking.missing.length
+    ? `Measured from ${Math.round(ranking.evidenceFraction * 100)}% of the order's evidence; ${ranking.missing.join(', ')} `
+      + 'is not covered here and is left out of the mean rather than counted as zero.'
+    : 'Measured from every component of the order.';
+  return [{ kind: 'MODELED', coverage: ranking.missing.length ? COVERAGE.PARTIAL : COVERAGE.FULL,
+    statement: `Naturalist interest ${ranking.score} / 100 - ${ranking.explanation.join('; ')}.`,
+    provenance: { source: 'Road Naturalist exploration order', method: ranking.version,
+      note: `${measured} An exploration heuristic built from mapped physical context: it is not a wildlife `
+        + 'prediction, an access or safety statement, or a claim that this road is better than another.' } }];
 }
 
 function signalNote(result) {
