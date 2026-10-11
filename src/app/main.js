@@ -588,9 +588,16 @@ async function requestSourceEvidence(id) {
       store.promoteDiscoveryCandidate(promote({ roads: true }), id);
       // One prepared publication scope for the rest of the run: ecology and habitat both read published artifacts
       // that live on the data origin, so one scope is prepared here and shared rather than each read resolving its
-      // own (and one of them resolving against the page's own origin, which serves no such file).
-      const sourceScope = current.dataCatalogUrl
-        ? await gis.prepareRegionalSearch({ bbox: result.corridor.bounds, catalogUrl: current.dataCatalogUrl }) : null;
+      // own (and one of them resolving against the page's own origin, which serves no such file). A publication that
+      // cannot be prepared is not fatal here: the reads themselves report what is missing, which is where the
+      // person is told.
+      let sourceScope = null;
+      try {
+        sourceScope = current.dataCatalogUrl
+          ? await gis.prepareRegionalSearch({ bbox: current.corridor.bounds, catalogUrl: current.dataCatalogUrl }) : null;
+      } catch (error) {
+        evidenceStage('scope:unavailable', { id, message: error?.message ?? String(error) });
+      }
       evidenceStage('ecology:start', { id });
       await resolveEcology(id, sourceScope);
       evidenceStage('ecology:done', { id });
