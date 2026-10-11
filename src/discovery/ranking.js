@@ -168,6 +168,21 @@ export function rankResults(results) {
     });
 }
 
+// The qualitative labels the list and the map popup use for a component. Defined once, tested, and derived from the
+// component's own 0-100 value, so a label can never disagree with the number it describes. An unmeasured component
+// says so rather than being labelled "little": absence of measurement is not absence of habitat.
+export const CONTEXT_LABELS = Object.freeze([
+  Object.freeze({ min: 60, label: 'strong' }),
+  Object.freeze({ min: 35, label: 'moderate' }),
+  Object.freeze({ min: 15, label: 'some' }),
+  Object.freeze({ min: 0, label: 'little mapped' }),
+]);
+
+export function contextLabel(value) {
+  if (!Number.isFinite(value)) return 'not measured';
+  return (CONTEXT_LABELS.find(entry => value >= entry.min) ?? CONTEXT_LABELS[CONTEXT_LABELS.length - 1]).label;
+}
+
 const round1 = value => Math.round(value * 10) / 10;
 // The evidence fraction is a weight, so it keeps two decimals: rounding it to tenths would report 0.55 as 0.6.
 const hectares = areaM2 => Math.round(Number(areaM2 ?? 0) / 10_000);

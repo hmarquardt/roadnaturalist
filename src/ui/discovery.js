@@ -712,6 +712,8 @@ function resultTable(results, discovery, onSelect) {
   const body = el('tbody');
   for (const result of results.slice(0, MAX_RESULT_ROWS)) {
     const row = el('tr');
+    // The corridor id travels with the row so the map can reveal the row a click on the map selected.
+    row.dataset.candidateId = result.id;
     row.className = result.id === discovery.selectedId ? 'selected'
       : result.status === DISCOVERY_STATUS.PROMOTED ? 'promoted' : result.status === DISCOVERY_STATUS.DISMISSED ? 'dismissed' : '';
     const nameCell = el('td');

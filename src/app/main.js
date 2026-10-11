@@ -1,6 +1,6 @@
 import { COVERAGE, COVERAGE_DATASET, setCandidateCoverage } from '../domain/corridor.js';
 import { createStore } from '../state/store.js';
-import { createCorridorMap } from '../map/corridor-map.js';
+import { createMapView } from '../map/index.js';
 import { ACCESS_FINDING_LABELS, renderCandidates, renderDetail, renderContext } from '../ui/render.js';
 import { loadManifest } from '../services/manifest.js';
 import { createGisService } from '../gis/service.js';
@@ -44,6 +44,7 @@ import { globalEcoregionPlane, globalPlaneReady, rawAvailability, rawAvailabilit
 import { nearestPlace } from '../discovery/place-gazetteer.js';
 import { centerPresentation, formatContextDirection, pendingSearchContext, runCenterPresentation, storedSearchContext } from '../discovery/search-context.js';
 import { filterAndSort } from '../discovery/filter.js';
+import { naturalistInterest } from '../discovery/ranking.js';
 import { MAX_RESULT_ROWS } from '../discovery/constants.js';
 import { LOCATION_STATUS, createLocationProvider, createLocationRequest, locationSearchDefinition, locationStatusMessage } from '../discovery/geolocation.js';
 
@@ -118,12 +119,15 @@ async function defaultInaturalistTransport(url, { timeoutMs = 20000, headers = {
     signal: typeof AbortSignal?.timeout === 'function' ? AbortSignal.timeout(timeoutMs) : undefined,
   });
 }
-const map = createCorridorMap(document.getElementById('map'), { onSelect: id => store.select(id),
+const map = createMapView(document.getElementById('map'), { onSelect: id => selectDiscoveryFromMap(id),
+  onBasemap: ({ note }) => { if (nodes.basemapNote) nodes.basemapNote.textContent = note ?? ''; },
   onPickCoordinate: center => selectSearchCenter(center) });
 const nodes = {
   list: document.getElementById('candidate-list'), detail: document.getElementById('candidate-detail'),
   context: document.getElementById('data-context'), count: document.getElementById('candidate-count'),
-  caption: document.getElementById('map-caption'), fit: document.getElementById('fit-map'),
+  list: document.getElementById('candidate-list'), caption: document.getElementById('map-caption'), fitResults: document.getElementById('fit-results'),
+  fitSelected: document.getElementById('fit-selected'), basemapToggle: document.getElementById('basemap-toggle'),
+  basemapNote: document.getElementById('basemap-note'),
   load: document.getElementById('load-pilot'), overlayNote: document.getElementById('habitat-layers-note'),
   discovery: document.getElementById('discovery'), discoveryCount: document.getElementById('discovery-count'),
   savedRoads: document.getElementById('saved-roads'), savedCount: document.getElementById('saved-count'),
@@ -1144,11 +1148,20 @@ store.subscribe(state => {
   // The search preview follows the search definition, not the discovery run: it is on screen while a centre
   // is being chosen, and it stays after a search so the results can be read against the area they came from.
   updateSearchPreview(state);
-  nodes.fit.disabled = !selected;
+  nodes.fitResults.disabled = !(state.discovery.status === 'ready' && state.discovery.results.length);
+  nodes.fitSelected.disabled = !selected;
   nodes.caption.textContent = caption(state);
   const overlay = state.habitatOverlay && state.habitatOverlay.candidateId === selected?.id ? state.habitatOverlay : null;
   const occurrenceOverlay = state.occurrenceOverlay && state.occurrenceOverlay.candidateId === selected?.id ? state.occurrenceOverlay : null;
   const discoveryLayer = discoveryDescriptors(state);
+  // A COMPLETELY NEW SEARCH IS THE ONE THING THAT MOVES THE CAMERA BY ITSELF. The search definition changing is what
+  // distinguishes a new search from every later interaction, and the fit happens once, when geometry exists - after
+  // that, selecting, sorting, filtering or finishing an analysis leaves the viewport exactly where a person put it.
+  const searchKey = JSON.stringify(state.search.definition ?? state.search.area ?? null);
+  if (searchKey !== drawn.searchKey) {
+    drawn.searchKey = searchKey;
+    if (discoveryLayer?.corridors?.length) map.fitResults();
+  }
   const discoveryKey = `${state.discovery.status}|${state.discovery.selectedId}|${discoveryLayer?.corridors.length ?? 0}|${discoveryLayer?.promotedIds.join(',') ?? ''}`;
   if (selected?.id !== drawn.selectedId || drawn.corridors.length !== state.candidates.length
     || drawn.overlay !== overlay || drawn.occurrenceOverlay !== occurrenceOverlay || drawn.discoveryKey !== discoveryKey) {
@@ -1156,7 +1169,8 @@ store.subscribe(state => {
     drawn.overlay = overlay;
     drawn.occurrenceOverlay = occurrenceOverlay;
     drawn.discoveryKey = discoveryKey;
-    map.draw({ corridors: drawn.corridors, selectedId: selected?.id ?? null, overlay, occurrenceOverlay, discovery: discoveryLayer });
+    map.draw({ corridors: drawn.corridors, selectedId: state.discovery.selectedId ?? null, overlay, occurrenceOverlay,
+      savedIds: discoveryLayer?.savedIds ?? [], dismissedIds: discoveryLayer?.dismissedIds ?? [] });
     drawn.selectedId = selected?.id ?? null;
   }
 });
@@ -1239,6 +1253,21 @@ function el(tag, className, text) { const node = document.createElement(tag); if
 
 // Only the bounded, currently visible discovery corridors reach the map: the same first rows the table
 // shows, so a search area stays a bounded number of SVG paths.
+// A click on the map is a click on a discovery row, by another route: it selects the same result through the same
+// store action and reveals the row, so the list and the map can never hold different selections.
+async function selectDiscoveryFromMap(id) {
+  if (!id) return;
+  store.selectDiscovery(id);
+  await revealDiscoveryRow(id);
+}
+
+// The row is revealed rather than focused, so the map does not steal the keyboard from wherever a person was.
+function revealDiscoveryRow(id) {
+  const row = nodes.candidateList?.querySelector?.(`[data-candidate-id="${String(id)}"]`) ?? null;
+  if (row?.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+  return Boolean(row);
+}
+
 function discoveryDescriptors(state) {
   const discovery = state.discovery;
   if (discovery.status !== 'ready' || !discovery.results.length) return null;
@@ -1251,11 +1280,15 @@ function discoveryDescriptors(state) {
     center: search.areaId === CUSTOM_SEARCH_AREA_ID ? (search.definition?.center ?? null) : null,
     centerLabel: centerPresentation({ place: search.place, near: search.near, center: search.definition?.center ?? null }).label,
     corridors: view.map(result => ({ id: result.id, name: result.name, geometry: result.geometry,
+      distanceFromCenterM: result.distanceFromCenterM ?? null,
+      ranking: naturalistInterest(result),
       nearestCenterPoint: result.nearestCenterPoint ?? null,
       distanceLabel: result.distanceFromCenterM == null ? null
         : formatContextDirection({ distanceM: result.distanceFromCenterM, cardinal: result.cardinalFromCenter }) })),
     selectedId: discovery.selectedId,
+    savedIds: state.durableCandidateIds ?? [],
     promotedIds: view.filter(result => result.status === DISCOVERY_STATUS.PROMOTED).map(result => result.id),
+    dismissedIds: view.filter(result => result.status === DISCOVERY_STATUS.DISMISSED).map(result => result.id),
     badge: `DISCOVERY ${discovery.coverage?.coverage ?? COVERAGE.UNKNOWN} · ${view.length} OF ${results.length} CORRIDORS · ACCESS UNVERIFIED`,
   };
 }
@@ -1293,7 +1326,9 @@ async function fetchJson(url) {
 }
 
 nodes.load.addEventListener('click', openPilot);
-nodes.fit.addEventListener('click', () => map.fit());
+nodes.fitResults.addEventListener('click', () => map.fitResults());
+nodes.fitSelected.addEventListener('click', () => map.fitSelected());
+nodes.basemapToggle?.addEventListener('change', event => map.setBasemap(event.target.checked));
 nodes.occurrenceNote = document.getElementById('occurrence-note');
 nodes.occurrenceToggle = document.getElementById('occurrence-layer');
 function requestOccurrence({ refresh = false } = {}) {
