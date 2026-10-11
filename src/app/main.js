@@ -690,7 +690,13 @@ async function resolveEcology(id, service = null) {
   const candidate = state.candidates.find(item => item.id === id);
   if (!candidate) return;
   store.setEcologyResult(id, { coverage: COVERAGE.UNKNOWN, diagnostics: { status: 'loading', reason: 'Resolving EPA ecoregions…' } });
-  const ecology = summarizeEcoregions(await (service ?? gis).getEcoregions(candidate.geometry));
+  const index = await loadRawRegions() ?? { kind: '', schemaVersion: 0, planes: [], regions: [] };
+  // Ecology is a global plane, so the declaration travels with the read whether or not this corridor has a prepared
+  // raw scope: a scope keeps its own (it was prepared against a publication), and a bare read is given the index's
+  // declaration. Either way the CONUS layers are read from the origin the index names, never from the page's own.
+  const reader = service ?? gis;
+  const globalEcoregions = globalEcoregionPlane(index);
+  const ecology = summarizeEcoregions(await reader.getEcoregions(candidate.geometry, { globalEcoregions }));
   store.setEcologyResult(id, ecology);
   for (const [datasetId, level] of [[COVERAGE_DATASET.EPA_LEVEL3, ecology.level3], [COVERAGE_DATASET.EPA_LEVEL4, ecology.level4]]) {
     store.setCoverage(id, datasetId, { coverage: level?.coverage ?? COVERAGE.UNKNOWN, reason: ecology.diagnostics?.status === 'partial' ? ecology.diagnostics.reason : null });
