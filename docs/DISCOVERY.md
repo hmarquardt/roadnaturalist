@@ -593,6 +593,14 @@ closed rather than being resolved by taking the first match. That is strictly st
 string: it checks membership, segmentation and geometry. The build id travels beside the reconstruction as
 provenance (`verifyDerivedPromotion` returns it as `derivedId`) and is never rewritten.
 
+**The contract, in one line:** `corridor_id` identifies the immutable derived build row; raw reconstruction is
+verified independently by source-feature membership, segment semantics and geometry equivalence, so a windowed
+reconstruction may carry a different generated component ordinal. One real divergence of that kind -
+`drv1-river-rd-c226-s1` rebuilt under another ordinal and promoted anyway - is kept as `identityEvidence` in
+`data/national/verification/derived-publication-status.json`, written by the release recorder from the browser
+run's own `sourceEvidence:identity` line. A release whose browser gate exercised that corridor but cannot show the
+evidence fails to record itself as passed rather than claiming the contract it did not demonstrate.
+
 **Why this shape and not a thinner serving layer.** The canonical 0.2° NWI plane is 156 GB and one cell can be 188
 MB, which is what made a serving layer attractive; it was built and measured twice and rejected both times (see
 "Measured: a thinner wetlands serving layer, evaluated and rejected") — clipping is not equivalent, and replication

@@ -31,7 +31,8 @@ import { comparisonIds, savedCounts } from '../state/saved-roads.js';
 import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, writeDiscoveryMarks,
   writeDiscoverySearch, writeDiscoverySearchHistory } from '../discovery/persistence.js';
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDerivedCandidate, promoteDiscoveryResult } from '../discovery/lifecycle.js';
-import { createEvidenceRequests, sourceEvidence, unavailableMessage } from '../discovery/evidence.js';
+import { createEvidenceRequests, detailLevelFor, evidenceLabel, sourceEvidence, unavailableMessage } from '../discovery/evidence.js';
+import { identityStagePayload } from '../discovery/identity-evidence.js';
 import { defaultSearchArea, searchAreaBounds, validateSearchAreas } from '../discovery/search-area.js';
 import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiveSearchArea,
   definitionFromSearchArea, formatRadius, initialSearchSelection, interactiveSearchTemplate, placeForSearch, radiusPresets,
@@ -445,8 +446,16 @@ async function reconstructDerivedCorridor(result) {
     throw new Error(`${error.message} - this corridor's road needs raw source cells that the published region does `
       + 'not hold, so it cannot be rebuilt here yet. National discovery is unaffected.');
   }
+  // The identity pair this run proved: the build id the row carries, the id the windowed composition gave the same
+  // road, and the evidence that they are the same corridor. Only counts and booleans travel; the release artefact
+  // records these and never a source-id array.
+  const identity = Object.freeze({ corridorName: entry.corridor.name ?? null, derivedId: verified.derivedId,
+    reconstructedId: verified.corridor.id, sourceFeatureCount: verified.sourceFeatureIds.length,
+    segmentIndex: Number(result.road?.segmentation?.index ?? entry.corridor.segmentIndex ?? 1),
+    segmentCount: Number(result.road?.segmentation?.count ?? entry.corridor.segmentCount ?? 1),
+    geometryDriftM: verified.drift });
   return { unit: verified.unit, corridor: verified.corridor, features: verified.features,
-    dataCatalogUrl: catalogUrl };
+    dataCatalogUrl: catalogUrl, identity };
 }
 
 // The search context a promotion carries: the run's own centre, how that centre was named, the run's radius, and
@@ -589,6 +598,11 @@ async function requestSourceEvidence(id) {
       const levels = { roads: true, ecology: true, ...habitatReadPlanes(id) };
       store.promoteDiscoveryCandidate(promote(levels), id);
       evidenceStage('levels', { id, ...levels });
+      // The one durable line this whole path exists to justify: the build id, the id the windowed reconstruction
+      // gave the same road, and the source-grounded evidence that they are the same corridor. Counts and booleans
+      // only, so the release can commit it.
+      evidenceStage('identity', identityStagePayload({ identity: rebuilt.identity,
+        evidenceLevel: evidenceLabel(detailLevelFor(sourceEvidenceLevels(levels))) }));
       return 'ready';
     })();
     await Promise.race([work, timeout]);

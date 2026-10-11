@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+import { REPRESENTATIVE_IDENTITY } from '../src/discovery/identity-evidence.js';
+
 // Opt-in verification of the *deployed* national place-name search.
 //
 //   RUN_PLACE_PRODUCTION=1 npm run verify:places:production
@@ -204,6 +206,21 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
   }
 
+  // The identity evidence of one corridor, as the promotion path emitted it: the build id the row carries, and the
+  // id the windowed reconstruction gave the same road. Read from the run's own console, never restated.
+  function identityEvidenceFor(corridor) {
+    const marker = 'sourceEvidence:identity ';
+    for (const text of stages) {
+      const at = text.indexOf(marker);
+      if (at < 0) continue;
+      try {
+        const entry = JSON.parse(text.slice(at + marker.length));
+        if (entry?.corridorName === corridor) return entry;
+      } catch { /* a stage line that is not readable is not evidence */ }
+    }
+    return null;
+  }
+
   // Selecting a corridor and promoting it is the derived level: the panel opens from the row, and nothing raw is
   // fetched to do it.
   async function openDerivedDetail() {
@@ -245,6 +262,27 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
       throw error;
     });
     console.log(`SOURCE_SECONDS ${label} ${((Date.now() - started) / 1000).toFixed(1)}`);
+    // The representative corridor is the one the ordinal mismatch was measured on. This run must show, in its own
+    // words, that the build id and the reconstructed id differ and that the corridor was promoted anyway because
+    // exact source-feature identity, segmentation and geometry all matched. That is the contract, and it is the
+    // line the release artefact keeps.
+    if (derived.name === REPRESENTATIVE_IDENTITY.corridor) {
+      await expect.poll(() => identityEvidenceFor(derived.name), { timeout: 30000,
+        message: `${label}: ${derived.name} must record identity evidence, not only reach Source-backed` }).not.toBeNull();
+      const identity = identityEvidenceFor(derived.name);
+      console.log('IDENTITY_PRODUCTION ' + JSON.stringify(identity));
+      expect(identity.derivedId, label).toBe(REPRESENTATIVE_IDENTITY.derivedId);
+      expect(identity.reconstructedId, `${label}: the reconstruction must name itself`).toBeTruthy();
+      expect(identity.idsDiffer, `${label}: this run exists to show that a diverging id is still verified`).toBe(true);
+      expect(identity.identityBasis, label).toBe('source_feature_ids_exact');
+      expect(identity.sourceFeatureCount, label).toBeGreaterThan(0);
+      expect(identity.sourceFeatureMatch, label).toBe('exact');
+      expect(identity.segmentIndex, label).toBeGreaterThanOrEqual(1);
+      expect(identity.segmentCount, label).toBeGreaterThanOrEqual(identity.segmentIndex);
+      expect(identity.geometryDriftM.derivedToSource, label).toBeLessThanOrEqual(1);
+      expect(identity.geometryDriftM.sourceToDerived, label).toBeLessThanOrEqual(1);
+      expect(identity.sourceEvidence, label).toBe('Source-backed');
+    }
     await expect(page.locator('#candidate-detail .habitat-section')).toBeVisible({ timeout: 300000 });
     const entry = { place: label, corridor: derived.name, derivedRawCells: derived.rawBytes,
       sourceRawCells: rawCells.length - before,

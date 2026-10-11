@@ -120,8 +120,11 @@ if PRODUCTION_BASE_URL="$ORIGIN" RUN_NATIONAL_PRODUCTION=1 RUN_PLACE_PRODUCTION=
    --reporter=line --retries=0 \
    > "$WORK/browser-production.txt" 2>&1; then
   cp "$WORK/browser-production.txt" data/national/verification/derived-publication-browser.txt
+  # The record step is a gate, not a formality: it refuses to write a passed status when the representative
+  # build-id/reconstruction-id divergence is missing or weaker than the identity contract. `set -uo pipefail` has no
+  # -e, so its failure has to be handed to `fail` explicitly or the chain would commit and claim completion anyway.
   node scripts/record-national-release-status.mjs --browser passed \
-    --record data/national/verification/derived-publication-browser.txt
+    --record data/national/verification/derived-publication-browser.txt || fail "identity evidence record"
   git add -A
   git commit -q -m "Record the national derived release: R2 publication verified and browser cutover passed"
   git push origin main >> "$LOG" 2>&1 || fail "push"

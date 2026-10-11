@@ -97,11 +97,14 @@ export function verifyDerivedPromotion({ derived, features, sourceFeatureIds = n
   if (!corridor) {
     throw new Error(`the row describes segment ${wantedIndex} of ${wantedCount ?? corridors.length}, which the composed road does not have`);
   }
-  const driftM = Math.max(maxDriftM(derived.geometry, corridor.geometry),
-    maxDriftM(corridor.geometry, derived.geometry));
+  // Both directions are measured and reported: the identity evidence a release records quotes the pair, and the
+  // acceptance rule is unchanged - the worst of the two must stay inside the metre.
+  const drift = Object.freeze({ derivedToSource: maxDriftM(derived.geometry, corridor.geometry),
+    sourceToDerived: maxDriftM(corridor.geometry, derived.geometry) });
+  const driftM = Math.max(drift.derivedToSource, drift.sourceToDerived);
   if (driftM > toleranceM) {
     throw new Error(`the raw corridor differs from the precomputed row by about ${Math.round(driftM)} m`);
   }
-  return Object.freeze({ unit, corridor, features: features ?? [], driftM,
+  return Object.freeze({ unit, corridor, features: features ?? [], driftM, drift,
     sourceFeatureIds: Object.freeze(wanted), derivedId: derived.id });
 }

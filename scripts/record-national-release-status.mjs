@@ -16,6 +16,9 @@
 // browser outcomes are kept as history rather than overwritten.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
+import { identityEvidenceProblems, parseIdentityEvidence, recordIdentityEvidence, representativeExercised,
+  representativePayload } from '../src/discovery/identity-evidence.js';
+
 const OUTPUT = 'data/national/verification/derived-publication-status.json';
 const AUDIT = 'data/national/verification/derived-publication-remote-audit.json';
 const DATA_VERIFICATION = 'data/national/verification/derived-publication-production.txt';
@@ -34,6 +37,26 @@ if (previous.browserCutover && previous.browserCutover.status && previous.browse
   history.push(previous.browserCutover);
 }
 
+const browserRecord = browser === 'passed' ? (option('--record') ?? previous.browserCutover?.record ?? null) : null;
+const browserOutput = browserRecord && existsSync(browserRecord) ? readFileSync(browserRecord, 'utf8') : '';
+
+// WHAT A PASSED BROWSER GATE MUST SHOW ABOUT IDENTITY.
+//
+// The derived id of a corridor is a build identity and may carry a national component ordinal; a windowed
+// reconstruction may number the same road differently. That is safe only because verification rests on source
+// feature membership, segment position and geometry, so the release records one real divergence rather than the
+// claim that ids always agree. If the run exercised the representative corridor and the evidence is missing,
+// unreadable, or weaker than the contract, this record refuses to exist - the release fails instead of passing on
+// a line it cannot prove.
+const identity = parseIdentityEvidence(browserOutput);
+const identityProblems = browser === 'passed'
+  ? [ ...(browserOutput ? [] : [`the browser record ${browserRecord ?? '(none)'} is missing, so no identity evidence could be read`]),
+      ...identityEvidenceProblems(identity, { required: representativeExercised(browserOutput) }) ]
+  : [];
+if (identityProblems.length) {
+  throw new Error('the browser record carries no usable identity evidence:\n  - ' + identityProblems.join('\n  - '));
+}
+
 const status = {
   kind: 'national-derived-release-status',
   schemaVersion: 1,
@@ -47,9 +70,11 @@ const status = {
       note: 'Node + DuckDB against the published R2 plane: the six regions resolve, load and query.' }
     : (previous.sixRegionDataVerification ?? { status: 'unknown', record: DATA_VERIFICATION }),
   browserCutover: { status: browser, checkedAt: now,
-    record: browser === 'passed' ? (option('--record') ?? previous.browserCutover?.record ?? null) : null,
+    record: browser === 'passed' ? browserRecord : null,
     reason: browser === 'failed' ? (option('--reason') ?? 'the deployed browser check failed') : null },
   browserCutoverHistory: history,
+  identityEvidence: browser === 'passed' ? recordIdentityEvidence({ payload: representativePayload(identity) })
+    : (previous.identityEvidence ?? null),
   note: 'Two independent gates. R2 publication is verified by re-fetching every published object; the browser '
     + 'cutover is verified by a real browser resolving that plane through the deployed frontend. Neither is '
     + 'reported as the other, and the R2 verification stays valid across a browser failure.',
