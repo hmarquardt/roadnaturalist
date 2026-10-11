@@ -169,6 +169,11 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       // In pick mode the map is an input surface and nothing else: it hands the coordinate back and does not touch
       // the search definition, which stays the domain layer's business.
       if (pickMode) { onPickCoordinate([event.latlng.lng, event.latlng.lat]); return; }
+      // A CLICK A CORRIDOR LINE ALREADY ANSWERED IS NOT RE-ANSWERED BY PROXIMITY. The line knows which corridor it
+      // was drawn for, so its event is authoritative; geometric proximity is only for a click on the map itself,
+      // where no line spoke. Without this, a neighbouring corridor whose vertex happened to sit nearer the click
+      // point would win the selection from the road the person actually clicked.
+      if (event?.propagatedFrom?.corridorId) return;
       const hit = hitTest(event.latlng);
       if (hit) onSelect(hit.id);
     });
@@ -209,6 +214,17 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
           // the path joins the map, so stamping it before `addLayer` stamps nothing: the line is drawn and its
           // identity is nowhere in the DOM. The identification is therefore applied on the map's own `add` event and
           // once immediately after adding, which covers the first insertion and every later re-add.
+          // THE LINE IS AUTHORITATIVE FOR ITS OWN CLICK. The path carries the descriptor it was drawn from, so a
+          // click on it selects exactly that corridor; the map-level handler then leaves the event alone. Pick mode
+          // keeps precedence: the line declines the click and lets the map answer with the coordinate.
+          path.corridorId = corridor.id;
+          if (typeof path.on === 'function') {
+            path.on('click', event => {
+              if (pickMode) return;
+              leaflet.DomEvent?.stopPropagation?.(event);
+              onSelect(corridor.id);
+            });
+          }
           const decorate = () => mark(path, { role: 'candidate', corridorId: corridor.id,
             selected: corridor.id === selectedId });
           if (typeof path.on === 'function') path.on('add', decorate);

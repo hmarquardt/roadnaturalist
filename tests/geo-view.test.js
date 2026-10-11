@@ -21,6 +21,7 @@ function fakeLeaflet({ failMap = false } = {}) {
     getElement() { return this.element; },
     setAttribute(name, value) { this.attributes[name] = value; return this; },
     on(event, handler) { this.handlers[event] = handler; return this; },
+    emit(event, payload) { this.handlers[event]?.(payload ?? {}); return this; },
     addTo(map) { this.added.push(map); this.element = { setAttribute: (n, v) => { this.attributes[n] = v; } };
       this.handlers.add?.(); return this; },
     addLayer(entry) { this.added.push(entry);
@@ -82,6 +83,72 @@ test('one selection state: the list selects on the map, and the map reports clic
   map.handlers.click({ latlng: { lat: 38.3, lng: -87.5 } });
   assert.deepEqual(selected, ['a'], 'the nearest corridor is reported');
   assert.equal(view.selectedId(), 'b', 'the map never becomes a second source of truth');
+});
+
+// TWO CORRIDORS, ONE CLICK: the defect this guards against was a neighbouring road whose vertex sat nearer the
+// click point winning the selection from the road that was actually clicked.
+const NEAR = { id: 'corridor-near', name: 'Near Rd',
+  geometry: { type: 'LineString', coordinates: [[-87.5, 38.3], [-87.4, 38.31]] } };
+const CLICKED = { id: 'corridor-clicked', name: 'Clicked Rd',
+  geometry: { type: 'LineString', coordinates: [[-87.5201, 38.2801], [-87.42, 38.29]] } };
+
+test('a click on a drawn line selects that corridor, not the nearest vertex', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const chosen = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => chosen.push(id) });
+  view.draw({ corridors: [CLICKED, NEAR] });
+  const pathOf = id => calls.polylines.filter(path => path.corridorId === id).at(-1);
+  // The click point is a hair from NEAR's vertex and nowhere near CLICKED's, yet the person clicked CLICKED's line.
+  const event = { latlng: { lat: 38.3001, lng: -87.4999 }, propagatedFrom: pathOf(CLICKED.id) };
+  pathOf(CLICKED.id).emit('click', event);
+  assert.deepEqual(chosen, [CLICKED.id], 'the line the person clicked is the corridor they get');
+});
+
+test('a line click is answered once, and the proximity fallback does not override it', () => {
+  const { leaflet, map, calls } = fakeLeaflet();
+  const chosen = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => chosen.push(id) });
+  view.draw({ corridors: [CLICKED, NEAR] });
+  const path = calls.polylines.filter(item => item.corridorId === CLICKED.id).at(-1);
+  const event = { latlng: { lat: 38.3001, lng: -87.4999 }, propagatedFrom: path };
+  path.emit('click', event);
+  // Leaflet bubbles the same click to the map; the map must recognise that a line already answered it.
+  map.handlers.click(event);
+  assert.deepEqual(chosen, [CLICKED.id], 'one click selects one corridor, once');
+});
+
+test('pick mode keeps precedence: a line click does not select the corridor', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const chosen = [];
+  const picked = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => chosen.push(id),
+    onPickCoordinate: coordinate => picked.push(coordinate) });
+  view.draw({ corridors: [CLICKED] });
+  view.setPickMode(true);
+  calls.polylines.filter(item => item.corridorId === CLICKED.id).at(-1).emit('click', { latlng: { lat: 38.29, lng: -87.5 } });
+  assert.deepEqual(chosen, [], 'pick mode never selects a corridor');
+});
+
+test('a click on the map itself still uses proximity, and selects nothing when nothing is near', () => {
+  const { leaflet, map } = fakeLeaflet();
+  const chosen = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => chosen.push(id) });
+  view.draw({ corridors: [NEAR] });
+  map.handlers.click({ latlng: { lat: 38.3001, lng: -87.4999 } });
+  assert.deepEqual(chosen, [NEAR.id], 'a click just off the line resolves the nearest corridor');
+  map.handlers.click({ latlng: { lat: 12.34, lng: 56.78 } });
+  assert.deepEqual(chosen, [NEAR.id], 'and a click far from everything selects nothing new');
+});
+
+test('a direct line click does not move the viewport', () => {
+  const { leaflet, calls, map } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: () => {} });
+  view.draw({ corridors: [CLICKED] });
+  const path = calls.polylines.filter(item => item.corridorId === CLICKED.id).at(-1);
+  const before = { center: map.bounds, count: view.fitCount() };
+  path.emit('click', { latlng: { lat: 38.28, lng: -87.5 }, propagatedFrom: path });
+  assert.equal(view.fitCount(), before.count, 'a selection is not a camera move');
+  assert.deepEqual(map.bounds, before.center);
 });
 
 test('the viewport belongs to the person: drawing and selecting never fit', () => {
