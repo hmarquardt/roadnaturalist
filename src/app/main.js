@@ -1157,10 +1157,14 @@ store.subscribe(state => {
   // A COMPLETELY NEW SEARCH IS THE ONE THING THAT MOVES THE CAMERA BY ITSELF. The search definition changing is what
   // distinguishes a new search from every later interaction, and the fit happens once, when geometry exists - after
   // that, selecting, sorting, filtering or finishing an analysis leaves the viewport exactly where a person put it.
-  const searchKey = JSON.stringify(state.search.definition ?? state.search.area ?? null);
-  if (searchKey !== drawn.searchKey) {
+  const searchKey = JSON.stringify([state.search.areaId ?? null, state.search.definition ?? null,
+    state.search.radiusMiles ?? null]);
+  // The key is only marked handled once the fit has actually happened: at the moment a search changes the results
+  // may not be drawn yet, and recording the key before there was geometry to fit would lose the one automatic
+  // camera move this application is allowed to make.
+  if (searchKey !== drawn.searchKey && discoveryLayer?.corridors?.length) {
     drawn.searchKey = searchKey;
-    if (discoveryLayer?.corridors?.length) map.fitResults();
+    map.fitResults();
   }
   const discoveryKey = `${state.discovery.status}|${state.discovery.selectedId}|${discoveryLayer?.corridors.length ?? 0}|${discoveryLayer?.promotedIds.join(',') ?? ''}`;
   if (selected?.id !== drawn.selectedId || drawn.corridors.length !== state.candidates.length
