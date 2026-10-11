@@ -2,7 +2,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { createEvidenceRequests } from '../src/discovery/evidence.js';
+import { createEvidenceRequests, unavailableMessage } from '../src/discovery/evidence.js';
+
+// The unavailable state must speak the published vocabulary, and roads must never be named as the reason: the road
+// plane is published nationally, so a missing road cell cannot be why a corridor has no source evidence.
+test('the unavailable state uses the documented sentence and never blames the road plane', () => {
+  const source = readFileSync(new URL('../src/app/main.js', import.meta.url), 'utf8');
+  assert.match(source, /unavailableMessage\(/, 'the unavailable state must use the one documented sentence');
+  assert.match(source, /plane !== 'roads'/, 'the message must drop the road plane before it is named');
+  const message = unavailableMessage({ wetlands: ['x1_y1'], hydrography: ['x1_y1'] });
+  assert.match(message, /has not yet been published/);
+  assert.match(message, /precomputed national analysis values/);
+  assert.ok(!/roads/.test(message), 'roads are published nationally and cannot be the reason');
+});
+
 
 // THE EVIDENCE PATH MAY NOT CALL SOMETHING THAT DOES NOT EXIST.
 //
@@ -17,6 +30,9 @@ test('every function the source-evidence path calls is defined by the app module
   const end = source.indexOf('\n}\n', source.indexOf('sourceEvidenceRequests.finish', start));
   assert.ok(end > start);
   const path = source.slice(start, end);
+  // Comments are prose, not code: strip them before reading calls, or a sentence like "roads are never named
+  // (they are published nationally)" is mistaken for a call to something called `named`.
+  const code = path.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
   const defined = new Set([
     ...source.matchAll(/function\s+([A-Za-z_$][\w$]*)/g),
     ...source.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g),
@@ -24,7 +40,7 @@ test('every function the source-evidence path calls is defined by the app module
   ].flatMap(match => (match[1].includes(',') ? match[1].split(',') : [match[1]]).map(name => name.trim())));
   const allowed = new Set(['Boolean', 'Number', 'String', 'Symbol', 'Error', 'Promise', 'Math', 'JSON', 'Object',
     'Array', 'setTimeout', 'clearTimeout', 'async', 'if', 'for', 'while', 'catch', 'switch', 'typeof', 'reject']);
-  const called = [...path.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(/g)].map(match => match[1]);
+  const called = [...code.matchAll(/(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(/g)].map(match => match[1]);
   const missing = [...new Set(called)].filter(name => !defined.has(name) && !allowed.has(name));
   assert.deepEqual(missing, [], `the source-evidence path calls ${missing.join(', ')}, which nothing defines`);
 });

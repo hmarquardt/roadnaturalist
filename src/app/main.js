@@ -31,7 +31,7 @@ import { comparisonIds, savedCounts } from '../state/saved-roads.js';
 import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, writeDiscoveryMarks,
   writeDiscoverySearch, writeDiscoverySearchHistory } from '../discovery/persistence.js';
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDerivedCandidate, promoteDiscoveryResult } from '../discovery/lifecycle.js';
-import { createEvidenceRequests, sourceEvidence } from '../discovery/evidence.js';
+import { createEvidenceRequests, sourceEvidence, unavailableMessage } from '../discovery/evidence.js';
 import { defaultSearchArea, searchAreaBounds, validateSearchAreas } from '../discovery/search-area.js';
 import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiveSearchArea,
   definitionFromSearchArea, formatRadius, initialSearchSelection, interactiveSearchTemplate, placeForSearch, radiusPresets,
@@ -598,8 +598,12 @@ async function requestSourceEvidence(id) {
     const unavailable = Boolean(error?.rawUnavailable);
     evidenceStage(unavailable ? 'unavailable' : 'error', { id, name: error?.name ?? 'Error',
       message: error?.message ?? String(error), stack: (error?.stack ?? '').split('\n').slice(0, 4).join(' | ') });
+    // The one sentence a person reads when the deeper level is not published: the same vocabulary the panel and
+    // the tests agree on, with the bounded planes counted and roads never named (roads are published nationally).
+    const bounded = Object.fromEntries(Object.entries(error?.missingCells ?? {})
+      .filter(([plane]) => plane !== 'roads'));
     settle({ status: unavailable ? 'unavailable' : 'failed',
-      message: unavailable ? error.message
+      message: unavailable ? unavailableMessage(bounded)
         : `Source-level evidence could not be loaded. ${error?.sourceTimeout ? error.message + '. ' : ''}The precomputed corridor metrics above remain available.`,
       missing: error?.missingCells ?? null });
   } finally {
