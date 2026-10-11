@@ -205,18 +205,20 @@ for (const [query, label, geography] of REGIONS) {
 
     // 5. MAP → LIST. Clicking a line selects the same corridor through the application's own code path.
     //
-    // THE CLICK MUST LAND ON THE LINE. A `force` click at the corner of a path's bounding box hits empty space for any
-    // diagonal road: the map's proximity fallback still selects the right corridor, so the selection assertion passes
-    // while the layer itself is never clicked and never opens its card. The point used here is computed from the path's
-    // own geometry, so the click is on the drawn road the way a person's would be.
-    const targetId = await requireIdOfRow(2);
-    const targetPath = page.locator(`#map path[data-role="candidate"][data-corridor-id="${targetId}"]`).first();
-    const onLine = await targetPath.evaluate(element => {
+    // THE CLICK MUST LAND ON A LINE, AND THE LINE'S OWN IDENTITY DECIDES THE ANSWER. A `force` click at the corner of a
+    // path's bounding box hits empty space for any diagonal road; and drawn roads overlap, so a point computed from one
+    // path's geometry may have another path on top of it. The probe below therefore asks the document which road is
+    // actually under the point, and that road's id — read from the DOM the application rendered — is the expectation.
+    const seedPath = page.locator('#map path[data-role="candidate"]').first();
+    const probe = await seedPath.evaluate(element => {
       const midpoint = element.getPointAtLength(element.getTotalLength() / 2);
       const screen = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(element.getScreenCTM());
-      return { x: screen.x, y: screen.y };
+      const top = document.elementFromPoint(screen.x, screen.y);
+      return { x: screen.x, y: screen.y, id: top?.dataset?.corridorId ?? null, tag: top?.tagName ?? null };
     });
-    await page.mouse.click(onLine.x, onLine.y);
+    const targetId = probe.id;
+    expect(targetId, `${label}: a drawn road is under the point being clicked`).toBeTruthy();
+    await page.mouse.click(probe.x, probe.y);
     await page.waitForTimeout(800);
     expect(await selectedId(), `${label}: a map click selects the same corridor in the list`).toBe(targetId);
     const afterMapClick = await camera();
@@ -252,7 +254,10 @@ for (const [query, label, geography] of REGIONS) {
     expect(popupAudit.visible, `${label}: exactly one corridor card is open`).toBe(1);
     expect(popupAudit.ids, `${label}: and it belongs to the clicked corridor`).toEqual([targetId]);
     const popupText = await card.innerText();
-    const corridorName = (await rows.nth(2).locator('.discovery-row').innerText()).split('\n')[0];
+    // The card's own text must name the corridor it claims to describe: the row for that same id in the list is the
+    // independent witness, so a card can never pass by naming any road at all.
+    const targetRow = page.locator(`#discovery-results tr[data-candidate-id="${targetId}"]`);
+    const corridorName = (await targetRow.locator('.discovery-row').innerText()).split('\n')[0];
     expect(popupText, `${label}: the card names the corridor`).toContain(corridorName);
     expect(popupText, `${label}: the card states the order and a score`).toMatch(/Naturalist interest \d+(\.\d+)?/);
     expect(popupText, `${label}: the card labels its components`)
@@ -264,7 +269,7 @@ for (const [query, label, geography] of REGIONS) {
     // The score on the card belongs to that same corridor's own result, not merely to some card.
     const score = Number((popupText.match(/Naturalist interest (\d+(\.\d+)?)/) ?? [])[1]);
     expect(Number.isFinite(score), `${label}: the card score is a number`).toBe(true);
-    expect(await rows.nth(2).innerText(), `${label}: the row for that corridor is present`).not.toHaveLength(0);
+    expect(await targetRow.innerText(), `${label}: the row for that corridor is present`).not.toHaveLength(0);
 
     // 16/17. ORDINARY MAP USE FETCHES NOTHING DEEP, AND REACHES NO UNEXPECTED HOST.
     expect(raw, `${label}: ordinary map use must read no raw plane`).toEqual([]);
