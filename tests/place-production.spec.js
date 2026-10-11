@@ -218,7 +218,9 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
     await discovery(query);
     const derived = await openDerivedDetail();
     expect(derived.text, `${label}: the panel is labelled as precomputed`).toContain('Precomputed source metrics');
-    expect(derived.text, `${label}: the metrics are the stored ones`).toMatch(/Wetlands|Hydrography/);
+    const metrics = page.locator('#candidate-detail .corridor-metrics');
+    await expect(metrics, `${label}: wetland metrics are shown`).toContainText(/Wetlands|Hydrography/);
+    await expect(metrics, `${label}: the values are rendered with units`).toContainText(/m²|m/);
     expect(derived.rawBytes, `${label}: opening the detail reads no source cell`).toBe(0);
 
     const before = rawCells.length;
