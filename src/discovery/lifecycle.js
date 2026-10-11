@@ -111,13 +111,18 @@ export function promoteDerivedCandidate(result, { corridor = null, derived = nul
   const roads = [derivedRoad(corridor, result.road ?? {}, { derivedVersion, provenance })];
   const flag = coverageFlag(result);
   let coverage = createCoverage();
+  // The derived row's own coverage, whatever datasets it declares. A national row and a regional one do not name
+  // the same ecoregion datasets, and a row that declares none is still a corridor: the fallback is the row's own
+  // discovery coverage, never a fabricated FULL.
+  const declared = result.coverage ?? {};
+  const entry = (datasetId, reason) => declared[datasetId] ?? { coverage: flag, reason };
   const entries = [
     [COVERAGE_DATASET.ROAD_GEOMETRY, { coverage: flag, reason: 'Road geometry is the precomputed national analysis corridor.' }],
     [COVERAGE_DATASET.DISCOVERY, { coverage: flag, reason: 'This corridor was found by candidate discovery, not hand-declared.' }],
-    [COVERAGE_DATASET.WETLANDS, result.coverage[COVERAGE_DATASET.WETLANDS]],
-    [COVERAGE_DATASET.HYDROGRAPHY, result.coverage[COVERAGE_DATASET.HYDROGRAPHY]],
-    [COVERAGE_DATASET.EPA_LEVEL3, result.coverage[COVERAGE_DATASET.EPA_LEVEL3]],
-    [COVERAGE_DATASET.EPA_LEVEL4, result.coverage[COVERAGE_DATASET.EPA_LEVEL4]],
+    [COVERAGE_DATASET.WETLANDS, entry(COVERAGE_DATASET.WETLANDS, null)],
+    [COVERAGE_DATASET.HYDROGRAPHY, entry(COVERAGE_DATASET.HYDROGRAPHY, null)],
+    [COVERAGE_DATASET.EPA_LEVEL3, entry(COVERAGE_DATASET.EPA_LEVEL3, null)],
+    [COVERAGE_DATASET.EPA_LEVEL4, entry(COVERAGE_DATASET.EPA_LEVEL4, null)],
   ];
   for (const [datasetId, entry] of entries) coverage = setDatasetCoverage(coverage, datasetId, entry);
   const candidate = createCandidate({

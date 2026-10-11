@@ -105,6 +105,18 @@ test('a derived candidate still verifies the search context it carries, and refu
   /search context/);
 });
 
+test('a row that declares no ecoregion coverage still becomes a candidate', () => {
+  // A national row and a regional one do not name the same datasets. The candidate takes whatever the row
+  // declares and falls back to the row's own discovery coverage - never to a fabricated FULL, and never to a
+  // TypeError about a dataset the row simply does not mention.
+  const sparse = { ...RESULT, coverage: { wetlands: { coverage: 'FULL' }, hydrography: { coverage: 'FULL' } } };
+  const candidate = promoteDerivedCandidate(sparse, { corridor: CORRIDOR, derived: { road: sparse.road } });
+  assert.equal(candidate.coverage['road-geometry'].coverage, 'FULL');
+  assert.equal(candidate.coverage.wetlands.coverage, 'FULL');
+  assert.ok(candidate.coverage['epa-ecoregions-or-l3'], 'a dataset the row does not name still has an entry');
+  assert.equal(candidate.detailLevel, 'derived');
+});
+
 test('a derived candidate refuses to exist without a corridor row', () => {
   assert.throws(() => promoteDerivedCandidate(RESULT, {}), /needs the corridor row/);
   assert.throws(() => promoteDerivedCandidate(RESULT, { corridor: { id: 'x', name: 'x' } }), /needs the corridor row/);
