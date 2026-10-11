@@ -20,6 +20,8 @@ import { PILOT_PROBES_BY_CORRIDOR } from '../investigator/sources.js';
 import { buildCorridorBundle } from '../investigator/bundle.js';
 import { runDiscovery } from '../discovery/run.js';
 import { verifyDerivedPromotion } from '../discovery/promotion.js';
+import { buildDiscoveryUnits } from '../discovery/units.js';
+import { segmentUnit } from '../discovery/segment.js';
 import { eligibleClasses } from '../discovery/eligibility.js';
 import { ANALYSIS_DISTANCES_M } from '../gis/habitat-result.js';
 import { renderDiscovery, eligibilityNote } from '../ui/discovery.js';
@@ -422,6 +424,9 @@ async function reconstructDerivedCorridor(result) {
     rawRegionId: region.id, distancesM: ANALYSIS_DISTANCES_M, globalRoads,
     roadComponentIds: entry.corridor.componentId ? [entry.corridor.componentId] : null }, {});
   const road = await scope.queryRoadNetwork({ bbox: bounds, roadClasses: eligibleClasses(), limit: 100000 });
+  evidenceStage('roads:query', { id: result.id, globalRoads: Boolean(scope.selection?.globalRoads),
+    cells: scope.selection?.partitions?.roads?.length ?? null, features: road.features?.length ?? null,
+    coverage: road.coverage, components: scope.selection?.globalRoadsComponents ?? null });
   if (road.coverage !== COVERAGE.FULL && road.coverage !== COVERAGE.PARTIAL) {
     throw new Error('the raw road network could not be read back');
   }
@@ -429,9 +434,12 @@ async function reconstructDerivedCorridor(result) {
   try {
     verified = verifyDerivedPromotion({ derived: entry.corridor, features: road.features });
   } catch (error) {
-    // The derived row was composed over the whole national road network; this rebuild composes over the cells a
-    // bounded region published. When they disagree for that reason, the honest sentence is about the missing
-    // source, not about geometry disagreeing with itself.
+    const units = buildDiscoveryUnits(road.features ?? []).units;
+    evidenceStage('roads:verify-failed', { id: result.id, name: (entry.corridor.name ?? null),
+      wantedId: entry.corridor.id, units: units.length,
+      unitIds: units.map(unit => unit.id).slice(0, 6),
+      corridorIds: units.flatMap(unit => segmentUnit(unit).corridors.map(corridor => corridor.id)).slice(0, 8),
+      error: error.message });
     throw new Error(`${error.message} - this corridor's road needs raw source cells that the published region does `
       + 'not hold, so it cannot be rebuilt here yet. National discovery is unaffected.');
   }
