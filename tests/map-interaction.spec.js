@@ -60,7 +60,7 @@ for (const [query, label, geography] of REGIONS) {
       'the application must be running the geographic map, not the schematic one').toBe('geo');
     expect(await page.evaluate(() => globalThis.__RN_MAP?.available ?? false),
       'the geographic map must have initialised').toBe(true);
-    await expect(page.locator('#map .leaflet-container')).toHaveCount(1);
+    await expect(page.locator('#map.leaflet-container')).toHaveCount(1);
 
     await runSearch(page, query);
     expect(await page.evaluate(() => globalThis.__RN_MAP?.implementation ?? null)).toBe('geo');
