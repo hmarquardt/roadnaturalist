@@ -81,6 +81,12 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
     if (files.has(datasetId)) return files.get(datasetId);
     const entry = (await getManifest()).datasets.find(dataset => dataset.id === datasetId);
     if (!entry) throw new Error(`Dataset not declared: ${datasetId}`);
+    // TEMPORARY DIAGNOSTIC: a manifest entry under `national/` is a global plane artefact and must never be read
+    // from the application origin. Say who asked, so the last wrong-origin reader can be found and fixed.
+    if (String(entry.url ?? '').startsWith('national/') && globalThis.__RN_DEBUG_EVIDENCE) {
+      console.log('sourceEvidence:national-manifest-read ' + JSON.stringify({ id: datasetId,
+        stack: (new Error('here').stack ?? '').split('\n').slice(1, 6).join(' | ') }));
+    }
     const engine = await initialize();
     // A whole-CONUS layer is published on the data origin alongside the partitions of the publication, and is far
     // too large to ship with the application: it is declared under `national/`. Asking the page's own origin for it
