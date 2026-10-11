@@ -405,12 +405,26 @@ release is not failed by them, and the release chain reports them separately fro
 
 ### The component model is kept; only its publication role changed
 
-A corridor's road component is still the thing that must be rebuilt in full, and the closure is still what makes
-the corridor id come out the same. What changed is where that relationship comes from: a globally published tile
-rather than a bounded region's own document. The four seeded regions keep their `road-components.json` — they are
-still what a reader without the global plane uses — while a reader with it reads the tiles instead. The
-publication budget (`--max-closure-cells`) still applies when a *bounded region* publishes its own roads, which is
-now only for backwards compatibility.
+A corridor's road component is still the thing that must be rebuilt in full, and the closure is still what makes the
+corridor the same road. What changed is where that relationship comes from: a globally published tile rather than a
+bounded region's own document. The four seeded regions keep their `road-components.json` — they are still what a
+reader without the global plane uses — while a reader with it reads the tiles instead. The publication budget
+(`--max-closure-cells`) still applies when a *bounded region* publishes its own roads, which is now only for
+backwards compatibility.
+
+### Reading a global plane: the declaration travels with the reader
+
+Two raw planes are published everywhere and declared once in `globalPlanes` — roads and ecoregions. Both are *global*
+in the runtime sense, not merely in the index: the declaration is threaded explicitly into the scope that reads them
+(`searchArea.globalRoads`, `searchArea.globalEcoregions`), validated at the index boundary and again when the scope
+is prepared, and each declared artifact carries the asset base it is read from. So the whole-CONUS ecology layers
+resolve to `data.roadnaturalist.com/national/epa-conus-l3.parquet` and `…-l4.parquet` from their own declaration,
+whatever publication a reader happens to have prepared, and a reader that was given no declaration *refuses* rather
+than asking the application's own origin for a file it has never served. Byte count, SHA-256 and version are
+verified before anything is registered, exactly as for a bounded cell.
+
+Bounded planes stay bounded: wetlands and hydrography are published where people explore, and a region catalog never
+restates the global layers.
 
 ### Rollback and recovery
 
