@@ -192,10 +192,16 @@ for (const [query, label, geography] of REGIONS) {
     expect(Math.abs(afterFit.radiusM - 25 * MILES_TO_M), `${label}: within a metre of the request`).toBeLessThan(1);
     await expect(page.locator('#map path[data-role="search-radius"]')).toHaveCount(1);
     await expect(page.locator('#map path[data-role="search-center"]')).toHaveCount(1);
-    expect(afterFit.searchCentre[1], `${label}: the drawn centre is the searched place`)
+    // The adapter exposes the drawn centre in Leaflet order - [lat, lon] - so latitude is index 0 and longitude is
+    // index 1. Comparing index 1 to latitude bounds asks whether a longitude is north of Indiana.
+    expect(afterFit.searchCentre[0], `${label}: the drawn centre's latitude is the searched place`)
       .toBeGreaterThan(geography.lat[0]);
-    expect(afterFit.searchCentre[1], `${label}: the drawn centre is the searched place`)
+    expect(afterFit.searchCentre[0], `${label}: the drawn centre's latitude is the searched place`)
       .toBeLessThan(geography.lat[1]);
+    expect(afterFit.searchCentre[1], `${label}: the drawn centre's longitude is the searched place`)
+      .toBeGreaterThan(geography.lon[0]);
+    expect(afterFit.searchCentre[1], `${label}: the drawn centre's longitude is the searched place`)
+      .toBeLessThan(geography.lon[1]);
 
     // 5. MAP → LIST. Clicking a line selects the same corridor through the application's own code path.
     const targetId = await requireIdOfRow(2);
