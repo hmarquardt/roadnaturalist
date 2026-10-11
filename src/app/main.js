@@ -1162,8 +1162,8 @@ store.subscribe(state => {
   // The key is only marked handled once the fit has actually happened: at the moment a search changes the results
   // may not be drawn yet, and recording the key before there was geometry to fit would lose the one automatic
   // camera move this application is allowed to make.
-  // Its own field on purpose:  belongs to the search-preview path, and reusing it here would mean
-  // the fit never happened at all - the key was already recorded long before there was geometry to fit.
+  // Its own field on purpose: the search-preview path owns `searchKey`, and reusing it here meant the fit never
+  // happened - the key had already been recorded long before there was any geometry to fit.
   if (searchKey !== drawn.fittedSearchKey && discoveryLayer?.corridors?.length) {
     drawn.fittedSearchKey = searchKey;
     map.fitResults();
