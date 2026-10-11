@@ -71,4 +71,10 @@ test('the application requests a fit only where a run completes, and withdraws i
   assert.equal((source.match(/discoveryFit\.cancel\(\)/g) ?? []).length, 3);
   // The fit is not inferred from rendering state any more.
   assert.ok(!/fittedSearchKey/.test(source), 'no state-key heuristic may remain');
+  // THE ORDERING THAT WAS THE ACTUAL BUG: the request may arrive before the geometry is renderable, so the fit is
+  // spent only after the draw, on the map's own corridor set.
+  const draw = source.indexOf('map.draw(');
+  const consume = source.indexOf('discoveryFit.consume(');
+  assert.ok(draw > 0 && consume > draw, 'the fit is requested after the map has been given its geometry');
+  assert.match(source, /hasGeometry: drawn\.corridors\.length > 0/);
 });

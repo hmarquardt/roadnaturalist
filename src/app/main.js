@@ -1174,15 +1174,6 @@ store.subscribe(state => {
   // EXACTLY ONE AUTOMATIC FIT PER COMPLETED SEARCH. The request was made where the run completed and is spent here,
   // once, at the first render that actually has that search's geometry. It is not inferred from state: selecting,
   // sorting, saving, promoting or finishing an analysis has no request to spend and cannot move the camera.
-  const mapFit = { status: state.discovery.status ?? null, identity: discoveryFit.pending(),
-    pending: discoveryFit.pending() != null, hasGeometry: Boolean(discoveryLayer?.corridors?.length),
-    visible: discoveryLayer?.corridors?.length ?? 0, results: state.discovery.results.length,
-    rendered: drawn.corridors.length };
-  mapFitStage('consume', mapFit);
-  if (discoveryFit.consume({ hasGeometry: mapFit.hasGeometry })) {
-    mapFitStage('fit', { identity: mapFit.identity, rendered: mapFit.rendered });
-    map.fitResults();
-  }
   const discoveryKey = `${state.discovery.status}|${state.discovery.selectedId}|${discoveryLayer?.corridors.length ?? 0}|${discoveryLayer?.promotedIds.join(',') ?? ''}`;
   if (selected?.id !== drawn.selectedId || drawn.corridors.length !== state.candidates.length
     || drawn.overlay !== overlay || drawn.occurrenceOverlay !== occurrenceOverlay || drawn.discoveryKey !== discoveryKey) {
@@ -1193,6 +1184,22 @@ store.subscribe(state => {
     map.draw({ corridors: drawn.corridors, selectedId: state.discovery.selectedId ?? null, overlay, occurrenceOverlay,
       savedIds: discoveryLayer?.savedIds ?? [], dismissedIds: discoveryLayer?.dismissedIds ?? [] });
     drawn.selectedId = selected?.id ?? null;
+  }
+  // EXACTLY ONE AUTOMATIC FIT PER COMPLETED SEARCH, SPENT ONCE THE MAP ACTUALLY HOLDS GEOMETRY.
+  //
+  // The order matters and was the bug: the request arrives with the completed run, but the render that carries the
+  // geometry happens *after* this point in the same pass, and the map's own corridor set is what a fit needs. Asking
+  // for the fit before the draw meant it was spent on an empty map - the request fired, `fitResults()` found no
+  // bounds, and the one automatic camera move was lost. So the condition is the map's own geometry, checked after
+  // the draw, and the request stays pending until a pass satisfies it.
+  const mapFit = { status: state.discovery.status ?? null, identity: discoveryFit.pending(),
+    pending: discoveryFit.pending() != null, hasGeometry: drawn.corridors.length > 0,
+    visible: discoveryLayer?.corridors?.length ?? 0, results: state.discovery.results.length,
+    rendered: drawn.corridors.length };
+  mapFitStage('consume', mapFit);
+  if (discoveryFit.consume({ hasGeometry: mapFit.hasGeometry })) {
+    mapFitStage('fit', { identity: mapFit.identity, rendered: mapFit.rendered });
+    map.fitResults();
   }
 });
 
