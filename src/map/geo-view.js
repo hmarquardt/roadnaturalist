@@ -63,6 +63,225 @@ export function toLatLngs(geometry) {
   return converted.length ? converted : null;
 }
 
+// A POLYGON OR A POINT IS NOT A LINE. The map draws three kinds of geometry, so the shape of a feature is read from
+// its own geometry rather than assumed: a habitat polygon drawn as a "line" would be invisible, and an occurrence
+// point drawn as a closed polygon would be an empty frame.
+export function featureShape(geometry) {
+  const type = geometry?.type;
+  if (type === 'Point') return 'point';
+  if (type === 'Polygon' || type === 'MultiPolygon' || type === 'MultiPoint') return 'area';
+  if (type === 'LineString' || type === 'MultiLineString') return 'line';
+  return null;
+}
+
+// Polygon rings as Leaflet wants them: [lat, lon], outer ring first. A ring with fewer than three points is not a
+// polygon and is dropped rather than thrown at the renderer.
+export function toLatLngRings(geometry) {
+  const polygons = geometry?.type === 'Polygon' ? [geometry.coordinates]
+    : geometry?.type === 'MultiPolygon' ? geometry.coordinates : null;
+  if (!Array.isArray(polygons) || !polygons.length) return null;
+  const rings = [];
+  for (const polygon of polygons) {
+    for (const ring of polygon ?? []) {
+      if (!Array.isArray(ring)) continue;
+      const path = ring.filter(point => Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1]))
+        .map(([lon, lat]) => [lat, lon]);
+      if (path.length >= 3) rings.push(path);
+    }
+  }
+  return rings.length ? rings : null;
+}
+
+// One point as [lat, lon], from either a GeoJSON Point or a bare [lon, lat] pair.
+export function toLatLngPoint(coordinates) {
+  const pair = coordinates?.type === 'Point' ? coordinates.coordinates : coordinates;
+  if (!Array.isArray(pair) || pair.length < 2) return null;
+  const [lon, lat] = pair;
+  return Number.isFinite(lon) && Number.isFinite(lat) ? [lat, lon] : null;
+}
+
+// THE LAYER MODEL: WHAT A FEATURE IS, AND WHAT THE DOM SAYS IT IS.
+//
+// Every drawable thing on this map is a *feature* with a kind, and the kind decides everything - how it is styled, how
+// it is marked in the DOM, whether it can be clicked, and which pane it is drawn into. Nothing is corridor-shaped by
+// default: a habitat polygon is not a corridor with a missing id, and an occurrence point is not a corridor at all.
+// The application hands over descriptors it already holds (corridors from discovery, a habitat overlay with its
+// buffer, occurrence points, the search definition) and the normalizers below turn them into features.
+export const FEATURE_KIND = Object.freeze({
+  CORRIDOR: 'corridor', HABITAT: 'habitat', HABITAT_BUFFER: 'habitat-buffer', OCCURRENCE: 'occurrence',
+  SEARCH_CONTEXT: 'search-context', SEARCH_REGION: 'search-region', SEARCH_RADIUS: 'search-radius',
+  SEARCH_CENTRE: 'search-center',
+});
+
+// PANES ARE THE Z-ORDER, DECLARED ONCE. Search geometry sits under everything it describes; the habitat buffer sits
+// under the habitat features it contains; context lines sit under the roads they explain; occurrences sit above the
+// roads so a point is never hidden by a line; the selected corridor sits above every other line. Leaflet's own
+// tooltip and popup panes (650 and 700) stay above all of it.
+export const FEATURE_PANE = Object.freeze({
+  [FEATURE_KIND.SEARCH_REGION]: 'rnSearch', [FEATURE_KIND.SEARCH_RADIUS]: 'rnSearch',
+  [FEATURE_KIND.SEARCH_CENTRE]: 'rnSearch', [FEATURE_KIND.SEARCH_CONTEXT]: 'rnContext',
+  [FEATURE_KIND.HABITAT_BUFFER]: 'rnHabitatBuffer', [FEATURE_KIND.HABITAT]: 'rnHabitat',
+  [FEATURE_KIND.CORRIDOR]: 'rnCorridors', [FEATURE_KIND.OCCURRENCE]: 'rnOccurrence',
+});
+const PANES = Object.freeze([['rnSearch', 340], ['rnContext', 360], ['rnHabitatBuffer', 370], ['rnHabitat', 380],
+  ['rnCorridors', 400], ['rnOccurrence', 420], ['rnSelected', 430]]);
+
+// THE DOM CONTRACT, ONE ROW PER KIND. `idAttribute` carries that kind's own identity, so a corridor is named by
+// data-corridor-id, a habitat feature by data-habitat-id, an occurrence by data-occurrence-id. A kind without an
+// identity of its own gets a role and nothing else. The candidate row is the contract the production gate already
+// relies on: unchanged, and only a corridor may wear it.
+export const FEATURE_DOM = Object.freeze({
+  [FEATURE_KIND.CORRIDOR]: Object.freeze({ role: 'candidate', idAttribute: 'corridorId', idField: 'corridorId',
+    interactive: true, clickable: true }),
+  [FEATURE_KIND.HABITAT]: Object.freeze({ role: 'habitat', idAttribute: 'habitatId', idField: 'habitatId',
+    interactive: false }),
+  // The buffer belongs to a corridor's habitat overlay, so the association travels under its own attribute: it is not
+  // a candidate and must never be mistaken for one by a selector looking for data-corridor-id.
+  [FEATURE_KIND.HABITAT_BUFFER]: Object.freeze({ role: 'habitat-buffer', idAttribute: 'habitatCorridorId',
+    idField: 'corridorId', interactive: false }),
+  [FEATURE_KIND.OCCURRENCE]: Object.freeze({ role: 'occurrence', idAttribute: 'occurrenceId', idField: 'occurrenceId',
+    interactive: false }),
+  [FEATURE_KIND.SEARCH_CONTEXT]: Object.freeze({ role: 'search-context', idAttribute: 'corridorId',
+    idField: 'corridorId', interactive: false }),
+  [FEATURE_KIND.SEARCH_REGION]: Object.freeze({ role: 'search-region', interactive: false }),
+  [FEATURE_KIND.SEARCH_RADIUS]: Object.freeze({ role: 'search-radius', interactive: false }),
+  [FEATURE_KIND.SEARCH_CENTRE]: Object.freeze({ role: 'search-center', interactive: true }),
+});
+
+// One feature, marked for the document: its role, and its identity under the attribute that identity belongs to.
+export function featureAttributes(feature) {
+  const contract = FEATURE_DOM[feature?.kind] ?? null;
+  if (!contract) return {};
+  const attributes = { role: contract.role };
+  const value = contract.idField ? feature?.[contract.idField] : null;
+  if (contract.idAttribute && value != null) attributes[contract.idAttribute] = value;
+  if (feature?.kind === FEATURE_KIND.CORRIDOR && feature.selected != null) attributes.selected = feature.selected;
+  return attributes;
+}
+
+// FEATURE STYLES, BY KIND. State is still carried by weight, opacity and dash pattern rather than colour alone, and
+// each family is visually distinct: habitat fill is cool and translucent, its buffer is a dashed outline, an
+// occurrence point is a filled dot, and a context line is a thin brown dotted leader.
+const FEATURE_STYLE = Object.freeze({
+  habitatWetland: Object.freeze({ color: '#3f7f8c', weight: 1, opacity: 0.85, fillColor: '#8fc4d6', fillOpacity: 0.35 }),
+  habitatHydrography: Object.freeze({ color: '#3f8fa8', weight: 1.6, opacity: 0.9, fill: false }),
+  habitatBuffer: Object.freeze({ color: '#3f7f8c', weight: 1.4, opacity: 0.75, dashArray: '6 4', fill: false }),
+  occurrence: Object.freeze({ radius: 3.5, color: '#5b21b6', weight: 1, fillColor: '#8b5cf6', fillOpacity: 0.9 }),
+  context: Object.freeze({ color: '#7a4b12', weight: 1.6, opacity: 0.8, dashArray: '4 5' }),
+  region: Object.freeze({ color: '#6b7280', weight: 1, opacity: 0.6, dashArray: '4 4', fill: false }),
+});
+
+// FROM THE APPLICATION'S DESCRIPTORS TO FEATURES. Each normalizer is pure and takes the style it should wear, so the
+// whole model can be tested without a map.
+export function corridorFeature(corridor, { selected = false, style = null } = {}) {
+  return Object.freeze({ kind: FEATURE_KIND.CORRIDOR, corridorId: corridor?.id ?? null,
+    geometry: corridor?.geometry ?? null, style: style ?? LINE_STYLE.normal, selected: Boolean(selected),
+    // The card follows the corridor: a corridor whose distance from the search centre was never measured has nothing
+    // to say about it and is drawn without one.
+    card: Number.isFinite(corridor?.distanceFromCenterM) ? popupHtml(corridor) : null });
+}
+
+export function habitatFeatures(overlay) {
+  const features = [];
+  for (const row of overlay?.features ?? []) {
+    if (!featureShape(row?.geometry)) continue;
+    // THE FEATURE'S OWN DOMAIN IDENTITY: the source dataset's feature id within its layer, which is stable for the
+    // published extract. A row without one is drawn as an unnamed habitat feature rather than borrowing an id it has
+    // not got - least of all a corridor's.
+    features.push(Object.freeze({ kind: FEATURE_KIND.HABITAT,
+      habitatId: row.sourceFeatureId != null ? `${row.layer ?? 'habitat'}:${row.sourceFeatureId}` : null,
+      label: row.label ?? null, layer: row.layer ?? null, geometry: row.geometry,
+      style: row.layer === 'hydrography' ? FEATURE_STYLE.habitatHydrography : FEATURE_STYLE.habitatWetland }));
+  }
+  return features;
+}
+
+// THE 1 km ANALYSIS BUFFER: the same analytical geometry the measurements were taken from, drawn as the outline it is
+// rather than as a habitat feature. Which corridor it belongs to travels as `corridorId`, marked under
+// data-habitat-corridor-id, so it can never be read as a candidate.
+export function habitatBufferFeature(overlay) {
+  const geometry = overlay?.bufferGeometry ?? null;
+  if (!geometry || !featureShape(geometry)) return null;
+  return Object.freeze({ kind: FEATURE_KIND.HABITAT_BUFFER, corridorId: overlay?.candidateId ?? null,
+    geometry, style: FEATURE_STYLE.habitatBuffer });
+}
+
+export function occurrenceFeatures(occurrenceOverlay) {
+  const features = [];
+  for (const point of occurrenceOverlay?.points ?? []) {
+    const at = toLatLngPoint(point?.coordinates);
+    if (!at) continue;
+    // DISPLAY IDENTITY, NOT SOURCE IDENTITY, and it says so. A source record id is used when the source published one
+    // (`<source>:<sourceRecordId>`); without one the id is derived deterministically from the source and the point's
+    // own position, so the same observation keeps the same id between draws without claiming to be a source record.
+    const occurrenceId = point?.sourceRecordId != null ? `${point.source ?? 'source'}:${point.sourceRecordId}`
+      : `${point?.source ?? 'source'}:${at[0].toFixed(5)},${at[1].toFixed(5)}`;
+    features.push(Object.freeze({ kind: FEATURE_KIND.OCCURRENCE, occurrenceId, geometry: { type: 'Point',
+      coordinates: [at[1], at[0]] }, label: point?.label ?? null, group: point?.group ?? null,
+      displayIdentity: point?.sourceRecordId == null, style: FEATURE_STYLE.occurrence }));
+  }
+  return features;
+}
+
+// THE LEADER from where the person searched to the nearest point of the corridor they selected. Both ends must be real
+// coordinates: a line to an invented point would be a claim about geography.
+export function searchContextFeature({ centre, corridor } = {}) {
+  const from = toLatLngPoint(centre);
+  const to = toLatLngPoint(corridor?.nearestCenterPoint);
+  if (!from || !to || !corridor?.id) return null;
+  return Object.freeze({ kind: FEATURE_KIND.SEARCH_CONTEXT, corridorId: corridor.id,
+    geometry: { type: 'LineString', coordinates: [[from[1], from[0]], [to[1], to[0]]] }, style: FEATURE_STYLE.context });
+}
+
+// SEARCH GEOMETRY IS THE REQUEST, NOT THE PROCESSING EXTENT. A radius search draws its centre and its requested
+// radius. A declared area draws the bounds of the search *definition* the person chose - never the processing bbox,
+// never a derived-cell extent, and never the published region's own bounds.
+export function searchFeatures(search) {
+  if (!search) return [];
+  if (search.kind === 'radius') {
+    const centre = toLatLngPoint(search.center);
+    if (!centre) return [];
+    const features = [{ kind: FEATURE_KIND.SEARCH_CENTRE, geometry: { type: 'Point',
+      coordinates: [centre[1], centre[0]] }, label: 'Search centre',
+      style: Object.freeze({ radius: 4, color: '#111827', weight: 2, fillColor: '#ffffff', fillOpacity: 1 }) }];
+    if (Number.isFinite(search.radiusMiles)) {
+      features.push({ kind: FEATURE_KIND.SEARCH_RADIUS, geometry: { type: 'Point',
+        coordinates: [centre[1], centre[0]] }, radiusM: search.radiusMiles * 1609.344, label: 'Requested search radius',
+        style: Object.freeze({ color: '#111827', weight: 1.5, opacity: 0.8, fill: false, dashArray: '6 4' }) });
+    }
+    return features;
+  }
+  const bounds = search.bounds ?? null;
+  if (Array.isArray(bounds) && bounds.length === 4) {
+    return [{ kind: FEATURE_KIND.SEARCH_REGION, bounds, label: 'Declared search area', style: FEATURE_STYLE.region }];
+  }
+  return [];
+}
+
+// THE SHAPES ONE FEATURE DRAWS. A feature may be a line, an area, a point, a circle or a rectangle; the geometry it
+// carries decides which, and a feature with nothing drawable is skipped rather than thrown.
+export function drawableShapes(feature) {
+  if (feature?.radiusM != null) {
+    const centre = toLatLngPoint(feature.geometry);
+    return centre ? [{ circle: true, point: centre, radiusM: feature.radiusM }] : [];
+  }
+  if (Array.isArray(feature?.bounds) && feature.bounds.length === 4) {
+    const [minLon, minLat, maxLon, maxLat] = feature.bounds;
+    return [{ rectangle: true, bounds: [[minLat, minLon], [maxLat, maxLon]] }];
+  }
+  const shape = featureShape(feature?.geometry);
+  if (shape === 'point') {
+    const point = toLatLngPoint(feature.geometry);
+    return point ? [{ point }] : [];
+  }
+  if (shape === 'area') {
+    const rings = toLatLngRings(feature.geometry);
+    return rings ? [{ rings }] : [];
+  }
+  if (shape === 'line') return (toLatLngs(feature.geometry) ?? []).map(line => ({ line }));
+  return [];
+}
+
 export function boundsOfGeometries(geometries) {
   let minLon = Infinity; let minLat = Infinity; let maxLon = -Infinity; let maxLat = -Infinity;
   for (const geometry of geometries ?? []) {
@@ -132,8 +351,16 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
   try {
     const map = leaflet.map(container, { zoomControl: true, attributionControl: true, worldCopyJump: true });
     map.setView([39, -96], 4);
+    // THE PANES, created once, lowest first. A feature is drawn into the pane its kind declares, so ordering is a
+    // property of the layer model rather than of the order layers happened to be added in.
+    for (const [name, zIndex] of PANES) {
+      if (typeof map.createPane !== 'function') break;
+      const pane = map.createPane(name);
+      if (pane?.style) pane.style.zIndex = String(zIndex);
+    }
     const layers = { results: leaflet.featureGroup(), saved: leaflet.featureGroup(), search: leaflet.featureGroup(),
-      overlay: leaflet.featureGroup(), occurrence: leaflet.featureGroup(), selected: leaflet.featureGroup() };
+      context: leaflet.featureGroup(), overlay: leaflet.featureGroup(), occurrence: leaflet.featureGroup(),
+      selected: leaflet.featureGroup() };
     for (const layer of Object.values(layers)) map.addLayer(layer);
     let basemap = null;
     let basemapStatus = provider ? 'loading' : 'off';
@@ -190,6 +417,10 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       // was drawn for, so its event is authoritative; geometric proximity is only for a click on the map itself,
       // where no line spoke. Without this, a neighbouring corridor whose vertex happened to sit nearer the click
       // point would win the selection from the road the person actually clicked.
+      // A DRAWN FEATURE ANSWERS THE CLICK IT RECEIVED. A corridor's own handler has already selected it; any other
+      // feature - a habitat polygon, the habitat buffer, a context leader, the search centre - deliberately does not
+      // act, and the map must not act on its behalf by selecting whatever corridor happens to be nearest.
+      if (event?.propagatedFrom?.rnFeature) return;
       if (event?.propagatedFrom?.corridorId) return;
       const hit = hitTest(event.latlng);
       if (hit) { cardToOpen = hit.id; onSelect(hit.id); }
@@ -214,79 +445,72 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       if (corridor.saved) return LINE_STYLE.saved;
       return LINE_STYLE.normal;
     }
-    function paint(layer, entries) {
+    // ONE PAINT PATH, DRIVEN BY THE FEATURE'S KIND. Style, DOM marking, pane and interaction all come from the tables
+    // at the top of this module, so a family of features is added by declaring it rather than by growing a switch here.
+    // The corridor loop it replaces is the same loop: a corridor's click selects that corridor, and nothing else on the
+    // map is clickable as one.
+    function paint(layer, features) {
       layer.clearLayers();
       // The cards follow the layers: a path that is no longer drawn cannot show a card.
       if (layer === layers.results) cardedPaths.clear();
       let drawn = 0;
       let skipped = 0;
-      for (const corridor of entries) {
-        const lines = toLatLngs(corridor.geometry);
-        if (!lines) { skipped += 1; continue; }
-        for (const line of lines) {
-          const path = leaflet.polyline(line, styleFor(corridor));
-          // Drawing order is list order, so the map's stacking matches the order the person is reading.
-          if (Number.isFinite(corridor.distanceFromCenterM)) {
-            cardedPaths.set(corridor.id, path);
-            path.bindPopup(popupHtml(corridor));
-          }
-          // THE METADATA GOES ON AFTER LEAFLET HAS MADE THE ELEMENT. Leaflet creates a path's SVG element only when
-          // the path joins the map, so stamping it before `addLayer` stamps nothing: the line is drawn and its
-          // identity is nowhere in the DOM. The identification is therefore applied on the map's own `add` event and
-          // once immediately after adding, which covers the first insertion and every later re-add.
-          // THE LINE IS AUTHORITATIVE FOR ITS OWN CLICK. The path carries the descriptor it was drawn from, so a
-          // click on it selects exactly that corridor; the map-level handler then leaves the event alone. Pick mode
-          // keeps precedence: the line declines the click and lets the map answer with the coordinate.
-          //
-          // THE CLICK IS NOT SWALLOWED. Stopping propagation here would also stop Leaflet's own layer-click listener,
-          // which is what opens the corridor's card, so a selection would silently lose its explanation. Bubbling is
-          // left intact instead; the map handler recognises the line's identity on `propagatedFrom` and declines to
-          // answer a click that has already been answered.
-          path.corridorId = corridor.id;
-          if (typeof path.on === 'function') {
+      for (const feature of features ?? []) {
+        const contract = feature ? FEATURE_DOM[feature.kind] : null;
+        if (!contract) { skipped += 1; continue; }
+        const shapes = drawableShapes(feature);
+        if (!shapes.length) { skipped += 1; continue; }
+        for (const shape of shapes) {
+          const options = { ...feature.style, pane: FEATURE_PANE[feature.kind], interactive: contract.interactive };
+          const path = shape.circle ? leaflet.circle(shape.point, { ...options, radius: shape.radiusM })
+            : shape.rectangle ? leaflet.rectangle(shape.bounds, options)
+              : shape.point ? leaflet.circleMarker(shape.point, options)
+                : shape.rings ? leaflet.polygon(shape.rings, options)
+                  : leaflet.polyline(shape.line, options);
+          // A label is a tooltip, and a tooltip needs a layer that can be pointed at: a non-interactive overlay must not
+          // become hoverable just to carry one.
+          if (feature.label && contract.interactive) path.bindTooltip?.(feature.label);
+          // WHAT THIS PATH IS. The click handler below uses it, and so does the map-level handler: a click that a drawn
+          // feature has already answered - even by declining to act - is not re-answered by proximity testing. Without
+          // it, clicking a habitat polygon over a road would select the road underneath, which is not what was clicked.
+          path.rnFeature = feature.kind;
+          // THE MAP-LEVEL HANDLER'S OWN SIGNAL. The DOM identity of a corridor is stamped from the feature tables above;
+          // this is separate and is for the map's click handler, which must be able to see that a line has already
+          // answered a click so proximity cannot answer it a second time with a different corridor.
+          if (feature.kind === FEATURE_KIND.CORRIDOR) path.corridorId = feature.corridorId;
+          if (contract.clickable && typeof path.on === 'function') {
             path.on('click', () => {
               if (pickMode) return;
               // A click on the line asks for that corridor's card along with the selection, so the card survives the
               // re-draw the selection triggers.
-              cardToOpen = corridor.id;
-              onSelect(corridor.id);
+              cardToOpen = feature.corridorId;
+              onSelect(feature.corridorId);
             });
           }
-          const decorate = () => mark(path, { role: 'candidate', corridorId: corridor.id,
-            selected: corridor.id === selectedId });
+          const decorate = () => mark(path, featureAttributes(feature));
           if (typeof path.on === 'function') path.on('add', decorate);
           layer.addLayer(path);
           decorate();
+          if (feature.kind === FEATURE_KIND.CORRIDOR && feature.card) {
+            cardedPaths.set(feature.corridorId, path);
+            path.bindPopup(feature.card);
+          }
           drawn += 1;
         }
       }
       return { drawn, skipped };
     }
     // SEARCH GEOMETRY: the request, not the processing extent. A radius search draws its centre and its requested
-    // radius; the bbox the cell selection happens to use is an implementation detail and is only ever drawn as a
-    // subordinate, explicitly labelled diagnostic.
+    // radius; a declared area draws the bounds of the search definition the person chose. Neither the processing bbox
+    // nor the published region's own bounds are drawn: they are not what was asked for.
     function setSearch(search) {
       layers.search.clearLayers();
-      if (!search) return true;
-      if (search.kind === 'radius' && Array.isArray(search.center)) {
-        const center = [search.center[1], search.center[0]];
-        activeCentre = center;
-        mark(leaflet.circleMarker(center, { radius: 4, color: '#111827', weight: 2, fillColor: '#ffffff',
-          fillOpacity: 1 }).bindTooltip('Search centre').addTo(layers.search), { role: 'search-center' });
-        if (Number.isFinite(search.radiusMiles)) {
-          activeRadiusM = search.radiusMiles * 1609.344;
-          mark(leaflet.circle(center, { radius: activeRadiusM, color: '#111827', weight: 1.5, opacity: 0.8,
-            fill: false, dashArray: '6 4' }).bindTooltip('Requested search radius').addTo(layers.search),
-          { role: 'search-radius' });
-        }
-        return true;
-      }
-      if (search.kind === 'box' && search.bounds) {
-        const [[minLon, minLat], [maxLon, maxLat]] = [[search.bounds[0], search.bounds[1]], [search.bounds[2], search.bounds[3]]];
-        leaflet.rectangle([[minLat, minLon], [maxLat, maxLon]], { color: '#6b7280', weight: 1, opacity: 0.6,
-          dashArray: '4 4', fill: false }).bindTooltip('Declared search box').addTo(layers.search);
-        return true;
-      }
+      const features = searchFeatures(search);
+      paint(layers.search, features);
+      const centre = features.find(feature => feature.kind === FEATURE_KIND.SEARCH_CENTRE) ?? null;
+      const radius = features.find(feature => feature.kind === FEATURE_KIND.SEARCH_RADIUS) ?? null;
+      activeCentre = centre ? toLatLngPoint(centre.geometry) : null;
+      activeRadiusM = radius ? radius.radiusM : null;
       return true;
     }
 
@@ -301,13 +525,18 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         corridors = next.map(corridor => ({ ...corridor, saved: saved.has(corridor.id),
           dismissed: dismissed.has(corridor.id) }));
         selectedId = nextSelected;
-        const results = paint(layers.results, corridors);
+        const results = paint(layers.results, corridors.map(corridor => corridorFeature(corridor,
+          { selected: corridor.id === selectedId, style: styleFor(corridor) })));
         // Saved roads that are *not* in the visible set are drawn from their own descriptors; the same road is never
         // drawn twice simply because it is both a candidate and saved.
         const visible = new Set(corridors.map(corridor => corridor.id));
-        paint(layers.saved, savedRoads.filter(road => !visible.has(road.id)));
-        paint(layers.overlay, overlay?.features ?? []);
-        paint(layers.occurrence, occurrenceOverlay?.features ?? []);
+        paint(layers.saved, savedRoads.filter(road => !visible.has(road.id))
+          .map(road => corridorFeature(road, { selected: road.id === selectedId, style: styleFor(road) })));
+        // THE HABITAT FAMILY, in its own terms: the analysis buffer first (it is the outline the features sit inside),
+        // then the wetland and hydrography features themselves. Neither is a corridor and neither is clickable.
+        const buffer = habitatBufferFeature(overlay);
+        paint(layers.overlay, [...(buffer ? [buffer] : []), ...habitatFeatures(overlay)]);
+        paint(layers.occurrence, occurrenceFeatures(occurrenceOverlay));
         if (search !== undefined) setSearch(search);
         view.setSelected(selectedId);
         return { drawn: results.drawn, skipped: results.skipped, candidates: corridors.length };
@@ -315,15 +544,22 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       // Selection changes appearance only. It is called on every list highlight precisely *because* it does not fit.
       setSelected(id) {
         selectedId = id ?? null;
-        paint(layers.results, corridors);
-        // The emphasised copy is drawn into its own layer so it sits above every other corridor regardless of where
-        // it falls in the list order. Selection changes appearance only: it is called on every list highlight
-        // precisely *because* it never moves the camera.
+        paint(layers.results, corridors.map(corridor => corridorFeature(corridor,
+          { selected: corridor.id === selectedId, style: styleFor(corridor) })));
+        // The emphasised copy is drawn into its own layer and its own pane, so it sits above every other line
+        // regardless of where it falls in the list order. Selection changes appearance only: it is called on every list
+        // highlight precisely *because* it never moves the camera.
         layers.selected.clearLayers();
         const selected = corridors.find(corridor => corridor.id === selectedId) ?? null;
         for (const line of toLatLngs(selected?.geometry) ?? []) {
-          leaflet.polyline(line, { ...styleFor(selected), interactive: false }).addTo(layers.selected);
+          leaflet.polyline(line, { ...styleFor(selected), pane: 'rnSelected', interactive: false })
+            .addTo(layers.selected);
         }
+        // THE LEADER, FROM WHERE THE PERSON SEARCHED TO THE ROAD THEY SELECTED. It is a context line and not a road:
+        // non-interactive, drawn under the corridors, and present only when both ends are real coordinates.
+        layers.context.clearLayers();
+        const leader = searchContextFeature({ centre: activeCentre, corridor: selected });
+        if (leader) paint(layers.context, [leader]);
         // ONE CARD, FOR THE CORRIDOR THAT WAS JUST ASKED FOR. The map has finished re-drawing, so a card requested by a
         // click is opened against the layer that now carries it - never against the layer the click destroyed.
         if (cardToOpen) { showCardFor(cardToOpen); cardToOpen = null; }
