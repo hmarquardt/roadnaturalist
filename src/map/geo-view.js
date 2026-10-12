@@ -167,10 +167,6 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     let activeRadiusM = null;
     let fitCount = 0;
     let movements = 0;
-    // WHICH CORRIDORS CARRY A CARD on the map, recorded as they are bound. A corridor whose distance from the search
-    // centre was never measured has nothing to explain, so it is drawn without one; this list is the difference between
-    // "no card was written" and "a card exists but did not open".
-    const cardedIds = new Set();
     // THE PATH THAT CARRIES EACH CARD, so the card can be re-opened after a re-draw. Selecting a corridor re-renders the
     // map, and re-rendering clears the layers; a popup Leaflet opened as part of the click is therefore destroyed with
     // the layer it belonged to, and the selection would be left with nothing to read. One corridor, one card.
@@ -224,12 +220,6 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       if (layer === layers.results) cardedPaths.clear();
       let drawn = 0;
       let skipped = 0;
-      let markedPaths = 0;
-      // COUNTED FOR THIS PAINT. A container census alone cannot tell "this paint drew nothing" from "this paint's
-      // paths carry no identity": an empty results paint used to log `identified: 0` and read as a defect in the
-      // stamping. `identifiedDrawn` is the number this paint actually stamped, so the two cases are distinct here.
-      let identifiedDrawn = 0;
-      const pathAudit = [];
       for (const corridor of entries) {
         const lines = toLatLngs(corridor.geometry);
         if (!lines) { skipped += 1; continue; }
@@ -237,7 +227,6 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
           const path = leaflet.polyline(line, styleFor(corridor));
           // Drawing order is list order, so the map's stacking matches the order the person is reading.
           if (Number.isFinite(corridor.distanceFromCenterM)) {
-            cardedIds.add(corridor.id);
             cardedPaths.set(corridor.id, path);
             path.bindPopup(popupHtml(corridor));
           }
@@ -267,27 +256,9 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
             selected: corridor.id === selectedId });
           if (typeof path.on === 'function') path.on('add', decorate);
           layer.addLayer(path);
-          const marked = decorate();
-          if (marked) { markedPaths += 1; identifiedDrawn += 1; }
-          // TEMPORARY (this task): why the metadata does or does not land, asked of the object itself.
-          if (globalThis.__RN_DEBUG_EVIDENCE && pathAudit.length < 3) {
-            pathAudit.push({ id: corridor.id, getElement: typeof path.getElement, element: Boolean(path.getElement?.()),
-              internalPath: Boolean(path._path), onMap: Boolean(path._map), marked,
-              interactive: Boolean(path.options?.interactive) });
-          }
-          if (marked) markedPaths += 1;
+          decorate();
           drawn += 1;
         }
-      }
-      if (globalThis.__RN_DEBUG_EVIDENCE) {
-        const inDom = typeof window !== 'undefined' && window.document
-          ? window.document.querySelectorAll('#map path').length : -1;
-        // The attribute the map really stamps is data-corridor-id (see attributeName/mark); the census reports that
-        // one thing, and `identifiedDrawn` says whether *this* paint's paths were stamped.
-        const identified = typeof window !== 'undefined' && window.document
-          ? window.document.querySelectorAll('#map path[data-corridor-id]').length : -1;
-        console.log('MAP_PATH ' + JSON.stringify({ layer: layer === layers.results ? 'results' : 'other', drawn, skipped,
-          markedPaths, identifiedDrawn, emptyPaint: drawn === 0, domPaths: inDom, domIdentified: identified, sample: pathAudit }));
       }
       return { drawn, skipped };
     }
@@ -395,12 +366,12 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       },
       selectedId: () => selectedId,
       // A read-only view of where the camera is and what the search geometry is, so the browser interaction gate can
-      // verify the contract without reaching into Leaflet from the test. Nothing in the application reads these.
+      // verify the contract without reaching into Leaflet from the test. Nothing in the application reads these, and
+      // they are the whole of what the map exposes: camera, search geometry, and the two counts the gate asserts on.
       camera: () => ({ center: [map.getCenter().lng, map.getCenter().lat], zoom: map.getZoom() }),
       searchGeometry: () => ({ center: activeCentre, radiusM: activeRadiusM }),
       fitCount: () => fitCount,
       movementCount: () => movements,
-      cardIds: () => [...cardedIds],
       // A person's own viewport survives a redraw, and the map remembers it: `bounds()` exists for tests and
       // diagnostics rather than for the application to store.
       bounds: () => map.getBounds?.() ?? null,

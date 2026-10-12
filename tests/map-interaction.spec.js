@@ -4,10 +4,10 @@ import { test, expect } from '@playwright/test';
 //
 //   RUN_MAP_PRODUCTION=1 PRODUCTION_BASE_URL=https://roadnaturalist.com npx playwright test tests/map-interaction.spec.js
 //
-// This is the gate that licenses retiring the schematic renderer, so it drives the actual application: it types a
-// place, runs national discovery, clicks list rows and map lines, pans and zooms the real Leaflet camera, and counts
-// every request the page makes. Adapter methods are never called from the test except through the narrow read-only
-// diagnostic the factory exposes, and never as the primary proof.
+// This gate is the committed contract for the geographic map: it drives the actual application - types a place, runs
+// national discovery, clicks list rows and map lines, pans and zooms the real Leaflet camera, and counts every request
+// the page makes. Adapter methods are never called from the test except through the narrow read-only diagnostic the
+// factory exposes, and never as the primary proof.
 const BASE = process.env.PRODUCTION_BASE_URL ?? 'https://roadnaturalist.com';
 const MILES_TO_M = 1609.344;
 // Ordinary map use must reach nothing that costs data: no raw plane, no source evidence, no occurrence source, no
@@ -56,24 +56,18 @@ for (const [query, label, geography] of REGIONS) {
       if (DEEP_DATA.test(url)) deep.push(url);
     });
     page.on('pageerror', error => pageErrors.push(error.message));
+    // A console error is a failure of the page, not a note: the gate reads the page as it is, with no debug flag set
+    // and no diagnostic logging switched on, exactly as ordinary use runs it.
     page.on('console', message => {
       if (message.type() === 'error') pageErrors.push(message.text());
-      // The application's own trace of the automatic fit, printed only when it is enabled, so the ordering can be
-      // read from a run instead of inferred from the source.
-      if (/^MAP_(FIT|PATH|POPUP)/.test(message.text())) {
-        console.log(message.text());
-      }
     });
-
-    // The application's own evidence/map stage markers are silent unless this flag is set, so the trace this gate
-    // reads is opt-in exactly as it is in production.
-    await page.addInitScript(() => { globalThis.__RN_DEBUG_EVIDENCE = true; });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
 
-    // 3. THE RUNNING MAP IS THE GEOGRAPHIC ONE. Asserted before and after a search, so a fallback cannot hide.
+    // 3. THE RUNNING MAP IS THE GEOGRAPHIC ONE. There is one map implementation, and an unavailable view is reported
+    // as such rather than replaced by anything: a fallback renderer would be a different answer to the same question.
     expect(await page.evaluate(() => globalThis.__RN_MAP?.implementation ?? null),
-      'the application must be running the geographic map, not the schematic one').toBe('geo');
+      'the application must be running the geographic map').toBe('geo');
     expect(await page.evaluate(() => globalThis.__RN_MAP?.available ?? false),
       'the geographic map must have initialised').toBe(true);
     await expect(page.locator('#map.leaflet-container')).toHaveCount(1);
@@ -126,11 +120,10 @@ for (const [query, label, geography] of REGIONS) {
 
     // 6/9. THE USER OWNS THE CAMERA - AND THE GESTURE HAS TO BE A REAL ONE.
     //
-    // A drag synthesised with DOM MouseEvents from inside the page is not necessarily a drag as Leaflet understands
-    // it, so both are measured here: the synthetic attempt first (recorded, not asserted, because ignoring untrusted
-    // synthetic events is legitimate), then a real Playwright mouse gesture, which is what a person actually does.
-    const beforeDrag = await camera();
-    const movementsBefore = await page.evaluate(() => globalThis.__RN_MAP.movements());
+    // A drag synthesised with DOM MouseEvents from inside the page is not necessarily a drag as Leaflet understands it,
+    // so the synthetic attempt runs first and is not asserted on: ignoring untrusted synthetic events is legitimate. It
+    // is the real Playwright mouse gesture below, which is what a person actually does, that must move the map - and
+    // the movement counter must show that Leaflet, not the coordinates, did the moving.
     await page.evaluate(() => {
       const container = document.querySelector('#map');
       const bounds = container.getBoundingClientRect();
@@ -144,9 +137,6 @@ for (const [query, label, geography] of REGIONS) {
     await page.waitForTimeout(600);
     const afterSynthetic = await camera();
     const movementsAfterSynthetic = await page.evaluate(() => globalThis.__RN_MAP.movements());
-    console.log(`MAP_DRAG ${JSON.stringify({ label, kind: 'synthetic',
-      moved: afterSynthetic.center[0] !== beforeDrag.center[0] || afterSynthetic.center[1] !== beforeDrag.center[1],
-      zoomChanged: afterSynthetic.zoom !== beforeDrag.zoom, movements: movementsAfterSynthetic - movementsBefore })}`);
 
     // The real gesture: the map's own box, well inside it, away from the zoom control and any popup.
     // A REAL GESTURE NEEDS REAL SCREEN COORDINATES. The map panel sits below the fold on this viewport, so
@@ -165,9 +155,11 @@ for (const [query, label, geography] of REGIONS) {
     const afterMouse = await camera();
     const movementsAfterMouse = await page.evaluate(() => globalThis.__RN_MAP.movements());
     const movedByMouse = afterMouse.center[0] !== afterSynthetic.center[0] || afterMouse.center[1] !== afterSynthetic.center[1];
-    console.log(`MAP_DRAG ${JSON.stringify({ label, kind: 'mouse', moved: movedByMouse,
-      zoomChanged: afterMouse.zoom !== afterSynthetic.zoom, movements: movementsAfterMouse - movementsAfterSynthetic })}`);
     expect(movedByMouse, `${label}: a real mouse drag must move the map`).toBe(true);
+    // A gesture that never reaches Leaflet leaves its movement count where it was, so the counter is what distinguishes
+    // "the map moved because the person moved it" from "the coordinates happened to differ".
+    expect(movementsAfterMouse, `${label}: the drag must be a move Leaflet itself performed`)
+      .toBeGreaterThan(movementsAfterSynthetic);
     expect(afterMouse.zoom, `${label}: a pan must not change the zoom`).toBeCloseTo(afterSynthetic.zoom, 5);
     const moved = afterMouse;
 
@@ -254,29 +246,11 @@ for (const [query, label, geography] of REGIONS) {
     // RAW DOM EVIDENCE: what popup-ish elements exist at all, and how many candidate paths carry the clicked
     // corridor's identity. Asked rather than inferred, because a card that never appears can mean "never bound",
     // "bound but not opened", or "opened outside the container".
-    const popupDump = await page.evaluate(({ id, x, y }) => {
-      const L = window.L;
-      const element = document.querySelector(`#map path[data-corridor-id="${id}"]`);
-      // Ask Leaflet itself, not the markup: a corridor the adapter never carded can never open a card. The element is
-      // keyed in Leaflet's own registry, and the map is reachable from the container the same way.
-      const key = element && L?.stamp ? L.stamp(element) : null;
-      const container = document.querySelector('#map .leaflet-container') ?? document.querySelector('#map');
-      const mapKey = container ? container._leaflet_id : null;
-      const map = mapKey != null ? (window.__RN_MAP?.map ?? null) : null;
-      const layer = map && key != null ? map._layers?.[key] ?? null : null;
-      const pops = [...document.querySelectorAll('#map .leaflet-popup, #map .leaflet-popup-content, #map [class*="popup"]')];
-      return { id, carded: window.__RN_MAP?.cardIds?.().includes(id) ?? null, cardIds: window.__RN_MAP?.cardIds?.().length ?? null,
-        boundPopup: layer ? Boolean(layer.getPopup?.()) : null,
-        pops: pops.slice(0, 4).map(node => ({ cls: node.className, text: (node.innerText ?? '').slice(0, 40) })),
-        under: (() => { const top = document.elementFromPoint(x, y); return { tag: top?.tagName ?? null, id: top?.dataset?.corridorId ?? null }; })() };
-    }, { id: targetId, x: probe.x, y: probe.y });
-    console.log(`MAP_POPUP ${JSON.stringify({ label, clickedId: targetId, selectedId: await selectedId(), dump: popupDump })}`);
     const popupAudit = await page.evaluate(() => {
       const cards = [...document.querySelectorAll('#map .corridor-popup')];
       const visible = cards.filter(entry => entry.offsetParent !== null);
       return { cards: cards.length, visible: visible.length, ids: visible.map(entry => entry.dataset.corridorId) };
     });
-    console.log(`MAP_POPUP ${JSON.stringify({ label, clickedId: targetId, selectedId: await selectedId(), ...popupAudit })}`);
     await expect(card, `${label}: the clicked corridor's card must be open`).toBeVisible({ timeout: 15000 });
     expect(popupAudit.visible, `${label}: exactly one corridor card is open`).toBe(1);
     expect(popupAudit.ids, `${label}: and it belongs to the clicked corridor`).toEqual([targetId]);

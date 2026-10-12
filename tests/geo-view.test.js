@@ -6,6 +6,7 @@ import { TILE_PROVIDERS, tileProvider } from '../src/map/basemap.js';
 import { attributeName, basemapFailureNote, boundsOfGeometries, createGeoView, popupHtml, toLatLngs,
   unavailableView }
   from '../src/map/geo-view.js';
+import { createMapView } from '../src/map/index.js';
 
 // THE MAP'S CONTRACT, WITHOUT A BROWSER.
 //
@@ -338,6 +339,42 @@ test('a multi-part corridor is drawn as several paths, each naming that same cor
     part.emit('click', { latlng: { lat: 38.3, lng: -87.45 }, propagatedFrom: part });
   }
   assert.deepEqual(selected, [MULTI.id, MULTI.id], 'either part selects that corridor, and only that corridor');
+});
+
+test('the map factory has one implementation: the geographic view', () => {
+  // THERE IS NO SECOND RENDERER AND NO FALLBACK SWITCH. The factory hands back the geographic view, or a view that says
+  // it is unavailable - never a different kind of map. The diagnostic it exposes is read-only and deliberately small.
+  const { leaflet } = fakeLeaflet();
+  const container = { style: {} };
+  try {
+    const view = createMapView(container, { leaflet });
+    assert.equal(globalThis.__RN_MAP.implementation, 'geo');
+    assert.equal(globalThis.__RN_MAP.available, true);
+    assert.deepEqual(view.missingMethods, [], 'the geographic view offers every documented method');
+    for (const name of ['draw', 'setSearch', 'setSelected', 'setSavedRoads', 'setOuting', 'setPickMode', 'setBasemap',
+      'fitResults', 'fitSelected', 'destroy']) {
+      assert.equal(typeof view[name], 'function', `the application may call ${name}`);
+    }
+    // The diagnostic is what the committed browser gate reads, and nothing more: a convenience added here would be a
+    // second source of truth the application could start consulting.
+    assert.deepEqual(Object.keys(globalThis.__RN_MAP).sort(),
+      ['available', 'camera', 'fitCount', 'implementation', 'movements', 'note', 'searchGeometry']);
+  } finally { delete globalThis.__RN_MAP; }
+});
+
+test('a map that cannot initialise says so instead of becoming another renderer', () => {
+  const broken = { map() { throw new Error('no WebGL, no canvas, no map'); } };
+  const container = { style: {} };
+  try {
+    const view = createMapView(container, { leaflet: broken });
+    assert.equal(view.available, false, 'the view reports that it is unavailable');
+    assert.equal(globalThis.__RN_MAP.available, false);
+    assert.equal(globalThis.__RN_MAP.implementation, 'unavailable', 'and says which view is running');
+    assert.equal(view.draw({ corridors: [] }), false, 'drawing reports failure rather than throwing');
+    assert.equal(view.fitResults(), false);
+    assert.equal(globalThis.__RN_MAP.fitCount(), 0, 'and no camera was ever created to move');
+    assert.equal(globalThis.__RN_MAP.camera(), null);
+  } finally { delete globalThis.__RN_MAP; }
 });
 
 test('the map never reads storage, and the popup explains without a second evidence panel', () => {

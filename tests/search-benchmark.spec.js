@@ -33,7 +33,7 @@ test('benchmark interactive searches at the committed reference radii', async ({
       const { gis } = await import('/src/app/main.js');
       const { runDiscovery } = await import('/src/discovery/run.js');
       const { renderDiscovery } = await import('/src/ui/discovery.js');
-      const { createCorridorMap } = await import('/src/map/corridor-map.js');
+      const { createGeoView } = await import('/src/map/geo-view.js');
       const { searchDefinitionOf, createInteractiveSearchArea, radiusTemplate, readSearchDefinition } = await import('/src/discovery/search-definition.js');
       const { validateSearchAreas } = await import('/src/discovery/search-area.js');
       const { DEFAULT_FILTERS } = await import('/src/discovery/filter.js');
@@ -63,19 +63,25 @@ test('benchmark interactive searches at the committed reference radii', async ({
           search: { areaId: searchArea.id, definition, picking: false, history: [], error: null },
           presets: declaration.searchAreas.filter(area => area.kind === 'radius'), region: declaration.publishedRegion });
         const renderMs = Math.round(performance.now() - renderStarted);
+        // The map drawn here is the product's own geographic view, on screen and at a real size, with its tile layer
+        // off: the schematic stand-in this benchmark used while the geographic view was being brought up is gone, so
+        // the number measures the renderer the application actually runs.
         const mapContainer = document.createElement('div');
-        const map = createCorridorMap(mapContainer, {});
+        mapContainer.style.cssText = 'width:900px;height:520px';
+        document.body.append(mapContainer);
+        const map = createGeoView(mapContainer, { provider: null });
         const mapStarted = performance.now();
-        map.setSearchPreview({ kind: 'radius', center: definition.center, radiusMiles: definition.radiusMiles,
-          bounds: definition.bounds, coverage: run.coverage.coverage, regionBounds: declaration.publishedRegion.bounds,
-          label: `${scenario.radiusMiles} mi` });
-        map.draw({ corridors: [], selectedId: null, discovery: { corridors: run.results.slice(0, 400).map(result => ({
-          id: result.id, name: result.name, geometry: result.geometry })), selectedId: null, promotedIds: [] } });
+        map.setSearch({ kind: 'radius', center: definition.center, radiusMiles: definition.radiusMiles });
+        map.draw({ corridors: run.results.slice(0, 400).map(result => ({ id: result.id, name: result.name,
+          geometry: result.geometry, distanceFromCenterM: result.distanceFromCenterM ?? null })), selectedId: null });
         const mapMs = Math.round(performance.now() - mapStarted);
+        const mapPaths = mapContainer.querySelectorAll('path[data-role="candidate"][data-corridor-id]').length;
+        map.destroy?.();
+        mapContainer.remove();
         passes.push({ pass, parseMs, manifestMs: timing.manifestMs ?? null, fetchMs: timing.fetchMs ?? null,
           verifyMs: timing.verifyMs ?? null, selectionMs: run.diagnostics.selectionMs ?? null,
           queryMs: run.diagnostics.queryMs ?? null, buildMs: run.diagnostics.buildMs ?? null,
-          totalMs: run.diagnostics.totalMs ?? discoveryMs, discoveryMs, renderMs, mapMs,
+          totalMs: run.diagnostics.totalMs ?? discoveryMs, discoveryMs, renderMs, mapMs, mapPaths,
           cellsSelected: selection.cells?.cells ?? null, cellsPresent: selection.cells?.present ?? null,
           cellsEmpty: selection.cells?.empty ?? null, selectedBytes: selection.bytes ?? 0,
           transferredBytes: timing.downloadedBytes ?? null, cacheHits: timing.cacheHits ?? null,

@@ -247,7 +247,6 @@ async function discoverRoads() {
     // of its own results; the request is spent on the next render that has geometry, and nothing else asks.
     const completion = run.searchArea?.id ?? searchArea?.id ?? null;
     discoveryFit.request(completion);
-    mapFitStage('request', { identity: completion, pending: discoveryFit.pending() != null });
     rememberSearch(run.searchArea);
   } catch (error) {
     discoveryFit.cancel();
@@ -560,13 +559,6 @@ function derivedMetricsFor(result) {
 // the source step failed: it hides the failure and cannot be retried. The stage markers are silent unless
 // `globalThis.__RN_DEBUG_EVIDENCE` is set, which is how a test or a developer watches the path without leaving
 // noise in production.
-// TEMPORARY (this task): the exact ordering of the automatic fit, so the trace answers the question instead of a
-// reading of the code. Silent unless the evidence flag is set, which the browser specs set and production does not.
-function mapFitStage(stage, detail = {}) {
-  if (!globalThis.__RN_DEBUG_EVIDENCE) return;
-  console.log(`MAP_FIT ${JSON.stringify({ stage, ...detail })}`);
-}
-
 function evidenceStage(stage, detail = {}) {
   if (!globalThis.__RN_DEBUG_EVIDENCE) return;
   console.log(`sourceEvidence:${stage} ` + JSON.stringify({ at: Date.now(), ...detail }));
@@ -1075,7 +1067,7 @@ function caption(state) {
   const roads = state.roadsByCandidate[selected.id] ?? [];
   const parts = [`${(selected.corridor.lengthM / 1609.344).toFixed(1)} mi`, roads.length ? roadSourceLabel(roads) : 'road source unavailable'];
   if (selected.corridor.maxUnresolvedGapM) parts.push(`${Math.round(selected.corridor.maxUnresolvedGapM)} m source gap shown, not bridged`);
-  return `${parts.join(' · ')} · no basemap; ecological context is listed in the evidence panel.`;
+  return `${parts.join(' · ')} · ecological context is listed in the evidence panel.`;
 }
 
 // OUTING NOTES use the same debounce as candidate notes: a plan's prose is written once a person pauses, not on
@@ -1258,9 +1250,7 @@ store.subscribe(state => {
     pending: discoveryFit.pending() != null, hasGeometry: drawn.corridors.length > 0,
     visible: discoveryLayer?.corridors?.length ?? 0, results: state.discovery.results.length,
     rendered: drawn.corridors.length };
-  mapFitStage('consume', mapFit);
   if (discoveryFit.consume({ hasGeometry: mapFit.hasGeometry })) {
-    mapFitStage('fit', { identity: mapFit.identity, rendered: mapFit.rendered });
     map.fitResults();
   }
 });

@@ -35,7 +35,7 @@ test('benchmark derived regional discovery at 10, 25, and 50 miles', async ({ pa
     const { runDiscovery } = await import('/src/discovery/run.js');
     const { filterResults, sortResults, DEFAULT_FILTERS } = await import('/src/discovery/filter.js');
     const { renderDiscovery } = await import('/src/ui/discovery.js');
-    const { createCorridorMap } = await import('/src/map/corridor-map.js');
+    const { createGeoView } = await import('/src/map/geo-view.js');
     const { MAX_RESULT_ROWS } = await import('/src/discovery/constants.js');
     const heapMb = () => (performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null);
       const searchArea = { id: `derived-${scenario.id}`, name: `${scenario.label} (derived)`, kind: 'radius',
@@ -57,17 +57,24 @@ test('benchmark derived regional discovery at 10, 25, and 50 miles', async ({ pa
         renderDiscovery(table, { discovery: { ...run, filters: DEFAULT_FILTERS, sort: 'wetlandArea250',
           selectedId: null }, searchAreas: [searchArea], searchAreaId: searchArea.id });
         const renderMs = Math.round(performance.now() - renderStarted);
+        // The product's own geographic view, on screen at a real size with its tile layer off: the schematic stand-in
+        // is gone, so the map leg of this measurement is the renderer the application runs.
         const mapContainer = document.createElement('div');
-        const map = createCorridorMap(mapContainer);
+        mapContainer.style.cssText = 'width:900px;height:520px';
+        document.body.append(mapContainer);
+        const map = createGeoView(mapContainer, { provider: null });
         const mapStarted = performance.now();
-        map.draw({ discovery: { corridors: view.map(result => ({ id: result.id, name: result.name,
-          geometry: result.geometry })), selectedId: null, promotedIds: [] } });
+        map.draw({ corridors: view.map(result => ({ id: result.id, name: result.name, geometry: result.geometry,
+          distanceFromCenterM: result.distanceFromCenterM ?? null })), selectedId: null });
         const mapMs = Math.round(performance.now() - mapStarted);
+        const mapPathCount = mapContainer.querySelectorAll('path[data-role="candidate"][data-corridor-id]').length;
+        map.destroy?.();
+        mapContainer.remove();
         const totalMs = Math.round(performance.now() - started);
         const diagnostics = run.diagnostics ?? {};
         const timing = diagnostics.derivedTimingMs ?? {};
         passes.push({ pass, totalMs, discoveryMs, renderMs, mapMs, filterMs, sortMs,
-          mapPaths: mapContainer.querySelectorAll('.discovery-corridor').length,
+          mapPaths: mapPathCount,
           tableRows: table.querySelectorAll('tbody tr').length,
           classification: null, derived: Boolean(run.derived), cellsSelected: diagnostics.derivedSelection?.cells?.cells ?? null,
           cellsPresent: diagnostics.derivedSelection?.cells?.present ?? null, cellsEmpty: diagnostics.derivedSelection?.cells?.empty ?? null,
