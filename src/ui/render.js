@@ -83,7 +83,7 @@ function restoreNoteDraft(draft) {
 
 export function renderDetail(container, candidate, onDecide, { ecology = null, roads = [], habitat = null, occurrence = null, onQueryOccurrence = null,
   investigation = null, access = null, onRunAccess = null, onExportBundle = null, onReviewAccess = null, recordedCaptureAt = null, liveOsm = false,
-  workerStatus = null, workerUrl = '', declaredSourceCount = null, restored = false, persisted = false, storage = null,
+  workerStatus = null, workerUrl = '', hasDeclaredSources = null, investigatorFeature = null, restored = false, persisted = false, storage = null,
   userMeta = null, onRunAnalysis = null, onRemove = null, onFavorite = null, onNote = null, outingsUsing = 0,
   onRequestSourceEvidence = null } = {}) {
   // The note draft (text, caret and focus) is taken before the panel is replaced and put back afterwards.
@@ -124,9 +124,9 @@ export function renderDetail(container, candidate, onDecide, { ecology = null, r
   // implies access, and access never borrows habitat or occurrence language.
   const accessEvidence = access ?? investigation?.access ?? null;
   const accessOptions = { onRun: onRunAccess, onExport: onExportBundle, onReview: onReviewAccess, recordedCaptureAt, liveOsm,
-    workerStatus, workerUrl, declaredSourceCount };
+    workerStatus, workerUrl, hasDeclaredSources, investigatorFeature };
   container.append(investigation ? renderAccessSection({ ...investigation, access: accessEvidence }, accessOptions)
-    : renderAccessSection(null, { onRun: onRunAccess, recordedCaptureAt, liveOsm, workerStatus, workerUrl, declaredSourceCount }));
+    : renderAccessSection(null, { onRun: onRunAccess, recordedCaptureAt, liveOsm, workerStatus, workerUrl, hasDeclaredSources, investigatorFeature }));
   container.append(renderInvestigationSection(investigation ? { ...investigation, access: accessEvidence } : null, { onReview: onReviewAccess, onExport: onExportBundle, candidateId: candidate.id }));
   const evidenceSection = section('Evidence trail');
   const list = el('ul', 'evidence-list');
@@ -890,15 +890,25 @@ function evidenceBlock(title, items, { sign = '', className = '' } = {}) {
 // contradictions, and the unresolved list are visible; the stage log, every source check, and the adversarial
 // checklist live behind disclosure elements.
 export function renderAccessSection(investigation, { onRun = null, onExport = null, onReview = null, recordedCaptureAt = null, liveOsm = false,
-  workerStatus = null, workerUrl = '', declaredSourceCount = null } = {}) {
+  workerStatus = null, workerUrl = '', hasDeclaredSources = null, investigatorFeature = null } = {}) {
   const node = section('Access & road status');
   node.classList.add('access-section');
   node.append(el('span', 'tag unknown', 'ACCESS EVIDENCE'));
   // A corridor discovered by candidate discovery has no reviewed research sources until a reviewer
   // declares them. That is expected, not an error: access stays UNVERIFIED and the panel says so.
-  if (declaredSourceCount === 0) {
+  // `null` means the question does not apply yet (nothing selected), and no claim is made.
+  if (hasDeclaredSources === false) {
     node.append(el('p', 'small muted', 'No reviewed research sources are declared for this corridor. Access verification is UNVERIFIED; '
       + 'community mapping can still be replayed, and a reviewer can declare official sources for it later.'));
+  }
+  // THE FEATURE IS LOADED ON REQUEST, so the request has three honest states: still arriving, here, or failed. A
+  // failed load is not a finding about the road - ordinary discovery, ranking and the map are unaffected - and the
+  // run control below is what retries it.
+  if (investigatorFeature?.status === 'loading') {
+    node.append(el('p', 'small muted', 'Loading the Investigator feature…'));
+  } else if (investigatorFeature?.status === 'failed') {
+    node.append(el('p', 'small warn-text', `The Investigator feature could not be loaded (${investigatorFeature.reason}). `
+      + 'Access research is unavailable until it loads; discovery, ranking and the map are unaffected. Run the investigation again to retry.'));
   }
   const boundary = researchBoundaryLine(workerStatus, workerUrl, recordedCaptureAt);
   if (!investigation) {

@@ -14,7 +14,8 @@
   <link rel="stylesheet" href="assets/css/habitat.css">
   <link rel="stylesheet" href="assets/css/discovery.css">
   <link rel="stylesheet" href="assets/css/occurrence.css">
-  <link rel="stylesheet" href="assets/css/investigator.css">
+  <!-- assets/css/investigator.css is NOT linked here: it belongs to the Investigator feature, which src/app/main.js
+       loads on request (see requestInvestigatorStyles). An ordinary visit must not download it. -->
   <script>
     // If this page cannot load its application module - a dropped connection, a blocked script, a proxy in the
     // way - say so where the workspace would have been, instead of leaving a page of headings that looks like a

@@ -36,7 +36,8 @@ export function createStore({ storage } = {}) {
     bytes: 0, skipped: Object.freeze([]), reason: null });
   const initialCandidateStorage = Object.freeze({ status: CANDIDATE_STORAGE_STATUS.EMPTY, savedAt: null,
     persisted: 0, bytes: 0, skipped: Object.freeze([]), reason: null });
-  let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, durableCandidateIds: Object.freeze([]), restoredCandidateIds: Object.freeze([]),
+  const initialInvestigatorFeature = Object.freeze({ status: 'idle', reason: null });
+  let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, investigatorFeature: initialInvestigatorFeature, durableCandidateIds: Object.freeze([]), restoredCandidateIds: Object.freeze([]),
     userMetaById: Object.freeze({}), savedRoads: initialSavedRoads, candidateStorage: initialCandidateStorage,
     outings: initialOutings, outingStorage: initialOutingStorage, outingSelection: Object.freeze([]), selectedOutingId: null,
     discovery: initialDiscovery, search: initialSearch });
@@ -105,7 +106,10 @@ export function createStore({ storage } = {}) {
         occurrenceByCandidate: dropEntries(state.occurrenceByCandidate, loadedIds),
         occurrenceOverlay: loadedIds.has(state.occurrenceOverlay?.candidateId) ? null : state.occurrenceOverlay,
         investigationByCandidate: dropEntries(state.investigationByCandidate, loadedIds),
-        accessReviewByCandidate: dropEntries(state.accessReviewByCandidate, loadedIds), liveOsm: false, workerStatus: null });
+        accessReviewByCandidate: dropEntries(state.accessReviewByCandidate, loadedIds), liveOsm: false, workerStatus: null,
+        // The Investigator feature is a load boundary, not a per-corridor result: what it has loaded is remembered
+        // across pilot loads. Its status is reset only where the feature itself is reset.
+        investigatorFeature: initialInvestigatorFeature });
     },
     // DISCOVERY. A discovery run is its own state: its results are lightweight summaries with explicit
     // coverage, and they stay separate from the candidates until a person promotes one.
@@ -227,6 +231,9 @@ export function createStore({ storage } = {}) {
     // finding) is decided where that knowledge lives, in src/app/main.js, and arrives as `access.previousRun`.
     setInvestigationResult(id, result) { if (!state.candidates.some(candidate => candidate.id === id)) return; publish({ ...state, investigationByCandidate: { ...state.investigationByCandidate, [id]: result } }); },
     setWorkerStatus(workerStatus) { publish({ ...state, workerStatus }); },
+    // Whether the Investigator feature has been asked for, is arriving, or could not be loaded. Ordinary discovery,
+    // ranking and map use read none of this; it exists so an explicit request can be reported honestly.
+    setInvestigatorFeature(patch) { publish({ ...state, investigatorFeature: Object.freeze({ ...state.investigatorFeature, ...patch }) }); },
     setAccessReview(id, review) { if (!state.candidates.some(candidate => candidate.id === id)) return; publish({ ...state, accessReviewByCandidate: { ...state.accessReviewByCandidate, [id]: review } }); },
     select(id) { if (!state.candidates.some(candidate => candidate.id === id)) throw new Error('Unknown candidate'); publish({ ...state, selectedId: id, habitatOverlay: null, occurrenceOverlay: null }); },
     decide(id, status) {

@@ -225,6 +225,10 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       let drawn = 0;
       let skipped = 0;
       let markedPaths = 0;
+      // COUNTED FOR THIS PAINT. A container census alone cannot tell "this paint drew nothing" from "this paint's
+      // paths carry no identity": an empty results paint used to log `identified: 0` and read as a defect in the
+      // stamping. `identifiedDrawn` is the number this paint actually stamped, so the two cases are distinct here.
+      let identifiedDrawn = 0;
       const pathAudit = [];
       for (const corridor of entries) {
         const lines = toLatLngs(corridor.geometry);
@@ -264,6 +268,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
           if (typeof path.on === 'function') path.on('add', decorate);
           layer.addLayer(path);
           const marked = decorate();
+          if (marked) { markedPaths += 1; identifiedDrawn += 1; }
           // TEMPORARY (this task): why the metadata does or does not land, asked of the object itself.
           if (globalThis.__RN_DEBUG_EVIDENCE && pathAudit.length < 3) {
             pathAudit.push({ id: corridor.id, getElement: typeof path.getElement, element: Boolean(path.getElement?.()),
@@ -277,10 +282,12 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       if (globalThis.__RN_DEBUG_EVIDENCE) {
         const inDom = typeof window !== 'undefined' && window.document
           ? window.document.querySelectorAll('#map path').length : -1;
+        // The attribute the map really stamps is data-corridor-id (see attributeName/mark); the census reports that
+        // one thing, and `identifiedDrawn` says whether *this* paint's paths were stamped.
         const identified = typeof window !== 'undefined' && window.document
           ? window.document.querySelectorAll('#map path[data-corridor-id]').length : -1;
         console.log('MAP_PATH ' + JSON.stringify({ layer: layer === layers.results ? 'results' : 'other', drawn, skipped,
-          markedPaths, domPaths: inDom, identified, sample: pathAudit }));
+          markedPaths, identifiedDrawn, emptyPaint: drawn === 0, domPaths: inDom, domIdentified: identified, sample: pathAudit }));
       }
       return { drawn, skipped };
     }

@@ -25,7 +25,10 @@ async function openPilot(page, corridorName) {
     await page.reload();
     await expect(page.locator('#candidate-list')).toContainText(READY, { timeout: 90000 });
   }
-  await page.getByRole('button', { name: /Open Oregon road pilot/ }).click();
+  // THE BUTTON'S REAL LABEL. The copy became "Open the road pilot (demo area)" in d9d0bb4, after this helper was
+  // written; the older label this file used to match no longer exists, so the step waited for a button that is not
+  // there. (Other spec files still carry the retired string; that is a separate, project-wide clean-up.)
+  await page.getByRole('button', { name: /Open the road pilot/ }).click();
   // Wait for the whole pilot, not just the requested card: the list renders after the road query resolves.
   await expect(page.locator('.candidate-card')).toHaveCount(3, { timeout: 90000 });
   // Opening the pilot selects the first corridor; select the one under test through its candidate card.
@@ -59,6 +62,63 @@ test('access stays unverified and untouched until the reader asks for the invest
   // The road panel keeps saying geometry is not access.
   await expect(page.locator('#candidate-detail')).toContainText('ACCESS UNVERIFIED');
   await expect(page.locator('#candidate-detail')).not.toContainText('VERIFIED PUBLIC');
+});
+
+// THE INVESTIGATOR IS A LAZY FEATURE, AND THIS IS THE NETWORK TRANSITION THAT PROVES IT: ordinary discovery, pilot,
+// selection, map and detail work load none of it, and the explicit request loads all of it.
+const INVESTIGATOR_RESOURCE = /\/src\/investigator\/|assets\/css\/investigator\.css|data\/investigator\/probe-catalog/;
+
+test('the Investigator feature is not loaded until it is asked for, and the asking loads it', async ({ page }) => {
+  const investigatorRequests = [];
+  page.on('request', request => { if (INVESTIGATOR_RESOURCE.test(request.url())) investigatorRequests.push(request.url()); });
+  await openPilot(page, 'NW Cornelius Pass Rd');
+  const section = page.locator('.access-section');
+  // Ordinary use: the pilot is open, a corridor is selected, its detail is rendered - and none of it is Investigator.
+  await expect(section).toContainText('ACCESS EVIDENCE');
+  await expect(page.locator('.investigation-section')).toContainText('has not run for this corridor');
+  expect(investigatorRequests, 'ordinary use must request no Investigator module, catalog or stylesheet').toEqual([]);
+  const stylesBefore = await page.evaluate(() => [...document.querySelectorAll('link[rel=stylesheet]')]
+    .map(link => link.getAttribute('href')));
+  expect(stylesBefore.some(href => /investigator\.css/.test(href ?? '')), 'and must not be styled by the feature').toBe(false);
+
+  // The explicit request is what loads the feature: its modules, its declared catalog, and its stylesheet.
+  await section.getByRole('button', { name: 'Run access investigation' }).click();
+  await expect(section.locator('.access-finding-label')).toBeVisible({ timeout: 60000 });
+  expect(investigatorRequests.some(url => /src\/investigator\/feature\.js/.test(url)), 'the feature boundary is fetched').toBe(true);
+  expect(investigatorRequests.some(url => /data\/investigator\/probe-catalog\.json/.test(url)), 'with its declared sources').toBe(true);
+  expect(investigatorRequests.some(url => /assets\/css\/investigator\.css/.test(url)), 'and its styling').toBe(true);
+  const stylesAfter = await page.evaluate(() => [...document.styleSheets]
+    .map(sheet => sheet.href ?? '').filter(Boolean));
+  expect(stylesAfter.some(href => /investigator\.css/.test(href)), 'which is now applied to the document').toBe(true);
+});
+
+test('a feature that cannot load is reported honestly, leaves the application usable, and can be retried', async ({ page }) => {
+  await page.route('**/src/investigator/feature.js', route => route.abort());
+  await openPilot(page, 'NW Cornelius Pass Rd');
+  const section = page.locator('.access-section');
+  const detail = page.locator('#candidate-detail');
+  await section.getByRole('button', { name: 'Run access investigation' }).click();
+  // The failure is reported as a feature that did not load - not as a finding about the road.
+  await expect(section).toContainText('The Investigator feature could not be loaded', { timeout: 60000 });
+  await expect(section).toContainText('discovery, ranking and the map are unaffected');
+  await expect(section).not.toContainText('ACCESS VERIFIED');
+  // The ordinary workspace is intact: the corridor is still selected and its detail is still rendered.
+  await expect(detail).toContainText('NW Cornelius Pass Rd');
+  await expect(page.locator('#candidate-list')).toContainText('NW Cornelius Pass Rd');
+  await expect(page.locator('.map-panel')).toBeVisible();
+  // The run control is still there: a failed load can be asked for again from the UI, and the loader does re-attempt
+  // rather than replay a remembered rejection - asserted where it can be stated exactly, in
+  // tests/feature-loader.test.js. A *browser* may remember a failed module fetch for the life of the document, which
+  // is the browser's business and not something the application can promise away, so the recovery proved here is the
+  // one a person actually has: with the boundary healthy again, asking afresh loads the feature and the investigation
+  // runs.
+  await expect(section.getByRole('button', { name: 'Run access investigation' })).toBeEnabled();
+  await page.unroute('**/src/investigator/feature.js');
+  await openPilot(page, 'NW Cornelius Pass Rd');
+  const recovered = page.locator('.access-section');
+  await recovered.getByRole('button', { name: 'Run access investigation' }).click();
+  await expect(recovered.locator('.access-finding-label')).toBeVisible({ timeout: 60000 });
+  await expect(recovered).not.toContainText('could not be loaded');
 });
 
 test('a corridor with an active closure shows it as the finding, with provenance, contradictions, and an export', async ({ page }) => {

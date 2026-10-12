@@ -1,11 +1,11 @@
-/* ACCESS & ROAD STATUS + INVESTIGATION RECORD.
+/* ACCESS & ROAD STATUS + INVESTIGATION RECORD — THE INVESTIGATOR'S OWN VOCABULARY.
    Access evidence is its own visual class: a finding is never styled like a habitat measurement, and a
-   contradiction is never styled as a footnote. */
+   contradiction is never styled as a footnote.
 
-.access-section,
-.investigation-section {
-  border-left: 3px solid var(--line, #3c4a45);
-}
+   THIS STYLESHEET IS LAZY. It is not linked from index.html: src/app/main.js adds the <link> when the Investigator
+   feature is first requested (see requestInvestigatorStyles), so an ordinary visit never downloads it. The two rules
+   the ordinary candidate detail needs - the section border and the run-button row - live in assets/css/components.css
+   instead; everything else here belongs to surfaces that only exist once the feature is loaded. */
 
 .access-finding {
   border-radius: 10px;
@@ -42,9 +42,6 @@
 .access-unresolved { margin: 0.3rem 0 0; padding-left: 1.1rem; }
 .access-unresolved li { margin-bottom: 0.25rem; }
 
-.access-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.6rem 0; }
-.access-actions .primary-button, .access-actions .quiet-button { flex: 0 0 auto; }
-
 .stage-list { list-style: none; margin: 0.3rem 0 0; padding: 0; }
 .stage-list .stage { border-left: 2px solid var(--line, #3c4a45); padding: 0.3rem 0 0.3rem 0.6rem; margin-bottom: 0.35rem; }
 .stage-list .stage.complete { border-left-color: #4f8a6b; }
@@ -71,7 +68,5 @@
 .human-review .review-note { width: 100%; margin-top: 0.4rem; background: #14201d; color: inherit; border: 1px solid var(--line, #3c4a45); border-radius: 8px; padding: 0.4rem 0.5rem; font: inherit; }
 
 @media (max-width: 700px) {
-  .access-actions { flex-direction: column; align-items: stretch; }
-  .access-actions .primary-button, .access-actions .quiet-button { width: 100%; }
   .access-finding-label { font-size: 1.05rem; }
 }

@@ -11,14 +11,14 @@ import { buildPilotCandidates, pilotRoadIds, roadSourceLabel, validatePilot } fr
 import { roadEvidenceSummary } from '../roads/road.js';
 import { createOccurrenceService } from '../occurrence/service.js';
 import { COVERAGE_DATASETS, summarizeOccurrences } from '../occurrence/context.js';
-import { createInvestigatorService } from '../investigator/service.js';
-import { RETRIEVAL_MODE, createWorkerResearchTransport, probeAvailability, retrievalModeCounts } from '../investigator/worker-transport.js';
-import { buildProbeBaseline, baselineIndex, compareProbeEvidence, summarizeDrift } from '../investigator/drift.js';
+// THE INVESTIGATOR IS NOT IN THE ORDINARY APPLICATION'S IMPORT GRAPH.
+//
+// Access research is a deeper workflow a person asks for, so the feature arrives when it is asked for and not before:
+// `src/investigator/feature.js` is the one public boundary, and it is loaded dynamically. Nothing under
+// src/investigator/ may be imported statically from here - tests/investigator-boundary.test.js walks this module's
+// static graph and fails if that changes.
+import { createFeatureLoader } from './feature-loader.js';
 import { INVESTIGATOR_WORKER_URL } from './config.js';
-import { createResearchService, createRecordedTransport, createLiveResearchTransport } from '../investigator/research.js';
-import { BROWSER_MIRRORS, createOsmSource, createRecordedOsmSource } from '../investigator/osm.js';
-import { PILOT_PROBES_BY_CORRIDOR } from '../investigator/sources.js';
-import { buildCorridorBundle } from '../investigator/bundle.js';
 import { runDiscovery } from '../discovery/run.js';
 import { verifyDerivedPromotion } from '../discovery/promotion.js';
 import { buildDiscoveryUnits } from '../discovery/units.js';
@@ -97,7 +97,9 @@ function ensurePlaceTier(tier) {
 // The reviewed operator capture of official-source research, replayed offline. The browser cannot crawl county
 // sites (they send no CORS header) and must not depend on a live Overpass mirror, so it replays this record and
 // offers a live OpenStreetMap re-check as an explicit, separate action.
-const ACCESS_EVIDENCE_URL = new URL('../../data/investigator/or-pilot-access-evidence.json', import.meta.url);
+//
+// WHERE THAT CAPTURE LIVES IS THE FEATURE'S BUSINESS, not the shell's: the URL arrives with the Investigator feature
+// (see src/investigator/feature.js) and is used only after the feature has been loaded for an explicit request.
 // Origins a browser cannot fetch: recorded evidence for them is replayed as OPERATOR_ONLY, never as a fresh check.
 const OPERATOR_ONLY_ORIGINS = Object.freeze(['https://www.washingtoncountyor.gov', 'https://content.govdelivery.com', 'https://multco.us', 'https://www.wc-roads.com']);
 const store = createStore();
@@ -833,11 +835,64 @@ async function toggleOccurrenceOverlay(enabled) {
 // ACCESS INVESTIGATION. Explicitly requested, like occurrence evidence: nothing is fetched on load or on a
 // corridor switch. Official sources replay the reviewed operator capture; OpenStreetMap is replayed from that
 // capture by default and queried live only when the reader asks for it.
+//
+// THE FEATURE ITSELF IS PART OF THAT EXPLICITNESS. The Investigator's modules, its probe catalog and its stylesheet
+// are not loaded by the application at all: the first request for access research loads the feature boundary, and
+// every later request reuses what was loaded. A load that fails is reported and can be attempted again.
+const investigatorFeature = createFeatureLoader({ name: 'investigator access research',
+  load: () => import('../investigator/feature.js') });
+let investigatorStylesRequested = false;
+
+// The feature's styling travels with the feature, not with the page: an ordinary visit never requests it.
+function requestInvestigatorStyles() {
+  if (investigatorStylesRequested || typeof document === 'undefined' || !document.head) return;
+  investigatorStylesRequested = true;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = new URL('../../assets/css/investigator.css', import.meta.url).href;
+  link.dataset.feature = 'investigator';
+  document.head.append(link);
+}
+
+// Loaded once, reported honestly, retryable. Ordinary discovery, ranking, map use and candidate detail are untouched
+// by any of this: they never call it.
+async function loadInvestigatorFeature() {
+  requestInvestigatorStyles();
+  store.setInvestigatorFeature({ status: 'loading', reason: null });
+  try {
+    const feature = await investigatorFeature.load();
+    store.setInvestigatorFeature({ status: 'ready', reason: null });
+    return feature;
+  } catch (error) {
+    const reason = error?.message ?? 'the feature module could not be loaded';
+    store.setInvestigatorFeature({ status: 'failed', reason });
+    throw new Error(`The Investigator feature could not be loaded (${reason}). Access research is unavailable; `
+      + 'discovery, ranking and the map are unaffected. Run the investigation again to retry.');
+  }
+}
+
 let accessRecord = null;
 let accessRecordError = null;
-async function loadAccessRecord() {
+
+// WHICH CORRIDORS HAVE REVIEWED RESEARCH SOURCES IS ANSWERED WITHOUT THE INVESTIGATOR.
+//
+// A source is declared for a corridor by the reviewed probe catalog, which is Investigator data and must not be
+// loaded by ordinary use. What ordinary use does have is the pilot declaration — the corridors this application is
+// built around — and the catalog declares sources for exactly those corridors
+// (tests/investigator-boundary.test.js asserts the two lists agree and that each declared corridor has at least one
+// probe, so this derivation cannot drift quietly). A corridor that discovery promoted is not in the pilot
+// declaration, and its access stays UNVERIFIED with no declared sources: the same statement the panel has always
+// made for those corridors, now made from data the workspace already holds.
+const declaredResearchCorridorIds = new Set();
+
+// null means "there is no candidate to ask about"; false means the reviewed plan declares no source for it.
+function hasDeclaredResearchSources(candidateId) {
+  if (!candidateId) return null;
+  return declaredResearchCorridorIds.has(candidateId);
+}
+async function loadAccessRecord(feature) {
   if (accessRecord || accessRecordError) return accessRecord;
-  try { accessRecord = await fetchJson(ACCESS_EVIDENCE_URL); } catch (error) { accessRecordError = error.message; }
+  try { accessRecord = await fetchJson(feature.ACCESS_EVIDENCE_URL); } catch (error) { accessRecordError = error.message; }
   return accessRecord;
 }
 
@@ -845,26 +900,26 @@ async function loadAccessRecord() {
 // research goes through the Road Naturalist Worker boundary when this build is configured with one. The choice is
 // made by asking the boundary what it declares (no source is contacted), and whichever path runs is recorded in the
 // result so nothing reads as a fresh check when it was a replay.
-async function chooseResearchPath(candidateId) {
-  const probes = PILOT_PROBES_BY_CORRIDOR[candidateId] ?? [];
+async function chooseResearchPath(candidateId, feature) {
+  const probes = feature.PILOT_PROBES_BY_CORRIDOR[candidateId] ?? [];
   const corridorRecord = accessRecord?.corridors?.[candidateId] ?? null;
   const recordedRun = corridorRecord ? { ...corridorRecord, capturedAt: accessRecord.capturedAt ?? null } : null;
-  const recordedProbes = (corridorRecord?.probes ?? []).map(probe => buildProbeBaseline(probe.probeId, { capturedAt: accessRecord?.capturedAt ?? null,
+  const recordedProbes = (corridorRecord?.probes ?? []).map(probe => feature.buildProbeBaseline(probe.probeId, { capturedAt: accessRecord?.capturedAt ?? null,
     outcome: probe.outcome ?? null, facts: probe.evidence ?? [], sourceUrl: probe.searched?.url ?? null }));
   let availability = { available: false, reason: 'no investigator Worker is configured for this build', worker: null, probeIds: [] };
-  if (INVESTIGATOR_WORKER_URL) availability = await probeAvailability({ baseUrl: INVESTIGATOR_WORKER_URL, fetchImpl: fetch });
+  if (INVESTIGATOR_WORKER_URL) availability = await feature.probeAvailability({ baseUrl: INVESTIGATOR_WORKER_URL, fetchImpl: fetch });
   if (INVESTIGATOR_WORKER_URL) store.setWorkerStatus(Object.freeze({ url: INVESTIGATOR_WORKER_URL, available: availability.available,
     reason: availability.reason, worker: availability.worker ?? null, probeIds: Object.freeze([...(availability.probeIds ?? [])]), checkedAt: new Date().toISOString() }));
   const live = INVESTIGATOR_WORKER_URL && availability.available;
   return { probes, recordedRun, recordedProbes, availability, live,
-    transport: live ? createWorkerResearchTransport({ baseUrl: INVESTIGATOR_WORKER_URL, fetchImpl: fetch, recordedProbes })
-      : createRecordedTransport({ record: recordedRun, browserOrigins: OPERATOR_ONLY_ORIGINS }),
+    transport: live ? feature.createWorkerResearchTransport({ baseUrl: INVESTIGATOR_WORKER_URL, fetchImpl: fetch, recordedProbes })
+      : feature.createRecordedTransport({ record: recordedRun, browserOrigins: OPERATOR_ONLY_ORIGINS }),
     environment: live ? 'browser/live Worker boundary' : 'browser/recorded operator run' };
 }
 
-function investigatorFor(candidateId, { liveOsm = false, path }) {
-  const research = createResearchService({ transport: path.transport, probes: path.probes });
-  return createInvestigatorService({ osmSource: osmSourceFor(candidateId, liveOsm), research, probes: path.probes,
+function investigatorFor(candidateId, { liveOsm = false, path, feature }) {
+  const research = feature.createResearchService({ transport: path.transport, probes: path.probes });
+  return feature.createInvestigatorService({ osmSource: osmSourceFor(candidateId, liveOsm, feature), research, probes: path.probes,
     record: path.recordedRun, environment: `${path.environment}${liveOsm ? ' + live OpenStreetMap' : ''}` });
 }
 
@@ -891,8 +946,9 @@ function driftSummaryOf(investigation) {
       : 'No source differs from the reviewed baseline.' });
 }
 
-function osmSourceFor(candidateId, liveOsm) {
-  return liveOsm ? createOsmSource({ mirrors: BROWSER_MIRRORS, requireCors: true }) : createRecordedOsmSource({ record: accessRecord, corridorId: candidateId });
+function osmSourceFor(candidateId, liveOsm, feature) {
+  return liveOsm ? feature.createOsmSource({ mirrors: feature.BROWSER_MIRRORS, requireCors: true })
+    : feature.createRecordedOsmSource({ record: accessRecord, corridorId: candidateId });
 }
 
 // One investigation run. The path is chosen first (Worker boundary or reviewed capture), and the result records which
@@ -902,27 +958,29 @@ async function resolveAccess(id, { refresh = false, liveOsm = false } = {}) {
   const state = store.getState();
   const candidate = state.candidates.find(item => item.id === id);
   if (!candidate) return;
+  // An answer this session already has is an answer: no feature load is performed to re-derive it.
   if (state.investigationByCandidate[id] && !refresh) return;
-  await loadAccessRecord();
+  const feature = await loadInvestigatorFeature();
+  await loadAccessRecord(feature);
   const roads = state.roadsByCandidate[id] ?? [];
   const prior = state.investigationByCandidate[id] ?? null;
-  const path = await chooseResearchPath(id);
+  const path = await chooseResearchPath(id, feature);
   const evidence = { ecology: state.ecologyByCandidate[id] ?? null, habitat: state.habitatByCandidate[id] ?? null,
     occurrence: state.occurrenceByCandidate[id] ?? null };
-  let investigation = await investigatorFor(id, { liveOsm, path }).investigate({ candidate, roads, evidence });
+  let investigation = await investigatorFor(id, { liveOsm, path, feature }).investigate({ candidate, roads, evidence });
   let fallback = null;
   if (path.live && (investigation.access?.coverage?.probeSummary?.answered ?? 0) === 0 && path.recordedRun) {
     // The boundary is unreachable for every source, and a reviewed capture exists: replay it, and say so.
-    const recordedPath = { ...path, live: false, transport: createRecordedTransport({ record: path.recordedRun, browserOrigins: OPERATOR_ONLY_ORIGINS }),
+    const recordedPath = { ...path, live: false, transport: feature.createRecordedTransport({ record: path.recordedRun, browserOrigins: OPERATOR_ONLY_ORIGINS }),
       environment: 'browser/recorded operator run (live Worker unreachable)' };
-    const replayed = await investigatorFor(id, { liveOsm, path: recordedPath }).investigate({ candidate, roads, evidence });
+    const replayed = await investigatorFor(id, { liveOsm, path: recordedPath, feature }).investigate({ candidate, roads, evidence });
     fallback = Object.freeze({ from: path.transport.id, to: recordedPath.transport.id,
       reason: `no source answered through the Worker boundary (${path.availability.reason ?? 'unavailable'})`, attemptedAt: investigation.ranAt });
     investigation = Object.freeze({ ...replayed, transportFallback: fallback });
   }
   const previousRun = previousRunSummary(prior, investigation);
   const drift = driftSummaryOf(investigation);
-  const modes = retrievalModeCounts(investigation.research.probes);
+  const modes = feature.retrievalModeCounts(investigation.research.probes);
   store.setInvestigationResult(id, Object.freeze({ ...investigation,
     access: Object.freeze({ ...investigation.access, previousRun, driftSummary: drift, retrievalModes: modes }) }));
   store.setCoverage(id, COVERAGE_DATASET.ACCESS_VERIFICATION, { coverage: investigation.access.coverage.coverage, reason: investigation.access.coverage.reason });
@@ -968,10 +1026,11 @@ async function exportBundle(candidateId = null) {
   const state = store.getState();
   const candidate = state.candidates.find(item => item.id === (candidateId ?? state.selectedId));
   if (!candidate) return;
-  await loadAccessRecord();
+  const feature = await loadInvestigatorFeature();
+  await loadAccessRecord(feature);
   const investigation = state.investigationByCandidate[candidate.id] ?? null;
   const review = state.accessReviewByCandidate[candidate.id] ?? null;
-  const bundle = buildCorridorBundle({
+  const bundle = feature.buildCorridorBundle({
     candidate, roads: state.roadsByCandidate[candidate.id] ?? [], ecology: state.ecologyByCandidate[candidate.id] ?? null,
     habitat: state.habitatByCandidate[candidate.id] ?? null, occurrence: state.occurrenceByCandidate[candidate.id] ?? null,
     investigation: investigation && review ? { ...investigation, access: { ...investigation.access, human: review } } : investigation,
@@ -1154,7 +1213,7 @@ store.subscribe(state => {
     onRunAccess: options => requestAccess(options), onExportBundle: () => { exportBundle().catch(error => reportAccessNote(error.message)); },
     onReviewAccess: review => recordAccessReview(review), recordedCaptureAt: accessRecord?.capturedAt ?? null, liveOsm: state.liveOsm,
     workerStatus: state.workerStatus, workerUrl: INVESTIGATOR_WORKER_URL,
-    declaredSourceCount: (PILOT_PROBES_BY_CORRIDOR[selected?.id] ?? []).length });
+    investigatorFeature: state.investigatorFeature, hasDeclaredSources: hasDeclaredResearchSources(selected?.id) });
   renderContext(nodes.context, { manifest, pilotLoaded: state.pilotLoaded, error: manifestError, coverage: selected?.coverage, roadQuery: state.roadQuery, places });
   // The discovery workspace renders from its own state slice, so a candidate interaction never
   // rebuilds a bounded result table.
@@ -1328,6 +1387,9 @@ async function openPilot() {
   nodes.load.disabled = true;
   try {
     const declaration = validatePilot(await fetchJson(PILOT_URL));
+    // The reviewed research plan covers the corridors the pilot declaration names; recording them here keeps the
+    // ordinary access panel able to answer "is any source declared for this corridor?" without the Investigator.
+    for (const id of declaration.candidates.map(candidate => candidate.id)) declaredResearchCorridorIds.add(id);
     const roadQuery = await gis.queryRoads({ roadIds: pilotRoadIds(declaration) });
     if (roadQuery.coverage === COVERAGE.UNKNOWN) {
       store.setRoadQuery({ status: 'unavailable', coverage: roadQuery.coverage, reason: roadQuery.reason, provenance: null, missingRoadIds: [], note: roadQuery.note });
