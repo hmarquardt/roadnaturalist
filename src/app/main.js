@@ -18,6 +18,7 @@ import { COVERAGE_DATASETS, summarizeOccurrences } from '../occurrence/context.j
 // src/investigator/ may be imported statically from here - tests/investigator-boundary.test.js walks this module's
 // static graph and fails if that changes.
 import { createFeatureLoader } from './feature-loader.js';
+import { habitatNote, habitatSelection } from './habitat-selection.js';
 import { INVESTIGATOR_WORKER_URL } from './config.js';
 import { runDiscovery } from '../discovery/run.js';
 import { verifyDerivedPromotion } from '../discovery/promotion.js';
@@ -771,17 +772,22 @@ function habitatReason(habitat, datasetId) {
 
 async function toggleHabitatOverlay(enabled) {
   const state = store.getState();
-  const candidate = state.candidates.find(item => item.id === state.selectedId);
-  if (!enabled || !candidate) { store.setHabitatOverlay(null); return; }
+  // THE CORRIDOR THE PERSON IS LOOKING AT, which is either a promoted candidate or the discovery result the map is
+  // drawing. Reading only the candidate list is what made this action do nothing at all for a discovery corridor.
+  const candidate = state.candidates.find(item => item.id === state.selectedId) ?? null;
+  const discoveryResult = state.discovery.results.find(result => result.id === state.discovery.selectedId) ?? null;
+  const selection = habitatSelection({ candidate, discoveryResult });
+  if (!enabled || !selection) { store.setHabitatOverlay(null); return; }
   let overlay;
   try {
-    const habitatService = candidate.dataCatalogUrl
-      ? await gis.prepareRegionalSearch({ bbox: candidate.corridor.bounds, catalogUrl: candidate.dataCatalogUrl }) : gis;
-    overlay = await habitatService.getHabitatOverlay(candidate.geometry);
+    const habitatService = selection.catalogUrl
+      ? await gis.prepareRegionalSearch({ bbox: selection.bounds, catalogUrl: selection.catalogUrl }) : gis;
+    overlay = await habitatService.getHabitatOverlay(selection.geometry);
   } catch (error) {
-    overlay = { bufferGeometry: null, features: [], diagnostics: { status: 'unavailable', reason: error.message } };
+    overlay = { bufferGeometry: null, features: [], coverage: null,
+      diagnostics: { status: 'unavailable', reason: error.message } };
   }
-  store.setHabitatOverlay({ ...overlay, candidateId: candidate.id });
+  store.setHabitatOverlay({ ...overlay, candidateId: selection.id });
 }
 
 // Occurrence evidence is requested explicitly: no public biodiversity API is called during load or
@@ -1432,8 +1438,12 @@ nodes.occurrenceToggle?.addEventListener('change', event => {
 const habitatToggle = document.getElementById('habitat-layers');
 habitatToggle?.addEventListener('change', event => {
   const enabled = event.target.checked;
-  nodes.overlayNote.textContent = enabled ? 'Loading habitat layers…' : '';
-  toggleHabitatOverlay(enabled).then(() => { nodes.overlayNote.textContent = enabled ? 'Wetlands, flowlines, and the 1 km analysis buffer for the selected corridor.' : ''; }).catch(error => { nodes.overlayNote.textContent = error.message; });
+  nodes.overlayNote.textContent = enabled ? 'Running the habitat analysis…' : '';
+  // THE NOTE DESCRIBES THE ANALYSIS THAT RAN, from the result the map is drawing: it cannot claim a layer that is not
+  // there, and an analysis that could not run says so rather than reading as "nothing found".
+  toggleHabitatOverlay(enabled)
+    .then(() => { nodes.overlayNote.textContent = enabled ? habitatNote(store.getState().habitatOverlay) : ''; })
+    .catch(error => { nodes.overlayNote.textContent = error.message; });
 });
 // The pilot button ships disabled: enabling it here is the signal that every listener above is attached, so a
 // click can never arrive before the workspace can answer it.

@@ -18,6 +18,27 @@ export const HABITAT_DATASETS = Object.freeze({
   [COVERAGE_DATASET.HYDROGRAPHY]: 'nhd-hydrography-or-pilot',
 });
 
+// THE ANALYSIS IS AS AVAILABLE AS ITS SOURCES, and this says which of the four things happened: ready, ready with
+// nothing found, partial, or unavailable. An unavailable analysis is never a zero measurement, so a corridor outside the
+// published raw coverage draws no analysis area at all - a buffer drawn over unknown country would imply that something
+// inside it had been measured.
+export function habitatOverlayStatus({ wetlandsCoverage = COVERAGE.UNKNOWN, hydrographyCoverage = COVERAGE.UNKNOWN,
+  featureCount = 0 } = {}) {
+  const covered = value => value === COVERAGE.FULL || value === COVERAGE.PARTIAL;
+  const missing = [['wetland', wetlandsCoverage], ['hydrography', hydrographyCoverage]]
+    .filter(([, value]) => !covered(value)).map(([label]) => label);
+  if (missing.length === 2) {
+    return Object.freeze({ status: 'unavailable', drawsBuffer: false,
+      reason: 'the required raw wetland and hydrography coverage is not published for this area' });
+  }
+  if (missing.length === 1) {
+    return Object.freeze({ status: 'partial', drawsBuffer: true,
+      reason: `the required raw ${missing[0]} coverage is not published for this area` });
+  }
+  return Object.freeze({ status: 'ready', drawsBuffer: true,
+    reason: featureCount === 0 ? 'no mapped wetland or hydrography features were found within the analysis area' : null });
+}
+
 export function createHabitatQueries({ openDataset, initialize, record, analytical = null }) {
   const round3 = value => Math.round(Number(value) * 1000) / 1000;
 
@@ -314,10 +335,16 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
         .toArray()[0];
       const wetlands = await queryWetlands(geometry.geometry, { includeGeometry: true, analyticalEntry: prepared, datasetOpener });
       const hydrography = await queryHydrography(geometry.geometry, { includeGeometry: true, analyticalEntry: prepared, datasetOpener });
-      return { distanceM, bufferGeometry: outline?.geometry_json ? JSON.parse(outline.geometry_json) : null,
-        features: [...(wetlands.geometryRows ?? []), ...(hydrography.geometryRows ?? [])],
-        geometryForAnalysis: prepared.geometryForAnalysis,
-        diagnostics: { status: 'ready', reason: null, queryMs: Math.round(performance.now() - started) } };
+      const features = [...(wetlands.geometryRows ?? []), ...(hydrography.geometryRows ?? [])];
+      const coverage = Object.freeze({ wetlands: wetlands.coverage ?? COVERAGE.UNKNOWN,
+        hydrography: hydrography.coverage ?? COVERAGE.UNKNOWN });
+      const analysis = habitatOverlayStatus({ wetlandsCoverage: coverage.wetlands,
+        hydrographyCoverage: coverage.hydrography, featureCount: features.length });
+      return { distanceM,
+        // The buffer is the analysis area, so it exists only where an analysis could actually be made.
+        bufferGeometry: analysis.drawsBuffer && outline?.geometry_json ? JSON.parse(outline.geometry_json) : null,
+        features, coverage, geometryForAnalysis: prepared.geometryForAnalysis,
+        diagnostics: { status: analysis.status, reason: analysis.reason, queryMs: Math.round(performance.now() - started) } };
     } catch (error) {
       return { distanceM, bufferGeometry: null, features: [], diagnostics: { status: 'unavailable', reason: error.message } };
     }

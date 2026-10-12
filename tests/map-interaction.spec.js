@@ -344,6 +344,18 @@ for (const [query, label, geography] of REGIONS) {
         !element.classList.contains('leaflet-interactive'))), `${label}: and it is not interactive`).toBe(true);
     }
 
+    // THE PANEL'S WORDS MUST MATCH THE MAP. With no analysis on the map the note may not claim one, and with a buffer
+    // drawn it must describe an analysis rather than an absence.
+    const overlayNote = await page.locator('#habitat-layers-note').innerText();
+    if (bufferCount === 0) {
+      expect(overlayNote, `${label}: with nothing analysed the note must not claim a habitat layer`)
+        .not.toMatch(/analysis loaded|analysis completed/i);
+      expect(overlayNote, `${label}: and it must say the analysis is unavailable here`).toMatch(/unavailable/i);
+    } else {
+      expect(overlayNote, `${label}: with the buffer drawn the note describes the analysis that produced it`)
+        .toMatch(/Habitat analysis/i);
+    }
+
     // A road is clicked with the habitat layer enabled, and the trace must read exactly as it did without it.
     await resetClickTrace();
     const throughBuffer = await clickableCorridorPoint();
