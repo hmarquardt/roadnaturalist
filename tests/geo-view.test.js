@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { TILE_PROVIDERS, tileProvider } from '../src/map/basemap.js';
 import { attributeName, basemapFailureNote, boundsOfGeometries, corridorFeature, createGeoView, drawableShapes,
   featureAttributes, habitatBufferFeature, habitatFeatures, occurrenceFeatures, popupHtml, searchContextFeature,
-  searchFeatures, toLatLngs, unavailableView, FEATURE_DOM, FEATURE_KIND, FEATURE_PANE }
+  searchFeatures, toLatLngs, unavailableView, FEATURE_DOM, FEATURE_KIND, FEATURE_ORDER }
   from '../src/map/geo-view.js';
 import { createMapView } from '../src/map/index.js';
 
@@ -506,20 +506,17 @@ test('search geometry is the request: a centre and radius, or the declared area 
   assert.deepEqual(searchFeatures(null), []);
 });
 
-test('the panes declare the drawing order once, lowest first', () => {
-  assert.equal(FEATURE_PANE[FEATURE_KIND.SEARCH_REGION], 'rnSearch');
-  assert.equal(FEATURE_PANE[FEATURE_KIND.SEARCH_CONTEXT], 'rnContext');
-  assert.equal(FEATURE_PANE[FEATURE_KIND.HABITAT_BUFFER], 'rnHabitatBuffer');
-  assert.equal(FEATURE_PANE[FEATURE_KIND.HABITAT], 'rnHabitat');
-  // A corridor is drawn in Leaflet's own pane: the interactive renderer is the library's, and a pane of our own
-  // must never be in a position to take click handling away from it.
-  assert.equal(FEATURE_PANE[FEATURE_KIND.CORRIDOR], null);
-  assert.equal(FEATURE_PANE[FEATURE_KIND.OCCURRENCE], 'rnOccurrence');
+test('the drawing order is declared once, and every family is drawn in Leaflet\'s own pane', () => {
+  // ORDER IS DRAW ORDER, not a second renderer: everything lives in Leaflet's overlay pane - the renderer whose click
+  // handling is the library's own - and the families are painted in this order, so nothing needs a pane of its own.
+  assert.deepEqual([...FEATURE_ORDER], [FEATURE_KIND.SEARCH_REGION, FEATURE_KIND.SEARCH_RADIUS,
+    FEATURE_KIND.SEARCH_CENTRE, FEATURE_KIND.SEARCH_CONTEXT, FEATURE_KIND.HABITAT_BUFFER, FEATURE_KIND.HABITAT,
+    FEATURE_KIND.CORRIDOR, FEATURE_KIND.OCCURRENCE]);
   const { leaflet, calls } = fakeLeaflet();
   createGeoView({ style: {} }, { leaflet });
-  assert.deepEqual(calls.panes, ['rnSearch', 'rnContext', 'rnHabitatBuffer', 'rnHabitat', 'rnOccurrence', 'rnSelected'],
-    'context sits under the buffer, which sits under the habitat features, which sit under the roads, and the '
-    + 'selected corridor has the topmost pane of them all');
+  assert.deepEqual(calls.panes, [], 'no pane of our own is created: interactive geometry stays where Leaflet put it');
+  assert.ok(calls.groups.every(group => group.added.every(path => path.options.pane === undefined)),
+    'and every drawn feature is in the map\'s own overlay pane');
 });
 
 test('drawing gives every family its own role, its own pane and its own interaction', () => {
@@ -536,12 +533,12 @@ test('drawing gives every family its own role, its own pane and its own interact
   const corridorIds = [...new Set(corridors.map(path => path.attributes['data-corridor-id']))].sort();
   assert.deepEqual(corridorIds, [CLICKED.id, NEAR.id], 'the corridors keep the candidate role the gate reads');
   assert.ok(corridors.every(path => path.options.pane === undefined && path.options.interactive === true),
-    'the roads stay in Leaflet own pane, which is where its click handling is proven');
+    'the roads are interactive, in Leaflet own pane');
 
   const habitat = [...calls.polygons, ...calls.polylines].filter(path => roleOf(path) === 'habitat');
   assert.equal(habitat.length, 3, 'two wetland polygons and one hydrography line');
   assert.ok(habitat.every(path => !('data-corridor-id' in path.attributes)), 'no habitat feature wears a corridor id');
-  assert.ok(habitat.every(path => path.options.interactive === false && path.options.pane === 'rnHabitat'));
+  assert.ok(habitat.every(path => path.options.interactive === false), 'and not clickable');
   assert.deepEqual(habitat.filter(path => path.attributes['data-habitat-id'])
     .map(path => path.attributes['data-habitat-id']).sort(), ['hydrography:H1', 'wetland:W1']);
 
@@ -549,11 +546,11 @@ test('drawing gives every family its own role, its own pane and its own interact
   assert.equal(buffer.length, 1, 'the 1 km analysis buffer is drawn as its own kind');
   assert.equal(buffer[0].attributes['data-habitat-corridor-id'], CLICKED.id);
   assert.ok(!('data-corridor-id' in buffer[0].attributes));
-  assert.equal(buffer[0].options.pane, 'rnHabitatBuffer', 'and under the habitat features it contains');
+  assert.equal(buffer[0].options.interactive, false, 'and not clickable either');
 
   const points = calls.markers.filter(path => roleOf(path) === 'occurrence');
   assert.equal(points.length, 2, 'occurrence points are drawn as points');
-  assert.ok(points.every(path => path.options.interactive === false && path.options.pane === 'rnOccurrence'));
+  assert.ok(points.every(path => path.options.interactive === false), 'and none is a selection target');
   assert.ok(points.every(path => path.attributes['data-occurrence-id'].length > 0));
   assert.equal(calls.polylines.filter(path => roleOf(path) === 'occurrence').length, 0, 'and never as lines');
 
@@ -589,7 +586,6 @@ test('the selected corridor gets one context line, and overlays never move the v
   assert.equal(leaders.length, 1, 'one leader, for the selected corridor');
   assert.equal(leaders[0].attributes['data-corridor-id'], CLICKED.id, 'and it says which corridor it is about');
   assert.equal(leaders[0].options.interactive, false, 'it is not clickable as a corridor');
-  assert.equal(leaders[0].options.pane, 'rnContext', 'and it stays subordinate to the road');
 
   // Overlay toggles are draws, and a draw never fits: the camera and the fit count are untouched.
   view.draw({ corridors: [{ ...CLICKED, nearestCenterPoint: [-87.4, 38.31] }, NEAR], selectedId: CLICKED.id, overlay: HABITAT_OVERLAY });
