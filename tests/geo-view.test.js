@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 
 import { TILE_PROVIDERS, tileProvider } from '../src/map/basemap.js';
 import { attributeName, basemapFailureNote, boundsOfGeometries, corridorFeature, createGeoView, drawableShapes,
-  featureAttributes, featureShape, popupHtml, toLatLngs, unavailableView, FEATURE_DOM, FEATURE_KIND }
+  featureAttributes, featureShape, popupHtml, searchFeatures, toLatLngs, unavailableView, FEATURE_DOM,
+  FEATURE_KIND }
   from '../src/map/geo-view.js';
 import { createMapView } from '../src/map/index.js';
 
@@ -15,8 +16,8 @@ import { createMapView } from '../src/map/index.js';
 // enough for that, and it keeps the test about behaviour rather than about pixels.
 
 function fakeLeaflet({ failMap = false } = {}) {
-  const calls = { tileLayers: [], polylines: [], polygons: [], opened: [], closed: 0, circles: 0, circleMarkers: 0,
-    rectangles: 0, fits: [], removed: 0 };
+  const calls = { tileLayers: [], polylines: [], polygons: [], markerLayers: [], circleLayers: [], rectangleLayers: [],
+    opened: [], closed: 0, circles: 0, circleMarkers: 0, rectangles: 0, fits: [], removed: 0 };
   // The fake models the lifecycle that caused the real bug: a path has no DOM element until it is added, so a test
   // can tell the difference between stamping metadata before and after Leaflet has created the element.
   const layer = ({ createElementOnAdd = false } = {}) => ({ added: [], handlers: {}, element: null, attributes: {},
@@ -56,9 +57,12 @@ function fakeLeaflet({ failMap = false } = {}) {
     // "no polygon was created", which it cannot do if it has no polygon at all.
     polygon(latlngs, options) { const created = layer({ createElementOnAdd: true }); created.latlngs = latlngs;
       created.options = options; calls.polygons.push(created); return created; },
-    circle() { calls.circles += 1; return layer(); },
-    circleMarker() { calls.circleMarkers += 1; return layer(); },
-    rectangle() { calls.rectangles += 1; return layer(); },
+    circle(latlngs, options) { calls.circles += 1; const created = layer({ createElementOnAdd: true });
+      created.latlngs = latlngs; created.options = options; calls.circleLayers.push(created); return created; },
+    circleMarker(latlngs, options) { calls.circleMarkers += 1; const created = layer({ createElementOnAdd: true });
+      created.latlngs = latlngs; created.options = options; calls.markerLayers.push(created); return created; },
+    rectangle(latlngs, options) { calls.rectangles += 1; const created = layer({ createElementOnAdd: true });
+      created.latlngs = latlngs; created.options = options; calls.rectangleLayers.push(created); return created; },
     featureGroup() { return layer(); } };
   return { leaflet, map, calls };
 }
@@ -438,8 +442,11 @@ test('the taxonomy declares every family, and only a corridor is a candidate', (
     assert.ok(contract.role, `${kind} declares a role`);
     if (kind === FEATURE_KIND.CORRIDOR) continue;
     assert.notEqual(contract.clickable, true, `${kind} is not a selection target`);
-    // The search centre is interactive because it carries a tooltip; nothing else that is not a corridor is.
-    if (kind !== FEATURE_KIND.SEARCH_CENTRE) assert.notEqual(contract.interactive, true, `${kind} is not interactive`);
+    // The search centre and its radius are interactive because they carry tooltips, exactly as they do today:
+    // interactivity is how a tooltip can be pointed at, and it is not the same thing as being clickable.
+    if (kind !== FEATURE_KIND.SEARCH_CENTRE && kind !== FEATURE_KIND.SEARCH_RADIUS) {
+      assert.notEqual(contract.interactive, true, `${kind} is not interactive`);
+    }
   }
 });
 
@@ -474,6 +481,65 @@ test('a corridor descriptor is normalized into the corridor feature, and the car
   assert.equal(uncarded.card, null, 'a corridor with no measured distance from the centre shows no card');
   assert.deepEqual(uncarded.style, corridorFeature({ id: 'x', geometry: CLICKED.geometry }).style,
     'and wears the normal line style by default');
+});
+
+test('search geometry is typed: the same centre, the same radius, the same roles, the same non-interaction', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const selected = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  const search = { kind: 'radius', center: [-87.5, 38.3], radiusMiles: 25, bounds: [-88, 37, -87, 39],
+    regionBounds: [-124, 42, -116, 46] };
+  view.setSearch(search);
+
+  // The descriptors: the request, in Leaflet order, with the radius the request asked for.
+  const features = searchFeatures(search);
+  assert.deepEqual(features.map(feature => feature.kind), ['search-center', 'search-radius']);
+  assert.deepEqual(features[0].point, [38.3, -87.5], 'the centre is the searched place, [lat, lon] for Leaflet');
+  assert.deepEqual(features[0].geometry.coordinates, [-87.5, 38.3], 'and it is a point in GeoJSON order internally');
+  assert.equal(features[1].radiusM, 25 * 1609.344, 'the radius is the request, converted once and not recomputed');
+  assert.equal(features[0].label, 'Search centre');
+  assert.equal(features[1].label, 'Requested search radius');
+
+  // What reached the map: a centre marker and a radius circle, each with its own role and no corridor identity.
+  assert.equal(calls.circleMarkers, 1, 'the centre is a marker');
+  assert.equal(calls.circles, 1, 'the radius is a circle');
+  assert.equal(calls.rectangles, 0, 'and the bounds the radius happens to span are never drawn as a box');
+  assert.equal(calls.markerLayers[0].attributes['data-role'], 'search-center');
+  assert.equal(calls.circleLayers[0].attributes['data-role'], 'search-radius');
+  for (const path of [...calls.markerLayers, ...calls.circleLayers]) {
+    assert.ok(!('data-corridor-id' in path.attributes), 'search geometry never carries a corridor identity');
+    assert.ok(!('data-habitat-id' in path.attributes));
+  }
+  // The centre and the radius keep the tooltips they have today, so they stay interactive; neither is a selection
+  // target, and a click on either invokes no selection even though it bubbles.
+  assert.equal(calls.markerLayers[0].options.interactive, true);
+  assert.equal(calls.circleLayers[0].options.interactive, true);
+  assert.equal(calls.markerLayers[0].tooltip, 'Search centre');
+  assert.equal(calls.circleLayers[0].tooltip, 'Requested search radius');
+  assert.notEqual(FEATURE_DOM[FEATURE_KIND.SEARCH_CENTRE].clickable, true);
+  assert.notEqual(FEATURE_DOM[FEATURE_KIND.SEARCH_RADIUS].clickable, true);
+  calls.markerLayers[0].emit('click', { latlng: { lat: 38.29, lng: -87.5 } });
+  calls.circleLayers[0].emit('click', { latlng: { lat: 38.29, lng: -87.5 } });
+  assert.deepEqual(selected, [], 'search geometry cannot select a corridor');
+
+  // The values the rest of the view reads back are the same values the dedicated path produced.
+  assert.deepEqual(view.searchGeometry(), { center: [38.3, -87.5], radiusM: 25 * 1609.344 });
+});
+
+test('a declared search area is typed without inventing geometry, and processing bounds are never search geometry', () => {
+  // The declared box is drawn only when the search definition carries one - the same condition as before - and the
+  // bounds the app uses internally for a radius search are not it.
+  assert.deepEqual(searchFeatures({ kind: 'radius', center: [-87.5, 38.3], radiusMiles: 25, bounds: [-88, 37, -87, 39] })
+    .map(feature => feature.kind), ['search-center', 'search-radius']);
+  assert.deepEqual(searchFeatures({ kind: 'bbox', center: null, radiusMiles: null, bounds: [-88, 37, -87, 39],
+    regionBounds: [-124, 42, -116, 46] }), [], 'the app bbox preview is not drawn as the user search geometry');
+  const declared = searchFeatures({ kind: 'box', bounds: [-88, 37, -87, 39] });
+  assert.deepEqual(declared.map(feature => feature.kind), ['search-region']);
+  assert.deepEqual(featureAttributes(declared[0]), { role: 'search-region' });
+  assert.deepEqual(drawableShapes(declared[0]), [{ rectangle: true, bounds: [[37, -88], [39, -87]] }],
+    'the declared extent, [minLon, minLat, maxLon, maxLat] in and corners out');
+  assert.equal(FEATURE_DOM[FEATURE_KIND.SEARCH_REGION].interactive, false, 'and it is not interactive');
+  assert.deepEqual(searchFeatures(null), []);
 });
 
 test('the shape reader knows lines, areas and points, and refuses anything else', () => {

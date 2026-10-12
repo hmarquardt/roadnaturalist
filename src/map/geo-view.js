@@ -94,7 +94,9 @@ export const FEATURE_DOM = Object.freeze({
   [FEATURE_KIND.SEARCH_CONTEXT]: Object.freeze({ role: 'search-context', idAttribute: 'corridorId',
     idField: 'corridorId', interactive: false }),
   [FEATURE_KIND.SEARCH_REGION]: Object.freeze({ role: 'search-region', interactive: false }),
-  [FEATURE_KIND.SEARCH_RADIUS]: Object.freeze({ role: 'search-radius', interactive: false }),
+  // The radius keeps the tooltip it has today, which is why it stays interactive; what it must never be is a selection
+  // target, and a kind becomes one only by declaring itself clickable.
+  [FEATURE_KIND.SEARCH_RADIUS]: Object.freeze({ role: 'search-radius', interactive: true }),
   [FEATURE_KIND.SEARCH_CENTRE]: Object.freeze({ role: 'search-center', interactive: true }),
 });
 
@@ -123,6 +125,40 @@ export function corridorFeature(corridor, { selected = false, style = null } = {
 // A POLYGON OR A POINT IS NOT A LINE, and the shape of a feature is read from its own geometry rather than assumed.
 // Only the line shape is painted by the map today; the others are declared for the overlay families, so the slice that
 // paints them starts from a shape reader that is already right.
+// SEARCH GEOMETRY, TYPED. The request is what is drawn - a centre and its requested radius, or the declared area's
+// bounds - and the geometry is generated exactly as the dedicated path generated it: the same [lon, lat] input, the same
+// Leaflet coordinates out, the same mile-to-metre radius, the same styles and labels. Nothing about the request is
+// recomputed here, and the processing bbox the cell selection happens to use is not search geometry and is not drawn.
+const SEARCH_STYLE = Object.freeze({
+  centre: Object.freeze({ radius: 4, color: '#111827', weight: 2, fillColor: '#ffffff', fillOpacity: 1 }),
+  radius: Object.freeze({ color: '#111827', weight: 1.5, opacity: 0.8, fill: false, dashArray: '6 4' }),
+  region: Object.freeze({ color: '#6b7280', weight: 1, opacity: 0.6, dashArray: '4 4', fill: false }),
+});
+
+export function searchFeatures(search) {
+  if (!search) return [];
+  if (search.kind === 'radius' && Array.isArray(search.center)) {
+    const centre = toLatLngPoint(search.center);
+    if (!centre) return [];
+    const features = [Object.freeze({ kind: FEATURE_KIND.SEARCH_CENTRE,
+      geometry: { type: 'Point', coordinates: [centre[1], centre[0]] }, point: centre, label: 'Search centre',
+      style: SEARCH_STYLE.centre })];
+    if (Number.isFinite(search.radiusMiles)) {
+      features.push(Object.freeze({ kind: FEATURE_KIND.SEARCH_RADIUS,
+        geometry: { type: 'Point', coordinates: [centre[1], centre[0]] }, point: centre,
+        radiusM: search.radiusMiles * 1609.344, label: 'Requested search radius', style: SEARCH_STYLE.radius }));
+    }
+    return features;
+  }
+  // The declared area, when the search definition carries one: the same condition the dedicated path used, so a shape
+  // that was not drawn before is not drawn now merely because the feature model can draw it.
+  if (search.kind === 'box' && search.bounds) {
+    return [Object.freeze({ kind: FEATURE_KIND.SEARCH_REGION, bounds: search.bounds, label: 'Declared search box',
+      style: SEARCH_STYLE.region })];
+  }
+  return [];
+}
+
 export function featureShape(geometry) {
   const type = geometry?.type;
   if (type === 'Point') return 'point';
@@ -157,9 +193,17 @@ export function toLatLngPoint(coordinates) {
   return Number.isFinite(lon) && Number.isFinite(lat) ? [lat, lon] : null;
 }
 
-// THE SHAPES ONE FEATURE DRAWS. A feature may be a line, an area or a point; the geometry it carries decides which, and
-// a feature with nothing drawable is skipped rather than thrown.
+// THE SHAPES ONE FEATURE DRAWS. A feature may be a line, an area, a point, a circle or a rectangle; the geometry it
+// carries decides which, and a feature with nothing drawable is skipped rather than thrown.
 export function drawableShapes(feature) {
+  if (feature?.radiusM != null) {
+    const centre = toLatLngPoint(feature.geometry);
+    return centre ? [{ circle: true, point: centre, radiusM: feature.radiusM }] : [];
+  }
+  if (Array.isArray(feature?.bounds) && feature.bounds.length === 4) {
+    const [minLon, minLat, maxLon, maxLat] = feature.bounds;
+    return [{ rectangle: true, bounds: [[minLat, minLon], [maxLat, maxLon]] }];
+  }
   const shape = featureShape(feature?.geometry);
   if (shape === 'point') {
     const point = toLatLngPoint(feature.geometry);
@@ -345,15 +389,25 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       let drawn = 0;
       let skipped = 0;
       for (const entry of entries ?? []) {
-        const feature = entry?.kind ? entry
+        const typed = Boolean(entry?.kind);
+        const feature = typed ? entry
           : corridorFeature(entry, { selected: entry?.id === selectedId, style: styleFor(entry) });
         const contract = FEATURE_DOM[feature.kind] ?? null;
-        const lines = drawableShapes(feature).filter(shape => shape.line);
-        if (!contract || !lines.length) { skipped += 1; continue; }
-        for (const { line } of lines) {
+        // Only a typed feature may draw something other than a line: a row that has not been typed yet is drawn as a
+        // line and nothing else, exactly as it is today.
+        const shapes = drawableShapes(feature).filter(shape => typed || shape.line);
+        if (!contract || !shapes.length) { skipped += 1; continue; }
+        for (const shape of shapes) {
           // `interactive` is the kind's own contract: a corridor can be clicked, and a family that cannot be is drawn
           // with that said in the layer itself rather than by hoping the z-order protects it.
-          const path = leaflet.polyline(line, { ...feature.style, interactive: contract.interactive });
+          const options = { ...feature.style, interactive: contract.interactive };
+          const path = shape.circle ? leaflet.circle(shape.point, { ...options, radius: shape.radiusM })
+            : shape.rectangle ? leaflet.rectangle(shape.bounds, options)
+              : shape.point ? leaflet.circleMarker(shape.point, options)
+                : shape.line ? leaflet.polyline(shape.line, options) : null;
+          if (!path) { skipped += 1; continue; }
+          // A label is a tooltip, and a tooltip needs a layer that can be pointed at.
+          if (feature.label && contract.interactive) path.bindTooltip?.(feature.label);
           // Drawing order is list order, so the map's stacking matches the order the person is reading.
           if (feature.card) {
             cardedPaths.set(feature.corridorId, path);
@@ -395,31 +449,21 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       }
       return { drawn, skipped };
     }
-    // SEARCH GEOMETRY: the request, not the processing extent. A radius search draws its centre and its requested
-    // radius; the bbox the cell selection happens to use is an implementation detail and is only ever drawn as a
-    // subordinate, explicitly labelled diagnostic.
+    // SEARCH GEOMETRY: the request, not the processing extent. A radius search draws its centre and its requested radius;
+    // a declared area draws the bounds of the search definition. Neither the processing bbox nor the published region's
+    // own bounds are drawn: they are not what was asked for. The geometry itself is generated exactly as before - this is
+    // the same input through the typed model, not a new computation - and the values the rest of the view reads back out
+    // of it (`searchGeometry()`) are the same values.
     function setSearch(search) {
       layers.search.clearLayers();
-      if (!search) return true;
-      if (search.kind === 'radius' && Array.isArray(search.center)) {
-        const center = [search.center[1], search.center[0]];
-        activeCentre = center;
-        mark(leaflet.circleMarker(center, { radius: 4, color: '#111827', weight: 2, fillColor: '#ffffff',
-          fillOpacity: 1 }).bindTooltip('Search centre').addTo(layers.search), { role: 'search-center' });
-        if (Number.isFinite(search.radiusMiles)) {
-          activeRadiusM = search.radiusMiles * 1609.344;
-          mark(leaflet.circle(center, { radius: activeRadiusM, color: '#111827', weight: 1.5, opacity: 0.8,
-            fill: false, dashArray: '6 4' }).bindTooltip('Requested search radius').addTo(layers.search),
-          { role: 'search-radius' });
-        }
-        return true;
-      }
-      if (search.kind === 'box' && search.bounds) {
-        const [[minLon, minLat], [maxLon, maxLat]] = [[search.bounds[0], search.bounds[1]], [search.bounds[2], search.bounds[3]]];
-        leaflet.rectangle([[minLat, minLon], [maxLat, maxLon]], { color: '#6b7280', weight: 1, opacity: 0.6,
-          dashArray: '4 4', fill: false }).bindTooltip('Declared search box').addTo(layers.search);
-        return true;
-      }
+      const features = searchFeatures(search);
+      paint(layers.search, features);
+      const centre = features.find(feature => feature.kind === FEATURE_KIND.SEARCH_CENTRE) ?? null;
+      const radius = features.find(feature => feature.kind === FEATURE_KIND.SEARCH_RADIUS) ?? null;
+      // Assigned only when the feature is there, exactly as the dedicated path did: a search with no centre leaves the
+      // last one in place rather than silently clearing it.
+      if (centre) activeCentre = centre.point;
+      if (radius) activeRadiusM = radius.radiusM;
       return true;
     }
 
