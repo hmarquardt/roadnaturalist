@@ -511,12 +511,13 @@ test('the panes declare the drawing order once, lowest first', () => {
   assert.equal(FEATURE_PANE[FEATURE_KIND.SEARCH_CONTEXT], 'rnContext');
   assert.equal(FEATURE_PANE[FEATURE_KIND.HABITAT_BUFFER], 'rnHabitatBuffer');
   assert.equal(FEATURE_PANE[FEATURE_KIND.HABITAT], 'rnHabitat');
-  assert.equal(FEATURE_PANE[FEATURE_KIND.CORRIDOR], 'rnCorridors');
+  // A corridor is drawn in Leaflet's own pane: the interactive renderer is the library's, and a pane of our own
+  // must never be in a position to take click handling away from it.
+  assert.equal(FEATURE_PANE[FEATURE_KIND.CORRIDOR], null);
   assert.equal(FEATURE_PANE[FEATURE_KIND.OCCURRENCE], 'rnOccurrence');
   const { leaflet, calls } = fakeLeaflet();
   createGeoView({ style: {} }, { leaflet });
-  assert.deepEqual(calls.panes, ['rnSearch', 'rnContext', 'rnHabitatBuffer', 'rnHabitat', 'rnCorridors',
-    'rnOccurrence', 'rnSelected'],
+  assert.deepEqual(calls.panes, ['rnSearch', 'rnContext', 'rnHabitatBuffer', 'rnHabitat', 'rnOccurrence', 'rnSelected'],
     'context sits under the buffer, which sits under the habitat features, which sit under the roads, and the '
     + 'selected corridor has the topmost pane of them all');
 });
@@ -534,7 +535,8 @@ test('drawing gives every family its own role, its own pane and its own interact
   const corridors = calls.polylines.filter(path => roleOf(path) === 'candidate');
   const corridorIds = [...new Set(corridors.map(path => path.attributes['data-corridor-id']))].sort();
   assert.deepEqual(corridorIds, [CLICKED.id, NEAR.id], 'the corridors keep the candidate role the gate reads');
-  assert.ok(corridors.every(path => path.options.pane === 'rnCorridors' && path.options.interactive === true));
+  assert.ok(corridors.every(path => path.options.pane === undefined && path.options.interactive === true),
+    'the roads stay in Leaflet own pane, which is where its click handling is proven');
 
   const habitat = [...calls.polygons, ...calls.polylines].filter(path => roleOf(path) === 'habitat');
   assert.equal(habitat.length, 3, 'two wetland polygons and one hydrography line');
