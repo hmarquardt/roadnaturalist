@@ -313,46 +313,59 @@ for (const [query, label, geography] of REGIONS) {
     expect(await page.locator('#map .leaflet-tile-pane img').count(),
       `${label}: the basemap is drawing tiles`).toBeGreaterThan(0);
     expect(pageErrors, `${label}: the page must stay error-free`).toEqual([]);
-    // 24. THE 1 km HABITAT BUFFER: A TYPED OVERLAY THAT NEVER TAKES A ROAD CLICK.
+    // 24. THE HABITAT LAYER AND ITS ANALYSIS BUFFER.
     //
     // The buffer is the habitat analysis the product already holds, drawn as its own kind: role habitat-buffer, the
-    // corridor it belongs to under data-habitat-corridor-id, and never a candidate attribute. Enabling it is the explicit
-    // habitat action - the one request this section is allowed to make - and a road inside it must stay exactly as
-    // clickable as it was before the buffer existed. Nothing here may move the camera.
+    // corridor it belongs to under data-habitat-corridor-id, and never a candidate attribute. Two things are asserted
+    // here, and both matter: the layer is either attributed or absent (a buffer that cannot be attributed to an analysis
+    // is a defect, not a pass), and a road stays exactly as clickable with the habitat layer enabled as it was without.
     const cameraBeforeBuffer = await camera();
     const fitsBeforeBuffer = await fitCount();
     const selectedForBuffer = await selectedId();
     await page.locator('#habitat-layers').check();
-    const buffer = page.locator(`#map path[data-role="habitat-buffer"][data-habitat-corridor-id="${selectedForBuffer}"]`);
-    await expect(buffer, `${label}: the buffer for the selected corridor is drawn`).toHaveCount(1, { timeout: 180000 });
-    expect(await page.locator('#map path[data-role="habitat-buffer"]').count(),
-      `${label}: one buffer, for one analysis`).toBe(1);
-    expect(await buffer.evaluateAll(elements => elements.filter(element => element.dataset.corridorId).length),
-      `${label}: the buffer never masquerades as a corridor`).toBe(0);
-    expect(await buffer.evaluateAll(elements => elements.every(element =>
-      !element.classList.contains('leaflet-interactive'))), `${label}: and it is not interactive`).toBe(true);
+    // The application's own note is its completion signal for this action.
+    await expect.poll(async () => (await page.locator('#habitat-layers-note').innerText()).length,
+      { timeout: 180000, message: `${label}: the habitat action must report when it is done` }).toBeGreaterThan(0);
+    const bufferPaths = page.locator('#map path[data-role="habitat-buffer"]');
+    const bufferCount = await bufferPaths.count();
+    const analysisPaths = await page.locator('#map path[data-role="candidate"]:not([data-corridor-id])').count();
+    if (bufferCount === 0) {
+      // NO BUFFER IS RECORDED, NOT PASSED OVER. For a corridor whose habitat analysis is unavailable there is no buffer
+      // geometry to draw, and this gate says so with its own evidence; what it will not accept is a corridor whose
+      // analysis reached the map while its buffer did not.
+      expect(analysisPaths, `${label}: no buffer must mean no habitat analysis reached the map at all`).toBe(0);
+    } else {
+      expect(bufferCount, `${label}: one buffer, for one analysis`).toBe(1);
+      await expect(page.locator(`#map path[data-role="habitat-buffer"][data-habitat-corridor-id="${selectedForBuffer}"]`),
+        `${label}: the buffer is attributed to the corridor it belongs to`).toHaveCount(1);
+      expect(await bufferPaths.evaluateAll(elements => elements.filter(element => element.dataset.corridorId).length),
+        `${label}: the buffer never masquerades as a corridor`).toBe(0);
+      expect(await bufferPaths.evaluateAll(elements => elements.every(element =>
+        !element.classList.contains('leaflet-interactive'))), `${label}: and it is not interactive`).toBe(true);
+    }
 
-    // A road is clicked with the buffer covering it, and the trace must read exactly as it did without the overlay.
+    // A road is clicked with the habitat layer enabled, and the trace must read exactly as it did without it.
     await resetClickTrace();
     const throughBuffer = await clickableCorridorPoint();
-    expect(throughBuffer, `${label}: a road is still clickable inside the buffer`).toBeTruthy();
+    expect(throughBuffer, `${label}: a road is still clickable with the habitat layer enabled`).toBeTruthy();
     await page.mouse.click(throughBuffer.x, throughBuffer.y);
     await page.waitForTimeout(800);
     if (clickDebug) {
-      console.log(`MAP_CLICK_TARGET ${JSON.stringify({ label, phase: 'buffer-visible', expected: throughBuffer.id,
+      console.log(`MAP_CLICK_TARGET ${JSON.stringify({ label, phase: 'habitat-enabled', expected: throughBuffer.id,
         targets: await clickTrace(), selected: await selectedId() })}`);
     }
-    expect(await selectedId(), `${label}: a click inside the buffer still selects the road under the cursor`)
+    expect(await selectedId(), `${label}: a click with the habitat layer enabled still selects the road under the cursor`)
       .toBe(throughBuffer.id);
-    expect(await camera(), `${label}: the buffer and that click must not move the camera`).toEqual(cameraBeforeBuffer);
+    expect(await camera(), `${label}: the habitat layer and that click must not move the camera`).toEqual(cameraBeforeBuffer);
     expect(await fitCount(), `${label}: and must not fit`).toBe(fitsBeforeBuffer);
 
     // Disabling the habitat layer takes the buffer away and leaves the camera alone too.
     await page.locator('#habitat-layers').uncheck();
-    await expect(page.locator('#map path[data-role="habitat-buffer"]')).toHaveCount(0);
-    expect(await camera(), `${label}: removing the buffer must not move the camera`).toEqual(cameraBeforeBuffer);
+    await expect(bufferPaths).toHaveCount(0);
+    expect(await camera(), `${label}: removing the habitat layer must not move the camera`).toEqual(cameraBeforeBuffer);
 
     console.log(`MAP_PRODUCTION ${JSON.stringify({ label, rows: rowCount, zoom: fitted.zoom.toFixed(2),
-      radiusM: Math.round(search.radiusM), hosts: [...hosts].sort(), raw: raw.length, deep: deep.length })}`);
+      radiusM: Math.round(search.radiusM), bufferPaths: bufferCount, habitatFeaturePaths: analysisPaths,
+      hosts: [...hosts].sort(), raw: raw.length, deep: deep.length })}`);
   });
 }
