@@ -159,6 +159,24 @@ export function searchFeatures(search) {
   return [];
 }
 
+// THE HABITAT ANALYSIS BUFFER, TYPED. The geometry is the analysis output the product already holds -
+// `overlay.bufferGeometry`, straight from the habitat query's own buffer - so nothing here recomputes a distance,
+// measures habitat or reads a dataset. It is an *outline*: unfilled, thin, dashed, and drawn under the features and the
+// roads it belongs to, because it frames the question a person is reading rather than answering it.
+const HABITAT_STYLE = Object.freeze({
+  // The style the habitat buffer has always been described by in this project's stylesheet: cool, dashed, subordinate.
+  buffer: Object.freeze({ color: '#3f7f8c', weight: 1.4, opacity: 0.75, dashArray: '6 4', fill: false }),
+});
+
+export function habitatBufferFeature(overlay) {
+  const geometry = overlay?.bufferGeometry ?? null;
+  if (!geometry || featureShape(geometry) !== 'area') return null;
+  // THE CORRIDOR ID IS AN ASSOCIATION, NOT THIS FEATURE'S OWN IDENTITY: it travels under data-habitat-corridor-id, so
+  // no selector looking for a candidate can ever match a buffer.
+  return Object.freeze({ kind: FEATURE_KIND.HABITAT_BUFFER, corridorId: overlay?.candidateId ?? null, geometry,
+    label: null, style: HABITAT_STYLE.buffer });
+}
+
 export function featureShape(geometry) {
   const type = geometry?.type;
   if (type === 'Point') return 'point';
@@ -403,8 +421,9 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
           const options = { ...feature.style, interactive: contract.interactive };
           const path = shape.circle ? leaflet.circle(shape.point, { ...options, radius: shape.radiusM })
             : shape.rectangle ? leaflet.rectangle(shape.bounds, options)
-              : shape.point ? leaflet.circleMarker(shape.point, options)
-                : shape.line ? leaflet.polyline(shape.line, options) : null;
+              : shape.rings ? leaflet.polygon(shape.rings, options)
+                : shape.point ? leaflet.circleMarker(shape.point, options)
+                  : shape.line ? leaflet.polyline(shape.line, options) : null;
           if (!path) { skipped += 1; continue; }
           // A label is a tooltip, and a tooltip needs a layer that can be pointed at.
           if (feature.label && contract.interactive) path.bindTooltip?.(feature.label);
@@ -483,7 +502,11 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         // drawn twice simply because it is both a candidate and saved.
         const visible = new Set(corridors.map(corridor => corridor.id));
         paint(layers.saved, savedRoads.filter(road => !visible.has(road.id)));
-        paint(layers.overlay, overlay?.features ?? []);
+        // THE HABITAT OVERLAY: the analysis buffer first, then the source rows as they are handed over today. The buffer
+        // is a typed feature and is drawn under the roads (the results layer is repainted after this, in setSelected), so
+        // it can frame the corridor without covering it or its selection styling.
+        const buffer = habitatBufferFeature(overlay);
+        paint(layers.overlay, [...(buffer ? [buffer] : []), ...(overlay?.features ?? [])]);
         paint(layers.occurrence, occurrenceOverlay?.features ?? []);
         if (search !== undefined) setSearch(search);
         view.setSelected(selectedId);

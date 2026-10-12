@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 
 import { TILE_PROVIDERS, tileProvider } from '../src/map/basemap.js';
 import { attributeName, basemapFailureNote, boundsOfGeometries, corridorFeature, createGeoView, drawableShapes,
-  featureAttributes, featureShape, popupHtml, searchFeatures, toLatLngs, unavailableView, FEATURE_DOM,
-  FEATURE_KIND }
+  featureAttributes, featureShape, habitatBufferFeature, popupHtml, searchFeatures, toLatLngs, unavailableView,
+  FEATURE_DOM, FEATURE_KIND }
   from '../src/map/geo-view.js';
 import { createMapView } from '../src/map/index.js';
 
@@ -16,8 +16,8 @@ import { createMapView } from '../src/map/index.js';
 // enough for that, and it keeps the test about behaviour rather than about pixels.
 
 function fakeLeaflet({ failMap = false } = {}) {
-  const calls = { tileLayers: [], polylines: [], polygons: [], markerLayers: [], circleLayers: [], rectangleLayers: [],
-    opened: [], closed: 0, circles: 0, circleMarkers: 0, rectangles: 0, fits: [], removed: 0 };
+  const calls = { tileLayers: [], polylines: [], polygons: [], groups: [], markerLayers: [], circleLayers: [],
+    rectangleLayers: [], opened: [], closed: 0, circles: 0, circleMarkers: 0, rectangles: 0, fits: [], removed: 0 };
   // The fake models the lifecycle that caused the real bug: a path has no DOM element until it is added, so a test
   // can tell the difference between stamping metadata before and after Leaflet has created the element.
   const layer = ({ createElementOnAdd = false } = {}) => ({ added: [], handlers: {}, element: null, attributes: {},
@@ -42,6 +42,9 @@ function fakeLeaflet({ failMap = false } = {}) {
     off() {}, remove() { calls.removed += 1; },
     closePopup() { calls.closed += 1; return this; },
     setView(view) { this.view = view; return this; },
+    // The camera, so a test can assert that a redraw left it exactly where it was.
+    getCenter() { return { lat: (this.view?.[0] ?? 39), lng: (this.view?.[1] ?? -96) }; },
+    getZoom() { return this.zoom ?? 4; },
     fitBounds(bounds, options) { calls.fits.push({ bounds, options }); this.bounds = bounds; return this; },
     getBounds() { return this.bounds; },
     addLayer(entry) { this.layers.push(entry); return this; },
@@ -63,7 +66,7 @@ function fakeLeaflet({ failMap = false } = {}) {
       created.latlngs = latlngs; created.options = options; calls.markerLayers.push(created); return created; },
     rectangle(latlngs, options) { calls.rectangles += 1; const created = layer({ createElementOnAdd: true });
       created.latlngs = latlngs; created.options = options; calls.rectangleLayers.push(created); return created; },
-    featureGroup() { return layer(); } };
+    featureGroup() { const created = layer(); calls.groups.push(created); return created; } };
   return { leaflet, map, calls };
 }
 
@@ -111,6 +114,13 @@ const NEAR = { id: 'corridor-near', name: 'Near Rd', distanceFromCenterM: 900,
   geometry: { type: 'LineString', coordinates: [[-87.5, 38.3], [-87.4, 38.31]] } };
 const CLICKED = { id: 'corridor-clicked', name: 'Clicked Rd', distanceFromCenterM: 1609,
   geometry: { type: 'LineString', coordinates: [[-87.5201, 38.2801], [-87.42, 38.29]] } };
+
+// A BUFFER THAT COVERS THE ROAD. The buffer fixture is deliberately a polygon around the corridor it belongs to, so the
+// tests below exercise the case that matters: a road drawn inside a visible overlay must stay exactly as clickable as it
+// was before the overlay existed.
+const BUFFER_OVERLAY = Object.freeze({ candidateId: CLICKED.id, distanceM: 1000,
+  bufferGeometry: { type: 'Polygon', coordinates: [[[-87.60, 38.20], [-87.30, 38.20], [-87.30, 38.40],
+    [-87.60, 38.40], [-87.60, 38.20]]] } });
 
 test('a click on a drawn line selects that corridor, not the nearest vertex', () => {
   const { leaflet, calls } = fakeLeaflet();
@@ -600,3 +610,70 @@ test('a row that has not been typed yet keeps the corridor-shaped handling it ha
     'while the corridor beside it is drawn as a corridor');
 });
 
+
+
+// THE 1 km HABITAT BUFFER: A TYPED OVERLAY WITH ITS OWN IDENTITY, DRAWN UNDER THE ROAD IT BELONGS TO.
+test('the habitat buffer normalizes from the analysis output the product already holds', () => {
+  const buffer = habitatBufferFeature(BUFFER_OVERLAY);
+  assert.equal(buffer.kind, FEATURE_KIND.HABITAT_BUFFER);
+  assert.equal(buffer.corridorId, CLICKED.id, 'the corridor it belongs to travels as an association');
+  assert.equal(buffer.geometry, BUFFER_OVERLAY.bufferGeometry, 'the analysis geometry itself, not a recomputed one');
+  assert.deepEqual(featureAttributes(buffer), { role: 'habitat-buffer', habitatCorridorId: CLICKED.id },
+    'its own role, and the association under its own attribute');
+  assert.equal(featureAttributes(buffer).corridorId, undefined, 'and never a candidate id');
+  assert.equal(buffer.style.fill, false, 'an outline: it frames the corridor rather than covering it');
+  assert.equal(buffer.style.dashArray, '6 4');
+  // No geometry, or geometry that is not an area, draws nothing.
+  assert.equal(habitatBufferFeature({ candidateId: CLICKED.id }), null);
+  assert.equal(habitatBufferFeature({ candidateId: CLICKED.id, bufferGeometry: { type: 'LineString',
+    coordinates: [[-87.5, 38.3], [-87.4, 38.31]] } }), null, 'a buffer is a polygon or it is not a buffer');
+  assert.equal(habitatBufferFeature(null), null);
+});
+
+test('the buffer draws as a polygon under the road, and the road inside it stays clickable', () => {
+  const { leaflet, calls, map } = fakeLeaflet();
+  const selected = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  view.draw({ corridors: [CLICKED, NEAR], selectedId: CLICKED.id, overlay: BUFFER_OVERLAY });
+
+  const buffers = calls.polygons.filter(path => path.attributes['data-role'] === 'habitat-buffer');
+  assert.equal(buffers.length, 1, 'one buffer for the analysis it belongs to');
+  assert.equal(buffers[0].attributes['data-habitat-corridor-id'], CLICKED.id);
+  assert.ok(!('data-corridor-id' in buffers[0].attributes), 'a buffer never masquerades as a corridor');
+  assert.ok(!('data-habitat-id' in buffers[0].attributes), 'and it is not one of the source features either');
+  assert.equal(buffers[0].options.interactive, false, 'a buffer cannot be pointed at, so it cannot take a click');
+  assert.notEqual(FEATURE_DOM[FEATURE_KIND.HABITAT_BUFFER].clickable, true, 'and it is never a selection target');
+  assert.deepEqual(buffers[0].latlngs, [[[38.2, -87.6], [38.2, -87.3], [38.4, -87.3], [38.4, -87.6], [38.2, -87.6]]],
+    'the polygon as Leaflet rings: GeoJSON order in, Leaflet order out');
+
+  // The road inside the covering buffer is still drawn as a corridor and still selects itself.
+  const corridor = calls.polylines.filter(path => path.attributes['data-corridor-id'] === CLICKED.id).at(-1);
+  assert.ok(corridor, 'the road is drawn inside the buffer');
+  corridor.emit('click', { latlng: { lat: 38.28, lng: -87.5 }, propagatedFrom: corridor });
+  assert.deepEqual(selected, [CLICKED.id], 'a corridor click inside the buffer selects that corridor');
+  // The buffer's own event cannot select anything: it has no handler and is not clickable.
+  buffers[0].emit('click', { latlng: { lat: 38.28, lng: -87.5 }, propagatedFrom: buffers[0] });
+  assert.deepEqual(selected, [CLICKED.id], 'the buffer invokes no selection of its own');
+});
+
+test('the habitat toggle adds and removes the buffer without moving the viewport', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
+  const cameraBefore = view.camera();
+  const fitsBefore = view.fitCount();
+  // The groups in construction order are results, saved, search, overlay, occurrence, selected.
+  const overlayLayer = calls.groups[3];
+  const bufferCount = () => overlayLayer.added.filter(path => path.attributes['data-role'] === 'habitat-buffer').length;
+  assert.equal(bufferCount(), 0, 'no habitat overlay, no buffer');
+
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, overlay: BUFFER_OVERLAY });
+  assert.equal(bufferCount(), 1, 'enabling the habitat layer draws the buffer');
+  assert.ok(calls.polylines.some(path => path.attributes['data-corridor-id'] === CLICKED.id),
+    'and the road it belongs to is still drawn');
+
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
+  assert.equal(bufferCount(), 0, 'disabling the habitat layer takes the buffer away again');
+  assert.deepEqual(view.camera(), cameraBefore, 'and none of it moved the camera');
+  assert.equal(view.fitCount(), fitsBefore, 'or asked for a fit');
+});

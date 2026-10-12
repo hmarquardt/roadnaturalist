@@ -219,7 +219,10 @@ for (const [query, label, geography] of REGIONS) {
     // path's bounding box hits empty space for any diagonal road; drawn roads overlap; and one corridor may be several
     // paths. The probe below therefore scans the drawn parts for one whose midpoint really is on top of a corridor
     // path on screen, and that path's id - read from the DOM the application rendered - is the expectation.
-    const probe = await page.evaluate(() => {
+    // THE ROAD UNDER A POINT THAT CAN BE CLICKED. The probe scans the drawn parts for one whose midpoint really is on top
+    // of a corridor path on screen, and that path's id - read from the DOM the application rendered - is the expectation.
+    // It is used wherever the gate clicks a road, including with the habitat overlay drawn over it.
+    const clickableCorridorPoint = () => page.evaluate(() => {
       const candidates = [...document.querySelectorAll('#map path[data-role="candidate"][data-corridor-id]')];
       for (const element of candidates.slice(0, 40)) {
         const length = element.getTotalLength?.() ?? 0;
@@ -227,28 +230,37 @@ for (const [query, label, geography] of REGIONS) {
         const midpoint = element.getPointAtLength(length / 2);
         const screen = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(element.getScreenCTM());
         const top = document.elementFromPoint(screen.x, screen.y);
-        if (top?.dataset?.corridorId) return { x: screen.x, y: screen.y, id: top.dataset.corridorId, tag: top.tagName };
+        if (top?.dataset?.role === 'candidate' && top.dataset.corridorId) {
+          return { x: screen.x, y: screen.y, id: top.dataset.corridorId };
+        }
       }
       return null;
     });
+    const probe = await clickableCorridorPoint();
     expect(probe, `${label}: a drawn road is visible under a point that can be clicked`).toBeTruthy();
     const targetId = probe.id;
-    // TEMPORARY (this task): what the document sees the click reach, when the trace is switched on.
-    if (clickDebug) {
+    // TEMPORARY (this task): what the document sees the click reach, when the trace is switched on. The listener is
+    // installed once and its record is reset before each traced click, so the buffer click below is traced the same way.
+    const clickTrace = async () => page.evaluate(() => (globalThis.__RN_CLICK_TARGET ?? []));
+    const resetClickTrace = async () => {
+      if (!clickDebug) return;
       await page.evaluate(() => {
         globalThis.__RN_CLICK_TARGET = [];
+        if (globalThis.__RN_CLICK_LISTENING) return;
+        globalThis.__RN_CLICK_LISTENING = true;
         document.addEventListener('click', event => {
           const node = event.target;
           globalThis.__RN_CLICK_TARGET.push({ tag: node?.tagName ?? null, role: node?.dataset?.role ?? null,
             corridorId: node?.dataset?.corridorId ?? null });
         }, true);
       });
-    }
+    };
+    await resetClickTrace();
     await page.mouse.click(probe.x, probe.y);
     await page.waitForTimeout(800);
     if (clickDebug) {
       console.log(`MAP_CLICK_TARGET ${JSON.stringify({ label, expected: targetId,
-        targets: await page.evaluate(() => globalThis.__RN_CLICK_TARGET), selected: await selectedId() })}`);
+        targets: await clickTrace(), selected: await selectedId() })}`);
     }
     expect(await selectedId(), `${label}: a map click selects the same corridor in the list`).toBe(targetId);
     const afterMapClick = await camera();
@@ -301,6 +313,45 @@ for (const [query, label, geography] of REGIONS) {
     expect(await page.locator('#map .leaflet-tile-pane img').count(),
       `${label}: the basemap is drawing tiles`).toBeGreaterThan(0);
     expect(pageErrors, `${label}: the page must stay error-free`).toEqual([]);
+    // 24. THE 1 km HABITAT BUFFER: A TYPED OVERLAY THAT NEVER TAKES A ROAD CLICK.
+    //
+    // The buffer is the habitat analysis the product already holds, drawn as its own kind: role habitat-buffer, the
+    // corridor it belongs to under data-habitat-corridor-id, and never a candidate attribute. Enabling it is the explicit
+    // habitat action - the one request this section is allowed to make - and a road inside it must stay exactly as
+    // clickable as it was before the buffer existed. Nothing here may move the camera.
+    const cameraBeforeBuffer = await camera();
+    const fitsBeforeBuffer = await fitCount();
+    const selectedForBuffer = await selectedId();
+    await page.locator('#habitat-layers').check();
+    const buffer = page.locator(`#map path[data-role="habitat-buffer"][data-habitat-corridor-id="${selectedForBuffer}"]`);
+    await expect(buffer, `${label}: the buffer for the selected corridor is drawn`).toHaveCount(1, { timeout: 180000 });
+    expect(await page.locator('#map path[data-role="habitat-buffer"]').count(),
+      `${label}: one buffer, for one analysis`).toBe(1);
+    expect(await buffer.evaluateAll(elements => elements.filter(element => element.dataset.corridorId).length),
+      `${label}: the buffer never masquerades as a corridor`).toBe(0);
+    expect(await buffer.evaluateAll(elements => elements.every(element =>
+      !element.classList.contains('leaflet-interactive'))), `${label}: and it is not interactive`).toBe(true);
+
+    // A road is clicked with the buffer covering it, and the trace must read exactly as it did without the overlay.
+    await resetClickTrace();
+    const throughBuffer = await clickableCorridorPoint();
+    expect(throughBuffer, `${label}: a road is still clickable inside the buffer`).toBeTruthy();
+    await page.mouse.click(throughBuffer.x, throughBuffer.y);
+    await page.waitForTimeout(800);
+    if (clickDebug) {
+      console.log(`MAP_CLICK_TARGET ${JSON.stringify({ label, phase: 'buffer-visible', expected: throughBuffer.id,
+        targets: await clickTrace(), selected: await selectedId() })}`);
+    }
+    expect(await selectedId(), `${label}: a click inside the buffer still selects the road under the cursor`)
+      .toBe(throughBuffer.id);
+    expect(await camera(), `${label}: the buffer and that click must not move the camera`).toEqual(cameraBeforeBuffer);
+    expect(await fitCount(), `${label}: and must not fit`).toBe(fitsBeforeBuffer);
+
+    // Disabling the habitat layer takes the buffer away and leaves the camera alone too.
+    await page.locator('#habitat-layers').uncheck();
+    await expect(page.locator('#map path[data-role="habitat-buffer"]')).toHaveCount(0);
+    expect(await camera(), `${label}: removing the buffer must not move the camera`).toEqual(cameraBeforeBuffer);
+
     console.log(`MAP_PRODUCTION ${JSON.stringify({ label, rows: rowCount, zoom: fitted.zoom.toFixed(2),
       radiusM: Math.round(search.radiusM), hosts: [...hosts].sort(), raw: raw.length, deep: deep.length })}`);
   });
