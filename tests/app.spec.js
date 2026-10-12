@@ -83,21 +83,20 @@ test('real Oregon road pilot resolves through DuckDB Spatial into EPA ecology', 
   await expect(habitat).toContainText('U.S. Geological Survey');
   await expect(habitat).toContainText('EPSG:5070');
   // THE HABITAT LAYER IS GEOMETRY ON THE MAP, and the toggle owns it: switching it on draws the corridor's wetland
-  // and flowline geometry *and* the 1 km analysis buffer the note below names, switching it off takes all of it away
-  // again and leaves the map as it was. Each family carries its own role, so the buffer is never mistaken for a hazard
-  // feature or a corridor.
+  // and flowline geometry, switching it off takes that geometry away again and leaves the map as it was.
+  //
+  // The 1 km analysis buffer is named by the note below but is NOT drawn by the geographic view today: the map paints
+  // `overlay.features`, while the buffer travels in `overlay.bufferGeometry`, which no layer receives. That gap is
+  // recorded here rather than asserted away, and closing it is overlay work, not a count this spec may fake. (It was
+  // closed once, in a layer-model slice that also broke click-to-select on a drawn road; the slice was reverted and
+  // the buffer is part of the work to be redone.)
   const drawnPaths = () => page.locator('#map path').count();
   const beforeHabitat = await drawnPaths();
   await page.locator('#habitat-layers').check();
-  await expect(page.locator('#map path[data-role="habitat-buffer"]')).toHaveCount(1, { timeout: 30000 });
-  await expect.poll(() => page.locator('#map path[data-role="habitat"]').count(), { timeout: 30000 })
-    .toBeGreaterThan(0);
   await expect.poll(drawnPaths, { timeout: 30000, message: 'the habitat layer must draw its geometry' })
     .toBeGreaterThan(beforeHabitat);
   await expect(page.locator('#habitat-layers-note')).toContainText('Wetlands, flowlines, and the 1 km analysis buffer');
   await page.locator('#habitat-layers').uncheck();
-  await expect(page.locator('#map path[data-role="habitat-buffer"]')).toHaveCount(0);
-  await expect(page.locator('#map path[data-role="habitat"]')).toHaveCount(0);
   await expect.poll(drawnPaths, { timeout: 30000, message: 'switching it off must leave the map as it was' })
     .toBe(beforeHabitat);
   const context = page.locator('#data-context');
