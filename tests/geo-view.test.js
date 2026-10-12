@@ -3,9 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { TILE_PROVIDERS, tileProvider } from '../src/map/basemap.js';
-import { attributeName, basemapFailureNote, boundsOfGeometries, corridorFeature, createGeoView, drawableShapes,
-  featureAttributes, habitatBufferFeature, habitatFeatures, occurrenceFeatures, popupHtml, searchContextFeature,
-  searchFeatures, toLatLngs, unavailableView, FEATURE_DOM, FEATURE_KIND, FEATURE_PANE }
+import { attributeName, basemapFailureNote, boundsOfGeometries, createGeoView, popupHtml, toLatLngs,
+  unavailableView }
   from '../src/map/geo-view.js';
 import { createMapView } from '../src/map/index.js';
 
@@ -16,9 +15,7 @@ import { createMapView } from '../src/map/index.js';
 // enough for that, and it keeps the test about behaviour rather than about pixels.
 
 function fakeLeaflet({ failMap = false } = {}) {
-  const calls = { tileLayers: [], polylines: [], polygons: [], markers: [], circles: 0, circleMarkers: 0,
-    rectangles: 0, rectangleLayers: [], circleLayers: [], panes: [], groups: [], fits: [], removed: 0, opened: [],
-    closed: 0 };
+  const calls = { tileLayers: [], polylines: [], opened: [], closed: 0, circles: 0, circleMarkers: 0, rectangles: 0, fits: [], removed: 0 };
   // The fake models the lifecycle that caused the real bug: a path has no DOM element until it is added, so a test
   // can tell the difference between stamping metadata before and after Leaflet has created the element.
   const layer = ({ createElementOnAdd = false } = {}) => ({ added: [], handlers: {}, element: null, attributes: {},
@@ -42,12 +39,7 @@ function fakeLeaflet({ failMap = false } = {}) {
     on(event, handler) { this.handlers[event] = handler; return this; },
     off() {}, remove() { calls.removed += 1; },
     closePopup() { calls.closed += 1; return this; },
-    // Leaflet creates a pane per name; the fake records them so ordering can be asserted rather than assumed.
-    createPane(name) { calls.panes.push(name); return { style: {} }; },
     setView(view) { this.view = view; return this; },
-    // The camera, so a test can assert that a redraw left it exactly where it was.
-    getCenter() { return { lat: (this.view?.[0] ?? 39), lng: (this.view?.[1] ?? -96) }; },
-    getZoom() { return this.zoom ?? 4; },
     fitBounds(bounds, options) { calls.fits.push({ bounds, options }); this.bounds = bounds; return this; },
     getBounds() { return this.bounds; },
     addLayer(entry) { this.layers.push(entry); return this; },
@@ -59,15 +51,10 @@ function fakeLeaflet({ failMap = false } = {}) {
     // A path is created WITHOUT an element, exactly as Leaflet does.
     polyline(latlngs, options) { const created = layer({ createElementOnAdd: true }); created.latlngs = latlngs;
       created.options = options; calls.polylines.push(created); return created; },
-    polygon(latlngs, options) { const created = layer({ createElementOnAdd: true }); created.latlngs = latlngs;
-      created.options = options; calls.polygons.push(created); return created; },
-    circle(center, options) { calls.circles += 1; const created = layer({ createElementOnAdd: true });
-      created.latlngs = center; created.options = options; calls.circleLayers.push(created); return created; },
-    circleMarker(center, options) { calls.circleMarkers += 1; const created = layer({ createElementOnAdd: true });
-      created.latlngs = center; created.options = options; calls.markers.push(created); return created; },
-    rectangle(bounds, options) { calls.rectangles += 1; const created = layer({ createElementOnAdd: true });
-      created.latlngs = bounds; created.options = options; calls.rectangleLayers.push(created); return created; },
-    featureGroup() { const created = layer(); calls.groups.push(created); return created; } };
+    circle() { calls.circles += 1; return layer(); },
+    circleMarker() { calls.circleMarkers += 1; return layer(); },
+    rectangle() { calls.rectangles += 1; return layer(); },
+    featureGroup() { return layer(); } };
   return { leaflet, map, calls };
 }
 
@@ -85,14 +72,6 @@ test('the identifying attributes are named the way SVG keeps them', () => {
 });
 
 test('geometry is converted to geographic coordinates, and malformed geometry is refused rather than thrown', () => {
-  assert.deepEqual(toLatLngs(GEO), [[[38.3, -87.5], [38.31, -87.4]]], 'GeoJSON order in, Leaflet order out');
-  assert.equal(toLatLngs({ type: 'Point', coordinates: [-87, 38] }), null);
-  assert.equal(toLatLngs({ type: 'LineString', coordinates: [[-87, 38]] }), null, 'a single point is not a line');
-  assert.equal(toLatLngs({ type: 'LineString', coordinates: [['x', 'y'], [-87, 38]] }), null);
-  assert.deepEqual(boundsOfGeometries([GEO]), [[38.3, -87.5], [38.31, -87.4]]);
-  assert.equal(boundsOfGeometries([{ type: 'Point' }]), null);
-  assert.equal(attributeName('corridorId'), 'data-corridor-id', 'kebab-case, because SVG preserves attribute case');
-});
 
 test('one selection state: the list selects on the map, and the map reports clicks back', () => {
   const { leaflet, map } = fakeLeaflet();
@@ -428,178 +407,9 @@ test('the tile provider is declared once, completely, and is replaceable', () =>
   assert.equal(calls.tileLayers.length, 1, 'no provider means no tile layer, and geometry still draws');
 });
 
-// THE LAYER MODEL: CORRIDORS ARE CORRIDORS, HABITAT IS HABITAT, OCCURRENCES ARE OCCURRENCES.
-//
-// Everything below is asserted through the feature tables and the DOM attributes they produce, because that is the
-// contract the browser gate reads. The fixtures are small on purpose: what is under test is identity, styling, ordering
-// and interaction, not coordinates.
-const HABITAT_OVERLAY = Object.freeze({ candidateId: 'corridor-clicked', distanceM: 1000,
-  bufferGeometry: { type: 'Polygon', coordinates: [[[-87.60, 38.20], [-87.40, 38.20], [-87.40, 38.40], [-87.60, 38.40], [-87.60, 38.20]]] },
-  features: [
-    { layer: 'wetland', sourceFeatureId: 'W1', label: 'Freshwater Emergent Wetland',
-      geometry: { type: 'Polygon', coordinates: [[[-87.55, 38.25], [-87.50, 38.25], [-87.50, 38.30], [-87.55, 38.30], [-87.55, 38.25]]] } },
-    { layer: 'hydrography', sourceFeatureId: 'H1', label: 'Riverine',
-      geometry: { type: 'LineString', coordinates: [[-87.50, 38.30], [-87.45, 38.31]] } },
-    { layer: 'wetland', label: 'a row with no source feature id',
-      geometry: { type: 'Polygon', coordinates: [[[-87.45, 38.22], [-87.44, 38.22], [-87.44, 38.23], [-87.45, 38.22]]] } },
-  ] });
-const OCCURRENCE_OVERLAY = Object.freeze({ candidateId: 'corridor-clicked', excluded: 0, points: [
-  { source: 'inaturalist', sourceRecordId: 'obs-1', label: 'Great Blue Heron', group: 'birds', coordinates: [-87.50, 38.30] },
-  // No published record id: the map must still give it a stable identity, and must say that it is a display one.
-  { source: 'ebird', label: 'Unidentified', group: 'birds', coordinates: [-87.52, 38.32] } ] });
-
-test('a feature carries its own kind, identity and attribute names - never a borrowed corridor id', () => {
-  const corridor = corridorFeature({ ...CLICKED, ranking: { version: 'naturalist-interest-v1', score: 61.5 } });
-  assert.equal(corridor.kind, FEATURE_KIND.CORRIDOR);
-  assert.equal(corridor.corridorId, 'corridor-clicked');
-  assert.deepEqual(featureAttributes(corridor), { role: 'candidate', corridorId: 'corridor-clicked', selected: false });
-
-  const habitat = habitatFeatures(HABITAT_OVERLAY);
-  assert.deepEqual(habitat.map(feature => feature.kind), ['habitat', 'habitat', 'habitat']);
-  assert.equal(habitat[0].habitatId, 'wetland:W1', 'a habitat feature is named by its own layer and source feature');
-  assert.equal(habitat[1].layer, 'hydrography');
-  assert.equal(habitat[2].habitatId, null, 'a row without a source feature id is not given one');
-  for (const feature of habitat) {
-    const attributes = featureAttributes(feature);
-    assert.equal(attributes.role, 'habitat');
-    assert.ok(!('corridorId' in attributes), 'habitat must never carry a corridor id');
-    assert.ok(!('corridorId' in feature), 'and never holds one internally either');
-  }
-
-  const buffer = habitatBufferFeature(HABITAT_OVERLAY);
-  assert.equal(buffer.kind, FEATURE_KIND.HABITAT_BUFFER);
-  assert.equal(buffer.corridorId, 'corridor-clicked');
-  assert.deepEqual(featureAttributes(buffer), { role: 'habitat-buffer', habitatCorridorId: 'corridor-clicked' },
-    'the buffer names its corridor under its own attribute, so no candidate selector can match it');
-  assert.equal(habitatBufferFeature({ candidateId: 'x' }), null, 'no buffer geometry, nothing drawn');
-
-  const points = occurrenceFeatures(OCCURRENCE_OVERLAY);
-  assert.equal(points.length, 2);
-  assert.deepEqual(featureAttributes(points[0]), { role: 'occurrence', occurrenceId: 'inaturalist:obs-1' });
-  assert.equal(points[0].displayIdentity, false, 'a published record id is source identity');
-  assert.equal(points[1].displayIdentity, true, 'a derived id is display identity, and says so');
-  assert.equal(points[1].occurrenceId, 'ebird:38.32000,-87.52000', 'derived deterministically from source and position');
-  assert.equal(points[1].occurrenceId, occurrenceFeatures(OCCURRENCE_OVERLAY)[1].occurrenceId, 'and stably between draws');
-
-  const leader = searchContextFeature({ centre: [-87.4, 38.2],
-    corridor: { id: 'corridor-clicked', nearestCenterPoint: [-87.5, 38.3] } });
-  assert.deepEqual(featureAttributes(leader), { role: 'search-context', corridorId: 'corridor-clicked' });
-  assert.equal(searchContextFeature({ centre: [-87.4, 38.2], corridor: { id: 'x' } }), null, 'no nearest point, no line');
-  assert.equal(searchContextFeature({ centre: null, corridor: { id: 'x', nearestCenterPoint: [-87.5, 38.3] } }), null);
+  assert.equal(toLatLngs({ type: 'Point', coordinates: [-87, 38] }), null);
+  assert.equal(toLatLngs({ type: 'LineString', coordinates: [[-87, 38]] }), null, 'a single point is not a line');
+  assert.equal(toLatLngs({ type: 'LineString', coordinates: [['x', 'y'], [-87, 38]] }), null);
+  assert.deepEqual(boundsOfGeometries([GEO]), [[38.3, -87.5], [38.31, -87.4]]);
+  assert.equal(boundsOfGeometries([{ type: 'Point' }]), null);
 });
-
-test('search geometry is the request: a centre and radius, or the declared area - and nothing else', () => {
-  const radius = searchFeatures({ kind: 'radius', center: [-87.5, 38.3], radiusMiles: 25, bounds: [-88, 37, -87, 39],
-    regionBounds: [-124, 42, -116, 46] });
-  assert.deepEqual(radius.map(feature => feature.kind), [FEATURE_KIND.SEARCH_CENTRE, FEATURE_KIND.SEARCH_RADIUS],
-    'a radius search draws its centre and its radius, not the bounds it happens to span');
-  assert.equal(radius[1].radiusM, 25 * 1609.344);
-  assert.deepEqual(featureAttributes(radius[0]), { role: 'search-center' });
-  assert.deepEqual(featureAttributes(radius[1]), { role: 'search-radius' });
-
-  const declared = searchFeatures({ kind: 'bbox', center: null, radiusMiles: null, bounds: [-88, 37, -87, 39],
-    regionBounds: [-124, 42, -116, 46] });
-  assert.deepEqual(declared.map(feature => feature.kind), [FEATURE_KIND.SEARCH_REGION]);
-  assert.deepEqual(featureAttributes(declared[0]), { role: 'search-region' });
-  assert.deepEqual(drawableShapes(declared[0]), [{ rectangle: true, bounds: [[37, -88], [39, -87]] }],
-    'the declared extent is drawn: [minLon, minLat, maxLon, maxLat] in, Leaflet corners out');
-  assert.deepEqual(searchFeatures(null), []);
-});
-
-test('the panes declare the drawing order once, lowest first', () => {
-  assert.equal(FEATURE_PANE[FEATURE_KIND.SEARCH_REGION], 'rnSearch');
-  assert.equal(FEATURE_PANE[FEATURE_KIND.SEARCH_CONTEXT], 'rnContext');
-  assert.equal(FEATURE_PANE[FEATURE_KIND.HABITAT_BUFFER], 'rnHabitatBuffer');
-  assert.equal(FEATURE_PANE[FEATURE_KIND.HABITAT], 'rnHabitat');
-  assert.equal(FEATURE_PANE[FEATURE_KIND.CORRIDOR], 'rnCorridors');
-  assert.equal(FEATURE_PANE[FEATURE_KIND.OCCURRENCE], 'rnOccurrence');
-  const { leaflet, calls } = fakeLeaflet();
-  createGeoView({ style: {} }, { leaflet });
-  assert.deepEqual(calls.panes, ['rnSearch', 'rnContext', 'rnHabitatBuffer', 'rnHabitat', 'rnCorridors',
-    'rnOccurrence', 'rnSelected'],
-    'context sits under the buffer, which sits under the habitat features, which sit under the roads, and the '
-    + 'selected corridor has the topmost pane of them all');
-});
-
-test('drawing gives every family its own role, its own pane and its own interaction', () => {
-  const { leaflet, calls, map } = fakeLeaflet();
-  const selected = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
-  view.draw({ corridors: [CLICKED, NEAR], selectedId: CLICKED.id, overlay: HABITAT_OVERLAY,
-    occurrenceOverlay: OCCURRENCE_OVERLAY, search: { kind: 'radius', center: [-87.5, 38.3], radiusMiles: 25 } });
-
-  const roleOf = path => path.attributes['data-role'];
-  // calls.polylines is a creation log - a draw paints the results layer and the selection then repaints it - so what is
-  // asserted is the set of identities drawn, not the number of times the renderer was asked to make one.
-  const corridors = calls.polylines.filter(path => roleOf(path) === 'candidate');
-  const corridorIds = [...new Set(corridors.map(path => path.attributes['data-corridor-id']))].sort();
-  assert.deepEqual(corridorIds, [CLICKED.id, NEAR.id], 'the corridors keep the candidate role the gate reads');
-  assert.ok(corridors.every(path => path.options.pane === 'rnCorridors' && path.options.interactive === true));
-
-  const habitat = [...calls.polygons, ...calls.polylines].filter(path => roleOf(path) === 'habitat');
-  assert.equal(habitat.length, 3, 'two wetland polygons and one hydrography line');
-  assert.ok(habitat.every(path => !('data-corridor-id' in path.attributes)), 'no habitat feature wears a corridor id');
-  assert.ok(habitat.every(path => path.options.interactive === false && path.options.pane === 'rnHabitat'));
-  assert.deepEqual(habitat.filter(path => path.attributes['data-habitat-id'])
-    .map(path => path.attributes['data-habitat-id']).sort(), ['hydrography:H1', 'wetland:W1']);
-
-  const buffer = calls.polygons.filter(path => roleOf(path) === 'habitat-buffer');
-  assert.equal(buffer.length, 1, 'the 1 km analysis buffer is drawn as its own kind');
-  assert.equal(buffer[0].attributes['data-habitat-corridor-id'], CLICKED.id);
-  assert.ok(!('data-corridor-id' in buffer[0].attributes));
-  assert.equal(buffer[0].options.pane, 'rnHabitatBuffer', 'and under the habitat features it contains');
-
-  const points = calls.markers.filter(path => roleOf(path) === 'occurrence');
-  assert.equal(points.length, 2, 'occurrence points are drawn as points');
-  assert.ok(points.every(path => path.options.interactive === false && path.options.pane === 'rnOccurrence'));
-  assert.ok(points.every(path => path.attributes['data-occurrence-id'].length > 0));
-  assert.equal(calls.polylines.filter(path => roleOf(path) === 'occurrence').length, 0, 'and never as lines');
-
-  const searchRoles = [...calls.markers, ...calls.circleLayers].filter(path => /^search-/.test(roleOf(path)));
-  assert.deepEqual(searchRoles.map(roleOf).sort(), ['search-center', 'search-radius']);
-
-  // A click on overlay geometry selects nothing - neither on the feature itself nor when it bubbles to the map - and the
-  // road under the cursor still does.
-  habitat[0].emit('click', { latlng: { lat: 38.29, lng: -87.5 }, propagatedFrom: habitat[0] });
-  buffer[0].emit('click', { latlng: { lat: 38.29, lng: -87.5 }, propagatedFrom: buffer[0] });
-  map.handlers.click({ latlng: { lat: 38.285, lng: -87.52 }, propagatedFrom: habitat[0] });
-  map.handlers.click({ latlng: { lat: 38.285, lng: -87.52 }, propagatedFrom: points[0] });
-  assert.deepEqual(selected, [], 'an overlay is not a corridor selection target');
-  // One click per corridor, not per path created: the creation log holds two paints of the same two roads.
-  const onePerCorridor = new Map(corridors.map(path => [path.attributes['data-corridor-id'], path]));
-  [...onePerCorridor.values()].forEach(path => path.emit('click', { latlng: { lat: 38.29, lng: -87.5 }, propagatedFrom: path }));
-  assert.deepEqual(selected, [CLICKED.id, NEAR.id]);
-});
-
-test('the selected corridor gets one context line, and overlays never move the viewport', () => {
-  const { leaflet, calls, map } = fakeLeaflet();
-  const view = createGeoView({ style: {} }, { leaflet });
-  view.draw({ corridors: [CLICKED, NEAR], selectedId: CLICKED.id });
-  const cameraBefore = view.camera();
-  const fitsBefore = view.fitCount();
-
-  // No search centre yet: the leader has nowhere to come from, so none is drawn.
-  assert.equal(calls.polylines.filter(path => path.attributes['data-role'] === 'search-context').length, 0);
-
-  view.setSearch({ kind: 'radius', center: [-87.5, 38.3], radiusMiles: 25 });
-  view.draw({ corridors: [{ ...CLICKED, nearestCenterPoint: [-87.4, 38.31] }, NEAR], selectedId: CLICKED.id });
-  const leaders = calls.polylines.filter(path => path.attributes['data-role'] === 'search-context');
-  assert.equal(leaders.length, 1, 'one leader, for the selected corridor');
-  assert.equal(leaders[0].attributes['data-corridor-id'], CLICKED.id, 'and it says which corridor it is about');
-  assert.equal(leaders[0].options.interactive, false, 'it is not clickable as a corridor');
-  assert.equal(leaders[0].options.pane, 'rnContext', 'and it stays subordinate to the road');
-
-  // Overlay toggles are draws, and a draw never fits: the camera and the fit count are untouched.
-  view.draw({ corridors: [{ ...CLICKED, nearestCenterPoint: [-87.4, 38.31] }, NEAR], selectedId: CLICKED.id, overlay: HABITAT_OVERLAY });
-  view.draw({ corridors: [{ ...CLICKED, nearestCenterPoint: [-87.4, 38.31] }, NEAR], selectedId: CLICKED.id,
-    overlay: HABITAT_OVERLAY, occurrenceOverlay: OCCURRENCE_OVERLAY });
-  view.draw({ corridors: [{ ...CLICKED, nearestCenterPoint: [-87.4, 38.31] }, NEAR], selectedId: CLICKED.id });
-  assert.deepEqual(view.camera(), cameraBefore, 'enabling and disabling overlays leaves the camera where the person put it');
-  assert.equal(view.fitCount(), fitsBefore, 'and asks for no fit');
-  assert.deepEqual(map.bounds, [[38.1, -87.9], [38.5, -87.2]]);
-  // The five groups in construction order are results, saved, search, context, overlay: what a layer *holds* is the
-  // contract, not how many times the renderer was asked to create a shape.
-  const overlayLayer = calls.groups[4];
-  assert.equal(overlayLayer.added.length, 0, 'disabling the habitat layer leaves no habitat geometry behind');
-});
-

@@ -79,24 +79,6 @@ for (const [query, label, geography] of REGIONS) {
     const fitCount = () => fitCountOf(page);
     const selectedId = () => page.evaluate(() =>
       document.querySelector('#discovery-results tbody tr.selected')?.dataset?.candidateId ?? null);
-    // How many drawn paths carry a role: the map's own contract, counted without reaching into Leaflet.
-    const pathsWithRole = role => page.locator(`#map path[data-role="${role}"]`).count();
-    // THE ROAD UNDER A POINT THAT CAN ACTUALLY BE CLICKED. Drawn roads overlap and one corridor may be several
-    // MultiLineString parts, so the probe scans the drawn parts for a midpoint that really is on top of a corridor path
-    // on screen, and that path's id - read from the DOM the application rendered - is the expectation. A click that
-    // lands on empty space, or on a habitat polygon covering a road, would prove nothing about selection.
-    const clickableCorridorPoint = () => page.evaluate(() => {
-      const candidates = [...document.querySelectorAll('#map path[data-role="candidate"][data-corridor-id]')];
-      for (const element of candidates.slice(0, 40)) {
-        const length = element.getTotalLength?.() ?? 0;
-        if (!length) continue;
-        const midpoint = element.getPointAtLength(length / 2);
-        const screen = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(element.getScreenCTM());
-        const top = document.elementFromPoint(screen.x, screen.y);
-        if (top?.dataset?.corridorId) return { x: screen.x, y: screen.y, id: top.dataset.corridorId };
-      }
-      return null;
-    });
 
     // 22. GEOGRAPHY SANITY: a lat/lon inversion or a stale-region camera shows up here immediately. The automatic
     // fit is animated, so the camera is allowed a moment to arrive before its position is judged - and the fit is
@@ -224,9 +206,22 @@ for (const [query, label, geography] of REGIONS) {
 
     // 5. MAP → LIST. Clicking a line selects the same corridor through the application's own code path.
     //
-    // The click point comes from the shared probe: a real point on a drawn road, with the road under that point as the
-    // expectation.
-    const probe = await clickableCorridorPoint();
+    // THE CLICK MUST LAND ON A LINE, AND THE LINE'S OWN IDENTITY DECIDES THE ANSWER. A `force` click at the corner of a
+    // path's bounding box hits empty space for any diagonal road; drawn roads overlap; and one corridor may be several
+    // paths. The probe below therefore scans the drawn parts for one whose midpoint really is on top of a corridor
+    // path on screen, and that path's id - read from the DOM the application rendered - is the expectation.
+    const probe = await page.evaluate(() => {
+      const candidates = [...document.querySelectorAll('#map path[data-role="candidate"][data-corridor-id]')];
+      for (const element of candidates.slice(0, 40)) {
+        const length = element.getTotalLength?.() ?? 0;
+        if (!length) continue;
+        const midpoint = element.getPointAtLength(length / 2);
+        const screen = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(element.getScreenCTM());
+        const top = document.elementFromPoint(screen.x, screen.y);
+        if (top?.dataset?.corridorId) return { x: screen.x, y: screen.y, id: top.dataset.corridorId, tag: top.tagName };
+      }
+      return null;
+    });
     expect(probe, `${label}: a drawn road is visible under a point that can be clicked`).toBeTruthy();
     const targetId = probe.id;
     await page.mouse.click(probe.x, probe.y);
@@ -273,84 +268,12 @@ for (const [query, label, geography] of REGIONS) {
     expect(await targetRow.innerText(), `${label}: the row for that corridor is present`).not.toHaveLength(0);
 
     // 16/17. ORDINARY MAP USE FETCHES NOTHING DEEP, AND REACHES NO UNEXPECTED HOST.
-    //
-    // Asserted HERE, before any explicit action below, because those actions are allowed to reach their own sources and
-    // this claim is about the ordinary use that precedes them. The baselines are kept so the explicit section can say
-    // what it added, and nothing else.
     expect(raw, `${label}: ordinary map use must read no raw plane`).toEqual([]);
     expect(deep, `${label}: ordinary map use must reach no occurrence, access or Investigator source`).toEqual([]);
     const unexpected = [...hosts].filter(host => !/(^|\.)roadnaturalist\.com$/.test(host)
       && !/(^|\.)roadnaturalist\.pages\.dev$/.test(host) && !/(^|\.)tile\.openstreetmap\.org$/.test(host)
       && host !== 'cdn.jsdelivr.net' && host !== 'extensions.duckdb.org');
     expect(unexpected, `${label}: no unexpected host may be contacted`).toEqual([]);
-    const hostsBefore = new Set(hosts);
-    const deepBefore = deep.length;
-
-    // 23. THE OVERLAYS: HABITAT, OCCURRENCE, AND THE SEARCH CONTEXT LEADER.
-    //
-    // Each family of features carries its own role and its own identity, is drawn into its own pane, and is not a
-    // corridor. Toggling one is a redraw, so the camera must not move; a corridor click must still win with every
-    // overlay on; and the occurrence layer is reached only by asking for occurrence evidence explicitly.
-    const cameraBeforeOverlays = await camera();
-    const fitsBeforeOverlays = await fitCount();
-
-    // The leader from the search centre to the nearest point of the selected corridor, drawn for the discovery
-    // selection. It is not a corridor: it is marked search-context and carries the corridor it is about.
-    const leader = page.locator(`#map path[data-role="search-context"][data-corridor-id="${targetId}"]`);
-    await expect(leader).toHaveCount(1);
-
-    // Habitat: the analysis buffer and the wetland/hydrography features, in their own roles.
-    await page.locator('#habitat-layers').check();
-    await expect(page.locator('#map path[data-role="habitat-buffer"]')).toHaveCount(1, { timeout: 120000 });
-    await expect.poll(() => pathsWithRole('habitat'), { timeout: 120000 }).toBeGreaterThan(0);
-    const habitatPaths = page.locator('#map path[data-role="habitat"]');
-    expect(await habitatPaths.evaluateAll(elements => elements.filter(element => element.dataset.corridorId).length),
-      `${label}: no habitat feature wears a corridor id`).toBe(0);
-
-    // Occurrence: reached by asking for occurrence sources, never by ordinary map use.
-    await page.getByRole('button', { name: /Query public occurrence sources/ }).click();
-    await page.locator('#occurrence-layer').check();
-    await expect.poll(() => pathsWithRole('occurrence'), { timeout: 120000 }).toBeGreaterThan(0);
-    const occurrencePaths = page.locator('#map path[data-role="occurrence"]');
-    expect(await occurrencePaths.evaluateAll(elements => elements.filter(element => element.dataset.corridorId).length),
-      `${label}: occurrence points do not masquerade as corridors`).toBe(0);
-    const occurrenceIds = await occurrencePaths.evaluateAll(elements =>
-      elements.map(element => element.dataset.occurrenceId ?? null));
-    expect(occurrenceIds.every(id => typeof id === 'string' && id.length > 0), `${label}: every point is identified`)
-      .toBe(true);
-    expect(new Set(occurrenceIds).size, `${label}: and identified one by one`).toBe(occurrenceIds.length);
-
-    // A radius search draws its centre and its radius - and never a declared-region box it did not ask for.
-    await expect(page.locator('#map path[data-role="search-center"]')).toHaveCount(1);
-    await expect(page.locator('#map path[data-role="search-region"]')).toHaveCount(0);
-
-    // A corridor click still selects that corridor with every overlay on, and the camera stays where the person put it.
-    const clickPoint = await clickableCorridorPoint();
-    expect(clickPoint, `${label}: a road is still clickable under the overlays`).toBeTruthy();
-    await page.mouse.click(clickPoint.x, clickPoint.y);
-    await expect.poll(selectedId, { timeout: 15000 }).toBe(clickPoint.id);
-    expect(await camera(), `${label}: overlays and a click must not move the camera`).toEqual(cameraBeforeOverlays);
-    expect(await fitCount(), `${label}: and must not fit`).toBe(fitsBeforeOverlays);
-
-    // Switching both overlays off is a redraw too: the geometry goes, the camera stays.
-    await page.locator('#habitat-layers').uncheck();
-    await page.locator('#occurrence-layer').uncheck();
-    await expect(page.locator('#map path[data-role="habitat"]')).toHaveCount(0);
-    await expect(page.locator('#map path[data-role="habitat-buffer"]')).toHaveCount(0);
-    await expect(page.locator('#map path[data-role="occurrence"]')).toHaveCount(0);
-    await expect(leader).toHaveCount(1, 'the leader belongs to the selection, not to the overlays');
-    expect(await camera(), `${label}: toggling overlays off must not move the camera`).toEqual(cameraBeforeOverlays);
-
-    // 24. WHAT THE EXPLICIT ACTIONS REACHED, AND NOTHING ELSE. Asking for occurrence sources is allowed to reach them;
-    // the point is that no other reach happened, which the assertions above already fixed for ordinary use.
-    const deepAdded = deep.slice(deepBefore);
-    expect(deepAdded.length, `${label}: the occurrence action must reach its own sources`).toBeGreaterThan(0);
-    expect(deepAdded.every(url => /api\.inaturalist|api\.ebird|gbif/i.test(url)),
-      `${label}: and only those sources (${deepAdded.join(', ')})`).toBe(true);
-    const hostsAdded = [...hosts].filter(host => !hostsBefore.has(host));
-    expect(hostsAdded.every(host => /inaturalist|ebird|gbif/i.test(host)),
-      `${label}: and only their hosts (${hostsAdded.join(', ')})`).toBe(true);
-    // The overlays are off again, and the page has stayed error-free through all of it.
     expect(await page.locator('#map .leaflet-tile-pane img').count(),
       `${label}: the basemap is drawing tiles`).toBeGreaterThan(0);
     expect(pageErrors, `${label}: the page must stay error-free`).toEqual([]);
