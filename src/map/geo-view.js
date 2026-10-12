@@ -117,19 +117,14 @@ export const FEATURE_KIND = Object.freeze({
 // under the habitat features it contains; context lines sit under the roads they explain; occurrences sit above the
 // roads so a point is never hidden by a line; the selected corridor sits above every other line. Leaflet's own
 // tooltip and popup panes (650 and 700) stay above all of it.
-//
-// A CORRIDOR IS DRAWN WHERE LEAFLET PUTS INTERACTIVE GEOMETRY. Its pane is deliberately null - Leaflet's own overlay
-// pane - because that is the renderer whose click handling is the library's own, proven path; every other family here is
-// non-interactive and is the only thing that gets a pane of its own. Ordering is therefore a property of this table,
-// and click handling is not something a pane can take away.
 export const FEATURE_PANE = Object.freeze({
   [FEATURE_KIND.SEARCH_REGION]: 'rnSearch', [FEATURE_KIND.SEARCH_RADIUS]: 'rnSearch',
   [FEATURE_KIND.SEARCH_CENTRE]: 'rnSearch', [FEATURE_KIND.SEARCH_CONTEXT]: 'rnContext',
   [FEATURE_KIND.HABITAT_BUFFER]: 'rnHabitatBuffer', [FEATURE_KIND.HABITAT]: 'rnHabitat',
-  [FEATURE_KIND.CORRIDOR]: null, [FEATURE_KIND.OCCURRENCE]: 'rnOccurrence',
+  [FEATURE_KIND.CORRIDOR]: 'rnCorridors', [FEATURE_KIND.OCCURRENCE]: 'rnOccurrence',
 });
 const PANES = Object.freeze([['rnSearch', 340], ['rnContext', 360], ['rnHabitatBuffer', 370], ['rnHabitat', 380],
-  ['rnOccurrence', 420], ['rnSelected', 430]]);
+  ['rnCorridors', 400], ['rnOccurrence', 420], ['rnSelected', 430]]);
 
 // THE DOM CONTRACT, ONE ROW PER KIND. `idAttribute` carries that kind's own identity, so a corridor is named by
 // data-corridor-id, a habitat feature by data-habitat-id, an occurrence by data-occurrence-id. A kind without an
@@ -466,8 +461,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         const shapes = drawableShapes(feature);
         if (!shapes.length) { skipped += 1; continue; }
         for (const shape of shapes) {
-          const pane = FEATURE_PANE[feature.kind];
-          const options = { ...feature.style, interactive: contract.interactive, ...(pane ? { pane } : {}) };
+          const options = { ...feature.style, pane: FEATURE_PANE[feature.kind], interactive: contract.interactive };
           const path = shape.circle ? leaflet.circle(shape.point, { ...options, radius: shape.radiusM })
             : shape.rectangle ? leaflet.rectangle(shape.bounds, options)
               : shape.point ? leaflet.circleMarker(shape.point, options)

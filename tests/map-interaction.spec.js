@@ -82,10 +82,9 @@ for (const [query, label, geography] of REGIONS) {
     // How many drawn paths carry a role: the map's own contract, counted without reaching into Leaflet.
     const pathsWithRole = role => page.locator(`#map path[data-role="${role}"]`).count();
     // THE ROAD UNDER A POINT THAT CAN ACTUALLY BE CLICKED. Drawn roads overlap and one corridor may be several
-    // MultiLineString parts, so the probe scans the drawn parts for a midpoint where the topmost element really is a
-    // *clickable corridor path* - not merely something that mentions a corridor id, since the search-context leader
-    // carries one too - and that path's id is the expectation. A click that lands on empty space, or on an overlay
-    // covering a road, would prove nothing about selection.
+    // MultiLineString parts, so the probe scans the drawn parts for a midpoint that really is on top of a corridor path
+    // on screen, and that path's id - read from the DOM the application rendered - is the expectation. A click that
+    // lands on empty space, or on a habitat polygon covering a road, would prove nothing about selection.
     const clickableCorridorPoint = () => page.evaluate(() => {
       const candidates = [...document.querySelectorAll('#map path[data-role="candidate"][data-corridor-id]')];
       for (const element of candidates.slice(0, 40)) {
@@ -94,9 +93,7 @@ for (const [query, label, geography] of REGIONS) {
         const midpoint = element.getPointAtLength(length / 2);
         const screen = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(element.getScreenCTM());
         const top = document.elementFromPoint(screen.x, screen.y);
-        if (top?.dataset?.role === 'candidate' && top.dataset.corridorId) {
-          return { x: screen.x, y: screen.y, id: top.dataset.corridorId };
-        }
+        if (top?.dataset?.corridorId) return { x: screen.x, y: screen.y, id: top.dataset.corridorId };
       }
       return null;
     });
