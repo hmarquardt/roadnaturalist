@@ -34,7 +34,7 @@
     "build:places": "python3 scripts/build-places.py --download",
     "verify:places": "python3 scripts/build-places.py --verify-artifacts",
     "check:places": "python3 scripts/build-places.py --check",
-    "verify:places:production": "RUN_PLACE_PRODUCTION=1 playwright test tests/place-production.spec.js --reporter=line --retries=0",
+    "verify:places:production": "RUN_PLACE_PRODUCTION=1 EVIDENCE_DEBUG=1 playwright test tests/place-production.spec.js --reporter=line --retries=0",
     "build:places:national": "uv run --python 3.12 --with pyshp --with shapely python3 scripts/build-national-places.py --download",
     "check:places:national": "uv run --python 3.12 --with pyshp --with shapely python3 scripts/build-national-places.py --check",
     "verify:places:national": "python3 scripts/build-national-places.py --verify-artifacts",
