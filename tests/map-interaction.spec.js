@@ -58,10 +58,19 @@ for (const [query, label, geography] of REGIONS) {
       if (DEEP_DATA.test(url)) deep.push(url);
     });
     page.on('pageerror', error => pageErrors.push(error.message));
+    // TEMPORARY (this task): the direct-click trace, printed only when MAP_CLICK_DEBUG=1. Silence is the default, so the
+    // gate reads the page exactly as ordinary use runs it; with the flag set it reports which element the click reached,
+    // whether the corridor's own handler fired, and whether the map had to answer by proximity instead.
+    const clickDebug = Boolean(process.env.MAP_CLICK_DEBUG);
+    if (clickDebug) {
+      await page.addInitScript(() => { globalThis.__RN_DEBUG_MAP_CLICK = true; });
+    }
     // A console error is a failure of the page, not a note: the gate reads the page as it is, with no debug flag set
     // and no diagnostic logging switched on, exactly as ordinary use runs it.
     page.on('console', message => {
       if (message.type() === 'error') pageErrors.push(message.text());
+      // TEMPORARY (this task): forward the click trace when it is switched on.
+      if (clickDebug && message.text().startsWith('MAP_CLICK_')) console.log(message.text());
     });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
@@ -224,8 +233,23 @@ for (const [query, label, geography] of REGIONS) {
     });
     expect(probe, `${label}: a drawn road is visible under a point that can be clicked`).toBeTruthy();
     const targetId = probe.id;
+    // TEMPORARY (this task): what the document sees the click reach, when the trace is switched on.
+    if (clickDebug) {
+      await page.evaluate(() => {
+        globalThis.__RN_CLICK_TARGET = [];
+        document.addEventListener('click', event => {
+          const node = event.target;
+          globalThis.__RN_CLICK_TARGET.push({ tag: node?.tagName ?? null, role: node?.dataset?.role ?? null,
+            corridorId: node?.dataset?.corridorId ?? null });
+        }, true);
+      });
+    }
     await page.mouse.click(probe.x, probe.y);
     await page.waitForTimeout(800);
+    if (clickDebug) {
+      console.log(`MAP_CLICK_TARGET ${JSON.stringify({ label, expected: targetId,
+        targets: await page.evaluate(() => globalThis.__RN_CLICK_TARGET), selected: await selectedId() })}`);
+    }
     expect(await selectedId(), `${label}: a map click selects the same corridor in the list`).toBe(targetId);
     const afterMapClick = await camera();
     expect(afterMapClick.center[0], `${label}: a map click must not move the camera`).toBeCloseTo(fitted.center[0], 3);

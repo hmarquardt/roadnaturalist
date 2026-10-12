@@ -63,6 +63,116 @@ export function toLatLngs(geometry) {
   return converted.length ? converted : null;
 }
 
+// THE FEATURE TAXONOMY, AND WHAT EACH KIND SAYS ABOUT ITSELF IN THE DOM.
+//
+// A drawn thing on this map is a *feature* with a kind, and the kind decides its DOM identity: which role it carries,
+// and which attribute names its own identity. The taxonomy is declared in full because the overlay families are coming,
+// but only what the map renders today is painted through it: corridors, and - untouched, further down - the search
+// geometry, whose roles are declared here for the slice that types them.
+//
+// ONE KIND OWNS data-role="candidate": a corridor, named by data-corridor-id. That is the contract the production gate
+// and the click identity rest on, and it is deliberately unchanged.
+export const FEATURE_KIND = Object.freeze({
+  CORRIDOR: 'corridor', HABITAT: 'habitat', HABITAT_BUFFER: 'habitat-buffer', OCCURRENCE: 'occurrence',
+  SEARCH_CONTEXT: 'search-context', SEARCH_REGION: 'search-region', SEARCH_RADIUS: 'search-radius',
+  SEARCH_CENTRE: 'search-center',
+});
+
+// idAttribute is the attribute this kind's own identity belongs to. A kind with no identity of its own declares none -
+// it never borrows another family's.
+export const FEATURE_DOM = Object.freeze({
+  [FEATURE_KIND.CORRIDOR]: Object.freeze({ role: 'candidate', idAttribute: 'corridorId', idField: 'corridorId',
+    interactive: true, clickable: true }),
+  [FEATURE_KIND.HABITAT]: Object.freeze({ role: 'habitat', idAttribute: 'habitatId', idField: 'habitatId',
+    interactive: false }),
+  // The buffer belongs to a corridor's habitat overlay, so the association travels under its own attribute: it is not
+  // a candidate and must never be read as one.
+  [FEATURE_KIND.HABITAT_BUFFER]: Object.freeze({ role: 'habitat-buffer', idAttribute: 'habitatCorridorId',
+    idField: 'corridorId', interactive: false }),
+  [FEATURE_KIND.OCCURRENCE]: Object.freeze({ role: 'occurrence', idAttribute: 'occurrenceId', idField: 'occurrenceId',
+    interactive: false }),
+  [FEATURE_KIND.SEARCH_CONTEXT]: Object.freeze({ role: 'search-context', idAttribute: 'corridorId',
+    idField: 'corridorId', interactive: false }),
+  [FEATURE_KIND.SEARCH_REGION]: Object.freeze({ role: 'search-region', interactive: false }),
+  [FEATURE_KIND.SEARCH_RADIUS]: Object.freeze({ role: 'search-radius', interactive: false }),
+  [FEATURE_KIND.SEARCH_CENTRE]: Object.freeze({ role: 'search-center', interactive: true }),
+});
+
+// What a feature's element carries: its role, and its identity under the attribute that identity belongs to. A value
+// that does not exist is not written, so no element ever says it is something it has no identity for.
+export function featureAttributes(feature) {
+  const contract = FEATURE_DOM[feature?.kind] ?? null;
+  if (!contract) return {};
+  const attributes = { role: contract.role };
+  const value = contract.idField ? feature?.[contract.idField] : null;
+  if (contract.idAttribute && value != null) attributes[contract.idAttribute] = value;
+  if (feature?.kind === FEATURE_KIND.CORRIDOR && feature.selected != null) attributes.selected = feature.selected;
+  return attributes;
+}
+
+// A CORRIDOR, NORMALIZED. Its identity, geometry, style and card come from the corridor descriptor itself; the kind is
+// what makes it a corridor rather than a row that merely resembles one.
+export function corridorFeature(corridor, { selected = false, style = null } = {}) {
+  return Object.freeze({ kind: FEATURE_KIND.CORRIDOR, corridorId: corridor?.id ?? null,
+    geometry: corridor?.geometry ?? null, style: style ?? LINE_STYLE.normal, selected: Boolean(selected),
+    // The card follows the corridor: a corridor whose distance from the search centre was never measured has nothing to
+    // say about it and is drawn without one.
+    card: Number.isFinite(corridor?.distanceFromCenterM) ? popupHtml(corridor) : null });
+}
+
+// A POLYGON OR A POINT IS NOT A LINE, and the shape of a feature is read from its own geometry rather than assumed.
+// Only the line shape is painted by the map today; the others are declared for the overlay families, so the slice that
+// paints them starts from a shape reader that is already right.
+export function featureShape(geometry) {
+  const type = geometry?.type;
+  if (type === 'Point') return 'point';
+  if (type === 'Polygon' || type === 'MultiPolygon' || type === 'MultiPoint') return 'area';
+  if (type === 'LineString' || type === 'MultiLineString') return 'line';
+  return null;
+}
+
+// Polygon rings as Leaflet wants them: [lat, lon], outer ring first. A ring with fewer than three points is not a
+// polygon and is dropped rather than thrown at the renderer.
+export function toLatLngRings(geometry) {
+  const polygons = geometry?.type === 'Polygon' ? [geometry.coordinates]
+    : geometry?.type === 'MultiPolygon' ? geometry.coordinates : null;
+  if (!Array.isArray(polygons) || !polygons.length) return null;
+  const rings = [];
+  for (const polygon of polygons) {
+    for (const ring of polygon ?? []) {
+      if (!Array.isArray(ring)) continue;
+      const path = ring.filter(point => Array.isArray(point) && Number.isFinite(point[0]) && Number.isFinite(point[1]))
+        .map(([lon, lat]) => [lat, lon]);
+      if (path.length >= 3) rings.push(path);
+    }
+  }
+  return rings.length ? rings : null;
+}
+
+// One point as [lat, lon], from either a GeoJSON Point or a bare [lon, lat] pair.
+export function toLatLngPoint(coordinates) {
+  const pair = coordinates?.type === 'Point' ? coordinates.coordinates : coordinates;
+  if (!Array.isArray(pair) || pair.length < 2) return null;
+  const [lon, lat] = pair;
+  return Number.isFinite(lon) && Number.isFinite(lat) ? [lat, lon] : null;
+}
+
+// THE SHAPES ONE FEATURE DRAWS. A feature may be a line, an area or a point; the geometry it carries decides which, and
+// a feature with nothing drawable is skipped rather than thrown.
+export function drawableShapes(feature) {
+  const shape = featureShape(feature?.geometry);
+  if (shape === 'point') {
+    const point = toLatLngPoint(feature.geometry);
+    return point ? [{ point }] : [];
+  }
+  if (shape === 'area') {
+    const rings = toLatLngRings(feature.geometry);
+    return rings ? [{ rings }] : [];
+  }
+  if (shape === 'line') return (toLatLngs(feature.geometry) ?? []).map(line => ({ line }));
+  return [];
+}
+
 export function boundsOfGeometries(geometries) {
   let minLon = Infinity; let minLat = Infinity; let maxLon = -Infinity; let maxLat = -Infinity;
   for (const geometry of geometries ?? []) {
@@ -192,6 +302,12 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       // point would win the selection from the road the person actually clicked.
       if (event?.propagatedFrom?.corridorId) return;
       const hit = hitTest(event.latlng);
+      // TEMPORARY (this task): the other half of the direct-click trace - whether the map had to answer by proximity.
+      // Silent unless the flag is set.
+      if (globalThis.__RN_DEBUG_MAP_CLICK) {
+        console.log('MAP_CLICK_FALLBACK ' + JSON.stringify({ corridorId: hit?.id ?? null,
+          propagatedFrom: Boolean(event?.propagatedFrom) }));
+      }
       if (hit) { cardToOpen = hit.id; onSelect(hit.id); }
     });
     function hitTest(latlng) {
@@ -214,46 +330,63 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       if (corridor.saved) return LINE_STYLE.saved;
       return LINE_STYLE.normal;
     }
+    // ONE PAINT PATH, AND TODAY IT PAINTS WHAT TODAY DRAWS. A typed feature says what it is - its identity, geometry and
+    // style - and the tables above say how it is marked and whether it can be clicked. The habitat and occurrence
+    // overlays are still handed over as rows that have not been typed yet, so those rows keep the corridor-shaped
+    // handling they have today; typing them is the next slice, and until then their DOM is what it was.
+    //
+    // Nothing else about today's drawing changes: the same line geometry, the same layer, the same interactive
+    // behaviour, the same click handler, the same card, the same marks, the same draw order. Only the line shape is
+    // painted - a polygon row is skipped exactly as it is today - and pick mode still keeps precedence.
     function paint(layer, entries) {
       layer.clearLayers();
       // The cards follow the layers: a path that is no longer drawn cannot show a card.
       if (layer === layers.results) cardedPaths.clear();
       let drawn = 0;
       let skipped = 0;
-      for (const corridor of entries) {
-        const lines = toLatLngs(corridor.geometry);
-        if (!lines) { skipped += 1; continue; }
-        for (const line of lines) {
-          const path = leaflet.polyline(line, styleFor(corridor));
+      for (const entry of entries ?? []) {
+        const feature = entry?.kind ? entry
+          : corridorFeature(entry, { selected: entry?.id === selectedId, style: styleFor(entry) });
+        const contract = FEATURE_DOM[feature.kind] ?? null;
+        const lines = drawableShapes(feature).filter(shape => shape.line);
+        if (!contract || !lines.length) { skipped += 1; continue; }
+        for (const { line } of lines) {
+          // `interactive` is the kind's own contract: a corridor can be clicked, and a family that cannot be is drawn
+          // with that said in the layer itself rather than by hoping the z-order protects it.
+          const path = leaflet.polyline(line, { ...feature.style, interactive: contract.interactive });
           // Drawing order is list order, so the map's stacking matches the order the person is reading.
-          if (Number.isFinite(corridor.distanceFromCenterM)) {
-            cardedPaths.set(corridor.id, path);
-            path.bindPopup(popupHtml(corridor));
+          if (feature.card) {
+            cardedPaths.set(feature.corridorId, path);
+            path.bindPopup(feature.card);
           }
           // THE METADATA GOES ON AFTER LEAFLET HAS MADE THE ELEMENT. Leaflet creates a path's SVG element only when
           // the path joins the map, so stamping it before `addLayer` stamps nothing: the line is drawn and its
           // identity is nowhere in the DOM. The identification is therefore applied on the map's own `add` event and
           // once immediately after adding, which covers the first insertion and every later re-add.
-          // THE LINE IS AUTHORITATIVE FOR ITS OWN CLICK. The path carries the descriptor it was drawn from, so a
-          // click on it selects exactly that corridor; the map-level handler then leaves the event alone. Pick mode
-          // keeps precedence: the line declines the click and lets the map answer with the coordinate.
+          // THE LINE IS AUTHORITATIVE FOR ITS OWN CLICK. The path carries the corridor it was drawn for, so a click on
+          // it selects exactly that corridor; the map-level handler then leaves the event alone. Pick mode keeps
+          // precedence: the line declines the click and lets the map answer with the coordinate.
           //
           // THE CLICK IS NOT SWALLOWED. Stopping propagation here would also stop Leaflet's own layer-click listener,
           // which is what opens the corridor's card, so a selection would silently lose its explanation. Bubbling is
           // left intact instead; the map handler recognises the line's identity on `propagatedFrom` and declines to
           // answer a click that has already been answered.
-          path.corridorId = corridor.id;
-          if (typeof path.on === 'function') {
+          path.corridorId = feature.corridorId;
+          if (contract.clickable && typeof path.on === 'function') {
             path.on('click', () => {
               if (pickMode) return;
+              // TEMPORARY (this task): the direct-click trace, so the click path is measured rather than inferred.
+              // Silent unless the flag is set; the gate sets it only with MAP_CLICK_DEBUG=1.
+              if (globalThis.__RN_DEBUG_MAP_CLICK) {
+                console.log('MAP_CLICK_LAYER ' + JSON.stringify({ corridorId: feature.corridorId }));
+              }
               // A click on the line asks for that corridor's card along with the selection, so the card survives the
               // re-draw the selection triggers.
-              cardToOpen = corridor.id;
-              onSelect(corridor.id);
+              cardToOpen = feature.corridorId;
+              onSelect(feature.corridorId);
             });
           }
-          const decorate = () => mark(path, { role: 'candidate', corridorId: corridor.id,
-            selected: corridor.id === selectedId });
+          const decorate = () => mark(path, featureAttributes(feature));
           if (typeof path.on === 'function') path.on('add', decorate);
           layer.addLayer(path);
           decorate();
