@@ -81,30 +81,25 @@ for (const [query, label, geography] of REGIONS) {
       document.querySelector('#discovery-results tbody tr.selected')?.dataset?.candidateId ?? null);
     // How many drawn paths carry a role: the map's own contract, counted without reaching into Leaflet.
     const pathsWithRole = role => page.locator(`#map path[data-role="${role}"]`).count();
-    // THE ROAD UNDER A POINT THAT CAN ACTUALLY BE CLICKED, AND WHOSE ROW THE LIST RENDERS.
-    //
-    // Drawn roads overlap and one corridor may be several MultiLineString parts, so the probe scans the drawn parts for
-    // a midpoint where the topmost element really is a *clickable corridor path* - not merely something that mentions a
-    // corridor id, since the search-context leader carries one too. Only corridors the result table actually renders
-    // are eligible: the gate goes on to assert that the clicked corridor's *row* becomes selected, and a corridor
-    // outside the rendered rows could never show that, however well the click worked.
-    const renderedIds = () => page.locator('#discovery-results tbody tr[data-candidate-id]')
-      .evaluateAll(rows => rows.map(row => row.dataset.candidateId));
-    const clickableCorridorPoint = ids => page.evaluate(rendered => {
-      const candidates = [...document.querySelectorAll('#map path[data-role="candidate"][data-corridor-id]')]
-        .filter(element => rendered.includes(element.dataset.corridorId));
+    // THE ROAD UNDER A POINT THAT CAN ACTUALLY BE CLICKED. Drawn roads overlap and one corridor may be several
+    // MultiLineString parts, so the probe scans the drawn parts for a midpoint where the topmost element really is a
+    // *clickable corridor path* - not merely something that mentions a corridor id, since the search-context leader
+    // carries one too - and that path's id is the expectation. A click that lands on empty space, or on an overlay
+    // covering a road, would prove nothing about selection.
+    const clickableCorridorPoint = () => page.evaluate(() => {
+      const candidates = [...document.querySelectorAll('#map path[data-role="candidate"][data-corridor-id]')];
       for (const element of candidates.slice(0, 40)) {
         const length = element.getTotalLength?.() ?? 0;
         if (!length) continue;
         const midpoint = element.getPointAtLength(length / 2);
         const screen = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(element.getScreenCTM());
         const top = document.elementFromPoint(screen.x, screen.y);
-        if (top?.dataset?.role === 'candidate' && rendered.includes(top.dataset.corridorId)) {
+        if (top?.dataset?.role === 'candidate' && top.dataset.corridorId) {
           return { x: screen.x, y: screen.y, id: top.dataset.corridorId };
         }
       }
       return null;
-    }, ids);
+    });
 
     // 22. GEOGRAPHY SANITY: a lat/lon inversion or a stale-region camera shows up here immediately. The automatic
     // fit is animated, so the camera is allowed a moment to arrive before its position is judged - and the fit is
@@ -234,41 +229,10 @@ for (const [query, label, geography] of REGIONS) {
     //
     // The click point comes from the shared probe: a real point on a drawn road, with the road under that point as the
     // expectation.
-    const probe = await clickableCorridorPoint(await renderedIds());
+    const probe = await clickableCorridorPoint();
     expect(probe, `${label}: a drawn road is visible under a point that can be clicked`).toBeTruthy();
     const targetId = probe.id;
-    // TEMPORARY DIAGNOSTIC: which element the click is delivered to, as the document sees it.
-    await page.evaluate(() => {
-      globalThis.__RN_CLICK_SEEN = [];
-      document.addEventListener('click', event => {
-        const node = event.target;
-        globalThis.__RN_CLICK_SEEN.push({ tag: node?.tagName ?? null, role: node?.dataset?.role ?? null,
-          corridorId: node?.dataset?.corridorId ?? null, cls: String(node?.getAttribute?.('class') ?? '') });
-      }, true);
-    });
-    await page.mouse.move(probe.x, probe.y);
-    await page.waitForTimeout(150);
-    await page.mouse.down();
-    await page.waitForTimeout(80);
-    await page.mouse.up();
-    console.log(`MAP_CLICK ${JSON.stringify({ label, expected: targetId,
-      seen: await page.evaluate(() => globalThis.__RN_CLICK_SEEN) })}`);
-    // TEMPORARY DIAGNOSTIC: the sequence of list selections in the second after the click.
-    const selectionTrace = [];
-    for (let step = 0; step < 12; step += 1) {
-      selectionTrace.push(await selectedId());
-      await page.waitForTimeout(120);
-    }
-    console.log(`MAP_TRACE ${JSON.stringify({ label, expected: targetId, selectionTrace })}`);
-    // TEMPORARY DIAGNOSTIC: does a programmatic click on the very path the real click hit move the selection?
-    const synthetic = await page.evaluate(id => {
-      const element = document.querySelector(`#map path[data-role="candidate"][data-corridor-id="${id}"]`);
-      element?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-      return { dispatched: Boolean(element) };
-    }, targetId);
-    await page.waitForTimeout(800);
-    console.log(`MAP_SYNTHETIC ${JSON.stringify({ label, synthetic, selectedNow: await selectedId(),
-      pageErrors: pageErrors.slice(0, 3) })}`);
+    await page.mouse.click(probe.x, probe.y);
     await page.waitForTimeout(800);
     expect(await selectedId(), `${label}: a map click selects the same corridor in the list`).toBe(targetId);
     const afterMapClick = await camera();
@@ -364,7 +328,7 @@ for (const [query, label, geography] of REGIONS) {
     await expect(page.locator('#map path[data-role="search-region"]')).toHaveCount(0);
 
     // A corridor click still selects that corridor with every overlay on, and the camera stays where the person put it.
-    const clickPoint = await clickableCorridorPoint(await renderedIds());
+    const clickPoint = await clickableCorridorPoint();
     expect(clickPoint, `${label}: a road is still clickable under the overlays`).toBeTruthy();
     await page.mouse.click(clickPoint.x, clickPoint.y);
     await expect.poll(selectedId, { timeout: 15000 }).toBe(clickPoint.id);

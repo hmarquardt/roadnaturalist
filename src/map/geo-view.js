@@ -113,14 +113,23 @@ export const FEATURE_KIND = Object.freeze({
   SEARCH_CENTRE: 'search-center',
 });
 
-// ORDER IS DRAW ORDER, AND IT IS DECLARED HERE. Every feature is drawn into Leaflet's own overlay pane - the renderer
-// whose click handling is the library's own, proven path - and the stacking that matters is the order the families are
-// painted in: search geometry, then the context leader, then the habitat buffer under its features, then the roads,
-// then occurrences above them, and the selected corridor's emphasis last of all. Leaflet appends paths in the order
-// they are added and SVG paints in document order, so this is deterministic without a second renderer in the map.
-export const FEATURE_ORDER = Object.freeze([FEATURE_KIND.SEARCH_REGION, FEATURE_KIND.SEARCH_RADIUS,
-  FEATURE_KIND.SEARCH_CENTRE, FEATURE_KIND.SEARCH_CONTEXT, FEATURE_KIND.HABITAT_BUFFER, FEATURE_KIND.HABITAT,
-  FEATURE_KIND.CORRIDOR, FEATURE_KIND.OCCURRENCE]);
+// PANES ARE THE Z-ORDER, DECLARED ONCE. Search geometry sits under everything it describes; the habitat buffer sits
+// under the habitat features it contains; context lines sit under the roads they explain; occurrences sit above the
+// roads so a point is never hidden by a line; the selected corridor sits above every other line. Leaflet's own
+// tooltip and popup panes (650 and 700) stay above all of it.
+//
+// A CORRIDOR IS DRAWN WHERE LEAFLET PUTS INTERACTIVE GEOMETRY. Its pane is deliberately null - Leaflet's own overlay
+// pane - because that is the renderer whose click handling is the library's own, proven path; every other family here is
+// non-interactive and is the only thing that gets a pane of its own. Ordering is therefore a property of this table,
+// and click handling is not something a pane can take away.
+export const FEATURE_PANE = Object.freeze({
+  [FEATURE_KIND.SEARCH_REGION]: 'rnSearch', [FEATURE_KIND.SEARCH_RADIUS]: 'rnSearch',
+  [FEATURE_KIND.SEARCH_CENTRE]: 'rnSearch', [FEATURE_KIND.SEARCH_CONTEXT]: 'rnContext',
+  [FEATURE_KIND.HABITAT_BUFFER]: 'rnHabitatBuffer', [FEATURE_KIND.HABITAT]: 'rnHabitat',
+  [FEATURE_KIND.CORRIDOR]: null, [FEATURE_KIND.OCCURRENCE]: 'rnOccurrence',
+});
+const PANES = Object.freeze([['rnSearch', 340], ['rnContext', 360], ['rnHabitatBuffer', 370], ['rnHabitat', 380],
+  ['rnOccurrence', 420], ['rnSelected', 430]]);
 
 // THE DOM CONTRACT, ONE ROW PER KIND. `idAttribute` carries that kind's own identity, so a corridor is named by
 // data-corridor-id, a habitat feature by data-habitat-id, an occurrence by data-occurrence-id. A kind without an
@@ -347,6 +356,13 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
   try {
     const map = leaflet.map(container, { zoomControl: true, attributionControl: true, worldCopyJump: true });
     map.setView([39, -96], 4);
+    // THE PANES, created once, lowest first. A feature is drawn into the pane its kind declares, so ordering is a
+    // property of the layer model rather than of the order layers happened to be added in.
+    for (const [name, zIndex] of PANES) {
+      if (typeof map.createPane !== 'function') break;
+      const pane = map.createPane(name);
+      if (pane?.style) pane.style.zIndex = String(zIndex);
+    }
     const layers = { results: leaflet.featureGroup(), saved: leaflet.featureGroup(), search: leaflet.featureGroup(),
       context: leaflet.featureGroup(), overlay: leaflet.featureGroup(), occurrence: leaflet.featureGroup(),
       selected: leaflet.featureGroup() };
@@ -381,7 +397,6 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     let outing = null;
     let activeCentre = null;
     let activeRadiusM = null;
-    let occurrences = [];
     let fitCount = 0;
     let movements = 0;
     // THE PATH THAT CARRIES EACH CARD, so the card can be re-opened after a re-draw. Selecting a corridor re-renders the
@@ -451,7 +466,8 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         const shapes = drawableShapes(feature);
         if (!shapes.length) { skipped += 1; continue; }
         for (const shape of shapes) {
-          const options = { ...feature.style, interactive: contract.interactive };
+          const pane = FEATURE_PANE[feature.kind];
+          const options = { ...feature.style, interactive: contract.interactive, ...(pane ? { pane } : {}) };
           const path = shape.circle ? leaflet.circle(shape.point, { ...options, radius: shape.radiusM })
             : shape.rectangle ? leaflet.rectangle(shape.bounds, options)
               : shape.point ? leaflet.circleMarker(shape.point, options)
@@ -523,20 +539,19 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         paint(layers.saved, savedRoads.filter(road => !visible.has(road.id))
           .map(road => corridorFeature(road, { selected: road.id === selectedId, style: styleFor(road) })));
         // THE HABITAT FAMILY, in its own terms: the analysis buffer first (it is the outline the features sit inside),
-        // then the wetland and hydrography features themselves. Neither is a corridor and neither is clickable. Both are
-        // painted before the roads, so a road is never hidden by the wetland it crosses.
-        // Search geometry first of all: it is the frame the rest is read against, and it sits under everything.
-        if (search !== undefined) setSearch(search);
+        // then the wetland and hydrography features themselves. Neither is a corridor and neither is clickable.
         const buffer = habitatBufferFeature(overlay);
         paint(layers.overlay, [...(buffer ? [buffer] : []), ...habitatFeatures(overlay)]);
-        occurrences = occurrenceFeatures(occurrenceOverlay);
-        // Context leader, roads, occurrences above them, emphasis last: one pass, in that order.
+        paint(layers.occurrence, occurrenceFeatures(occurrenceOverlay));
+        if (search !== undefined) setSearch(search);
         view.setSelected(selectedId);
         return { drawn: results.drawn, skipped: results.skipped, candidates: corridors.length };
       },
       // Selection changes appearance only. It is called on every list highlight precisely *because* it does not fit.
       setSelected(id) {
         selectedId = id ?? null;
+        paint(layers.results, corridors.map(corridor => corridorFeature(corridor,
+          { selected: corridor.id === selectedId, style: styleFor(corridor) })));
         // The emphasised copy is drawn into its own layer and its own pane, so it sits above every other line
         // regardless of where it falls in the list order. Selection changes appearance only: it is called on every list
         // highlight precisely *because* it never moves the camera.
@@ -547,16 +562,10 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
             .addTo(layers.selected);
         }
         // THE LEADER, FROM WHERE THE PERSON SEARCHED TO THE ROAD THEY SELECTED. It is a context line and not a road:
-        // non-interactive, painted before the roads so it stays under them, and present only when both ends are real
-        // coordinates.
+        // non-interactive, drawn under the corridors, and present only when both ends are real coordinates.
         layers.context.clearLayers();
         const leader = searchContextFeature({ centre: activeCentre, corridor: selected });
         if (leader) paint(layers.context, [leader]);
-        paint(layers.results, corridors.map(corridor => corridorFeature(corridor,
-          { selected: corridor.id === selectedId, style: styleFor(corridor) })));
-        // Occurrences sit above the roads so a point is never hidden by a line, and are painted before the emphasis copy
-        // so the selected corridor still reads as the topmost line.
-        paint(layers.occurrence, occurrences);
         // ONE CARD, FOR THE CORRIDOR THAT WAS JUST ASKED FOR. The map has finished re-drawing, so a card requested by a
         // click is opened against the layer that now carries it - never against the layer the click destroyed.
         if (cardToOpen) { showCardFor(cardToOpen); cardToOpen = null; }
