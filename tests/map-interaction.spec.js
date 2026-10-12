@@ -45,7 +45,13 @@ for (const [query, label, geography] of REGIONS) {
     const pageErrors = [];
     page.on('request', request => {
       const url = request.url();
-      hosts.add(new URL(url).host);
+      // The runtime's own declared dependencies: DuckDB-WASM from jsDelivr and its spatial/parquet extensions from the
+      // DuckDB CDN. The same two hosts are allowed in tests/national-derived-production.spec.js, and they are how
+      // ordinary road geometry is read - not a data plane, and not the Investigator. Anything else is unexpected.
+      // A request that contacts no host cannot be an unexpected host: blob: and data: URLs have none, so they are not
+      // part of the census rather than counted as an empty name.
+      const parsed = new URL(url);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') hosts.add(parsed.host);
       if (RAW_PLANE.test(url)) raw.push(url);
       if (DEEP_DATA.test(url)) deep.push(url);
     });
@@ -283,7 +289,8 @@ for (const [query, label, geography] of REGIONS) {
     expect(raw, `${label}: ordinary map use must read no raw plane`).toEqual([]);
     expect(deep, `${label}: ordinary map use must reach no occurrence, access or Investigator source`).toEqual([]);
     const unexpected = [...hosts].filter(host => !/(^|\.)roadnaturalist\.com$/.test(host)
-      && !/(^|\.)roadnaturalist\.pages\.dev$/.test(host) && !/(^|\.)tile\.openstreetmap\.org$/.test(host));
+      && !/(^|\.)roadnaturalist\.pages\.dev$/.test(host) && !/(^|\.)tile\.openstreetmap\.org$/.test(host)
+      && host !== 'cdn.jsdelivr.net' && host !== 'extensions.duckdb.org');
     expect(unexpected, `${label}: no unexpected host may be contacted`).toEqual([]);
     expect(await page.locator('#map .leaflet-tile-pane img').count(),
       `${label}: the basemap is drawing tiles`).toBeGreaterThan(0);
