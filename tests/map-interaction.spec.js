@@ -114,7 +114,15 @@ for (const [query, label, geography] of REGIONS) {
     const firstId = await requireIdOfRow(0);
     await rows.nth(0).locator('.discovery-row').click();
     expect(await selectedId(), `${label}: the clicked row is the selected one`).toBe(firstId);
-    await expect(page.locator(`#map path[data-role="candidate"][data-corridor-id="${firstId}"]`)).toHaveCount(1);
+    // ONE CORRIDOR MAY BE MORE THAN ONE SVG PATH. A corridor whose geometry is a MultiLineString is drawn as one
+    // <path> per line part, and every part deliberately carries the same data-corridor-id so any visible segment can
+    // select the corridor. Requiring exactly one path would assert something about the geometry rather than about
+    // selection, so what is required is: the corridor is drawn, and every path drawn for it names that same corridor.
+    const pathsFor = id => page.locator(`#map path[data-role="candidate"][data-corridor-id="${id}"]`);
+    await expect(pathsFor(firstId), `${label}: the selected corridor is drawn on the map`).not.toHaveCount(0);
+    const drawnIdentities = await pathsFor(firstId).evaluateAll(elements =>
+      [...new Set(elements.map(element => element.dataset.corridorId))]);
+    expect(drawnIdentities, `${label}: every path drawn for that corridor names that corridor`).toEqual([firstId]);
 
     // 6/9. THE USER OWNS THE CAMERA - AND THE GESTURE HAS TO BE A REAL ONE.
     //
@@ -212,18 +220,23 @@ for (const [query, label, geography] of REGIONS) {
     // 5. MAP → LIST. Clicking a line selects the same corridor through the application's own code path.
     //
     // THE CLICK MUST LAND ON A LINE, AND THE LINE'S OWN IDENTITY DECIDES THE ANSWER. A `force` click at the corner of a
-    // path's bounding box hits empty space for any diagonal road; and drawn roads overlap, so a point computed from one
-    // path's geometry may have another path on top of it. The probe below therefore asks the document which road is
-    // actually under the point, and that road's id — read from the DOM the application rendered — is the expectation.
-    const seedPath = page.locator('#map path[data-role="candidate"]').first();
-    const probe = await seedPath.evaluate(element => {
-      const midpoint = element.getPointAtLength(element.getTotalLength() / 2);
-      const screen = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(element.getScreenCTM());
-      const top = document.elementFromPoint(screen.x, screen.y);
-      return { x: screen.x, y: screen.y, id: top?.dataset?.corridorId ?? null, tag: top?.tagName ?? null };
+    // path's bounding box hits empty space for any diagonal road; drawn roads overlap; and one corridor may be several
+    // paths. The probe below therefore scans the drawn parts for one whose midpoint really is on top of a corridor
+    // path on screen, and that path's id - read from the DOM the application rendered - is the expectation.
+    const probe = await page.evaluate(() => {
+      const candidates = [...document.querySelectorAll('#map path[data-role="candidate"][data-corridor-id]')];
+      for (const element of candidates.slice(0, 40)) {
+        const length = element.getTotalLength?.() ?? 0;
+        if (!length) continue;
+        const midpoint = element.getPointAtLength(length / 2);
+        const screen = new DOMPoint(midpoint.x, midpoint.y).matrixTransform(element.getScreenCTM());
+        const top = document.elementFromPoint(screen.x, screen.y);
+        if (top?.dataset?.corridorId) return { x: screen.x, y: screen.y, id: top.dataset.corridorId, tag: top.tagName };
+      }
+      return null;
     });
+    expect(probe, `${label}: a drawn road is visible under a point that can be clicked`).toBeTruthy();
     const targetId = probe.id;
-    expect(targetId, `${label}: a drawn road is under the point being clicked`).toBeTruthy();
     await page.mouse.click(probe.x, probe.y);
     await page.waitForTimeout(800);
     expect(await selectedId(), `${label}: a map click selects the same corridor in the list`).toBe(targetId);

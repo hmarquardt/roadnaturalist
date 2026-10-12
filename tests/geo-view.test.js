@@ -313,6 +313,33 @@ test('clicking a second corridor leaves the second corridor as the active card',
   assert.ok(!last.includes(`data-corridor-id="${CLICKED.id}"`), 'and the earlier corridor card is not the active one');
 });
 
+test('a multi-part corridor is drawn as several paths, each naming that same corridor, each clickable', () => {
+  // MULTILINESTRING GEOMETRY IS NOT FLATTENED. A corridor whose geometry arrives in several parts is drawn as one
+  // path per part, and every part carries the corridor's identity: any visible segment must select the corridor the
+  // person can see, which is the same contract the browser gate clicks through at Portland.
+  const MULTI = { id: 'corridor-multi', name: 'Multi Rd', distanceFromCenterM: 1200,
+    geometry: { type: 'MultiLineString', coordinates: [
+      [[-87.50, 38.30], [-87.40, 38.31]],
+      [[-87.39, 38.32], [-87.30, 38.33]]] } };
+  const { leaflet, calls } = fakeLeaflet();
+  const selected = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  view.draw({ corridors: [MULTI] });
+  // One paint: a draw paints the results layer and then repaints it to mark the selection, so the paths under test are
+  // the ones a single paint creates. (calls.polylines is the creation log; the layer holds the latest paint.)
+  const before = calls.polylines.length;
+  view.setSelected(MULTI.id);
+  const parts = calls.polylines.slice(before).filter(path => path.corridorId === MULTI.id);
+  assert.equal(parts.length, 2, 'both parts of the corridor are drawn, not merged into one');
+  for (const part of parts) {
+    assert.equal(part.attributes['data-corridor-id'], MULTI.id, 'every part names the corridor it belongs to');
+    assert.equal(part.attributes['data-role'], 'candidate', 'and is a clickable candidate segment');
+    assert.match(part.popup, new RegExp(`data-corridor-id="${MULTI.id}"`), 'and offers that corridor card');
+    part.emit('click', { latlng: { lat: 38.3, lng: -87.45 }, propagatedFrom: part });
+  }
+  assert.deepEqual(selected, [MULTI.id, MULTI.id], 'either part selects that corridor, and only that corridor');
+});
+
 test('the map never reads storage, and the popup explains without a second evidence panel', () => {
   const source = readFileSync(new URL('../src/map/geo-view.js', import.meta.url), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
