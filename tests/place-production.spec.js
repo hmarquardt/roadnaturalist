@@ -1,11 +1,17 @@
 import { test, expect } from '@playwright/test';
 
 import { REPRESENTATIVE_IDENTITY } from '../src/discovery/identity-evidence.js';
+import { MILES_TO_M, drawnSearchCentre, searchGeometry } from './map-contract.js';
 
 // Opt-in verification of the *deployed* national place-name search.
 //
-//   RUN_PLACE_PRODUCTION=1 npm run verify:places:production
-//   PRODUCTION_BASE_URL=https://roadnaturalist.pages.dev RUN_PLACE_PRODUCTION=1 npx playwright test tests/place-production.spec.js
+//   RUN_PLACE_PRODUCTION=1 EVIDENCE_DEBUG=1 npm run verify:places:production
+//   PRODUCTION_BASE_URL=https://roadnaturalist.pages.dev RUN_PLACE_PRODUCTION=1 EVIDENCE_DEBUG=1 npx playwright test tests/place-production.spec.js
+//
+// EVIDENCE_DEBUG=1 is required, not optional: the application prints its evidence stages only when
+// `__RN_DEBUG_EVIDENCE` is set, and the identity record of the representative corridor (see
+// src/discovery/identity-evidence.js) is one of those stages. The spec asserts that precondition at the checkpoint
+// rather than letting a missing observation look like a missing verification.
 //
 // It is the check the deployment story requires before (and after) a release: a place typed by name in the
 // deployed app must set the search centre at the published interior point, keep the radius the person chose,
@@ -134,10 +140,16 @@ test('deployed place search resolves the named places and runs national discover
     expect(entry.firstRow, region).toMatch(/\d/);
     expect(entry.summary, region).toContain('25-mile radius search');
     expect(entry.recent, region).toContain(expected);
-    // The map moved its centre to the chosen place; the key states the radius and the coverage it now has.
-    await expect(page.locator('#map .search-center')).toHaveCount(1);
-    await expect(page.locator('#map .map-key')).toContainText('25 mi');
-    await expect(page.locator('#map .map-key')).toContainText('FULL');
+    // The map moved to the chosen place, stated in the geographic map's own contract instead of the retired schematic's
+    // DOM: a search centre is drawn, and the search geometry the map holds is the requested radius around the chosen
+    // place. The two facts the schematic's key carried are asserted where the product states them now - the chosen
+    // radius is the search control's own value, and the coverage is the search status line, asserted above.
+    await expect(drawnSearchCentre(page)).toHaveCount(1);
+    await expect(page.locator('#discovery-radius-input')).toHaveValue('25');
+    const drawn = await searchGeometry(page);
+    expect(drawn.center, region).not.toBeNull();
+    expect(Math.abs(drawn.radiusM - 25 * MILES_TO_M), `${region}: the drawn radius is the requested 25 mi`)
+      .toBeLessThan(MILES_TO_M);
   }
 
   expect(outside, 'a place search must reach no geocoder, occurrence source or Investigator endpoint').toEqual([]);
@@ -295,6 +307,13 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
     // exact source-feature identity, segmentation and geometry all matched. That is the contract, and it is the
     // line the release artefact keeps.
     if (derived.name === REPRESENTATIVE_IDENTITY.corridor) {
+      // THE RECORD HAS TO BE SWITCHED ON TO BE READ. The application emits its evidence stages only when
+      // `__RN_DEBUG_EVIDENCE` is set, and this spec sets that flag from EVIDENCE_DEBUG. With the flag off there is no
+      // record to find, and the wait below would report a product failure for what is a missing observation; the
+      // precondition is therefore named here, first. The identity requirement itself is unchanged: with the record in
+      // hand, every field below must be present and exact.
+      expect(process.env.EVIDENCE_DEBUG, `${label}: run with EVIDENCE_DEBUG=1 - the identity record is one of the `
+        + 'application evidence stages this spec only observes when that flag enables them').toBeTruthy();
       await expect.poll(() => identityEvidenceFor(derived.name), { timeout: 30000,
         message: `${label}: ${derived.name} must record identity evidence, not only reach Source-backed` }).not.toBeNull();
       const identity = identityEvidenceFor(derived.name);

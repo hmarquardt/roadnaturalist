@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 
+import { MILES_TO_M, cameraOf, drawnSearchCentre, fitCountOf, mapAvailable, mapImplementation,
+  movementCount, searchGeometry } from './map-contract.js';
+
 // THE GEOGRAPHIC MAP, PROVEN BY REAL BROWSER BEHAVIOUR.
 //
 //   RUN_MAP_PRODUCTION=1 PRODUCTION_BASE_URL=https://roadnaturalist.com npx playwright test tests/map-interaction.spec.js
@@ -9,7 +12,6 @@ import { test, expect } from '@playwright/test';
 // the page makes. Adapter methods are never called from the test except through the narrow read-only diagnostic the
 // factory exposes, and never as the primary proof.
 const BASE = process.env.PRODUCTION_BASE_URL ?? 'https://roadnaturalist.com';
-const MILES_TO_M = 1609.344;
 // Ordinary map use must reach nothing that costs data: no raw plane, no source evidence, no occurrence source, no
 // Investigator Worker. Basemap tiles are the one expected addition.
 const RAW_PLANE = /\/(national\/roads|national\/wetlands|national\/hydro)\//;
@@ -66,17 +68,15 @@ for (const [query, label, geography] of REGIONS) {
 
     // 3. THE RUNNING MAP IS THE GEOGRAPHIC ONE. There is one map implementation, and an unavailable view is reported
     // as such rather than replaced by anything: a fallback renderer would be a different answer to the same question.
-    expect(await page.evaluate(() => globalThis.__RN_MAP?.implementation ?? null),
-      'the application must be running the geographic map').toBe('geo');
-    expect(await page.evaluate(() => globalThis.__RN_MAP?.available ?? false),
-      'the geographic map must have initialised').toBe(true);
+    expect(await mapImplementation(page), 'the application must be running the geographic map').toBe('geo');
+    expect(await mapAvailable(page), 'the geographic map must have initialised').toBe(true);
     await expect(page.locator('#map.leaflet-container')).toHaveCount(1);
 
     await runSearch(page, query);
-    expect(await page.evaluate(() => globalThis.__RN_MAP?.implementation ?? null)).toBe('geo');
+    expect(await mapImplementation(page)).toBe('geo');
 
-    const camera = () => page.evaluate(() => globalThis.__RN_MAP.camera());
-    const fitCount = () => page.evaluate(() => globalThis.__RN_MAP.fitCount());
+    const camera = () => cameraOf(page);
+    const fitCount = () => fitCountOf(page);
     const selectedId = () => page.evaluate(() =>
       document.querySelector('#discovery-results tbody tr.selected')?.dataset?.candidateId ?? null);
 
@@ -136,7 +136,7 @@ for (const [query, label, geography] of REGIONS) {
     });
     await page.waitForTimeout(600);
     const afterSynthetic = await camera();
-    const movementsAfterSynthetic = await page.evaluate(() => globalThis.__RN_MAP.movements());
+    const movementsAfterSynthetic = await movementCount(page);
 
     // The real gesture: the map's own box, well inside it, away from the zoom control and any popup.
     // A REAL GESTURE NEEDS REAL SCREEN COORDINATES. The map panel sits below the fold on this viewport, so
@@ -153,7 +153,7 @@ for (const [query, label, geography] of REGIONS) {
     await page.mouse.up();
     await page.waitForTimeout(900);
     const afterMouse = await camera();
-    const movementsAfterMouse = await page.evaluate(() => globalThis.__RN_MAP.movements());
+    const movementsAfterMouse = await movementCount(page);
     const movedByMouse = afterMouse.center[0] !== afterSynthetic.center[0] || afterMouse.center[1] !== afterSynthetic.center[1];
     expect(movedByMouse, `${label}: a real mouse drag must move the map`).toBe(true);
     // A gesture that never reaches Leaflet leaves its movement count where it was, so the counter is what distinguishes
@@ -188,25 +188,20 @@ for (const [query, label, geography] of REGIONS) {
     expect(await fitCount(), `${label}: Fit results is exactly one explicit fit`).toBe(2);
     const fitted = await camera();
     expect(fitted.zoom, `${label}: Fit results should zoom in on the results`).toBeGreaterThan(1);
-    const afterFit = await page.evaluate(() => {
-      const centre = globalThis.__RN_MAP.camera().center;
-      const search = globalThis.__RN_MAP.searchGeometry();
-      return { centre, radiusM: search.radiusM, searchCentre: search.center };
-    });
-    expect(afterFit.radiusM, `${label}: the requested radius is 25 miles in metres`)
-      .toBeCloseTo(25 * MILES_TO_M, 0);
-    expect(Math.abs(afterFit.radiusM - 25 * MILES_TO_M), `${label}: within a metre of the request`).toBeLessThan(1);
+    const search = await searchGeometry(page);
+    expect(search.radiusM, `${label}: the requested radius is 25 miles in metres`).toBeCloseTo(25 * MILES_TO_M, 0);
+    expect(Math.abs(search.radiusM - 25 * MILES_TO_M), `${label}: within a metre of the request`).toBeLessThan(1);
     await expect(page.locator('#map path[data-role="search-radius"]')).toHaveCount(1);
-    await expect(page.locator('#map path[data-role="search-center"]')).toHaveCount(1);
+    await expect(drawnSearchCentre(page)).toHaveCount(1);
     // The adapter exposes the drawn centre in Leaflet order - [lat, lon] - so latitude is index 0 and longitude is
     // index 1. Comparing index 1 to latitude bounds asks whether a longitude is north of Indiana.
-    expect(afterFit.searchCentre[0], `${label}: the drawn centre's latitude is the searched place`)
+    expect(search.center[0], `${label}: the drawn centre's latitude is the searched place`)
       .toBeGreaterThan(geography.lat[0]);
-    expect(afterFit.searchCentre[0], `${label}: the drawn centre's latitude is the searched place`)
+    expect(search.center[0], `${label}: the drawn centre's latitude is the searched place`)
       .toBeLessThan(geography.lat[1]);
-    expect(afterFit.searchCentre[1], `${label}: the drawn centre's longitude is the searched place`)
+    expect(search.center[1], `${label}: the drawn centre's longitude is the searched place`)
       .toBeGreaterThan(geography.lon[0]);
-    expect(afterFit.searchCentre[1], `${label}: the drawn centre's longitude is the searched place`)
+    expect(search.center[1], `${label}: the drawn centre's longitude is the searched place`)
       .toBeLessThan(geography.lon[1]);
 
     // 5. MAP → LIST. Clicking a line selects the same corridor through the application's own code path.
@@ -283,6 +278,6 @@ for (const [query, label, geography] of REGIONS) {
       `${label}: the basemap is drawing tiles`).toBeGreaterThan(0);
     expect(pageErrors, `${label}: the page must stay error-free`).toEqual([]);
     console.log(`MAP_PRODUCTION ${JSON.stringify({ label, rows: rowCount, zoom: fitted.zoom.toFixed(2),
-      radiusM: Math.round(afterFit.radiusM), hosts: [...hosts].sort(), raw: raw.length, deep: deep.length })}`);
+      radiusM: Math.round(search.radiusM), hosts: [...hosts].sort(), raw: raw.length, deep: deep.length })}`);
   });
 }
