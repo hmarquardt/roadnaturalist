@@ -111,3 +111,106 @@ re-run `scripts/evaluate-ranking.mjs`, and promote only if the corrected model i
 **Default sort: unchanged (`wetlandArea250`).** No ranking weights, transforms or component definitions were
 changed; `naturalist-interest-v1` is byte-for-byte the model it was, and no `naturalist-interest-v2` was created.
 
+
+---
+
+# Update: `naturalist-interest-v2`, after restoring the ecology signal
+
+The defect in the finding above was fixed, and the same eight-region evaluation was re-run. **The recommendation is
+still B — keep the exploration order optional — but the reason changed**: ecology is now real and it does move the
+order; what still keeps it off the default is distance and top-of-list saturation, not a dead signal.
+
+## The defect, precisely
+
+The published derived row carries `l3_count`, `l4_count` and `transition_count` (built in `scripts/build-derived.py`
+as `len(l3 intersections)`, `len(l4 intersections)` and `(l3_count-1)+(l4_count-1)`). The reader did not lose the
+values - it never passed them on:
+
+1. `levelEntry` (`src/gis/derived-query.js`) built `intersections: [primary]` - an honest one-entry list, because
+   only the primary region's *name* is stored - and used the count only for `spansMultiple`.
+2. `derivedMetrics` did not surface the counts as `ecoregionCount`/`transitions`.
+3. `buildDiscoveryResult` (`src/discovery/signals.js`) computes both from the intersection list, so it saw a
+   one-entry list and reported `ecoregionCount = 2`, `transitions = 0` for every corridor.
+
+So `varietyDistinctValues` was 1 and `transitionsMax` 0 in all eight regions - a **reader-plumbing loss**, not absent
+data. The transition count is genuinely present in the plane; `transitionsMax: 0` was the plumbing.
+
+## The fix
+
+`levelEntry` now returns `count` alongside the honest one-entry `intersections` (no fabricated duplicates);
+`derivedMetrics` passes `ecoregionCount` and `transitions` through from the stored fields; and
+`buildDiscoveryResult` uses an explicitly provided count when one is present and falls back to the intersection list
+otherwise, so the raw path is byte-for-byte unchanged.
+
+- **`ecoregionCount` semantics (chosen and tested):** the number of distinct mapped ecoregions, **Level III and
+  Level IV counted separately** - `l3_count + l4_count`. This is the field's existing documented meaning
+  (`tests/discovery.test.js`: *"distinct Level III and IV codes are counted separately"*) and it is exactly what the
+  raw analysis's own intersection list yields, so a derived row and a raw re-measurement of the same corridor now
+  agree. `max(l3_count, l4_count)` was considered and **rejected for this step**: it would make the derived path
+  disagree with the raw path for the same road and silently redefine a public sortable column ("Distinct
+  ecoregions"). The nesting caveat is real and is noted below as a candidate for a *separately measured* future
+  change.
+- **`transitions` semantics:** the published `transition_count`, surfaced unchanged - real boundary crossings, never
+  inferred from `count > 1`.
+- **Coverage/missing semantics kept:** an absent count is `null` (unknown), never 1; a stored count of 0 is proof of
+  none; ecology coverage that is `UNKNOWN`/`NONE` still leaves the variety component out of the weighted mean
+  (`unknown != zero`).
+
+## Versioning
+
+`naturalist-interest-v1` is **frozen** as published evidence (`data/ranking/naturalist-interest-v1-evaluation.json`,
+unchanged). The weights and transforms are **unchanged** - correcting the ecology inputs is the only difference -
+but the ordering moves, so the version is **`naturalist-interest-v2`**
+(`data/ranking/naturalist-interest-v2-evaluation.json`). Nothing about v1's committed evaluation was rewritten, and
+no weight was tuned in this step.
+
+
+## Same eight regions, re-measured
+
+| region | vs default | v1→v2 overlap | variety distinct (v1→v2) | transitions max (v1→v2) | top spread (v1→v2) | v2 median dist |
+|---|---|---|---|---|---|---|
+| Princeton, IN | 2/10 | 4/10 | 1 → 3 | 0 → 2 | 3.6 → 2.5 | 16.95 mi |
+| Evansville, IN | 1/10 | 2/10 | 1 → 3 | 0 → 2 | 4.2 → 3.5 | 17.34 mi |
+| Nashville, TN | 6/10 | 6/10 | 1 → 4 | 0 → 3 | 2.8 → 6.0 | 14.75 mi |
+| Portland, OR | 0/10 | 2/10 | 1 → 5 | 0 → 4 | 2.3 → 2.9 | 24.2 mi |
+| Houma, LA | 1/10 | 6/10 | 1 → 4 | 0 → 5 | 3.4 → 3.5 | 18.4 mi |
+| Phoenix, AZ | 5/10 | 8/10 | 1 → 3 | 0 → 2 | 4.7 → 4.9 | 19.3 mi |
+| Omaha, NE | 0/10 | 3/10 | 1 → 4 | 0 → 3 | 3.1 → 4.9 | 17.23 mi |
+| Boston, MA | 0/10 | 2/10 | 1 → 4 | 0 → 3 | 1.7 → 2.7 | 16.9 mi |
+
+- **Ecology now differentiates.** `varietyDistinctValues` is 3-5 per region (was 1 everywhere);
+  `regionsWithConstantVariety` is **0/8** (was 8/8). Mean top-10 overlap against the previous version is **4.13/10**,
+  so roughly six of every ten top roads moved **because their ecological context is now measured** - and nothing
+  else changed between the runs.
+- **It does not dominate.** `varietyDominant` (roads surfaced by ecological variety alone) is **0** in every region,
+  wetland saturation stays high (mean 0.95), and no water-only road reaches a top. What enters is a set of
+  transition-zone roads with real context in all three planes - Portland's `NE Lucia Falls Rd`, `SW Spring Hill Rd`,
+  `NW Cedar Canyon Rd`, `SE Gordon Creek Rd`; the Plains' `US Hwy 34` (5 ecoregions, 3 transitions); Princeton's
+  `Co Rd 100 N`.
+- **Near-ties improve where they were worst.** Boston's top-10 spread widens 1.7 → 2.7 and Nashville's 2.8 → 6.0.
+  Phoenix still has **one** distinct variety value inside its top ten, so ecology alone does not break that region's
+  tie - its wetland and water components are already saturated.
+- **Boundary-adjacent roads do appear** (`County Line Rd`, `Warrick County Line Rd` in Princeton), and that is a
+  genuine, if mildly self-selecting, signal: a road that follows an ecoregion boundary *is* in two ecoregions. They
+  are not variety-only, and their variety is capped by the existing transform.
+
+## Does v2 change the recommendation?
+
+No, and the reason is now sharper:
+
+1. **Distance.** Portland's v2 median top-10 distance is **24.2 mi** (v1 22.5, default 6.5) - the model still leads
+   with roads at the rim of the search, because distance is deliberately not in the score.
+2. **Saturation.** In wetland-rich regions the top ten is still a narrow band (Portland 2.9 points, Boston 2.7,
+   Princeton 2.5), and in Phoenix the whole top ten shares one variety value.
+3. The ecology signal is now honest, but it is the **third** of three signals and is capped by design; restoring it
+   changed *which* roads are surfaced (toward transition zones) without fixing (1) or (2).
+
+**Default sort: unchanged (`wetlandArea250`).** `naturalist-interest-v2` stays optional and is the honest model to
+evaluate next.
+
+## Next
+
+With ecology restored, the two questions from v1 stand on their own and must be measured separately: **distance** (a
+product decision about whether an exploration order decays with distance) and the **nesting of `ecoregionCount`**
+(`max(l3_count, l4_count)` rather than the two-level sum) - neither bundled with a plumbing fix.
+

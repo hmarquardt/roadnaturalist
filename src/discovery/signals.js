@@ -10,6 +10,18 @@ export function buildDiscoveryResult({ unit, corridor, metrics, roadState = COVE
   const wetlands = metrics?.wetlands ?? null;
   const hydrography = metrics?.hydrography ?? null;
   const ecology = metrics?.ecology ?? null;
+  // THE ECOLOGY COUNTS COME FROM WHICHEVER SIDE KNOWS THEM. A metrics block may carry `ecoregionCount` and
+  // `transitions` explicitly - the derived reader does, because its stored row keeps counts rather than the full
+  // intersection list - and otherwise they are read from the intersection list the raw analysis measured. An
+  // explicit `null` is an unknown count and stays `null`; it is never replaced by a derived number, so "unknown"
+  // cannot silently read as "two regions, no transitions".
+  const hasEcologyField = name => ecology != null && Object.prototype.hasOwnProperty.call(ecology, name);
+  const ecoregionCount = hasEcologyField('ecoregionCount') ? ecology.ecoregionCount
+    : new Set([...(ecology?.level3?.intersections ?? []).map(entry => `L3:${entry.code}`),
+      ...(ecology?.level4?.intersections ?? []).map(entry => `L4:${entry.code}`)]).size;
+  const transitions = hasEcologyField('transitions') ? ecology.transitions
+    : Math.max(0, (ecology?.level3?.intersections?.length ?? 1) - 1)
+      + Math.max(0, (ecology?.level4?.intersections?.length ?? 1) - 1);
   const at = distance => wetlands?.buffers?.[distance] ?? { areaM2: 0, lengthM: 0, featureCount: 0, breakdown: [] };
   const hydroAt = distance => hydrography?.buffers?.[distance] ?? { areaM2: 0, lengthM: 0, featureCount: 0, breakdown: [] };
   const classes = (wetlands?.classes ?? []).map(entry => Object.freeze({ label: entry.label, code: entry.code,
@@ -40,10 +52,8 @@ export function buildDiscoveryResult({ unit, corridor, metrics, roadState = COVE
       coverage: ecology?.coverage ?? COVERAGE.UNKNOWN,
       level3: summarizeLevelEntry(ecology?.level3 ?? null),
       level4: summarizeLevelEntry(ecology?.level4 ?? null),
-      ecoregionCount: new Set([...(ecology?.level3?.intersections ?? []).map(entry => `L3:${entry.code}`),
-        ...(ecology?.level4?.intersections ?? []).map(entry => `L4:${entry.code}`)]).size,
-      transitions: Math.max(0, (ecology?.level3?.intersections?.length ?? 1) - 1)
-        + Math.max(0, (ecology?.level4?.intersections?.length ?? 1) - 1),
+      ecoregionCount,
+      transitions,
       spansMultiple: Boolean(ecology?.spansMultiple),
       measuredM: ecology?.level3?.measuredM ?? null,
     }),
@@ -84,6 +94,9 @@ export function buildDiscoveryResult({ unit, corridor, metrics, roadState = COVE
 
 function summarizeLevelEntry(level) {
   if (!level) return null;
+  // `count` is the number of distinct regions at this level; `intersections` holds only the primary, whose name is
+  // the one the row stores. The two are different claims and are kept apart.
   return Object.freeze({ coverage: level.coverage, primary: level.primary ? Object.freeze({ ...level.primary }) : null,
+    count: level.count ?? null,
     intersections: Object.freeze((level.intersections ?? []).map(entry => Object.freeze({ ...entry }))) });
 }

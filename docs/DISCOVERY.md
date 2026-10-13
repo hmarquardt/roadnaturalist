@@ -16,16 +16,26 @@ search area -> bounded road network -> eligible road units -> deterministic segm
      -> filter / sort / inspect -> promote -> normal candidate -> existing evidence workflow
 ```
 
-## The exploration order (`naturalist-interest-v1`)
+## The exploration order (`naturalist-interest-v2`)
 
 Discovery's sorts were, until now, all raw measured values. `Naturalist interest` is the first ordering that is a
 *model*, so it is implemented as one pure module (`src/discovery/ranking.js`), versioned, and explained in the panel
 rather than asserted.
 
+**Version boundary.** `naturalist-interest-v1` was evaluated across eight U.S. regions while the derived reader
+reported every corridor as two ecoregions with no transitions, so its ecological-variety component was a constant.
+The weights and transforms never changed; the version is `v2` because the corrected ecology *inputs* move the order,
+and an already-evaluated version must not quietly come to mean something else. v1's evidence is frozen at
+`data/ranking/naturalist-interest-v1-evaluation.json`; v2's is at
+`data/ranking/naturalist-interest-v2-evaluation.json` (see `docs/RANKING-DECISION.md`).
+
 **Inputs.** Only measurements the discovery analysis already made, so ranking costs no raw read of any plane:
 wetland `nearestM` / `area250M2` / `area500M2` / `area1000M2` / `intersectsCorridor`; hydrography `crossingCount` /
 `nearestFlowingM` / `nearestStandingM` / `flowlineLength1000M`; ecology `ecoregionCount` / `transitions`; and each
-plane's coverage state.
+plane's coverage state. The ecology counts come from whichever side knows them: a raw run reads its intersection
+list, while a derived run reads the row's stored `l3_count`, `l4_count` and `transition_count`. Only the *primary*
+region's name is stored, so the result reports the count of distinct regions (Level III and IV counted separately)
+and the primary region - never a fabricated list of duplicates. An absent count is unknown, not one.
 
 **Transforms.** Every quantity is bounded before it is weighted: `saturate(v, half) = v / (v + half)` gives
 diminishing returns (half credit at 10 ha within 250 m, 30 ha within 500 m, 100 ha within 1 km, 3 crossings, 1 extra

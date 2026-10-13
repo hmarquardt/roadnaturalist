@@ -14,11 +14,16 @@ import { RANKING_VERSION } from '../src/discovery/ranking.js';
 // between the evaluated order and the shipped order.
 const BASE = process.env.PRODUCTION_BASE_URL ?? 'https://roadnaturalist.pages.dev';
 const REGIONS = ['princeton-in', 'portland-or', 'southwest-dry'];
+// Ordinary discovery must reach nothing that costs data: no raw plane, no source-evidence rebuild. The ranking
+// itself reads only measurements the discovery run already made, and this census proves it in the browser. It is
+// narrowed to DATA requests - the application's own modules are served from these same origins and are not reads.
+const RAW_PLANE = /\/(national\/roads|national\/wetlands|national\/hydro)\//;
 
 test.skip(!process.env.RUN_RANKING_MAP, 'set RUN_RANKING_MAP=1 to sanity-check the exploration order on the map');
 
 function artifact() {
-  return JSON.parse(readFileSync(new URL('../data/ranking/naturalist-interest-v1-evaluation.json', import.meta.url), 'utf8'));
+  const path = process.env.RANKING_EVAL_ARTIFACT ?? '../data/ranking/naturalist-interest-v2-evaluation.json';
+  return JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 }
 
 for (const id of REGIONS) {
@@ -30,6 +35,8 @@ for (const id of REGIONS) {
     expect(evaluation.rankingVersion).toBe(RANKING_VERSION);
     await page.setViewportSize({ width: 1440, height: 950 });
     const errors = [];
+    const rawReads = [];
+    page.on('request', request => { if (RAW_PLANE.test(request.url())) rawReads.push(request.url()); });
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
@@ -70,6 +77,8 @@ for (const id of REGIONS) {
     }
     // A degenerate list would repeat one corridor; the order must name several distinct roads.
     expect(new Set(shown.map(row => row.id)).size).toBe(shown.length);
+    // Ranking reads measured context only: no raw plane and no source-evidence rebuild is triggered by ordering.
+    expect(rawReads, `ordering must not read a raw plane or rebuild source evidence: ${rawReads.join(', ')}`).toEqual([]);
     expect(errors).toEqual([]);
   });
 }

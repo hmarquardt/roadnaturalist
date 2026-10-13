@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import { RANKING_VERSION, RANKING_WEIGHTS, naturalistInterest } from '../src/discovery/ranking.js';
 import { DEFAULT_SORT } from '../src/discovery/filter.js';
-import { BASELINE_SORT, compareOrderings, evaluateRegion, evaluationRow, rankingEvaluationArtifact,
-  RANKING_EVALUATION_KIND, topUnder } from '../src/discovery/ranking-evaluation.js';
+import { BASELINE_SORT, compareOrderings, compareVersions, evaluateRegion, evaluationRow,
+  rankingEvaluationArtifact, RANKING_EVALUATION_KIND, topUnder } from '../src/discovery/ranking-evaluation.js';
 
 // THE EVALUATION IS A MEASUREMENT, NOT A SECOND RANKING.
 //
@@ -51,7 +51,7 @@ test('the evaluation is deterministic and carries the ranking version it is abou
   const second = compareOrderings(fixture(), { topN: 4 });
   assert.deepEqual(first, second, 'the same results always produce the same evaluation');
   assert.equal(first.interestVersion, RANKING_VERSION);
-  assert.equal(first.interestVersion, 'naturalist-interest-v1');
+  assert.equal(first.interestVersion, 'naturalist-interest-v2');
   const artifact = rankingEvaluationArtifact({ regions: [evaluateRegion({ id: 'x', name: 'X', center: [0, 0],
     radiusMiles: 25, results: fixture(), topN: 4 })], radiusMiles: 25, topN: 4, generatedAt: 'fixed' });
   assert.equal(artifact.rankingVersion, RANKING_VERSION);
@@ -112,10 +112,12 @@ test('every reported road carries identity, context, components and the raw meas
   assert.ok(Number.isFinite(row.interestScore) && row.interestScore >= 0 && row.interestScore <= 100);
 });
 
-test('v1 is immutable: the evaluation reads it, never restates it, and its weights and version are pinned', () => {
-  // The evaluation must not become a second copy of the model. If these change, that is a *versioned* decision that
-  // has to introduce naturalist-interest-v2 rather than silently move v1.
-  assert.equal(RANKING_VERSION, 'naturalist-interest-v1');
+test('the current version is pinned: the evaluation reads the model, it never restates it', () => {
+  // `naturalist-interest-v1` is frozen as published evidence (data/ranking/naturalist-interest-v1-evaluation.json);
+  // it was measured while the derived reader reported no ecology variation, so correcting the ecology inputs moved
+  // the ordering to v2. v2's weights and transforms are UNCHANGED from v1's - only the inputs are corrected - and
+  // they are pinned here so a future tuning is a versioned decision rather than a silent edit.
+  assert.equal(RANKING_VERSION, 'naturalist-interest-v2');
   assert.deepEqual({ ...RANKING_WEIGHTS }, { wetland: 0.45, water: 0.35, ecologicalVariety: 0.2 });
   // And the evaluation's own reported component values are exactly the ones the model returns, not recomputed here.
   const row = evaluationRow(fixture()[0]);
@@ -142,5 +144,24 @@ test('pathology probes report the movement context for the classes the model cla
   assert.ok(o.ecology.varietyDistinctValues >= 2, `fixture variety should vary (got ${o.ecology.varietyDistinctValues})`);
   assert.equal(o.ecology.varietyConstant, false);
   assert.equal(o.ecology.transitionsMax, 10);
+});
+
+
+test('the previous-version diff reports the overlap, the entries and the exits', () => {
+  const previous = { rankingVersion: 'naturalist-interest-v1', topN: 2, regions: [{ id: 'x',
+    comparison: { interest: [{ corridorId: 'a' }, { corridorId: 'b' }] },
+    observations: { ecology: { varietyDistinctValues: 1, transitionsMax: 0 } } }] };
+  const current = { rankingVersion: 'naturalist-interest-v2', topN: 2, regions: [{ id: 'x',
+    comparison: { interest: [{ corridorId: 'b' }, { corridorId: 'c' }] },
+    observations: { ecology: { varietyDistinctValues: 3, transitionsMax: 2 } } }] };
+  const diff = compareVersions({ previous, current });
+  assert.equal(diff.previousVersion, 'naturalist-interest-v1');
+  assert.equal(diff.currentVersion, 'naturalist-interest-v2');
+  assert.equal(diff.meanOverlap, 1);
+  assert.deepEqual([...diff.regions[0].entered], ['c']);
+  assert.deepEqual([...diff.regions[0].exited], ['a']);
+  assert.equal(diff.regions[0].previousEcologyDistinct, 1);
+  assert.equal(diff.regions[0].currentEcologyDistinct, 3);
+  assert.equal(compareVersions({ previous: null, current }), null, 'no previous evaluation means no diff');
 });
 

@@ -228,9 +228,36 @@ export function evaluateRegion({ id, name, center, radiusMiles, results, topN = 
   });
 }
 
+// What changed between two evaluations of the same regions. It is used to isolate the effect of ONE input change
+// (here, the corrected ecology signal) from a weight change: nothing else differs between the two runs, so a road
+// that entered or left a top moved because its ecology input changed. It reports the ecology distinctness before and
+// after, which is the measurement that proves the change was real.
+export function compareVersions({ previous = null, current = null } = {}) {
+  if (!previous || !current) return null;
+  const before = new Map((previous.regions ?? []).map(region => [region.id, region]));
+  const regions = (current.regions ?? []).filter(region => before.has(region.id)).map(region => {
+    const earlier = before.get(region.id);
+    const previousTop = (earlier.comparison?.interest ?? []).map(row => row.corridorId);
+    const currentTop = region.comparison.interest.map(row => row.corridorId);
+    const previousSet = new Set(previousTop);
+    const currentSet = new Set(currentTop);
+    return Object.freeze({ id: region.id,
+      overlap: currentTop.filter(id => previousSet.has(id)).length,
+      entered: Object.freeze(currentTop.filter(id => !previousSet.has(id))),
+      exited: Object.freeze(previousTop.filter(id => !currentSet.has(id))),
+      previousEcologyDistinct: earlier.observations?.ecology?.varietyDistinctValues ?? null,
+      currentEcologyDistinct: region.observations?.ecology?.varietyDistinctValues ?? null,
+      previousTransitionsMax: earlier.observations?.ecology?.transitionsMax ?? null,
+      currentTransitionsMax: region.observations?.ecology?.transitionsMax ?? null });
+  });
+  return Object.freeze({ previousVersion: previous.rankingVersion ?? null, currentVersion: current.rankingVersion ?? null,
+    topN: current.topN ?? null, regions: Object.freeze(regions),
+    meanOverlap: regions.length ? round(regions.reduce((total, entry) => total + entry.overlap, 0) / regions.length) : 0 });
+}
+
 // The whole artifact: the runs, the cross-region overlap summary, and the version the evaluation is about.
 export function rankingEvaluationArtifact({ regions, radiusMiles, topN = 10, generatedAt = null,
-  derivedPlane = null, baselineKey = BASELINE_SORT } = {}) {
+  derivedPlane = null, baselineKey = BASELINE_SORT, previous = null } = {}) {
   const overlaps = regions.map(region => ({ region: region.id, searched: region.searched,
     overlap: region.comparison.overlap,
     overlapFraction: round(region.comparison.overlap / topN) }));
@@ -239,6 +266,8 @@ export function rankingEvaluationArtifact({ regions, radiusMiles, topN = 10, gen
   // every region is a dead signal, not a small one - `regionsWithConstantVariety` is how that is asserted.
   const constantVariety = regions.filter(region => region.observations?.ecology?.varietyConstant).length;
   const saturation = regions.map(region => region.observations?.wetlandDomination?.shareWetlandSaturated ?? 0);
+  const comparisonToPrevious = compareVersions({ previous,
+    current: { rankingVersion: RANKING_VERSION, topN, regions } });
   return Object.freeze({
     kind: RANKING_EVALUATION_KIND, schemaVersion: RANKING_EVALUATION_VERSION,
     generatedAt, rankingVersion: RANKING_VERSION, baselineKey, radiusMiles, topN, derivedPlane,
@@ -253,6 +282,7 @@ export function rankingEvaluationArtifact({ regions, radiusMiles, topN = 10, gen
       meanTopWetlandSaturation: regions.length ? round(saturation.reduce((total, value) => total + value, 0) / regions.length) : 0,
       overlaps: Object.freeze(overlaps),
     }),
+    ...(comparisonToPrevious ? { comparisonToPrevious } : {}),
   });
 }
 

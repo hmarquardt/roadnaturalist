@@ -12,7 +12,7 @@
 // The analysis itself lives in `src/discovery/ranking-evaluation.js`; this script only acquires rows and prints.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { selectDerivedCells, validateDerivedManifest } from '../src/discovery/derived-catalog.js';
@@ -45,8 +45,11 @@ const only = (argOf('--centers') ?? '').split(',').filter(Boolean);
 const CENTERS = only.length ? ALL_CENTERS.filter(entry => only.includes(entry.id)) : ALL_CENTERS;
 if (!CENTERS.length) throw new Error(`no centre matches --centers ${argOf('--centers')}`);
 
-const outPath = argOf('--out') ?? join(ROOT, 'data/ranking/naturalist-interest-v1-evaluation.json');
-const mdPath = argOf('--md') ?? join(ROOT, 'docs/RANKING-EVALUATION.md');
+const outPath = argOf('--out') ?? join(ROOT, 'data/ranking/naturalist-interest-v2-evaluation.json');
+const mdPath = argOf('--md') ?? join(ROOT, 'docs/RANKING-EVALUATION-V2.md');
+// An earlier evaluation to diff against (the same regions, an earlier ranking version). It isolates the effect of
+// one input change from a weight change, because nothing else differs between the two runs.
+const comparePath = argOf('--compare') ?? null;
 
 // One DuckDB query, run through the project's `uv` convention (the same tool the offline verifiers use). The SQL
 // is the runtime's own derived-corridor SELECT, so the rows are exactly what a browser would read.
@@ -121,7 +124,9 @@ for (const entry of CENTERS) {
   console.log(`${summary}  (${Date.now() - started} ms)`);
 }
 
+const previous = comparePath ? JSON.parse(readFileSync(resolve(ROOT, comparePath), 'utf8')) : null;
 const artifact = rankingEvaluationArtifact({ regions, radiusMiles, topN, generatedAt: new Date().toISOString(),
+  previous,
   derivedPlane: { fingerprint: manifest.analysisFingerprint, catalogVersion: catalog.version,
     cells: manifest.cells.length, presentCells: manifest.counts?.presentCells ?? null } });
 
@@ -142,7 +147,7 @@ function renderMarkdown(artifact) {
       + `${row.components.ecologicalVariety ?? 'n/a'} | ${row.distanceFromCenterMi ?? 'n/a'} |`));
   const shortId = id => String(id).replace(/^drv1-/, '');
   const lines = [];
-  lines.push('# Ranking evaluation: `naturalist-interest-v1` vs `wetlandArea250`');
+  lines.push(`# Ranking evaluation: \`${artifact.rankingVersion}\` vs \`${artifact.baselineKey}\``);
   lines.push('');
   lines.push(`Generated ${artifact.generatedAt}. Derived plane \`${artifact.derivedPlane?.fingerprint ?? 'n/a'}\` `
     + `(catalog ${artifact.derivedPlane?.catalogVersion ?? 'n/a'}), radius ${artifact.radiusMiles} mi, top ${artifact.topN}.`);
@@ -169,6 +174,28 @@ function renderMarkdown(artifact) {
     + `**${artifact.summary.regionsWithConstantVariety}/${artifact.summary.regionCount}**; `
     + `zero-overlap regions: ${artifact.summary.regionsWithZeroOverlap.length ? artifact.summary.regionsWithZeroOverlap.join(', ') : 'none'}.`);
   lines.push('');
+  const vs = artifact.comparisonToPrevious;
+  if (vs) {
+    lines.push(`## Vs \`${vs.previousVersion}\``);
+    lines.push('');
+    lines.push(`Mean top-${vs.topN} overlap against the previous evaluation: **${vs.meanOverlap}/${vs.topN}**. `
+      + 'Only the ecology input differs between the two runs, so a road that entered or left a top did so because its '
+      + 'ecological context is now measured rather than because a weight moved.');
+    lines.push('');
+    lines.push('| region | overlap | ecology distinct values (was → now) | transitions max (was → now) |');
+    lines.push('|---|---|---|---|');
+    for (const region of vs.regions) {
+      lines.push(`| ${region.id} | ${region.overlap}/${vs.topN} | ${region.previousEcologyDistinct} → ${region.currentEcologyDistinct} `
+        + `| ${region.previousTransitionsMax} → ${region.currentTransitionsMax} |`);
+    }
+    lines.push('');
+    for (const region of vs.regions) {
+      if (!region.entered.length && !region.exited.length) continue;
+      lines.push(`- **${region.id}** entered: ${region.entered.length ? region.entered.join(', ') : 'nothing'}; `
+        + `exited: ${region.exited.length ? region.exited.join(', ') : 'nothing'}`);
+    }
+    lines.push('');
+  }
   for (const region of artifact.regions) {
     lines.push(`## ${region.name}`);
     lines.push('');

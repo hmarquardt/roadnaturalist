@@ -23,7 +23,7 @@ function result(overrides = {}) {
 
 test('the ranking is deterministic and carries its version', () => {
   assert.deepEqual(naturalistInterest(result()), naturalistInterest(result()));
-  assert.equal(RANKING_VERSION, 'naturalist-interest-v1');
+  assert.equal(RANKING_VERSION, 'naturalist-interest-v2');
   assert.equal(naturalistInterest(result()).version, RANKING_VERSION);
 });
 

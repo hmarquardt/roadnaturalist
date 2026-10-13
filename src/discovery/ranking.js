@@ -16,7 +16,13 @@
 //     habitat that was simply not measured.
 //   * NO ROAD-LENGTH TERM. Long corridors intersect more habitat simply by being long, so length would smuggle a
 //     size bias into an order that claims to describe context. Length is reported as context, never scored.
-export const RANKING_VERSION = 'naturalist-interest-v1';
+// THE VERSION BOUNDARY. `naturalist-interest-v1` was evaluated across eight regions while the derived reader
+// reported every corridor as two ecoregions with no transitions, so its ecological-variety component was a constant
+// (30) and that evaluation measured a two-signal model. The weights and transforms below are UNCHANGED; the version
+// moves to v2 because correcting the ecology INPUTS changes the ordering, and a version whose evaluation is already
+// published must not quietly come to mean something else. v1's evidence is frozen at
+// `data/ranking/naturalist-interest-v1-evaluation.json`; see `docs/RANKING-DECISION.md`.
+export const RANKING_VERSION = 'naturalist-interest-v2';
 
 // The weights, in one place, so the order is reproducible and a future change is a versioned decision rather than
 // tuning drift. Wetland and water context are the two measured physical signals with the widest coverage; ecological

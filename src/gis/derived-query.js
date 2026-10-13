@@ -50,15 +50,44 @@ function coverageStates(row) {
   return { wetlands, hydrography };
 }
 
+// One stored level of the ecology answer. The published row keeps the PRIMARY region's code/name/percent and a
+// COUNT of the distinct regions the corridor overlaps at that level; it does not keep the names of the secondary
+// regions. So this returns an honest one-element `intersections` (the only region whose identity is known) plus
+// `count`, the real number of regions - never a fabricated list of duplicate entries. An absent count is `null`
+// (unknown), never 1: a missing field is not evidence of a single region.
 function levelEntry(row, level) {
   const code = row[`primary_l${level}_code`];
   const name = row[`primary_l${level}_name`];
   const percent = row[`primary_l${level}_percent`];
-  const count = Number(row[`l${level}_count`] ?? 0);
-  if (code == null) return { primary: null, intersections: [], spansMultiple: false, measuredM: null, coverage: COVERAGE.NONE };
+  const stored = row[`l${level}_count`];
+  const count = stored == null || !Number.isFinite(Number(stored)) ? null : Number(stored);
+  const coverage = row.ecology_coverage ?? null;
+  if (code == null) {
+    // No primary region at this level. The stored coverage is the authority; a stored count of 0 is proof of
+    // none, and an absent count is unknown rather than zero-or-one.
+    return { primary: null, intersections: [], count, spansMultiple: false, measuredM: null,
+      coverage: coverage ?? (count === 0 ? COVERAGE.NONE : COVERAGE.UNKNOWN) };
+  }
   const primary = Object.freeze({ code: String(code), name: String(name), percent: Number(percent ?? 0) });
-  return { primary, intersections: [primary], spansMultiple: count > 1, measuredM: null,
-    intersectionCount: count, coverage: row.ecology_coverage };
+  return { primary, intersections: [primary], count, spansMultiple: count != null && count > 1, measuredM: null,
+    coverage: coverage ?? COVERAGE.UNKNOWN };
+}
+
+// The distinct-region count: Level III and Level IV counted separately, which is the field's documented meaning
+// (see `tests/discovery.test.js`) and exactly what the raw analysis's own intersection list yields. Counting the
+// two levels together is deliberate: they are separate mapped units, and the ranking's *transition* term - a real
+// count of boundary crossings - is what captures movement between them. Both counts unknown is `null`; unknown is
+// not zero.
+function ecologyCount(level3, level4) {
+  if (level3.count == null && level4.count == null) return null;
+  return (level3.count ?? 0) + (level4.count ?? 0);
+}
+
+// The published boundary-crossing count. Absent is `null` (unknown), never 0.
+function transitionCount(row) {
+  const stored = row.transition_count;
+  if (stored == null || !Number.isFinite(Number(stored))) return null;
+  return Math.max(0, Number(stored));
 }
 
 // The metric blocks the shared result builder and the interface already understand, rebuilt from the stored
@@ -98,8 +127,11 @@ export function derivedMetrics(row) {
       buffers: bufferSummary(Object.entries(hydroBuffers).map(([distance, entry]) => ({ distanceM: Number(distance),
         areaM2: entry.areaM2, lengthM: entry.lengthM, featureCount: entry.featureCount, label: null })), ANALYSIS_DISTANCES_M),
       names: row.hydro_summary ? String(row.hydro_summary).split(' | ') : [], types: [] },
+    // The ecology answer, with the STORED distinctions passed through rather than re-derived from a list that only
+    // ever held the primary name. Without this, the result builder saw a one-element list and reported every
+    // corridor as two ecoregions with no transitions, whatever the row said.
     ecology: { coverage: ecologyCoverage, spansMultiple: Boolean(level3.spansMultiple || level4.spansMultiple),
-      level3, level4, provenance: null },
+      level3, level4, ecoregionCount: ecologyCount(level3, level4), transitions: transitionCount(row), provenance: null },
     // Repair provenance is part of what the row stores, so the result's own "was this geometry altered for
     // analysis?" answer comes from the row rather than from a default that would always say no.
     geometryForAnalysis: Object.freeze({ repaired: Boolean(row.geometry_repaired),
