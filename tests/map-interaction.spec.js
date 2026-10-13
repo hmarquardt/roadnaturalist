@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 import { MILES_TO_M, cameraOf, drawnSearchCentre, fitCountOf, mapAvailable, mapImplementation,
   movementCount, searchGeometry } from './map-contract.js';
+import { RANKING_VERSION } from '../src/discovery/ranking.js';
 
 // THE GEOGRAPHIC MAP, PROVEN BY REAL BROWSER BEHAVIOUR.
 //
@@ -326,7 +327,7 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
     expect(popupText, `${label}: the card gives distance from the search centre`)
       .toMatch(/mi from search centre/);
     expect(await card.getAttribute('data-ranking-version'),
-      `${label}: the card is traceable to the model that produced the score`).toBe('naturalist-interest-v1');
+      `${label}: the card is traceable to the model that produced the score`).toBe(RANKING_VERSION);
     // The score on the card belongs to that same corridor's own result, not merely to some card.
     const score = Number((popupText.match(/Naturalist interest (\d+(\.\d+)?)/) ?? [])[1]);
     expect(Number.isFinite(score), `${label}: the card score is a number`).toBe(true);
