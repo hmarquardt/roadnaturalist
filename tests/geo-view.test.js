@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { TILE_PROVIDERS, tileProvider } from '../src/map/basemap.js';
 import { attributeName, basemapFailureNote, boundsOfGeometries, corridorFeature, createGeoView, drawableShapes,
   featureAttributes, featureShape, habitatBufferFeature, habitatFeatures, habitatIdentity, occurrenceFeatures,
-  occurrenceIdentity, popupHtml, searchFeatures, toLatLngs, unavailableView, FEATURE_DOM, FEATURE_KIND }
+  occurrenceIdentity, popupHtml, searchContextFeature, searchFeatures, toLatLngs, unavailableView, FEATURE_DOM,
+  FEATURE_KIND }
   from '../src/map/geo-view.js';
 import { createMapView } from '../src/map/index.js';
 
@@ -122,6 +123,11 @@ const DISCOVERY_ROAD = { id: 'drv1-river-rd-c455-s1', name: 'River Rd', selectio
 const MULTI_PARTS = { id: 'corridor-multi', name: 'Multi Rd', distanceFromCenterM: 1200,
   geometry: { type: 'MultiLineString', coordinates: [[[-87.52, 38.28], [-87.44, 38.29]],
     [[-87.44, 38.29], [-87.4, 38.31]]] } };
+// A DISCOVERY CORRIDOR WITH ITS OWN MEASURED CONTEXT: the centre the search was measured against and this corridor's
+// own nearest point, exactly as the discovery result carries them.
+const CONTEXT_ROAD = { id: 'drv1-near-rd-c1-s1', name: 'Near Rd', selectionDomain: 'discovery',
+  searchCenter: [-87.60, 38.20], nearestCenterPoint: [-87.50, 38.30],
+  geometry: { type: 'LineString', coordinates: [[-87.50, 38.30], [-87.44, 38.31]] } };
 const PILOT_ROAD = { id: 'or-roads-cornelius-pass-rd', name: 'NW Cornelius Pass Rd', selectionDomain: 'candidate',
   geometry: { type: 'LineString', coordinates: [[-87.51, 38.26], [-87.45, 38.31]] } };
 
@@ -419,13 +425,13 @@ test('the map factory has one implementation: the geographic view', () => {
     assert.equal(globalThis.__RN_MAP.available, true);
     assert.deepEqual(view.missingMethods, [], 'the geographic view offers every documented method');
     for (const name of ['draw', 'setSearch', 'setSelected', 'setSavedRoads', 'setOuting', 'setPickMode', 'setBasemap',
-      'fitResults', 'fitSelected', 'destroy']) {
+      'fitResults', 'fitSelected', 'destroy', 'contextGeometry']) {
       assert.equal(typeof view[name], 'function', `the application may call ${name}`);
     }
     // The diagnostic is what the committed browser gate reads, and nothing more: a convenience added here would be a
     // second source of truth the application could start consulting.
     assert.deepEqual(Object.keys(globalThis.__RN_MAP).sort(),
-      ['available', 'camera', 'fitCount', 'implementation', 'movements', 'note', 'searchGeometry']);
+      ['available', 'camera', 'contextGeometry', 'fitCount', 'implementation', 'movements', 'note', 'searchGeometry']);
   } finally { delete globalThis.__RN_MAP; }
 });
 
@@ -833,8 +839,8 @@ test('the occurrence layer is a visibility toggle: it draws what is loaded, and 
   const { leaflet, calls } = fakeLeaflet();
   const view = createGeoView({ style: {} }, { leaflet });
   view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
-  // The groups in construction order are results, saved, search, overlay, occurrence, selected.
-  const occurrenceLayer = calls.groups[4];
+  // The groups in construction order are context, results, saved, search, overlay, occurrence, selected.
+  const occurrenceLayer = calls.groups[5];
   assert.equal(occurrenceLayer.added.length, 0, 'nothing is on the map until the layer is switched on');
   const cameraBefore = view.camera();
   const fitsBefore = view.fitCount();
@@ -972,6 +978,102 @@ test('pick mode suppresses both selection paths, for either collection', () => {
 });
 
 
+// THE SEARCH-CONTEXT LEADER: ORIENTATION FROM TWO MEASURED POINTS, AND NOTHING ELSE.
+test('the leader normalizes from the corridor own measured centre and nearest point', () => {
+  const feature = searchContextFeature(CONTEXT_ROAD);
+  assert.equal(feature.kind, FEATURE_KIND.SEARCH_CONTEXT);
+  assert.equal(feature.corridorId, CONTEXT_ROAD.id, 'the corridor is an association, not this feature identity');
+  assert.deepEqual(feature.geometry, { type: 'LineString',
+    coordinates: [[-87.60, 38.20], [-87.50, 38.30]] }, 'centre first, nearest point second, in GeoJSON order');
+  assert.deepEqual(drawableShapes(feature), [{ line: [[38.20, -87.60], [38.30, -87.50]] }],
+    'and drawn as one line, in Leaflet order');
+  assert.equal(feature.label, null, 'orientation has no tooltip text to invent');
+  assert.equal(feature.style.weight, 1, 'thin');
+  assert.ok(feature.style.opacity < 0.6, 'and quiet');
+  assert.equal(feature.style.fill, false);
+  assert.notEqual(feature.style.color, '#1d4ed8', 'never the road blue');
+  // Its own role, carrying the corridor, and never a candidate.
+  assert.deepEqual(featureAttributes(feature), { role: 'search-context', corridorId: CONTEXT_ROAD.id });
+  assert.equal('selected' in featureAttributes(feature), false);
+  assert.equal(FEATURE_DOM[FEATURE_KIND.SEARCH_CONTEXT].interactive, false);
+  assert.equal(FEATURE_DOM[FEATURE_KIND.SEARCH_CONTEXT].clickable, undefined, 'never a selection target');
+
+  // NO MEASUREMENT, NO LEADER. Nothing is derived from the road's geometry to fill a gap.
+  assert.equal(searchContextFeature({ ...CONTEXT_ROAD, nearestCenterPoint: null }), null);
+  assert.equal(searchContextFeature({ ...CONTEXT_ROAD, searchCenter: null }), null);
+  // Range validation belongs to the domain that measured these points (src/discovery/search-context.js); the map refuses
+  // what is not a usable coordinate at all.
+  assert.equal(searchContextFeature({ ...CONTEXT_ROAD, nearestCenterPoint: ['a', 'b'] }), null);
+  assert.equal(searchContextFeature(PILOT_ROAD), null, 'a corridor with no measured context has no leader');
+  assert.equal(searchContextFeature({ id: 'x' }), null);
+  assert.equal(searchContextFeature(null), null);
+  // A leader that goes nowhere is not orientation.
+  assert.equal(searchContextFeature({ ...CONTEXT_ROAD, nearestCenterPoint: [-87.60, 38.20] }), null);
+});
+
+test('the leader follows the selection, and is never a candidate', () => {
+  const { leaflet, calls, map } = fakeLeaflet();
+  const selected = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selected.push(selection) });
+  // The leader is what the context layer holds: that layer is created first, so it draws under everything else.
+  const contextLayer = calls.groups[0];
+  const drawnLeaders = () => contextLayer.added.filter(path => path.attributes['data-role'] === 'search-context');
+
+  // SELECT A: one leader, associated with A.
+  view.draw({ corridors: [CONTEXT_ROAD, PILOT_ROAD], selectedId: CONTEXT_ROAD.id });
+  assert.equal(drawnLeaders().length, 1, 'selecting a corridor draws exactly one leader');
+  assert.equal(drawnLeaders()[0].attributes['data-corridor-id'], CONTEXT_ROAD.id);
+  assert.equal(drawnLeaders()[0].options.interactive, false, 'it cannot be pointed at, so it cannot take a click');
+  assert.equal(drawnLeaders()[0].popup, undefined, 'and no card is bound to it');
+  assert.equal(drawnLeaders()[0].corridorId, undefined, 'the map-level click handler has no corridor to read from it');
+  assert.equal(calls.polylines.some(path => path.attributes['data-role'] === 'search-context'
+    && 'data-selected' in path.attributes), false, 'and it is never a selection');
+
+  // SELECT B: A's leader is gone, B's is there - and a pilot corridor, which measured no context, has none at all.
+  view.draw({ corridors: [CONTEXT_ROAD, PILOT_ROAD], selectedId: PILOT_ROAD.id });
+  assert.deepEqual(drawnLeaders(), [], 'a corridor with no measured context draws no leader, and A leader is gone');
+  // A redraw that leaves the selection alone draws the same single leader, never an accumulation.
+  view.draw({ corridors: [CONTEXT_ROAD, PILOT_ROAD], selectedId: CONTEXT_ROAD.id });
+  view.draw({ corridors: [CONTEXT_ROAD, PILOT_ROAD], selectedId: CONTEXT_ROAD.id });
+  assert.equal(drawnLeaders().length, 1, 'no duplicate leaders accumulate');
+  // CLEARING THE SELECTION REMOVES IT.
+  view.draw({ corridors: [CONTEXT_ROAD, PILOT_ROAD], selectedId: null });
+  assert.deepEqual(drawnLeaders(), [], 'no corridor selected, no leader drawn');
+
+  // A LEADER ON SCREEN DOES NOT INTERFERE WITH SELECTING A ROAD.
+  view.draw({ corridors: [CONTEXT_ROAD, PILOT_ROAD], selectedId: CONTEXT_ROAD.id });
+  const corridor = calls.polylines.filter(path => path.attributes['data-corridor-id'] === PILOT_ROAD.id
+    && path.options.interactive).at(-1);
+  corridor.emit('click', { latlng: { lat: 38.29, lng: -87.5 }, originalEvent: {}, propagatedFrom: corridor });
+  assert.deepEqual(selected, [{ id: PILOT_ROAD.id, domain: 'candidate' }],
+    'the road under the cursor is still the corridor that gets selected');
+  // And a click on the map itself resolves the nearest corridor, never the leader.
+  map.handlers.click({ latlng: { lat: 38.3001, lng: -87.4999 } });
+  assert.deepEqual(selected.at(-1), { id: CONTEXT_ROAD.id, domain: 'discovery' },
+    'the nearest corridor is resolved through its own collection');
+});
+
+test('the leader belongs to the selection, and the selection still owns no camera', () => {
+  const { leaflet } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [CONTEXT_ROAD, PILOT_ROAD], selectedId: null });
+  const cameraBefore = view.camera();
+  const fitsBefore = view.fitCount();
+  assert.equal(view.contextGeometry(), null, 'no selection, no leader');
+  view.setSelected(CONTEXT_ROAD.id);
+  assert.deepEqual(view.contextGeometry(), { type: 'LineString', coordinates: [[-87.60, 38.20], [-87.50, 38.30]] },
+    'the leader is readable exactly as it was normalized');
+  assert.deepEqual(view.camera(), cameraBefore, 'drawing the leader must not move the camera');
+  assert.equal(view.fitCount(), fitsBefore, 'and must not fit');
+  view.setSelected(PILOT_ROAD.id);
+  assert.equal(view.contextGeometry(), null, 'a selection with no measured context has no leader');
+  assert.deepEqual(view.camera(), cameraBefore);
+  assert.equal(view.fitCount(), fitsBefore);
+  view.setSelected(null);
+  assert.equal(view.contextGeometry(), null);
+  assert.deepEqual(view.camera(), cameraBefore, 'clearing the selection moves nothing either');
+});
+
 // THE 1 km HABITAT BUFFER: A TYPED OVERLAY WITH ITS OWN IDENTITY, DRAWN UNDER THE ROAD IT BELONGS TO.
 test('the habitat buffer normalizes from the analysis output the product already holds', () => {
   const buffer = habitatBufferFeature(BUFFER_OVERLAY);
@@ -1024,8 +1126,8 @@ test('the habitat toggle adds and removes the buffer without moving the viewport
   view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
   const cameraBefore = view.camera();
   const fitsBefore = view.fitCount();
-  // The groups in construction order are results, saved, search, overlay, occurrence, selected.
-  const overlayLayer = calls.groups[3];
+  // The groups in construction order are context, results, saved, search, overlay, occurrence, selected.
+  const overlayLayer = calls.groups[4];
   const bufferCount = () => overlayLayer.added.filter(path => path.attributes['data-role'] === 'habitat-buffer').length;
   assert.equal(bufferCount(), 0, 'no habitat overlay, no buffer');
 

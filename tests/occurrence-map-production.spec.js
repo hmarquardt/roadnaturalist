@@ -173,8 +173,13 @@ test('the deployed map draws the occurrence points its own explicit query return
   expect(landedName, 'the clicked corridor is one the pilot declares').toBeTruthy();
   await expect(page.locator('#candidate-detail'), 'the corridor under the cursor is the selected one')
     .toContainText(landedName, { timeout: 30000 });
-  console.log(`OCCURRENCE_SELECTION ${JSON.stringify({ clicked: probe.id, landedName, layers: layers.length,
-    fallbacks: fallbacks.length })}`);
+  // THE PILOT CORRIDOR HAS NO LEADER, AND THAT IS NOT AN ERROR. The pilot declaration measures no search context, so there
+  // is no pair of measured points to connect: nothing is inferred from the road's geometry to fill the gap.
+  expect(await page.locator('#map path[data-role="search-context"]').count(),
+    'a pilot corridor has no measured search context, so it draws no leader').toBe(0);
+  expect(await page.evaluate(() => globalThis.__RN_MAP?.contextGeometry?.() ?? null)).toBe(null);
+  console.log('OCCURRENCE_SELECTION ' + JSON.stringify({ clicked: probe.id, landedName, layers: layers.length,
+    fallbacks: fallbacks.length }));
   expect(await camera(), 'the click must not move the camera').toEqual(cameraBefore);
 
   // SWITCHING THE POINTS OFF HIDES THEM, FETCHES NOTHING, AND MOVES NOTHING.

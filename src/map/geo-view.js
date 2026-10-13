@@ -136,7 +136,29 @@ const SEARCH_STYLE = Object.freeze({
   centre: Object.freeze({ radius: 4, color: '#111827', weight: 2, fillColor: '#ffffff', fillOpacity: 1 }),
   radius: Object.freeze({ color: '#111827', weight: 1.5, opacity: 0.8, fill: false, dashArray: '6 4' }),
   region: Object.freeze({ color: '#6b7280', weight: 1, opacity: 0.6, dashArray: '4 4', fill: false }),
+  // THE LEADER IS ORIENTATION, NOT EVIDENCE. Thin, low-contrast, finely dashed, and never in a road's colour or weight, so
+  // it reads as the line between two measured points rather than as a route someone could drive.
+  context: Object.freeze({ color: '#94a3b8', weight: 1, opacity: 0.55, dashArray: '2 4', fill: false }),
 });
+
+// THE SEARCH-CONTEXT LEADER, TYPED. It connects two points the discovery run already measured - the search centre it was
+// measured against, and this corridor's own nearest point - and computes nothing: no nearest point is derived, no
+// geometry is fetched, and when either value is missing there is no orientation to draw and no feature is produced. A
+// corridor from a collection that never measured this context (the pilot's corridors, for instance) simply has no leader.
+export function searchContextFeature(corridor) {
+  const centre = toLatLngPoint(corridor?.searchCenter ?? null);
+  const nearest = toLatLngPoint(corridor?.nearestCenterPoint ?? null);
+  if (!centre || !nearest) return null;
+  // A leader that does not go anywhere is not orientation.
+  if (centre[0] === nearest[0] && centre[1] === nearest[1]) return null;
+  // The corridor is an ASSOCIATION, not this feature's identity: it travels under data-corridor-id so the line can be
+  // read against the road it orients, and its own role keeps it out of every candidate selector.
+  return Object.freeze({ kind: FEATURE_KIND.SEARCH_CONTEXT, corridorId: corridor?.id ?? null,
+    // Both measured points, in that order: the search centre first, the corridor's nearest point second.
+    geometry: Object.freeze({ type: 'LineString', coordinates: Object.freeze([Object.freeze([centre[1], centre[0]]),
+      Object.freeze([nearest[1], nearest[0]])]) }),
+    label: null, style: SEARCH_STYLE.context });
+}
 
 export function searchFeatures(search) {
   if (!search) return [];
@@ -394,8 +416,11 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
   try {
     const map = leaflet.map(container, { zoomControl: true, attributionControl: true, worldCopyJump: true });
     map.setView([39, -96], 4);
-    const layers = { results: leaflet.featureGroup(), saved: leaflet.featureGroup(), search: leaflet.featureGroup(),
-      overlay: leaflet.featureGroup(), occurrence: leaflet.featureGroup(), selected: leaflet.featureGroup() };
+    // THE LEADER GETS ITS OWN LAYER, CREATED FIRST SO IT DRAWS UNDER EVERYTHING ELSE: orientation belongs beneath the
+    // roads and the overlays it orients, and a layer that is only ever written by selection can be cleared by selection.
+    const layers = { context: leaflet.featureGroup(), results: leaflet.featureGroup(), saved: leaflet.featureGroup(),
+      search: leaflet.featureGroup(), overlay: leaflet.featureGroup(), occurrence: leaflet.featureGroup(),
+      selected: leaflet.featureGroup() };
     for (const layer of Object.values(layers)) map.addLayer(layer);
     let basemap = null;
     let basemapStatus = provider ? 'loading' : 'off';
@@ -427,6 +452,8 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     let outing = null;
     let activeCentre = null;
     let activeRadiusM = null;
+    // The leader currently drawn, so a diagnostic can read back exactly what is on the map - and nothing else.
+    let activeContext = null;
     let fitCount = 0;
     let movements = 0;
     // THE PATH THAT CARRIES EACH CARD, so the card can be re-opened after a re-draw. Selecting a corridor re-renders the
@@ -642,6 +669,12 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         // precisely *because* it never moves the camera.
         layers.selected.clearLayers();
         const selected = corridors.find(corridor => corridor.id === selectedId) ?? null;
+        // THE LEADER FOLLOWS THE SELECTION, AND ONLY THE SELECTION. It is normalized from the selected corridor's own
+        // measured pair, so selecting another corridor replaces it, clearing the selection removes it, and a redraw that
+        // leaves the selection alone leaves the same leader - it is never accumulated and never duplicated.
+        activeContext = searchContextFeature(selected);
+        layers.context.clearLayers();
+        if (activeContext) paint(layers.context, [activeContext]);
         for (const line of toLatLngs(selected?.geometry) ?? []) {
           // THE EMPHASIS IS THE SAME CORRIDOR, SO IT SAYS SO. It is drawn outside `paint` because it is not another
           // feature - it is this corridor's own copy, above everything - but an anonymous path on a map whose whole
@@ -696,6 +729,9 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       // they are the whole of what the map exposes: camera, search geometry, and the two counts the gate asserts on.
       camera: () => ({ center: [map.getCenter().lng, map.getCenter().lat], zoom: map.getZoom() }),
       searchGeometry: () => ({ center: activeCentre, radiusM: activeRadiusM }),
+      // The leader currently drawn, as its own geometry: read-only, and the only way a committed test can check the two
+      // endpoints it was normalized from without re-deriving them.
+      contextGeometry: () => activeContext?.geometry ?? null,
       fitCount: () => fitCount,
       movementCount: () => movements,
       // A person's own viewport survives a redraw, and the map remembers it: `bounds()` exists for tests and

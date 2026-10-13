@@ -11,7 +11,7 @@ export function createMapView(container, options = {}) {
   // reports "not available" rather than a boot failure in the application. The record of what was missing stays on the
   // view itself for a developer reading it, and is not part of the diagnostic surface below.
   const API = ['draw', 'setSearch', 'setSelected', 'setSavedRoads', 'setOuting', 'setPickMode', 'setBasemap',
-    'fitResults', 'fitSelected', 'destroy'];
+    'fitResults', 'fitSelected', 'destroy', 'contextGeometry'];
   const missing = [];
   for (const name of API) {
     if (typeof view[name] === 'function') continue;
@@ -27,6 +27,7 @@ export function createMapView(container, options = {}) {
     available: view.available !== false,
     camera: () => view.camera?.() ?? null,
     searchGeometry: () => view.searchGeometry?.() ?? { center: null, radiusM: null },
+    contextGeometry: () => view.contextGeometry?.() ?? null,
     fitCount: () => view.fitCount?.() ?? 0,
     movements: () => view.movementCount?.() ?? 0,
     note: 'Diagnostic surface for the map interaction gate. Read-only; the application never consults it.',

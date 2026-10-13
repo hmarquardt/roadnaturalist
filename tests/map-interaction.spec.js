@@ -139,6 +139,47 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
       [...new Set(elements.map(element => element.dataset.corridorId))]);
     expect(drawnIdentities, `${label}: every path drawn for that corridor names that corridor`).toEqual([firstId]);
 
+    // 23. THE SEARCH-CONTEXT LEADER BELONGS TO THE SELECTED CORRIDOR, AND TO NOTHING ELSE.
+    //
+    // The leader is orientation between two points the discovery run measured - the search centre and this corridor's own
+    // nearest point - so it is checked against exactly those: the drawn search centre, and a second endpoint that is a real
+    // point inside the searched area. It must never be a candidate, and selecting another corridor must move it.
+    const leaderFor = id => page.locator(`#map path[data-role="search-context"][data-corridor-id="${id}"]`);
+    const contextGeometry = () => page.evaluate(() => globalThis.__RN_MAP?.contextGeometry?.() ?? null);
+    const radiusM = (await searchGeometry(page)).radiusM;
+    const endpointsLookMeasured = async (id) => {
+      await expect(leaderFor(id), `${label}: one leader, associated with the selected corridor`).toHaveCount(1);
+      expect(await page.locator('#map path[data-role="search-context"]').count(),
+        `${label}: and exactly one leader on the map`).toBe(1);
+      expect(await page.locator('#map path[data-role="search-context"][data-role="candidate"]').count()).toBe(0);
+      expect(await page.locator('#map path[data-role="search-context"][data-corridor-id]')
+        .evaluateAll(elements => elements.filter(element => element.dataset.selected).length),
+      `${label}: the leader is never a selection itself`).toBe(0);
+      const geometry = await contextGeometry();
+      expect(geometry?.type, `${label}: the leader is a line`).toBe('LineString');
+      expect(geometry.coordinates.length, `${label}: from the centre to the nearest point`).toBe(2);
+      const [from, to] = geometry.coordinates;
+      expect(from.every(Number.isFinite) && to.every(Number.isFinite)).toBe(true);
+      const centre = (await searchGeometry(page)).center;
+      // The first endpoint is the search centre the run was measured against - the same point the map draws as its centre.
+      expect(Math.abs(from[0] - centre[1]), `${label}: the leader starts at the search centre (longitude)`)
+        .toBeLessThan(1e-6);
+      expect(Math.abs(from[1] - centre[0]), `${label}: the leader starts at the search centre (latitude)`)
+        .toBeLessThan(1e-6);
+      // The second is the corridor's measured nearest point: a different place, inside the area that was searched.
+      const metresPerDegreeLat = 111320;
+      const dLat = (to[1] - from[1]) * metresPerDegreeLat;
+      const dLon = (to[0] - from[0]) * metresPerDegreeLat * Math.cos((from[1] * Math.PI) / 180);
+      const separation = Math.hypot(dLat, dLon);
+      expect(separation, `${label}: the leader connects two different measured points`).toBeGreaterThan(1);
+      expect(separation, `${label}: and the nearest point lies within the searched radius`).toBeLessThan(radiusM * 1.05);
+      // A leader is orientation, not a selection: it cannot be pointed at, so it cannot take a click.
+      expect(await page.locator('#map path[data-role="search-context"]')
+        .evaluateAll(elements => elements.filter(element => element.classList.contains('leaflet-interactive')).length),
+      `${label}: the leader is not interactive`).toBe(0);
+    };
+    await endpointsLookMeasured(firstId);
+
     // 6/9. THE USER OWNS THE CAMERA - AND THE GESTURE HAS TO BE A REAL ONE.
     //
     // A drag synthesised with DOM MouseEvents from inside the page is not necessarily a drag as Leaflet understands it,
@@ -188,6 +229,10 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
     const secondId = await requireIdOfRow(1);
     await rows.nth(1).locator('.discovery-row').click();
     await page.waitForTimeout(400);
+    // SELECTING ANOTHER CORRIDOR REPLACES THE LEADER: the first corridor's is gone, the second's is there, and there is
+    // still exactly one on the map.
+    expect(await leaderFor(firstId).count(), `${label}: the previous corridor's leader is gone`).toBe(0);
+    await endpointsLookMeasured(secondId);
     const afterSelection = await camera();
     expect(afterSelection.center[0], `${label}: selection must not move the camera`).toBeCloseTo(moved.center[0], 4);
     expect(afterSelection.center[1], `${label}: selection must not move the camera`).toBeCloseTo(moved.center[1], 4);

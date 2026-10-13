@@ -1367,15 +1367,22 @@ function discoveryDescriptors(state) {
   const results = applyMarks(discovery.results, discovery.marks);
   const view = filterAndSort(results, discovery.filters, discovery.sort).slice(0, MAX_RESULT_ROWS);
   const search = state.search;
+  // The centre this run was measured against: a radius search defines one, and a declared box defines none.
+  const center = search.areaId === CUSTOM_SEARCH_AREA_ID ? (search.definition?.center ?? null) : null;
   return {
     // Where the search was made and where the nearest part of every drawn corridor is: the selected corridor
     // gets one line from the centre, and nothing else on the map is drawn from this.
-    center: search.areaId === CUSTOM_SEARCH_AREA_ID ? (search.definition?.center ?? null) : null,
+    center,
     centerLabel: centerPresentation({ place: search.place, near: search.near, center: search.definition?.center ?? null }).label,
     corridors: view.map(result => ({ id: result.id, name: result.name, geometry: result.geometry,
       // The map draws these beside the candidate list, so each road says which collection it belongs to: a click routes
       // to the discovery selection and never to the candidate one.
       selectionDomain: SELECTION_DOMAIN.DISCOVERY,
+      // THE MEASURED PAIR, FROM ONE RUN. The centre is the one this search was measured against and the nearest point is
+      // this result's own measurement, so they travel together: the leader can never mix a current centre with a nearest
+      // point left over from an earlier search.
+      searchCenter: center,
+      nearestCenterPoint: result.nearestCenterPoint ?? null,
       distanceFromCenterM: result.distanceFromCenterM ?? null,
       ranking: naturalistInterest(result),
       nearestCenterPoint: result.nearestCenterPoint ?? null,
