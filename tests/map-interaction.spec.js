@@ -17,17 +17,22 @@ const BASE = process.env.PRODUCTION_BASE_URL ?? 'https://roadnaturalist.com';
 const RAW_PLANE = /\/(national\/roads|national\/wetlands|national\/hydro)\//;
 const DEEP_DATA = /api\.inaturalist|api\.ebird|api\.roadnaturalist\.com|overpass|investigator/i;
 const REGIONS = Object.freeze([
-  ['princeton in', 'Princeton, IN', { lat: [37.6, 38.6], lon: [-88.2, -87.1] }],
-  ['portland oregon', 'Portland, OR', { lat: [44.9, 46.0], lon: [-124.2, -122.0] }],
+  ['princeton in', 'Princeton, IN', { lat: [37.6, 38.6], lon: [-88.2, -87.1] }, 25, null],
+  ['portland oregon', 'Portland, OR', { lat: [44.9, 46.0], lon: [-124.2, -122.0] }, 25, null],
+  // THE SEEDED REGION. North Plains sits inside the Oregon pilot area, which is what the published bounded wetlands and
+  // hydrography extracts describe, and a 3-mile radius keeps every corridor it returns inside them. This is the one
+  // region whose habitat analysis must complete and put its buffer on the map; the two above are outside the bounded
+  // coverage, and their analysis must say so rather than draw one.
+  ['north plains or', 'North Plains, OR', { lat: [45.55, 45.65], lon: [-123.05, -122.85] }, 4, 'available'],
 ]);
 
 test.skip(!process.env.RUN_MAP_PRODUCTION, 'set RUN_MAP_PRODUCTION=1 to verify the deployed geographic map');
 
-async function runSearch(page, query) {
+async function runSearch(page, query, radiusMiles = 25) {
   await page.locator('#discovery-place').fill(query);
   await page.locator('#discovery-place-results .discovery-place-option').first().waitFor({ timeout: 120000 });
   await page.locator('#discovery-place-results .discovery-place-option').first().click();
-  await page.locator('#discovery-radius-input').fill('25');
+  await page.locator('#discovery-radius-input').fill(String(radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
   await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL', { timeout: 120000 });
   await page.locator('#discover-roads').click();
@@ -37,7 +42,7 @@ async function runSearch(page, query) {
 }
 
 
-for (const [query, label, geography] of REGIONS) {
+for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
   test(`deployed geographic map: ${label}`, async ({ page }) => {
     test.setTimeout(3600000);
     await page.setViewportSize({ width: 1440, height: 950 });
@@ -81,7 +86,7 @@ for (const [query, label, geography] of REGIONS) {
     expect(await mapAvailable(page), 'the geographic map must have initialised').toBe(true);
     await expect(page.locator('#map.leaflet-container')).toHaveCount(1);
 
-    await runSearch(page, query);
+    await runSearch(page, query, radiusMiles);
     expect(await mapImplementation(page)).toBe('geo');
 
     const camera = () => cameraOf(page);
@@ -198,8 +203,10 @@ for (const [query, label, geography] of REGIONS) {
     const fitted = await camera();
     expect(fitted.zoom, `${label}: Fit results should zoom in on the results`).toBeGreaterThan(1);
     const search = await searchGeometry(page);
-    expect(search.radiusM, `${label}: the requested radius is 25 miles in metres`).toBeCloseTo(25 * MILES_TO_M, 0);
-    expect(Math.abs(search.radiusM - 25 * MILES_TO_M), `${label}: within a metre of the request`).toBeLessThan(1);
+    expect(search.radiusM, `${label}: the requested radius is ${radiusMiles} miles in metres`)
+      .toBeCloseTo(radiusMiles * MILES_TO_M, 0);
+    expect(Math.abs(search.radiusM - radiusMiles * MILES_TO_M), `${label}: within a metre of the request`)
+      .toBeLessThan(1);
     await expect(page.locator('#map path[data-role="search-radius"]')).toHaveCount(1);
     await expect(drawnSearchCentre(page)).toHaveCount(1);
     // The adapter exposes the drawn centre in Leaflet order - [lat, lon] - so latitude is index 0 and longitude is
@@ -322,10 +329,18 @@ for (const [query, label, geography] of REGIONS) {
     const cameraBeforeBuffer = await camera();
     const fitsBeforeBuffer = await fitCount();
     const selectedForBuffer = await selectedId();
+    // The raw census immediately before the explicit Habitat action: the analysis is allowed to read raw planes, and
+    // ordinary map use above was not.
+    const rawBeforeHabitat = raw.length;
     await page.locator('#habitat-layers').check();
-    // The application's own note is its completion signal for this action.
-    await expect.poll(async () => (await page.locator('#habitat-layers-note').innerText()).length,
-      { timeout: 180000, message: `${label}: the habitat action must report when it is done` }).toBeGreaterThan(0);
+    // The application's own note is its completion signal, so it has to be the note that describes a result rather than
+    // the one that says work is in progress. (Waiting for any text at all was satisfied by "Running the habitat
+    // analysis…" and would let the gate read a status that had not been decided yet.)
+    const noteText = page.locator('#habitat-layers-note');
+    await expect.poll(async () => {
+      const text = await noteText.innerText();
+      return text.length > 0 && !/Running the habitat analysis/.test(text);
+    }, { timeout: 300000, message: `${label}: the habitat action must report the analysis it finished` }).toBe(true);
     const bufferPaths = page.locator('#map path[data-role="habitat-buffer"]');
     const bufferCount = await bufferPaths.count();
     const analysisPaths = await page.locator('#map path[data-role="candidate"]:not([data-corridor-id])').count();
@@ -333,6 +348,8 @@ for (const [query, label, geography] of REGIONS) {
       // NO BUFFER IS RECORDED, NOT PASSED OVER. For a corridor whose habitat analysis is unavailable there is no buffer
       // geometry to draw, and this gate says so with its own evidence; what it will not accept is a corridor whose
       // analysis reached the map while its buffer did not.
+      expect(habitat, `${label}: this region's corridors are inside the published bounded habitat coverage, so its `
+        + 'analysis must complete and draw its buffer').not.toBe('available');
       expect(analysisPaths, `${label}: no buffer must mean no habitat analysis reached the map at all`).toBe(0);
     } else {
       expect(bufferCount, `${label}: one buffer, for one analysis`).toBe(1);
@@ -347,7 +364,17 @@ for (const [query, label, geography] of REGIONS) {
     // THE PANEL'S WORDS MUST MATCH THE MAP. With no analysis on the map the note may not claim one, and with a buffer
     // drawn it must describe an analysis rather than an absence.
     const overlayNote = await page.locator('#habitat-layers-note').innerText();
-    if (bufferCount === 0) {
+    if (habitat === 'available') {
+      // A corridor inside the published bounded coverage: the analysis has to have run, read the bounded planes, and
+      // said so - and the buffer above is its proof, so this note may not report the analysis unavailable.
+      expect(overlayNote, `${label}: an available analysis must not be reported as unavailable`)
+        .not.toMatch(/unavailable/i);
+      expect(overlayNote, `${label}: and it must describe the analysis that ran`)
+        .toMatch(/Habitat analysis (loaded|is partial)/i);
+      expect(raw.length, `${label}: the explicit habitat action must read the bounded raw planes`)
+        .toBeGreaterThan(rawBeforeHabitat);
+      expect(deep, `${label}: and reach nothing beyond them`).toEqual([]);
+    } else if (bufferCount === 0) {
       expect(overlayNote, `${label}: with nothing analysed the note must not claim a habitat layer`)
         .not.toMatch(/analysis loaded|analysis completed/i);
       expect(overlayNote, `${label}: and it must say the analysis is unavailable here`).toMatch(/unavailable/i);
@@ -378,6 +405,7 @@ for (const [query, label, geography] of REGIONS) {
 
     console.log(`MAP_PRODUCTION ${JSON.stringify({ label, rows: rowCount, zoom: fitted.zoom.toFixed(2),
       radiusM: Math.round(search.radiusM), bufferPaths: bufferCount, habitatFeaturePaths: analysisPaths,
+      habitatNote: overlayNote.slice(0, 120), rawBeforeHabitat, rawAfterHabitat: raw.length,
       hosts: [...hosts].sort(), raw: raw.length, deep: deep.length })}`);
   });
 }

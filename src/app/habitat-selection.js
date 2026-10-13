@@ -1,5 +1,12 @@
 import { corridorGeometry } from '../domain/geometry.js';
 
+// WHICH CORRIDOR THE MAP IS SHOWING, in one place. The map draws the discovery selection as its selected corridor and
+// falls back to the promoted candidate; the habitat action and the render that hands the overlay to the map both read
+// this, so an analysis can only ever be attributed to the corridor it was actually made for.
+export function shownCorridorId({ selectedId = null, discovery = null } = {}) {
+  return discovery?.selectedId ?? selectedId ?? null;
+}
+
 // WHICH CORRIDOR THE HABITAT ACTION IS ABOUT, AND WHAT TO SAY ABOUT THE ANALYSIS.
 //
 // The map draws two kinds of corridor: a promoted candidate, and a discovery result - the rows a search produced. The

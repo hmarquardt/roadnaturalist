@@ -2,16 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { habitatNote, habitatSelection } from '../src/app/habitat-selection.js';
+import { habitatNote, habitatSelection, shownCorridorId } from '../src/app/habitat-selection.js';
 import { habitatOverlayStatus } from '../src/gis/habitat-query.js';
 import { COVERAGE } from '../src/domain/corridor.js';
 
 // HABITAT FOR A DISCOVERY CORRIDOR, AND AN HONEST DESCRIPTION OF THE RESULT.
 //
 // The map draws promoted candidates and discovery results alike, so the habitat action has to be able to name the corridor
-// the person is looking at. These tests cover that normalization, the decision about whether an analysis could actually be
-// made, and the words the panel uses for each outcome - the places where a panel could quietly claim something that did
-// not happen.
+// the person is looking at. These tests cover that normalization, the one rule for which corridor is shown, the decision
+// about whether an analysis could actually be made, and the words the panel uses for each outcome - the places where a
+// panel could quietly claim something that did not happen.
 const DISCOVERY = Object.freeze({ id: 'drv1-co-rd-900-c11-s1', name: 'Co Rd 900',
   geometry: { type: 'LineString', coordinates: [[-87.5201, 38.2801], [-87.42, 38.29]] },
   distanceFromCenterM: 1604.2, nearestCenterPoint: [-87.51, 38.28] });
@@ -35,10 +35,23 @@ test('a discovery corridor normalizes into habitat-analysis input, geometry and 
   // Nothing about source identity, access or measurement is manufactured on the way in.
   assert.deepEqual(Object.keys(selection).sort(),
     ['bounds', 'catalogUrl', 'geometry', 'id', 'lengthM', 'name', 'promoted']);
-  // A selection with no usable geometry is no selection at all, and a candidate wins over a discovery result.
+  // A selection with no usable geometry is no selection at all.
   assert.equal(habitatSelection({}), null);
   assert.equal(habitatSelection({ discoveryResult: { id: 'x', geometry: { type: 'Point', coordinates: [0, 0] } } }), null);
   assert.equal(habitatSelection({ discoveryResult: { id: 'x' } }), null);
+});
+
+test('the map, the action and the overlay agree on which corridor is shown', () => {
+  // One rule, read by the action that runs the analysis and by the render that hands the overlay to the map: a discovery
+  // selection is the corridor on screen, and the promoted candidate is the fallback. A second rule somewhere else is how
+  // an analysis ends up attributed to a corridor nobody selected.
+  assert.equal(shownCorridorId({ selectedId: 'candidate-1', discovery: { selectedId: 'drv1' } }), 'drv1');
+  assert.equal(shownCorridorId({ selectedId: 'candidate-1', discovery: { selectedId: null } }), 'candidate-1');
+  assert.equal(shownCorridorId({ selectedId: 'candidate-1' }), 'candidate-1');
+  assert.equal(shownCorridorId({}), null);
+  assert.equal(habitatSelection({ candidate: PROMOTED, discoveryResult: DISCOVERY }).id, PROMOTED.id,
+    'the adapter takes whichever corridor it is handed');
+});
 
 test('an analysis is only ready where its sources are, and never zero where they are not', () => {
   const sealed = habitatOverlayStatus({ wetlandsCoverage: COVERAGE.FULL, hydrographyCoverage: COVERAGE.FULL,
@@ -88,18 +101,17 @@ test('the panel says what happened, and never claims a layer that is not there',
   assert.match(habitatNote(null), /no corridor with usable geometry is selected/);
 });
 
+
 test('only the explicit habitat action runs the analysis', () => {
   // THE ANALYSIS IS A REQUEST, NOT A SIDE EFFECT. Selection, sorting, panning and fitting must not run it: the one call
   // site is the habitat control's own change listener, and this says so where a reader can check it rather than trusting
-  // the wiring by inspection.
+  // the wiring by inspection. The browser gate proves the other half - ordinary map use reads no raw plane at all.
   const source = readFileSync(new URL('../src/app/main.js', import.meta.url), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
   const calls = [...source.matchAll(/toggleHabitatOverlay\(/g)];
   assert.equal(calls.length, 2, 'one definition and one call');
   const listener = source.indexOf('habitatToggle?.addEventListener');
-  assert.match(source.slice(listener, listener + 400), /toggleHabitatOverlay\(enabled\)/,
+  assert.match(source.slice(listener, listener + 500), /toggleHabitatOverlay\(enabled\)/,
     'and the call is the habitat control change listener');
 });
 
-  assert.equal(habitatSelection({ candidate: PROMOTED, discoveryResult: DISCOVERY }).id, PROMOTED.id);
-});

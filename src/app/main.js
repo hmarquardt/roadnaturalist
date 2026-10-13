@@ -18,7 +18,7 @@ import { COVERAGE_DATASETS, summarizeOccurrences } from '../occurrence/context.j
 // src/investigator/ may be imported statically from here - tests/investigator-boundary.test.js walks this module's
 // static graph and fails if that changes.
 import { createFeatureLoader } from './feature-loader.js';
-import { habitatNote, habitatSelection } from './habitat-selection.js';
+import { habitatNote, habitatSelection, shownCorridorId } from './habitat-selection.js';
 import { INVESTIGATOR_WORKER_URL } from './config.js';
 import { runDiscovery } from '../discovery/run.js';
 import { verifyDerivedPromotion } from '../discovery/promotion.js';
@@ -774,9 +774,9 @@ async function toggleHabitatOverlay(enabled) {
   const state = store.getState();
   // THE CORRIDOR THE PERSON IS LOOKING AT, which is either a promoted candidate or the discovery result the map is
   // drawing. Reading only the candidate list is what made this action do nothing at all for a discovery corridor.
-  const candidate = state.candidates.find(item => item.id === state.selectedId) ?? null;
-  const discoveryResult = state.discovery.results.find(result => result.id === state.discovery.selectedId) ?? null;
-  const selection = habitatSelection({ candidate, discoveryResult });
+  const shownId = shownCorridorId(state);
+  const selection = habitatSelection({ candidate: state.candidates.find(item => item.id === shownId) ?? null,
+    discoveryResult: state.discovery.results.find(result => result.id === shownId) ?? null });
   if (!enabled || !selection) { store.setHabitatOverlay(null); return; }
   let overlay;
   try {
@@ -1225,7 +1225,10 @@ store.subscribe(state => {
   nodes.fitResults.disabled = !(state.discovery.status === 'ready' && state.discovery.results.length);
   nodes.fitSelected.disabled = !selected;
   nodes.caption.textContent = caption(state);
-  const overlay = state.habitatOverlay && state.habitatOverlay.candidateId === selected?.id ? state.habitatOverlay : null;
+  // THE OVERLAY BELONGS TO THE CORRIDOR THE MAP IS SHOWING, by the same rule the habitat action used to name it. Reading
+  // only the candidate selection is why a discovery corridor's analysis could never reach the map even once it ran.
+  const shownId = shownCorridorId(state);
+  const overlay = state.habitatOverlay && state.habitatOverlay.candidateId === shownId ? state.habitatOverlay : null;
   const occurrenceOverlay = state.occurrenceOverlay && state.occurrenceOverlay.candidateId === selected?.id ? state.occurrenceOverlay : null;
   const discoveryLayer = discoveryDescriptors(state);
   // EXACTLY ONE AUTOMATIC FIT PER COMPLETED SEARCH. The request was made where the run completed and is spent here,
