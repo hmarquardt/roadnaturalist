@@ -1158,8 +1158,8 @@ were dropped. A failed or empty road-network read is `unavailable`, never "no ro
 
 ## Candidate lifecycle and promotion
 
-`src/discovery/lifecycle.js` keeps three states: `DISCOVERED`, `PROMOTED`, `DISMISSED`. Marks are the
-only persisted discovery state (`src/discovery/persistence.js`: one versioned `localStorage` entry,
+`src/discovery/lifecycle.js` keeps three states: `DISCOVERED`, `PROMOTED`, `DISMISSED`. Marks are persisted
+beside the device-local search records (`src/discovery/persistence.js`: versioned `localStorage` entries,
 device-local, discarded when unreadable or blocked). Promotion rebuilds the corridor with the ordinary
 `createRoad` / `createCandidate` builders, so a promoted corridor is a **normal candidate**: the same
 ecology, habitat, occurrence, access, and evidence-bundle behaviour, and no second kind of detailed
@@ -1269,8 +1269,11 @@ browser storage, derived metrics and Worker-side GIS remain unimplemented and re
   `tests/candidate-persistence.spec.js` — the device-local candidate store: the versioned entry, per-record
   validation and isolation, the cap and the refusals, removal, and the promote → reload → restore loop in a
   browser
-* `src/discovery/persistence.js` — the other device-local entries: discovery marks, the last search, the search
-  history
+* `src/discovery/persistence.js` — the device-local discovery entries: discovery marks, the last search, the search
+  history, and the ordering someone deliberately chose. The sort preference is written only by an explicit sort
+  change, so a *missing* preference keeps following the product default while an explicit one is restored on load;
+  an obsolete or hand-edited value is ignored. `tests/sort-preference.test.js` and
+  `tests/sort-preference-map.spec.js` cover both halves of that
 * `src/discovery/geolocation.js`, `tests/geolocation.test.js`, `tests/geolocation.spec.js` — the browser's
   position as one more search centre: the conservative options, the canonical definition and radius it produces,
   the accuracy line, every refusal (declined, unavailable, timed out, unsupported), the latest-choice-wins token,

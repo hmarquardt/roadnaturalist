@@ -9,6 +9,7 @@ import { SAVED_FILTERS, SAVED_SORTS, nextComparison, savedRoadRows } from './sav
 import { MAX_OUTINGS, OUTING_STATUS, OUTING_STORAGE_STATUS, createOuting, moveRoad, outingsUsingRoad,
   readStoredOutings, removeRoadEverywhere, updateOuting, withoutRoad, withRoad, writeStoredOutings } from './outings.js';
 import { CANDIDATE_STORAGE_STATUS, readStoredCandidates, writeStoredCandidates } from './candidate-persistence.js';
+import { readDiscoverySort, writeDiscoverySort } from '../discovery/persistence.js';
 
 // WHICH SELECTION PATH A CORRIDOR BELONGS TO.
 //
@@ -20,9 +21,12 @@ export const SELECTION_DOMAIN = Object.freeze({ DISCOVERY: 'discovery', CANDIDAT
 
 export function createStore({ storage } = {}) {
   const initialQuery = Object.freeze({ status: 'idle', coverage: null, reason: null, provenance: null, missingRoadIds: [], note: null });
+  // The ordering starts at the one this device deliberately chose, or at the product default when nobody has chosen
+  // (including when the stored value is unreadable or names a sort this build no longer offers). A preference is
+  // never written here: merely starting up must not turn today's default into a stored decision.
   const initialDiscovery = Object.freeze({ status: 'idle', results: Object.freeze([]), coverage: null, diagnostics: null, promotionError: null,
     eligibility: Object.freeze([]), searchArea: null, selectedId: null, marks: Object.freeze({}), error: null,
-    filters: DEFAULT_FILTERS, sort: DEFAULT_SORT, raw: null });
+    filters: DEFAULT_FILTERS, sort: readDiscoverySort(storage) ?? DEFAULT_SORT, raw: null });
   // The search definition is its own slice: which declared window (or custom centre and radius) a run would
   // survey, the centre and radius themselves, whether the map is waiting for a centre, the short list of
   // searches this device ran, and - as labels only - the place those coordinates came from and the nearest
@@ -144,7 +148,10 @@ export function createStore({ storage } = {}) {
     noteDiscoveryPromotion(id, reason) { publishDiscovery({ promotionError: Object.freeze({ id, reason }) }); },
     clearDiscoveryPromotion() { publishDiscovery({ promotionError: null }); },
     setDiscoveryFilters(filters) { publishDiscovery({ filters: Object.freeze({ ...DEFAULT_FILTERS, ...filters }) }); },
-    setDiscoverySort(sort) { publishDiscovery({ sort }); },
+    // A SORT CHANGE IS A CHOICE. This is the only path an explicit sort arrives by - the sort control calls it - so
+    // the preference is written here and nowhere else: initialising, starting or finishing a run, selecting a
+    // corridor and restoring a search all leave it alone, and the product default is never stored by accident.
+    setDiscoverySort(sort) { publishDiscovery({ sort: writeDiscoverySort(sort, storage) ?? DEFAULT_SORT }); },
     // SEARCH DEFINITION. One selection, one definition, one run: a declared window and a custom radius are two
     // values of the same field, so nothing downstream can tell an arbitrary search from a committed preset.
     setSearchSelection({ areaId, definition, picking = false, place = null, near = null }) {

@@ -90,16 +90,17 @@ test('every factual sort is untouched and still available beside the two orderin
     'the measured-value order is unchanged by the default moving');
 });
 
-test('no sort is persisted or carried in the URL, so a reload takes the default and there is no stored choice to honour', () => {
-  // The audit, as an executable fact: the persistence surface remembers marks, the last search and its history, and
-  // nothing else. A deliberate sort therefore lasts the session and is never fought by a restored value.
+test('the sort preference shares the existing discovery record rather than adding a storage key', () => {
+  // One persistence system: the preference is a field on the record this module already writes, so there is no
+  // fourth entry to keep valid, and a record written before the field existed is still a valid record.
   const keys = Object.keys(persistence).filter(name => name.startsWith('DISCOVERY_'));
   assert.ok(keys.length > 0);
-  assert.ok(!keys.some(name => /sort/i.test(name)), `no sort is persisted (found ${keys.join(', ')})`);
+  assert.ok(!keys.some(name => /sort/i.test(name)), `no separate sort key (found ${keys.join(', ')})`);
   assert.deepEqual(persistence.readDiscoveryMarks(memoryStorage({})), {});
   assert.equal(persistence.readDiscoverySearch(memoryStorage({})), null);
+  assert.equal(persistence.readDiscoverySort(memoryStorage({})), null, 'and no preference when nothing is stored');
   const store = createStore();
   assert.equal(store.getState().discovery.sort, DEFAULT_SORT,
-    'a fresh load has no stored sort to override the default');
+    'a fresh load has no stored preference, so it follows the product default');
 });
 

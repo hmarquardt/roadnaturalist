@@ -319,11 +319,25 @@ things were deliberately *not* changed:
 the interest score rather than inventing a distance - and the line under the results says so ("This search declares
 no centre, so no distance is considered") instead of implying one.
 
-**Persistence audit.** Discovery sorts are **not persisted and are not in the URL**: `src/discovery/persistence.js`
-remembers promoted/dismissed marks, the last search definition and the search history, and nothing else. So a fresh
-load takes the new default; an explicit choice lasts the session and is never pushed back to the default by a run or
-a re-render; there is no stored or URL sort to honour; and there is nothing to migrate. A test asserts the absence of
-a persisted sort key so the audit stays true.
+**Persistence: a choice, not a default.** A deliberate sort choice *is* remembered. It lives in the discovery record
+this module already owns (`src/discovery/persistence.js`, the last-search entry) as an optional `preferredSort`
+field - no new storage key, and no version bump, because the reader validates the fields it reads and an older
+record simply has no preference. Three rules make it a *preference* rather than a snapshot of the default:
+
+* **Written only by an explicit change.** `store.setDiscoverySort` is the only writer, and the sort control is its
+  only caller. Initialising, starting a run, finishing a run, selecting a corridor, marking a corridor and restoring
+  a search all leave it alone, so a default never becomes a stored decision.
+* **Absent means "nobody chose".** With no field - or one naming a sort this build no longer offers - the store
+  starts at `DEFAULT_SORT`. A future default change therefore reaches everyone who never picked, and never overrides
+  anyone who did.
+* **One record, two fields.** The same entry holds the last search and the preferred sort, and each writer keeps the
+  other's field: choosing a sort cannot lose the search, and running a search cannot lose the sort. The sort
+  belongs to the person, so it is deliberately *not* attached to each search-history entry.
+
+The two halves are proven by `tests/sort-preference.test.js` (absent → default, restored, written only by a choice,
+invalid ignored, older record still valid, other records intact, every offered sort round-trips) and by
+`tests/sort-preference-map.spec.js` in a browser (fresh session writes nothing, each choice survives a reload, an
+obsolete value is ignored). There is still no URL sort.
 
 **Copy.** The two options are named exactly `Exploration order` and `Naturalist interest`, with the meaning of each
 said once beside the control (derived from the model's own help text), and the line under the table follows the
