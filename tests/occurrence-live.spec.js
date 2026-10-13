@@ -15,7 +15,7 @@ test('live occurrence analysis for the three pilot corridors', async ({ page }) 
   const report = [];
   page.on('console', message => { if (message.text().startsWith('LIVE ')) report.push(message.text()); });
   await page.goto('/');
-  await page.getByRole('button', { name: /Open Oregon road pilot/ }).click();
+  await page.locator('#load-pilot').click();
   await expect(page.locator('#candidate-detail')).toContainText('NW Cornelius Pass Rd', { timeout: 120000 });
 
   for (const name of ['NW Cornelius Pass Rd', 'NW Springville Rd', 'NW Susbauer Rd']) {

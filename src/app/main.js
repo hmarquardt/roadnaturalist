@@ -820,11 +820,13 @@ async function toggleOccurrenceOverlay(enabled) {
   const candidate = state.candidates.find(item => item.id === state.selectedId);
   const evidence = candidate ? state.occurrenceByCandidate[candidate.id] : null;
   if (!enabled || !candidate || !evidence?.sources) { store.setOccurrenceOverlay(null); return; }
-  // The domain already filtered these to precise public observations; the cap keeps the layer bounded.
+  // The domain already filtered these to precise public observations; the cap keeps the layer bounded. The row keeps the
+  // domain's own field names - `location`, the domain's word for the coordinate - so the map reads the same row the
+  // evidence is keyed by rather than a renamed copy of it.
   const points = Object.values(evidence.sources).flatMap(summary => summary.points ?? [])
     .slice(0, OCCURRENCE_MAP_LIMIT)
     .map(point => ({ source: point.source, sourceRecordId: point.sourceRecordId, label: point.label,
-      group: point.taxonomicGroup, coordinates: point.location, distanceToCorridorM: point.distanceToCorridorM }));
+      taxonomicGroup: point.taxonomicGroup, location: point.location, distanceToCorridorM: point.distanceToCorridorM }));
   store.setOccurrenceOverlay({ candidateId: candidate.id, points, excluded: Object.values(evidence.sources)
     .reduce((total, summary) => total + (summary.regionalOnlyObservations ?? 0), 0) });
 }

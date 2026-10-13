@@ -67,7 +67,7 @@ async function openPilot(page, corridorName) {
     await page.reload();
     await expect(page.locator('#candidate-list')).toContainText(READY, { timeout: 90000 });
   }
-  await page.getByRole('button', { name: /Open Oregon road pilot/ }).click();
+  await page.locator('#load-pilot').click();
   await expect(page.locator('.candidate-card')).toHaveCount(3, { timeout: 90000 });
   await page.locator('.candidate-card', { hasText: corridorName }).first().click();
   await expect(page.locator('#candidate-detail')).toContainText(corridorName, { timeout: 90000 });

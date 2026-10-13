@@ -26,7 +26,7 @@ test('occurrence evidence loads lazily, stays privacy-safe, and separates its so
   page.on('request', request => { if (request.url().includes('api.inaturalist.org') || request.url().includes('api.ebird.org')) externalCalls.push(request.url()); });
   await stubInaturalist(page);
   await page.goto('/');
-  await page.getByRole('button', { name: /Open Oregon road pilot/ }).click();
+  await page.locator('#load-pilot').click();
   const detail = page.locator('#candidate-detail');
   await expect(detail).toContainText('NW Cornelius Pass Rd', { timeout: 60000 });
   const occurrence = page.locator('.occurrence-section');
@@ -83,7 +83,7 @@ test('an unavailable occurrence source never blocks the rest of the panel and ne
   await page.setViewportSize({ width: 390, height: 900 });
   await page.route('https://api.inaturalist.org/**', route => route.abort());
   await page.goto('/');
-  await page.getByRole('button', { name: /Open Oregon road pilot/ }).click();
+  await page.locator('#load-pilot').click();
   const detail = page.locator('#candidate-detail');
   await expect(detail).toContainText('NW Cornelius Pass Rd', { timeout: 60000 });
   // Road, ecology, and habitat evidence are unaffected while occurrence sources are unreachable.
@@ -106,26 +106,59 @@ test('only precise public observations reach the map, and distances are real pro
   await page.setViewportSize({ width: 1440, height: 950 });
   await stubInaturalist(page);
   await page.goto('/');
-  await page.getByRole('button', { name: /Open Oregon road pilot/ }).click();
+  await page.locator('#load-pilot').click();
   await expect(page.locator('#candidate-detail')).toContainText('NW Cornelius Pass Rd', { timeout: 60000 });
   await page.locator('.occurrence-section').getByRole('button', { name: 'Query public occurrence sources' }).click();
   await expect(page.locator('.occurrence-section')).toContainText('CoveragePARTIAL', { timeout: 60000 });
-  await expect(page.locator('#map svg .occurrence-point')).toHaveCount(0);
+  // THE POINTS ARE TYPED MAP FEATURES: data-role=occurrence with an identity that is the source record the evidence was
+  // keyed by. They are drawn only while the layer is switched on, they are never corridors, and they cannot be clicked.
+  await expect(page.locator('#map path[data-role="occurrence"]')).toHaveCount(0);
   await page.locator('#occurrence-layer').check();
-  const points = page.locator('#map svg .occurrence-point');
+  const points = page.locator('#map path[data-role="occurrence"]');
+  // WHAT THE LAYER WAS GIVEN AND WHAT THE MAP DID WITH IT, so a failure here says which of the two is empty. This
+  // mirrors the application's own path exactly: analyze, summarize into sources, then the map's own normalizer.
+  const local = await page.evaluate(async () => {
+    const { occurrence, gis } = await import('/src/app/main.js');
+    const { summarizeOccurrences } = await import('/src/occurrence/context.js');
+    const { occurrenceFeatures } = await import('/src/map/geo-view.js');
+    const pilot = await (await fetch('data/roads/or-roads-pilot.json')).json();
+    const candidate = pilot.candidates.find(entry => /Cornelius Pass/.test(entry.name ?? ''));
+    const roads = await gis.queryRoads({ roadIds: candidate.roadIds });
+    const geometry = { type: 'MultiLineString', coordinates: roads.features.map(row => row.geometry.coordinates) };
+    const evidence = summarizeOccurrences(await occurrence.analyze(geometry));
+    const rows = Object.values(evidence.sources).flatMap(source => source.points ?? []);
+    const census = {};
+    for (const node of document.querySelectorAll('#map svg path, #map svg circle')) {
+      const key = `${node.tagName}:${node.getAttribute('data-role') ?? 'none'}`;
+      census[key] = (census[key] ?? 0) + 1;
+    }
+    return { returned: rows.length, normalized: occurrenceFeatures({ points: rows }).features.length, census,
+      sources: Object.fromEntries(Object.entries(evidence.sources).map(([id, source]) => [id,
+        { coverage: source.coverage ?? null, points: (source.points ?? []).length,
+          precise: source.preciseObservations ?? 0, regionalOnly: source.regionalOnlyObservations ?? 0 }])) };
+  });
+  console.log(`OCCURRENCE_MAP_LOCAL ${JSON.stringify({ drawn: await points.count(),
+    note: (await page.locator('#occurrence-note').innerText()).slice(0, 120), ...local })}`);
   await expect(points.first()).toBeVisible();
   const drawn = await points.count();
   expect(drawn).toBeGreaterThan(0);
   expect(drawn).toBeLessThanOrEqual(300);
-  // Every plotted point is a precise public observation, and no obscured coordinate is plotted.
-  const plotted = await page.evaluate(() => [...document.querySelectorAll('#map svg .occurrence-point title')].map(node => node.textContent));
-  const obscuredCoordinates = inatFixture.records
-    .filter(record => record.obscured || record.geoprivacy === 'obscured' || record.taxon_geoprivacy === 'obscured')
-    .map(record => `${Math.round(record.geojson.coordinates[0] * 10000) / 10000}`);
-  expect(plotted.length).toBe(drawn);
-  expect(obscuredCoordinates.some(value => plotted.join(' ').includes(value))).toBe(false);
+  const plotted = await points.evaluateAll(paths => paths.map(path => path.dataset.occurrenceId ?? ''));
+  expect(plotted.filter(id => !id), 'every plotted point carries its own identity').toEqual([]);
+  expect(plotted.every(id => /^[a-z]+:[^\s]+$/.test(id)), 'an identity is source:sourceRecordId').toBe(true);
+  expect(await points.evaluateAll(paths => paths.filter(path => path.dataset.corridorId).length),
+    'an occurrence point is never attributed to a corridor').toBe(0);
+  expect(await points.evaluateAll(paths =>
+    paths.filter(path => path.classList.contains('leaflet-interactive')).length),
+  'a point cannot be pointed at, so it cannot take a click').toBe(0);
+  // EVERY PLOTTED POINT IS A PRECISE PUBLIC OBSERVATION. The fixture's obscured records are the ones whose public
+  // location is not usable; not one of their identities is on the map.
+  const obscured = record => record.obscured || record.geoprivacy === 'obscured' || record.taxon_geoprivacy === 'obscured';
+  const preciseIdentities = new Set(inatFixture.records.filter(record => !obscured(record))
+    .map(record => `inaturalist:${record.id}`));
+  expect(plotted.filter(id => !preciseIdentities.has(id)), 'no obscured record is plotted').toEqual([]);
   await page.locator('#occurrence-layer').uncheck();
-  await expect(page.locator('#map svg .occurrence-point')).toHaveCount(0);
+  await expect(page.locator('#map path[data-role="occurrence"]')).toHaveCount(0);
 
   // Known-geometry measurement: a point due north of a straight corridor is measured in EPSG:5070.
   const measured = await page.evaluate(async () => {

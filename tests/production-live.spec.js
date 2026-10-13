@@ -30,7 +30,7 @@ test('production access research runs live through the deployed Worker for all t
   const report = [];
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#candidate-list')).toContainText('No corridor loaded', { timeout: 90000 });
-  await page.getByRole('button', { name: /Open Oregon road pilot/ }).click();
+  await page.locator('#load-pilot').click();
   await expect(page.locator('.candidate-card')).toHaveCount(3, { timeout: 180000 });
 
   for (const name of CORRIDORS) {
