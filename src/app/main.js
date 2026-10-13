@@ -22,7 +22,7 @@ import { habitatNote, habitatSelection, shownCorridorId } from './habitat-select
 import { createCorridorSelection } from './corridor-selection.js';
 import { INVESTIGATOR_WORKER_URL } from './config.js';
 import { runDiscovery } from '../discovery/run.js';
-import { verifyDerivedPromotion } from '../discovery/promotion.js';
+import { readRoadSourceEvidence } from '../discovery/road-source-evidence.js';
 import { buildDiscoveryUnits } from '../discovery/units.js';
 import { segmentUnit } from '../discovery/segment.js';
 import { eligibleClasses } from '../discovery/eligibility.js';
@@ -448,19 +448,28 @@ async function reconstructDerivedCorridor(result) {
   const scope = await gis.prepareRegionalSearch({ bbox: bounds, catalogUrl, catalogType: 'raw',
     rawRegionId: region.id, distancesM: ANALYSIS_DISTANCES_M, globalRoads, globalEcoregions,
     roadComponentIds: entry.corridor.componentId ? [entry.corridor.componentId] : null }, {});
-  const road = await scope.queryRoadNetwork({ bbox: bounds, roadClasses: eligibleClasses(), limit: 100000 });
+  // THE ROAD STAGE READS THE CORRIDOR'S OWN SOURCE FEATURES FIRST. The derived row records the exact source feature ids
+  // its corridor was composed from, and reconstruction is verified against exactly that set, so asking the reader for
+  // those features is both the strongest identity available and the smallest read: one road instead of every road in the
+  // box. If that read cannot be verified, the stage widens to the full network read and verifies by the same rule, so
+  // what a corridor is allowed to become is decided by the verifier, never by which read happened to succeed.
+  const roadStage = await readRoadSourceEvidence({ readNetwork: options => scope.queryRoadNetwork(options),
+    derived: entry.corridor, sourceFeatureIds: result.road?.sourceFeatureIds ?? entry.corridor.sourceFeatureIds ?? null,
+    segmentIndex: result.road?.segmentation?.index ?? entry.corridor.segmentIndex ?? null,
+    segmentCount: result.road?.segmentation?.count ?? entry.corridor.segmentCount ?? null,
+    bbox: bounds, roadClasses: eligibleClasses(), limit: 100000,
+    debug: (name, detail) => evidenceStage(`roads:${name}`, { id: result.id, ...detail }) });
+  const road = roadStage.road;
   evidenceStage('roads:query', { id: result.id, globalRoads: Boolean(scope.selection?.globalRoads),
     cells: scope.selection?.partitions?.roads?.length ?? null, features: road.features?.length ?? null,
-    coverage: road.coverage, components: scope.selection?.globalRoadsComponents ?? null });
+    coverage: road.coverage, components: scope.selection?.globalRoadsComponents ?? null,
+    narrowedBySourceFeature: roadStage.narrowed, widened: roadStage.widened, narrowMs: roadStage.narrowMs ?? null });
   if (road.coverage !== COVERAGE.FULL && road.coverage !== COVERAGE.PARTIAL) {
     throw new Error('the raw road network could not be read back');
   }
   let verified;
   try {
-    verified = verifyDerivedPromotion({ derived: entry.corridor, features: road.features,
-      sourceFeatureIds: result.road?.sourceFeatureIds ?? entry.corridor.sourceFeatureIds ?? null,
-      segmentIndex: result.road?.segmentation?.index ?? entry.corridor.segmentIndex ?? null,
-      segmentCount: result.road?.segmentation?.count ?? entry.corridor.segmentCount ?? null });
+    verified = roadStage.verified;
   } catch (error) {
     // The verifier names what it could not match, including the closest composed units, when the evidence flag is
     // on; here it is only recorded that the road stage failed, with the counts that make the failure legible.

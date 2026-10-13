@@ -45,6 +45,12 @@ const ROAD_COLUMNS = 'road_id, name, road_class, route_type, county_fips, county
   'source_archive_sha256, source_crs, crs, pipeline_version, normalization';
 const IDENTIFIER = /^[A-Za-z0-9._:-]+$/;
 const ROAD_CLASS = /^[A-Z][0-9]{4}$/;
+// A source feature id as the published planes write it: the source dataset's own identifier, never an id this product
+// composed. Bounded in length and free of quotes, so it can only ever be a literal in the SQL that filters on it.
+const SOURCE_FEATURE_ID = /^[A-Za-z0-9._:-]{1,64}$/;
+// One corridor names tens of source features; this bound is what keeps a malformed row from turning into a filter the
+// reader would have to scan the catalogue for.
+const MAX_SOURCE_FEATURE_FILTER = 500;
 const MAX_ROAD_ROWS = 2000;
 const MAX_NETWORK_ROWS = 20000;
 const MAX_REGIONAL_ROWS = 100000;
@@ -608,9 +614,11 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
         return habitat.getHabitatOverlay(corridor, { ...options, datasetOpener: id => openRegionalDataset(id === HABITAT_DATASETS[COVERAGE_DATASET.WETLANDS]
           ? 'wetlands' : 'hydrography') });
       },
-      async queryRoadNetwork({ roadClasses = null, limit = MAX_REGIONAL_ROWS } = {}) {
+      async queryRoadNetwork({ roadClasses = null, limit = MAX_REGIONAL_ROWS, sourceFeatureIds = null } = {}) {
         const entry = await openRegionalDataset('roads');
-        const query = await queryRoads({ roadClasses, limit, datasetId: NETWORK_DATASET_ID, datasetEntry: entry });
+        // THE SOURCE FEATURE FILTER IS PUSHED INTO THE READ, not applied to rows already materialized: with the exact
+        // source identity of the corridor, the reader returns the corridor's own road instead of every road in the box.
+        const query = await queryRoads({ roadClasses, limit, sourceFeatureIds, datasetId: NETWORK_DATASET_ID, datasetEntry: entry });
         if (query.coverage !== COVERAGE.FULL) return query;
         // No name filter here: the selected cells are complete for every name they contain (a single-cell
         // name needs no closing step, and a name that crosses cells is closed over the catalog index), so
@@ -769,11 +777,20 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
   // Road source features are returned as plain data rows plus dataset provenance. Turning them
   // into normalized roads/corridors happens in src/roads; DuckDB and SQL stay in this layer.
   async function queryRoads({ roadIds = null, bbox = null, limit = MAX_ROAD_ROWS, datasetId = ROAD_DATASET_ID, roadClasses = null,
-    insideOnly = false, datasetEntry = null } = {}) {
+    insideOnly = false, datasetEntry = null, sourceFeatureIds = null } = {}) {
     const requested = roadIds ? [...new Set(roadIds.map(String))] : [];
     for (const roadId of requested) if (!IDENTIFIER.test(roadId)) throw new TypeError(`Invalid road id: ${roadId}`);
     const classes = roadClasses ? [...new Set(roadClasses.map(String))] : null;
     for (const roadClass of classes ?? []) if (!ROAD_CLASS.test(roadClass)) throw new TypeError(`Invalid road class: ${roadClass}`);
+    // THE STRONGEST IDENTITY THIS READ CAN BE GIVEN. A raw source row is identified by the source dataset's own feature id,
+    // which is what the derived row records and what reconstruction is verified against, so filtering on it in SQL is the
+    // difference between reading one road and reading every road in the box - and the filter is pushed into the reader
+    // rather than applied to rows already materialized.
+    const sourceFeatures = sourceFeatureIds ? [...new Set(sourceFeatureIds.map(String))] : [];
+    if (sourceFeatures.length > MAX_SOURCE_FEATURE_FILTER) {
+      throw new TypeError(`Road source-feature filter is bounded to ${MAX_SOURCE_FEATURE_FILTER} ids`);
+    }
+    for (const id of sourceFeatures) if (!SOURCE_FEATURE_ID.test(id)) throw new TypeError(`Invalid road source feature id: ${id}`);
     if (bbox) validateBounds(bbox);
     const limitCap = datasetEntry ? MAX_REGIONAL_ROWS : datasetId === NETWORK_DATASET_ID ? MAX_NETWORK_ROWS : MAX_ROAD_ROWS;
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > limitCap) throw new TypeError('Road query limit must be a small positive integer');
@@ -784,6 +801,7 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
       const conditions = [];
       if (requested.length) conditions.push(`road_id IN (${requested.map(roadId => `'${roadId}'`).join(', ')})`);
       if (classes?.length) conditions.push(`road_class IN (${classes.map(roadClass => `'${roadClass}'`).join(', ')})`);
+      if (sourceFeatures.length) conditions.push(`source_feature_id IN (${sourceFeatures.map(id => `'${id}'`).join(', ')})`);
       // Discovery reads the bounded extract exactly as it was built: every vertex inside the window, so a
       // corridor is never half outside the area its coverage claims describe. The pilot path keeps the
       // overlap semantics it was audited with.
@@ -830,8 +848,8 @@ export function createGisService({ manifest = null, regionalCatalog = null, regi
   // Candidate discovery reads the bounded network extract through the same road reader, filtered to
   // the TIGER classes the discovery eligibility rules allow. The whole artifact is never transferred
   // into JavaScript when a narrower question is being asked.
-  async function queryRoadNetwork({ bbox = null, roadClasses = null, limit = MAX_NETWORK_ROWS } = {}) {
-    return queryRoads({ bbox, roadClasses, limit, datasetId: NETWORK_DATASET_ID, insideOnly: true });
+  async function queryRoadNetwork({ bbox = null, roadClasses = null, limit = MAX_NETWORK_ROWS, sourceFeatureIds = null } = {}) {
+    return queryRoads({ bbox, roadClasses, limit, sourceFeatureIds, datasetId: NETWORK_DATASET_ID, insideOnly: true });
   }
 
   // One shared instance of the analytical geometry boundary for the whole service: discovery, detailed
