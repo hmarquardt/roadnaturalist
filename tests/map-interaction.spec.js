@@ -350,15 +350,51 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
       return text.length > 0 && !/Running the habitat analysis/.test(text);
     }, { timeout: 300000, message: `${label}: the habitat action must report the analysis it finished` }).toBe(true);
     const bufferPaths = page.locator('#map path[data-role="habitat-buffer"]');
-    const bufferCount = await bufferPaths.count();
-    const analysisPaths = await page.locator('#map path[data-role="candidate"]:not([data-corridor-id])').count();
+    const analysisPaths = page.locator('#map path[data-role="candidate"]:not([data-corridor-id])');
+    const habitatPaths = page.locator('#map path[data-role="habitat"]');
+    // THE MAP'S PAINT LANDS WITH THE RENDER THAT FOLLOWS THE ANALYSIS, which can be a frame after the note. Waiting for
+    // the drawn counts to stop changing is what makes the assertions below describe the map instead of a race; without it
+    // a first read could report no habitat geometry for an analysis that had already finished.
+    const drawnCounts = async () => ({ habitat: await habitatPaths.count(), buffer: await bufferPaths.count(),
+      untyped: await analysisPaths.count() });
+    let settled = await drawnCounts();
+    await expect.poll(async () => {
+      const next = await drawnCounts();
+      const same = next.habitat === settled.habitat && next.buffer === settled.buffer && next.untyped === settled.untyped;
+      settled = next;
+      return same;
+    }, { timeout: 60000, message: `${label}: the map must settle after the habitat analysis` }).toBe(true);
+    const bufferCount = settled.buffer;
+    const analysisCount = settled.untyped;
+    if (habitat === 'available') {
+      // THE TYPED HABITAT FAMILY IS ON THE MAP, WITH ITS OWN IDENTITY AND NO CORRIDOR OF ITS OWN. These are the source
+      // features the analysis returned, drawn as the geometry they are.
+      const habitatCount = settled.habitat;
+      expect(habitatCount, `${label}: the analysis must draw its source features`).toBeGreaterThan(0);
+      const habitatIds = await habitatPaths.evaluateAll(paths => paths.map(path => path.dataset.habitatId ?? ''));
+      expect(habitatIds.filter(id => !id), `${label}: every habitat feature carries its own identity`).toEqual([]);
+      expect([...new Set(habitatIds)].length, `${label}: and the identities are per source feature, not one per draw`)
+        .toBeGreaterThan(1);
+      expect(habitatIds.every(id => /^[a-z-]+:[^\s]+$/.test(id)),
+        `${label}: an identity is <layer>:<source feature id>`).toBe(true);
+      expect(await page.locator('#map path[data-role="habitat"][data-corridor-id]').count(),
+        `${label}: a habitat feature is never attributed to a corridor`).toBe(0);
+      expect(await habitatPaths.evaluateAll(paths =>
+        paths.filter(path => path.classList.contains('leaflet-interactive')).length),
+      `${label}: and none of them can take a click`).toBe(0);
+      // NO UNTYPED ROW IS DRAWN AS A CANDIDATE-SHAPED LINE while the habitat layer is on: that is the shape the habitat
+      // source features used to reach the map through, and the reason this family exists.
+      expect(analysisCount, `${label}: no untyped row masquerades as a candidate while habitat is drawn`).toBe(0);
+    } else {
+      expect(settled.habitat, `${label}: no analysis, so no habitat source features`).toBe(0);
+    }
     if (bufferCount === 0) {
       // NO BUFFER IS RECORDED, NOT PASSED OVER. For a corridor whose habitat analysis is unavailable there is no buffer
       // geometry to draw, and this gate says so with its own evidence; what it will not accept is a corridor whose
       // analysis reached the map while its buffer did not.
       expect(habitat, `${label}: this region's corridors are inside the published bounded habitat coverage, so its `
         + 'analysis must complete and draw its buffer').not.toBe('available');
-      expect(analysisPaths, `${label}: no buffer must mean no habitat analysis reached the map at all`).toBe(0);
+      expect(analysisCount, `${label}: no buffer must mean no habitat analysis reached the map at all`).toBe(0);
     } else {
       expect(bufferCount, `${label}: one buffer, for one analysis`).toBe(1);
       await expect(page.locator(`#map path[data-role="habitat-buffer"][data-habitat-corridor-id="${selectedForBuffer}"]`),
@@ -417,8 +453,8 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
     expect(await camera(), `${label}: removing the habitat layer must not move the camera`).toEqual(cameraBeforeBuffer);
 
     console.log(`MAP_PRODUCTION ${JSON.stringify({ label, rows: rowCount, zoom: fitted.zoom.toFixed(2),
-      radiusM: Math.round(search.radiusM), bufferPaths: bufferCount, habitatFeaturePaths: analysisPaths,
-      habitatNote: overlayNote.slice(0, 120), rawBeforeHabitat, rawAfterHabitat: raw.length,
+      radiusM: Math.round(search.radiusM), bufferPaths: bufferCount, habitatPaths: settled.habitat,
+      untypedCandidatePaths: analysisCount, habitatNote: overlayNote.slice(0, 120), rawBeforeHabitat, rawAfterHabitat: raw.length,
       habitatReads: [...new Set(dataReads)].filter(url => HABITAT_SOURCE.test(url)).length,
       hosts: [...hosts].sort(), raw: raw.length, deep: deep.length })}`);
   });

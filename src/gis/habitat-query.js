@@ -340,10 +340,15 @@ export function createHabitatQueries({ openDataset, initialize, record, analytic
         hydrography: hydrography.coverage ?? COVERAGE.UNKNOWN });
       const analysis = habitatOverlayStatus({ wetlandsCoverage: coverage.wetlands,
         hydrographyCoverage: coverage.hydrography, featureCount: features.length });
+      // AN UNAVAILABLE ANALYSIS HAS NO RESULT TO HAND OVER. Rows can still come back from a plane that does not cover the
+      // corridor - a bounded extract answers with whatever its own window happens to contain - and returning them with an
+      // UNKNOWN coverage status is how the map came to draw habitat for a corridor whose panel said the analysis was
+      // unavailable. Coverage that is not there is not a zero measurement, and it is not a result either.
+      const usable = analysis.status !== 'unavailable';
       return { distanceM,
         // The buffer is the analysis area, so it exists only where an analysis could actually be made.
         bufferGeometry: analysis.drawsBuffer && outline?.geometry_json ? JSON.parse(outline.geometry_json) : null,
-        features, coverage, geometryForAnalysis: prepared.geometryForAnalysis,
+        features: usable ? features : [], coverage, geometryForAnalysis: prepared.geometryForAnalysis,
         diagnostics: { status: analysis.status, reason: analysis.reason, queryMs: Math.round(performance.now() - started) } };
     } catch (error) {
       return { distanceM, bufferGeometry: null, features: [], diagnostics: { status: 'unavailable', reason: error.message } };
