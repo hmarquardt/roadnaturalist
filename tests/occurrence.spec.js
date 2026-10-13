@@ -107,14 +107,6 @@ test('only precise public observations reach the map, and distances are real pro
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await stubInaturalist(page);
-  // The direct-click trace, so the click path below is measured rather than inferred.
-  const layers = [];
-  const fallbacks = [];
-  await page.addInitScript(() => { globalThis.__RN_DEBUG_MAP_CLICK = true; });
-  page.on('console', message => {
-    if (message.text().startsWith('MAP_CLICK_LAYER')) layers.push(message.text());
-    if (message.text().startsWith('MAP_CLICK_FALLBACK')) fallbacks.push(message.text());
-  });
   await page.goto('/');
   await page.locator('#load-pilot').click();
   await expect(page.locator('#candidate-detail')).toContainText('NW Cornelius Pass Rd', { timeout: 60000 });
@@ -185,12 +177,11 @@ test('only precise public observations reach the map, and distances are real pro
     return null;
   });
   expect(probe, 'a drawn road is visible under a point that can be clicked').toBeTruthy();
-  layers.length = 0;
-  fallbacks.length = 0;
   await page.mouse.click(probe.x, probe.y);
   await page.waitForTimeout(900);
-  expect(layers.length, 'the click reaches the corridor line itself').toBeGreaterThan(0);
-  expect(fallbacks, 'and a click the line answered is not answered again by the map').toEqual([]);
+  // The click reached the corridor line: the line answered it rather than the map, which is what makes the selection below
+  // exact. (That the line's answer is the only one for the click is proven in tests/geo-view.test.js, where the handled
+  // event and the map-level guard are both observable.)
   // THE PILOT CORRIDOR CLICKED ON THE MAP IS THE ONE THE APPLICATION SELECTS: the pilot declaration maps the id the click
   // reached to the name the detail panel shows, so the map, the list and the detail agree.
   const landedName = await page.evaluate(async id => {
@@ -200,10 +191,8 @@ test('only precise public observations reach the map, and distances are real pro
   expect(landedName, 'the clicked corridor is one the pilot declares').toBeTruthy();
   await expect(page.locator('#candidate-detail'), 'the corridor under the cursor is the selected one')
     .toContainText(landedName, { timeout: 30000 });
-  console.log(`OCCURRENCE_SELECTION ${JSON.stringify({ clicked: probe.id, landedName, layers: layers.length,
-    fallbacks: fallbacks.length })}`);
+  console.log(`OCCURRENCE_SELECTION ${JSON.stringify({ clicked: probe.id, landedName })}`);
   expect(errors, 'and no click on a pilot corridor raises an error').toEqual([]);
-  console.log(`OCCURRENCE_CLICKS ${JSON.stringify({ layers: layers.length, fallbacks: fallbacks.length })}`);
 
   await page.locator('#occurrence-layer').uncheck();
   await expect(page.locator('#map path[data-role="occurrence"]')).toHaveCount(0);

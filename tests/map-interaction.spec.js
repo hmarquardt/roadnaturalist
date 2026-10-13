@@ -70,19 +70,10 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
       if (DEEP_DATA.test(url)) deep.push(url);
     });
     page.on('pageerror', error => pageErrors.push(error.message));
-    // TEMPORARY (this task): the direct-click trace, printed only when MAP_CLICK_DEBUG=1. Silence is the default, so the
-    // gate reads the page exactly as ordinary use runs it; with the flag set it reports which element the click reached,
-    // whether the corridor's own handler fired, and whether the map had to answer by proximity instead.
-    const clickDebug = Boolean(process.env.MAP_CLICK_DEBUG);
-    if (clickDebug) {
-      await page.addInitScript(() => { globalThis.__RN_DEBUG_MAP_CLICK = true; });
-    }
     // A console error is a failure of the page, not a note: the gate reads the page as it is, with no debug flag set
     // and no diagnostic logging switched on, exactly as ordinary use runs it.
     page.on('console', message => {
       if (message.type() === 'error') pageErrors.push(message.text());
-      // TEMPORARY (this task): forward the click trace when it is switched on.
-      if (clickDebug && message.text().startsWith('MAP_CLICK_')) console.log(message.text());
     });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
@@ -298,29 +289,8 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
     const probe = await clickableCorridorPoint();
     expect(probe, `${label}: a drawn road is visible under a point that can be clicked`).toBeTruthy();
     const targetId = probe.id;
-    // TEMPORARY (this task): what the document sees the click reach, when the trace is switched on. The listener is
-    // installed once and its record is reset before each traced click, so the buffer click below is traced the same way.
-    const clickTrace = async () => page.evaluate(() => (globalThis.__RN_CLICK_TARGET ?? []));
-    const resetClickTrace = async () => {
-      if (!clickDebug) return;
-      await page.evaluate(() => {
-        globalThis.__RN_CLICK_TARGET = [];
-        if (globalThis.__RN_CLICK_LISTENING) return;
-        globalThis.__RN_CLICK_LISTENING = true;
-        document.addEventListener('click', event => {
-          const node = event.target;
-          globalThis.__RN_CLICK_TARGET.push({ tag: node?.tagName ?? null, role: node?.dataset?.role ?? null,
-            corridorId: node?.dataset?.corridorId ?? null });
-        }, true);
-      });
-    };
-    await resetClickTrace();
     await page.mouse.click(probe.x, probe.y);
     await page.waitForTimeout(800);
-    if (clickDebug) {
-      console.log(`MAP_CLICK_TARGET ${JSON.stringify({ label, expected: targetId,
-        targets: await clickTrace(), selected: await selectedId() })}`);
-    }
     expect(await selectedId(), `${label}: a map click selects the same corridor in the list`).toBe(targetId);
     const afterMapClick = await camera();
     expect(afterMapClick.center[0], `${label}: a map click must not move the camera`).toBeCloseTo(fitted.center[0], 3);
@@ -477,16 +447,11 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
         .toMatch(/Habitat analysis/i);
     }
 
-    // A road is clicked with the habitat layer enabled, and the trace must read exactly as it did without it.
-    await resetClickTrace();
+    // A road is clicked with the habitat layer enabled, and the click must read exactly as it did without it.
     const throughBuffer = await clickableCorridorPoint();
     expect(throughBuffer, `${label}: a road is still clickable with the habitat layer enabled`).toBeTruthy();
     await page.mouse.click(throughBuffer.x, throughBuffer.y);
     await page.waitForTimeout(800);
-    if (clickDebug) {
-      console.log(`MAP_CLICK_TARGET ${JSON.stringify({ label, phase: 'habitat-enabled', expected: throughBuffer.id,
-        targets: await clickTrace(), selected: await selectedId() })}`);
-    }
     expect(await selectedId(), `${label}: a click with the habitat layer enabled still selects the road under the cursor`)
       .toBe(throughBuffer.id);
     expect(await camera(), `${label}: the habitat layer and that click must not move the camera`).toEqual(cameraBeforeBuffer);

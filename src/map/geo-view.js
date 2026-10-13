@@ -491,12 +491,6 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       // point would win the selection from the road the person actually clicked.
       if (event?.propagatedFrom?.corridorId) return;
       const hit = hitTest(event.latlng);
-      // TEMPORARY (this task): the other half of the direct-click trace - whether the map had to answer by proximity.
-      // Silent unless the flag is set.
-      if (globalThis.__RN_DEBUG_MAP_CLICK) {
-        console.log('MAP_CLICK_FALLBACK ' + JSON.stringify({ corridorId: hit?.id ?? null,
-          propagatedFrom: Boolean(event?.propagatedFrom) }));
-      }
       if (hit) { cardToOpen = hit.id; onSelect({ id: hit.id, domain: hit.selectionDomain ?? null }); }
     });
     function hitTest(latlng) {
@@ -582,12 +576,6 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
               // PICK MODE KEEPS PRECEDENCE, AND KEEPS THE EVENT: the coordinate is the answer, so nothing here selects and
               // nothing here stops the click from reaching the map, which is what reports the coordinate.
               if (pickMode) return;
-              // TEMPORARY (this task): the direct-click trace, so the click path is measured rather than inferred.
-              // Silent unless the flag is set; the gate sets it only with MAP_CLICK_DEBUG=1.
-              if (globalThis.__RN_DEBUG_MAP_CLICK) {
-                console.log('MAP_CLICK_LAYER ' + JSON.stringify({ corridorId: entry.corridorId,
-                  domain: entry.selectionDomain ?? null }));
-              }
               // A click on the line asks for that corridor's card along with the selection, so the card survives the
               // re-draw the selection triggers.
               cardToOpen = entry.corridorId;
