@@ -217,6 +217,45 @@ export function habitatFeatures(overlay) {
   return Object.freeze({ features: Object.freeze(features), unidentified: Object.freeze(unidentified) });
 }
 
+const OCCURRENCE_STYLE = Object.freeze({
+  // A POINT IS A POINT: a small filled disc with a white edge, which reads as a mapped record rather than as part of the
+  // road network, and stays legible over the basemap and over the wetland fills. Violet is not used by any other family
+  // on this map - corridors are indigo, the selected corridor amber, the analysis outline teal, wetlands green,
+  // flowlines cyan - so a point is never mistaken for one of them.
+  point: Object.freeze({ radius: 4, color: '#ffffff', weight: 1, fillColor: '#7c3aed', fillOpacity: 0.9, fill: true }),
+});
+
+// OCCURRENCE POINTS, TYPED, WITH THEIR OWN IDENTITY.
+//
+// The occurrence analysis hands over the precise public observations it measured, under `points` - the domain's own word
+// for them (src/occurrence/context.js) - and each becomes a feature of the map's own occurrence kind. Identity is the
+// pair the evidence is already keyed by: `<source>:<sourceRecordId>`, which is the key the occurrence service measures
+// corridor distances with. The map therefore uses the identity the evidence uses, and invents none.
+//
+// A row that cannot become a feature - no durable source identity, or no usable point - is reported in `unidentified`
+// rather than drawn somewhere approximate or named after something it is not.
+export function occurrenceIdentity(row) {
+  const source = typeof row?.source === 'string' && row.source.length ? row.source : null;
+  const record = row?.sourceRecordId == null ? null : String(row.sourceRecordId);
+  return source && record && record.length ? `${source}:${record}` : null;
+}
+
+export function occurrenceFeatures(overlay) {
+  const features = [];
+  const unidentified = [];
+  for (const row of overlay?.points ?? []) {
+    const occurrenceId = occurrenceIdentity(row);
+    const point = toLatLngPoint(row?.location);
+    if (!occurrenceId || !point) { unidentified.push(row); continue; }
+    features.push(Object.freeze({ kind: FEATURE_KIND.OCCURRENCE, occurrenceId, source: row.source,
+      sourceRecordId: String(row.sourceRecordId), label: row.label ?? null, taxonomicGroup: row.taxonomicGroup ?? null,
+      distanceToCorridorM: row.distanceToCorridorM ?? null,
+      // The geometry is the row's own coordinate, in Leaflet order in `point` and in GeoJSON order in `geometry`.
+      geometry: { type: 'Point', coordinates: [point[1], point[0]] }, point, style: OCCURRENCE_STYLE.point }));
+  }
+  return Object.freeze({ features: Object.freeze(features), unidentified: Object.freeze(unidentified) });
+}
+
 export function featureShape(geometry) {
   const type = geometry?.type;
   if (type === 'Point') return 'point';
@@ -432,19 +471,17 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       if (corridor.saved) return LINE_STYLE.saved;
       return LINE_STYLE.normal;
     }
-    // ONE PAINT PATH, AND IT PAINTS WHAT DRAWS. A typed feature says what it is - its identity, geometry and style - and
-    // the tables above say how it is marked and whether it can be clicked: corridors, the search geometry, the habitat
-    // buffer and the habitat source features all arrive typed.
-    //
-    // THE UNTYPED ROW PATH IS RETAINED FOR EXACTLY ONE CALLER. The occurrence overlay still hands over rows without a
-    // kind (`paint(layers.occurrence, occurrenceOverlay?.features ?? [])` in draw), so the fallback stays until that
-    // family is migrated - removing it now would silently stop drawing occurrences. What it may never do again is carry a
-    // row that *is* a known family, which is why the habitat rows stopped coming through it, and a row it does carry
-    // gets no identity it does not have: with no `id` there is no `data-corridor-id`, which the tests pin.
-    //
-    // Nothing else about today's drawing changes: the same line geometry, the same layer, the same interactive
-    // behaviour, the same click handler, the same card, the same marks, the same draw order. Only the line shape is
-    // painted for an untyped row - a polygon row among them is skipped - and pick mode still keeps precedence.
+    // EVERY ROAD THE MAP DRAWS IS NORMALIZED HERE, ONCE. `paint` takes typed features and nothing else, so the two
+    // callers that hold plain corridor descriptors - the results and the saved roads - hand them through this.
+    function corridorFeatures(list) {
+      return (list ?? []).map(corridor => corridorFeature(corridor,
+        { selected: corridor?.id === selectedId, style: styleFor(corridor) }));
+    }
+    // ONE PAINT PATH, AND IT PAINTS TYPED FEATURES ONLY. Every family the map draws arrives here as a feature with a
+    // kind: corridors and saved roads (normalized by `corridorFeatures`), the search geometry, the habitat buffer, the
+    // habitat source features and the occurrence points. A row that has no kind is not a feature, so it is skipped and
+    // counted: the map draws what a thing is, and nothing by resemblance. That is what stopped a habitat row or an
+    // occurrence row from ever being drawn as a candidate-shaped line, and it is why this fallback is gone.
     function paint(layer, entries) {
       layer.clearLayers();
       // The cards follow the layers: a path that is no longer drawn cannot show a card.
@@ -452,18 +489,17 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       let drawn = 0;
       let skipped = 0;
       for (const entry of entries ?? []) {
-        const typed = Boolean(entry?.kind);
-        const feature = typed ? entry
-          : corridorFeature(entry, { selected: entry?.id === selectedId, style: styleFor(entry) });
-        const contract = FEATURE_DOM[feature.kind] ?? null;
-        // Only a typed feature may draw something other than a line: a row that has not been typed yet is drawn as a
-        // line and nothing else, exactly as it is today.
-        const shapes = drawableShapes(feature).filter(shape => typed || shape.line);
-        if (!contract || !shapes.length) { skipped += 1; continue; }
+        const contract = FEATURE_DOM[entry?.kind] ?? null;
+        // NO KIND, NO IDENTITY, NO DRAWING. An untyped entry carries no role and no identity of its own, and giving it
+        // one - as the removed fallback did, by treating it as a corridor - is precisely how a thing that is not a
+        // corridor came to be selectable as one.
+        if (!contract) { skipped += 1; continue; }
+        const shapes = drawableShapes(entry);
+        if (!shapes.length) { skipped += 1; continue; }
         for (const shape of shapes) {
           // `interactive` is the kind's own contract: a corridor can be clicked, and a family that cannot be is drawn
           // with that said in the layer itself rather than by hoping the z-order protects it.
-          const options = { ...feature.style, interactive: contract.interactive };
+          const options = { ...entry.style, interactive: contract.interactive };
           const path = shape.circle ? leaflet.circle(shape.point, { ...options, radius: shape.radiusM })
             : shape.rectangle ? leaflet.rectangle(shape.bounds, options)
               : shape.rings ? leaflet.polygon(shape.rings, options)
@@ -471,11 +507,11 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
                   : shape.line ? leaflet.polyline(shape.line, options) : null;
           if (!path) { skipped += 1; continue; }
           // A label is a tooltip, and a tooltip needs a layer that can be pointed at.
-          if (feature.label && contract.interactive) path.bindTooltip?.(feature.label);
+          if (entry.label && contract.interactive) path.bindTooltip?.(entry.label);
           // Drawing order is list order, so the map's stacking matches the order the person is reading.
-          if (feature.card) {
-            cardedPaths.set(feature.corridorId, path);
-            path.bindPopup(feature.card);
+          if (entry.card) {
+            cardedPaths.set(entry.corridorId, path);
+            path.bindPopup(entry.card);
           }
           // THE METADATA GOES ON AFTER LEAFLET HAS MADE THE ELEMENT. Leaflet creates a path's SVG element only when
           // the path joins the map, so stamping it before `addLayer` stamps nothing: the line is drawn and its
@@ -492,22 +528,22 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
           // ONLY A KIND THAT CAN BE CLICKED CARRIES A CORRIDOR ON ITS PATH. The map-level handler reads this identity to
           // decide whether a click has already been answered, so a feature with no corridor to name must not appear to
           // name one - not even as `undefined`.
-          if (contract.clickable) path.corridorId = feature.corridorId;
+          if (contract.clickable) path.corridorId = entry.corridorId;
           if (contract.clickable && typeof path.on === 'function') {
             path.on('click', () => {
               if (pickMode) return;
               // TEMPORARY (this task): the direct-click trace, so the click path is measured rather than inferred.
               // Silent unless the flag is set; the gate sets it only with MAP_CLICK_DEBUG=1.
               if (globalThis.__RN_DEBUG_MAP_CLICK) {
-                console.log('MAP_CLICK_LAYER ' + JSON.stringify({ corridorId: feature.corridorId }));
+                console.log('MAP_CLICK_LAYER ' + JSON.stringify({ corridorId: entry.corridorId }));
               }
               // A click on the line asks for that corridor's card along with the selection, so the card survives the
               // re-draw the selection triggers.
-              cardToOpen = feature.corridorId;
-              onSelect(feature.corridorId);
+              cardToOpen = entry.corridorId;
+              onSelect(entry.corridorId);
             });
           }
-          const decorate = () => mark(path, featureAttributes(feature));
+          const decorate = () => mark(path, featureAttributes(entry));
           if (typeof path.on === 'function') path.on('add', decorate);
           layer.addLayer(path);
           decorate();
@@ -545,11 +581,11 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         corridors = next.map(corridor => ({ ...corridor, saved: saved.has(corridor.id),
           dismissed: dismissed.has(corridor.id) }));
         selectedId = nextSelected;
-        const results = paint(layers.results, corridors);
+        const results = paint(layers.results, corridorFeatures(corridors));
         // Saved roads that are *not* in the visible set are drawn from their own descriptors; the same road is never
         // drawn twice simply because it is both a candidate and saved.
         const visible = new Set(corridors.map(corridor => corridor.id));
-        paint(layers.saved, savedRoads.filter(road => !visible.has(road.id)));
+        paint(layers.saved, corridorFeatures(savedRoads.filter(road => !visible.has(road.id))));
         // THE HABITAT OVERLAY: the analysis buffer first, then the typed source features. The buffer is a typed feature
         // and is drawn under the roads (the results layer is repainted after this, in setSelected), so it can frame the
         // corridor without covering it or its selection styling; the source features are typed for the same reason.
@@ -557,7 +593,9 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         // THE SOURCE FEATURES NO LONGER ARRIVE AS ROWS. Each is a habitat feature with its own identity, so a wetland
         // cannot be drawn as a candidate-shaped line and cannot be clicked into a selection.
         paint(layers.overlay, [...(buffer ? [buffer] : []), ...habitatFeatures(overlay).features]);
-        paint(layers.occurrence, occurrenceOverlay?.features ?? []);
+        // THE OCCURRENCE POINTS ARE TYPED TOO: each is a point with its own source identity, drawn above the habitat
+        // overlay and, like every overlay family, unable to take a selection.
+        paint(layers.occurrence, occurrenceFeatures(occurrenceOverlay).features);
         if (search !== undefined) setSearch(search);
         view.setSelected(selectedId);
         return { drawn: results.drawn, skipped: results.skipped, candidates: corridors.length };
@@ -565,14 +603,19 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       // Selection changes appearance only. It is called on every list highlight precisely *because* it does not fit.
       setSelected(id) {
         selectedId = id ?? null;
-        paint(layers.results, corridors);
+        paint(layers.results, corridorFeatures(corridors));
         // The emphasised copy is drawn into its own layer so it sits above every other corridor regardless of where
         // it falls in the list order. Selection changes appearance only: it is called on every list highlight
         // precisely *because* it never moves the camera.
         layers.selected.clearLayers();
         const selected = corridors.find(corridor => corridor.id === selectedId) ?? null;
         for (const line of toLatLngs(selected?.geometry) ?? []) {
-          leaflet.polyline(line, { ...styleFor(selected), interactive: false }).addTo(layers.selected);
+          // THE EMPHASIS IS THE SAME CORRIDOR, SO IT SAYS SO. It is drawn outside `paint` because it is not another
+          // feature - it is this corridor's own copy, above everything - but an anonymous path on a map whose whole
+          // taxonomy is "a thing says what it is" is the one thing this family of work exists to remove. It stays
+          // non-interactive, so it can never take the click the base copy answers.
+          const emphasis = leaflet.polyline(line, { ...styleFor(selected), interactive: false }).addTo(layers.selected);
+          mark(emphasis, featureAttributes(corridorFeature(selected, { selected: true })));
         }
         // ONE CARD, FOR THE CORRIDOR THAT WAS JUST ASKED FOR. The map has finished re-drawing, so a card requested by a
         // click is opened against the layer that now carries it - never against the layer the click destroyed.

@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 
 import { TILE_PROVIDERS, tileProvider } from '../src/map/basemap.js';
 import { attributeName, basemapFailureNote, boundsOfGeometries, corridorFeature, createGeoView, drawableShapes,
-  featureAttributes, featureShape, habitatBufferFeature, habitatFeatures, habitatIdentity, popupHtml, searchFeatures,
-  toLatLngs, unavailableView, FEATURE_DOM, FEATURE_KIND }
+  featureAttributes, featureShape, habitatBufferFeature, habitatFeatures, habitatIdentity, occurrenceFeatures,
+  occurrenceIdentity, popupHtml, searchFeatures, toLatLngs, unavailableView, FEATURE_DOM, FEATURE_KIND }
   from '../src/map/geo-view.js';
 import { createMapView } from '../src/map/index.js';
 
@@ -138,6 +138,18 @@ const HABITAT_OVERLAY = Object.freeze({ candidateId: CLICKED.id, distanceM: 1000
         [[[-87.45, 38.35], [-87.44, 38.35], [-87.44, 38.36], [-87.45, 38.35]]]] } },
     { layer: 'flowline', sourceFeatureId: null, label: 'Stream/River', code: null,
       geometry: { type: 'MultiLineString', coordinates: [[[-87.6, 38.2], [-87.59, 38.21]]] } },
+  ] });
+
+// THE OCCURRENCE POINTS, AS THE OCCURRENCE ANALYSIS HANDS THEM OVER: the domain's own `points` rows, with the fields
+// src/occurrence/context.js produces. The third row has no source record id, which is the case that is reported rather
+// than named, and the first two are the two sources the product queries.
+const OCCURRENCE_OVERLAY = Object.freeze({ candidateId: CLICKED.id, excluded: 2,
+  points: [
+    { source: 'inaturalist', sourceRecordId: 'obs-1', label: 'Red-tailed Hawk', taxonomicGroup: 'birds',
+      location: [-87.51, 38.285], distanceToCorridorM: 38.2 },
+    { source: 'ebird', sourceRecordId: 'S12345', label: 'Red-tailed Hawk', taxonomicGroup: 'birds',
+      location: [-87.44, 38.295], distanceToCorridorM: 121 },
+    { source: 'inaturalist', sourceRecordId: null, label: 'Red-tailed Hawk', location: [-87.5, 38.28] },
   ] });
 
 test('a click on a drawn line selects that corridor, not the nearest vertex', () => {
@@ -594,7 +606,10 @@ test('the corridor DOM contract is unchanged by the typed path, and one click st
   const selected = [];
   const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
   view.draw({ corridors: [CLICKED, NEAR], selectedId: CLICKED.id });
-  const path = calls.polylines.filter(item => item.attributes['data-corridor-id'] === CLICKED.id).at(-1);
+  // The clickable copy is the base one; the emphasis drawn above it is stamped with the same corridor but is not
+  // interactive, so it can never be what a click reaches.
+  const path = calls.polylines.filter(item => item.attributes['data-corridor-id'] === CLICKED.id
+    && item.options.interactive).at(-1);
   assert.equal(path.attributes['data-role'], 'candidate', 'the role the gate selects on');
   assert.equal(path.attributes['data-corridor-id'], CLICKED.id);
   assert.equal(path.attributes['data-selected'], 'true');
@@ -690,7 +705,9 @@ test('habitat source features draw as their own family, never as corridors', () 
   assert.deepEqual(selected, [], 'clicking a habitat feature selects nothing');
 
   // THE ROAD INSIDE A VISIBLE WETLAND STAYS EXACTLY AS CLICKABLE AS IT WAS.
-  const corridor = calls.polylines.filter(path => path.attributes['data-corridor-id'] === CLICKED.id).at(-1);
+  // The clickable base copy, not the non-interactive emphasis drawn above it.
+  const corridor = calls.polylines.filter(path => path.attributes['data-corridor-id'] === CLICKED.id
+    && path.options.interactive).at(-1);
   assert.ok(corridor, 'the road is drawn through the habitat features');
   assert.equal(corridor.options.interactive, true);
   corridor.emit('click', { latlng: { lat: 38.28, lng: -87.5 }, propagatedFrom: corridor });
@@ -723,29 +740,134 @@ test('habitat features join the overlay without moving the viewport', () => {
     'and the buffer from the earlier draw is not drawn again');
 });
 
-test('an untyped row keeps the corridor-shaped handling, and never invents an identity', () => {
-  const { leaflet, calls } = fakeLeaflet();
-  const view = createGeoView({ style: {} }, { leaflet });
-  // The occurrence overlay is the one family still handed over as rows. A line among them is drawn exactly as it is now -
-  // the candidate role, and no corridor id of its own - and a polygon is skipped, because only a typed feature draws
-  // anything other than a line. This is the retained fallback, and this test is what keeps it honest until the
-  // occurrence family is migrated: an untyped row with no identity gets none.
-  view.draw({ corridors: [CLICKED], occurrenceOverlay: { candidateId: CLICKED.id, features: [
-    { layer: 'occurrence', sourceFeatureId: 'O1', label: 'Observation',
-      geometry: { type: 'LineString', coordinates: [[-87.5, 38.3], [-87.45, 38.31]] } },
-    { layer: 'occurrence', sourceFeatureId: 'O2',
-      geometry: { type: 'Polygon', coordinates: [[[-87.55, 38.25], [-87.5, 38.25], [-87.5, 38.3], [-87.55, 38.25]]] } } ] } });
-  const untyped = calls.polylines.filter(path => path.attributes['data-role'] === 'candidate'
-    && path.attributes['data-corridor-id'] === undefined);
-  assert.equal(untyped.length, 1, 'the untyped line is drawn the way it is today');
-  assert.ok(!('data-habitat-id' in untyped[0].attributes), 'and it is not a habitat feature');
-  assert.equal(calls.polygons.length, 0, 'the untyped polygon is not drawn: only a typed feature draws an area');
-  assert.ok(calls.polylines.some(path => path.attributes['data-corridor-id'] === CLICKED.id),
-    'while the corridor beside it is drawn as a corridor');
+test('occurrence rows normalize into points, with the identity the evidence is keyed by', () => {
+  const { features, unidentified } = occurrenceFeatures(OCCURRENCE_OVERLAY);
+  assert.equal(features.length, 2, 'every usable point becomes a feature');
+  assert.deepEqual(features.map(feature => feature.occurrenceId), ['inaturalist:obs-1', 'ebird:S12345'],
+    "the source, and that source own record id - the pair the occurrence service measures distances by");
+  assert.equal(features[0].kind, FEATURE_KIND.OCCURRENCE);
+  assert.deepEqual(features[0].point, [38.285, -87.51], 'the row is [lon, lat]; the map point is [lat, lon]');
+  assert.deepEqual(features[0].geometry, { type: 'Point', coordinates: [-87.51, 38.285] }, "the row own coordinate");
+  assert.equal(features[0].source, 'inaturalist');
+  assert.equal(features[0].sourceRecordId, 'obs-1');
+  assert.equal(features[0].label, 'Red-tailed Hawk');
+  assert.equal(features[0].taxonomicGroup, 'birds');
+  assert.equal(features[0].distanceToCorridorM, 38.2);
+  assert.equal(features[0].style.radius, 4, 'a point is a small disc, not an image marker');
+  assert.equal(unidentified.length, 1, 'the row with no source record id is reported rather than named');
+  // Its own role and its own identity attribute, and no other family identity.
+  assert.deepEqual(featureAttributes(features[0]), { role: 'occurrence', occurrenceId: 'inaturalist:obs-1' });
+  assert.deepEqual(Object.keys(featureAttributes(features[0])).sort(), ['occurrenceId', 'role']);
+  assert.equal(featureAttributes(features[0]).corridorId, undefined);
+  assert.equal(featureAttributes(features[0]).habitatId, undefined);
+  assert.equal(FEATURE_DOM[FEATURE_KIND.OCCURRENCE].clickable, undefined, 'a point is never a selection target');
+  // Identity needs both halves; a point needs a location inside the world.
+  assert.equal(occurrenceIdentity({ source: 'inaturalist', sourceRecordId: 42 }), 'inaturalist:42',
+    'a numeric record id is used as it is');
+  assert.equal(occurrenceIdentity({ source: 'inaturalist' }), null);
+  assert.equal(occurrenceIdentity({ sourceRecordId: 'x' }), null);
+  assert.equal(occurrenceIdentity(null), null);
+  // A row with no usable coordinate is reported too. (Range validation belongs to the domain, which refuses a location
+  // outside the world before it can reach the map: src/occurrence/model.js.)
+  const unplottable = occurrenceFeatures({ points: [
+    { source: 'ebird', sourceRecordId: 'S1', location: null },
+    { source: 'ebird', sourceRecordId: 'S2', location: ['not', 'a', 'point'] }] });
+  assert.equal(unplottable.features.length, 0, 'a row with no usable coordinate is not a point');
+  assert.equal(unplottable.unidentified.length, 2);
+  assert.equal(occurrenceFeatures(null).features.length, 0);
+  // THE HABITAT FIELD IS NOT THE OCCURRENCE FIELD: the occurrence overlay carries `points`, and reading the wrong name
+  // is how this family came to draw nothing at all.
+  assert.equal(occurrenceFeatures({ features: OCCURRENCE_OVERLAY.points }).features.length, 0);
 });
 
+test('occurrence points draw as their own family, and cannot be selected', () => {
+  const { leaflet, calls, map } = fakeLeaflet();
+  const selected = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, occurrenceOverlay: OCCURRENCE_OVERLAY });
 
+  const points = calls.markerLayers.filter(path => path.attributes['data-role'] === 'occurrence');
+  assert.equal(points.length, 2, 'one point per usable row');
+  assert.deepEqual(points.map(point => point.attributes['data-occurrence-id']).sort(),
+    ['ebird:S12345', 'inaturalist:obs-1']);
+  assert.equal(calls.circleMarkers, 2, 'a point is a circle marker');
+  assert.deepEqual(points.map(point => point.latlngs), [[38.285, -87.51], [38.295, -87.44]],
+    'drawn where the row said, in Leaflet order');
+  for (const point of points) {
+    assert.ok(!('data-corridor-id' in point.attributes), 'a point is never attributed to a corridor');
+    assert.ok(!('data-habitat-id' in point.attributes), 'and it is not a habitat feature');
+    assert.ok(!('data-selected' in point.attributes), 'and it is not a selection');
+    assert.equal(point.options.interactive, false, 'a point cannot be pointed at, so it cannot take a click');
+    assert.equal(point.corridorId, undefined, 'and the map-level handler has no corridor to read from it');
+    assert.equal(point.popup, undefined, 'no corridor card is bound to a point');
+  }
+  // A point selects nothing, and does not make the map answer by proximity either: it has no handler at all.
+  points[0].emit('click', { latlng: { lat: 38.285, lng: -87.51 }, propagatedFrom: points[0] });
+  assert.deepEqual(selected, [], 'clicking a point does not select a corridor');
+  // THE ROAD AMONG THE POINTS IS STILL EXACTLY AS CLICKABLE AS IT WAS.
+  // The clickable base copy, not the non-interactive emphasis drawn above it.
+  const corridor = calls.polylines.filter(path => path.attributes['data-corridor-id'] === CLICKED.id
+    && path.options.interactive).at(-1);
+  assert.ok(corridor, 'the road is drawn with the points');
+  corridor.emit('click', { latlng: { lat: 38.28, lng: -87.5 }, propagatedFrom: corridor });
+  assert.deepEqual(selected, [CLICKED.id], 'a road click among the points selects that road');
+  map.handlers.click({ latlng: { lat: 38.28, lng: -87.5 }, propagatedFrom: corridor });
+  assert.deepEqual(selected, [CLICKED.id], 'and the map does not answer it a second time');
+});
 
+test('the occurrence layer is a visibility toggle: it draws what is loaded, and moves nothing', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
+  // The groups in construction order are results, saved, search, overlay, occurrence, selected.
+  const occurrenceLayer = calls.groups[4];
+  assert.equal(occurrenceLayer.added.length, 0, 'nothing is on the map until the layer is switched on');
+  const cameraBefore = view.camera();
+  const fitsBefore = view.fitCount();
+  // Switching it on draws the points the evidence already holds - the map fetches nothing.
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, occurrenceOverlay: OCCURRENCE_OVERLAY });
+  assert.equal(occurrenceLayer.added.length, 2, 'switching it on shows the loaded points');
+  assert.deepEqual(view.camera(), cameraBefore, 'showing points must not move the camera');
+  assert.equal(view.fitCount(), fitsBefore, 'and must not fit');
+  // Switching it off takes them away again, and still moves nothing.
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
+  assert.equal(occurrenceLayer.added.length, 0, 'switching it off hides them');
+  assert.deepEqual(view.camera(), cameraBefore, 'and must not move the camera either');
+  assert.equal(view.fitCount(), fitsBefore);
+});
+
+test("every path the map draws is one typed family with exactly that family identity", () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  // Every family at once, from the public API only. There is no untyped row path left: the fallback that used to draw an
+  // unknown row as a corridor-shaped line is gone, so a row that is not a feature cannot reach the map at all.
+  view.draw({ corridors: [CLICKED, NEAR], selectedId: CLICKED.id, overlay: HABITAT_OVERLAY,
+    occurrenceOverlay: OCCURRENCE_OVERLAY, search: { kind: 'radius', center: [-87.5, 38.3], radiusMiles: 25 } });
+  const paths = [...calls.polylines, ...calls.polygons, ...calls.markerLayers, ...calls.circleLayers];
+  assert.ok(paths.length > 8, 'the families are all drawn');
+  const identities = ['data-corridor-id', 'data-habitat-id', 'data-habitat-corridor-id', 'data-occurrence-id'];
+  const ownIdentity = { candidate: 'data-corridor-id', habitat: 'data-habitat-id',
+    'habitat-buffer': 'data-habitat-corridor-id', occurrence: 'data-occurrence-id' };
+  for (const path of paths) {
+    const role = path.attributes['data-role'];
+    assert.ok(role, 'every drawn path says what it is');
+    const carried = identities.filter(name => name in path.attributes);
+    if (ownIdentity[role]) {
+      assert.deepEqual(carried, [ownIdentity[role]], `${role} carries its own identity and no other`);
+    } else {
+      assert.deepEqual(carried, [], `${role} has no identity of its own to carry`);
+    }
+  }
+  // And an untyped row among the inputs is drawn as nothing at all: it has no role to be drawn under.
+  const before = paths.length;
+  view.draw({ corridors: [CLICKED], savedIds: [], savedRoads: [], overlay: { candidateId: CLICKED.id, features: [
+    { layer: 'wetland', sourceFeatureId: null, geometry: { type: 'Polygon', coordinates: [[[-87.5, 38.3], [-87.4, 38.3], [-87.4, 38.4], [-87.5, 38.3]]] } }] },
+    occurrenceOverlay: { candidateId: CLICKED.id, points: [{ source: null, sourceRecordId: null, location: [-87.5, 38.3] }] } });
+  const after = [...calls.polylines, ...calls.polygons, ...calls.markerLayers, ...calls.circleLayers]
+    .filter(path => !path.attributes['data-role']);
+  assert.equal(after.length, 0, 'no path is drawn without saying what it is');
+  assert.ok(before > 0);
+});
 
 // THE 1 km HABITAT BUFFER: A TYPED OVERLAY WITH ITS OWN IDENTITY, DRAWN UNDER THE ROAD IT BELONGS TO.
 test('the habitat buffer normalizes from the analysis output the product already holds', () => {
@@ -782,7 +904,9 @@ test('the buffer draws as a polygon under the road, and the road inside it stays
     'the polygon as Leaflet rings: GeoJSON order in, Leaflet order out');
 
   // The road inside the covering buffer is still drawn as a corridor and still selects itself.
-  const corridor = calls.polylines.filter(path => path.attributes['data-corridor-id'] === CLICKED.id).at(-1);
+  // The clickable base copy, not the non-interactive emphasis drawn above it.
+  const corridor = calls.polylines.filter(path => path.attributes['data-corridor-id'] === CLICKED.id
+    && path.options.interactive).at(-1);
   assert.ok(corridor, 'the road is drawn inside the buffer');
   corridor.emit('click', { latlng: { lat: 38.28, lng: -87.5 }, propagatedFrom: corridor });
   assert.deepEqual(selected, [CLICKED.id], 'a corridor click inside the buffer selects that corridor');
