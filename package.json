@@ -50,6 +50,8 @@
     "verify:derived": "uv run --python 3.12 --with duckdb --with shapely python3 scripts/verify-derived.py",
     "capture:derived-equivalence": "RUN_DERIVED_EQUIVALENCE_CAPTURE=1 playwright test tests/derived-equivalence.capture.spec.js --reporter=line --retries=0",
     "benchmark:derived": "RUN_DERIVED_BENCHMARK=1 playwright test tests/derived-benchmark.spec.js --reporter=line --retries=0",
+    "evaluate:ranking": "node scripts/evaluate-ranking.mjs",
+    "verify:ranking:map": "RUN_RANKING_MAP=1 playwright test tests/ranking-map.spec.js --reporter=line --retries=0",
     "benchmark:candidates": "RUN_CANDIDATE_STORAGE_BENCHMARK=1 playwright test tests/candidate-storage-benchmark.spec.js --reporter=line --retries=0",
     "benchmark:search": "RUN_SEARCH_BENCHMARK=1 playwright test tests/search-benchmark.spec.js --reporter=line --retries=0",
     "build:national-grid": "uv run --python 3.12 --with shapely --with pyshp python3 scripts/build-national-grid.py",
