@@ -1,5 +1,5 @@
 import { COVERAGE, COVERAGE_DATASET, setCandidateCoverage } from '../domain/corridor.js';
-import { createStore } from '../state/store.js';
+import { createStore, SELECTION_DOMAIN } from '../state/store.js';
 import { createMapView } from '../map/index.js';
 import { createFitRequests } from '../map/fit-request.js';
 import { ACCESS_FINDING_LABELS, renderCandidates, renderDetail, renderContext } from '../ui/render.js';
@@ -19,6 +19,7 @@ import { COVERAGE_DATASETS, summarizeOccurrences } from '../occurrence/context.j
 // static graph and fails if that changes.
 import { createFeatureLoader } from './feature-loader.js';
 import { habitatNote, habitatSelection, shownCorridorId } from './habitat-selection.js';
+import { createCorridorSelection } from './corridor-selection.js';
 import { INVESTIGATOR_WORKER_URL } from './config.js';
 import { runDiscovery } from '../discovery/run.js';
 import { verifyDerivedPromotion } from '../discovery/promotion.js';
@@ -124,7 +125,7 @@ async function defaultInaturalistTransport(url, { timeoutMs = 20000, headers = {
   });
 }
 const discoveryFit = createFitRequests();
-const map = createMapView(document.getElementById('map'), { onSelect: id => selectDiscoveryFromMap(id),
+const map = createMapView(document.getElementById('map'), { onSelect: selection => selectMapCorridor(selection),
   onBasemap: ({ note }) => { if (nodes.basemapNote) nodes.basemapNote.textContent = note ?? ''; },
   onPickCoordinate: center => selectSearchCenter(center) });
 const nodes = {
@@ -1058,6 +1059,9 @@ function corridorDescriptors(state) {
     // centre and the nearest point of the selected corridor so the orientation in the panel is visible.
     const context = storedSearchContext(candidate.searchContext);
     return { id: candidate.id, name: candidate.name, geometry: candidate.geometry,
+      // THE CANDIDATE LIST IS THE OTHER COLLECTION, and the pilot's corridors are candidates like any other: a click on
+      // one of them routes to the candidate selection, never to the discovery one.
+      selectionDomain: SELECTION_DOMAIN.CANDIDATE,
       searchCenter: context?.center ?? null, nearestCenterPoint: context?.nearestCenterPoint ?? null,
       badge: roads.length ? badgeText(roads) : 'CORRIDOR GEOMETRY UNAVAILABLE' };
   });
@@ -1246,8 +1250,11 @@ store.subscribe(state => {
     drawn.overlay = overlay;
     drawn.occurrenceOverlay = occurrenceOverlay;
     drawn.discoveryKey = discoveryKey;
-    map.draw({ corridors: drawn.corridors, selectedId: state.discovery.selectedId ?? null, overlay, occurrenceOverlay,
+    map.draw({ corridors: drawn.corridors, selectedId: shownId, overlay, occurrenceOverlay,
       savedIds: discoveryLayer?.savedIds ?? [], dismissedIds: discoveryLayer?.dismissedIds ?? [] });
+    // THE MAP EMPHASISES THE CORRIDOR THE APPLICATION SHOWS, by the one rule that names it: a discovery selection when
+    // there is one, and the selected candidate otherwise. Reading only the discovery selection left a pilot corridor
+    // selected in the list with nothing emphasised on the map.
     drawn.selectedId = selected?.id ?? null;
   }
   // EXACTLY ONE AUTOMATIC FIT PER COMPLETED SEARCH, SPENT ONCE THE MAP ACTUALLY HOLDS GEOMETRY.
@@ -1342,15 +1349,10 @@ function previewSearch(patch) {
 
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 
-// Only the bounded, currently visible discovery corridors reach the map: the same first rows the table
-// shows, so a search area stays a bounded number of SVG paths.
-// A click on the map is a click on a discovery row, by another route: it selects the same result through the same
-// store action and reveals the row, so the list and the map can never hold different selections.
-async function selectDiscoveryFromMap(id) {
-  if (!id) return;
-  store.selectDiscovery(id);
-  await revealDiscoveryRow(id);
-}
+// A CLICK ON THE MAP IS A CLICK ON THE ROAD THE PERSON SAW, BY ANOTHER ROUTE. The map reports the corridor and the
+// collection it was drawn from; the dispatcher below routes that to the selection path which already owns that collection,
+// so the list, the detail panel and the map can never hold different selections. Nothing here reads an id's shape.
+const selectMapCorridor = createCorridorSelection({ store, revealDiscoveryRow });
 
 // The row is revealed rather than focused, so the map does not steal the keyboard from wherever a person was.
 function revealDiscoveryRow(id) {
@@ -1371,6 +1373,9 @@ function discoveryDescriptors(state) {
     center: search.areaId === CUSTOM_SEARCH_AREA_ID ? (search.definition?.center ?? null) : null,
     centerLabel: centerPresentation({ place: search.place, near: search.near, center: search.definition?.center ?? null }).label,
     corridors: view.map(result => ({ id: result.id, name: result.name, geometry: result.geometry,
+      // The map draws these beside the candidate list, so each road says which collection it belongs to: a click routes
+      // to the discovery selection and never to the candidate one.
+      selectionDomain: SELECTION_DOMAIN.DISCOVERY,
       distanceFromCenterM: result.distanceFromCenterM ?? null,
       ranking: naturalistInterest(result),
       nearestCenterPoint: result.nearestCenterPoint ?? null,

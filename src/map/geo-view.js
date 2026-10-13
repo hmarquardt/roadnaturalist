@@ -117,6 +117,9 @@ export function featureAttributes(feature) {
 export function corridorFeature(corridor, { selected = false, style = null } = {}) {
   return Object.freeze({ kind: FEATURE_KIND.CORRIDOR, corridorId: corridor?.id ?? null,
     geometry: corridor?.geometry ?? null, style: style ?? LINE_STYLE.normal, selected: Boolean(selected),
+    // WHICH COLLECTION THIS ROAD WAS DRAWN FROM, carried through unchanged. The map never interprets it and never guesses
+    // it from the id: it reports it back with the click, and the application routes the selection.
+    selectionDomain: corridor?.selectionDomain ?? null,
     // The card follows the corridor: a corridor whose distance from the search centre was never measured has nothing to
     // say about it and is drawn without one.
     card: Number.isFinite(corridor?.distanceFromCenterM) ? popupHtml(corridor) : null });
@@ -441,6 +444,16 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     // Counted rather than inferred: a drag that never reaches Leaflet leaves this at zero.
     map.on('moveend', () => { movements += 1; });
 
+    // MARKING A CLICK HANDLED, in Leaflet's own terms: `DomEvent.stopPropagation` sets `_stopped` on the original DOM
+    // event, and Leaflet's `_fireDOMEvent` returns as soon as it sees that, so no further layer and not the map itself is
+    // asked about the same click. Setting the flag directly keeps this working with an injected stand-in that has no
+    // DomEvent, and is what the helper does anyway.
+    function stopClick(event) {
+      if (!event || typeof event !== 'object') return false;
+      if (event.originalEvent) event.originalEvent._stopped = true;
+      if (typeof event.stopPropagation === 'function') event.stopPropagation();
+      return true;
+    }
     map.on('click', event => {
       // In pick mode the map is an input surface and nothing else: it hands the coordinate back and does not touch
       // the search definition, which stays the domain layer's business.
@@ -457,7 +470,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         console.log('MAP_CLICK_FALLBACK ' + JSON.stringify({ corridorId: hit?.id ?? null,
           propagatedFrom: Boolean(event?.propagatedFrom) }));
       }
-      if (hit) { cardToOpen = hit.id; onSelect(hit.id); }
+      if (hit) { cardToOpen = hit.id; onSelect({ id: hit.id, domain: hit.selectionDomain ?? null }); }
     });
     function hitTest(latlng) {
       let best = null;
@@ -538,17 +551,29 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
           // name one - not even as `undefined`.
           if (contract.clickable) path.corridorId = entry.corridorId;
           if (contract.clickable && typeof path.on === 'function') {
-            path.on('click', () => {
+            path.on('click', event => {
+              // PICK MODE KEEPS PRECEDENCE, AND KEEPS THE EVENT: the coordinate is the answer, so nothing here selects and
+              // nothing here stops the click from reaching the map, which is what reports the coordinate.
               if (pickMode) return;
               // TEMPORARY (this task): the direct-click trace, so the click path is measured rather than inferred.
               // Silent unless the flag is set; the gate sets it only with MAP_CLICK_DEBUG=1.
               if (globalThis.__RN_DEBUG_MAP_CLICK) {
-                console.log('MAP_CLICK_LAYER ' + JSON.stringify({ corridorId: entry.corridorId }));
+                console.log('MAP_CLICK_LAYER ' + JSON.stringify({ corridorId: entry.corridorId,
+                  domain: entry.selectionDomain ?? null }));
               }
               // A click on the line asks for that corridor's card along with the selection, so the card survives the
               // re-draw the selection triggers.
               cardToOpen = entry.corridorId;
-              onSelect(entry.corridorId);
+              // THE LINE'S ANSWER IS THE ONLY ANSWER FOR THIS CLICK. The click is not swallowed for the layer's own sake -
+              // Leaflet's popup binding, which runs before this handler, is what opens the card - but once this handler
+              // has answered, the event is marked handled so Leaflet does not also deliver it to the map, where the
+              // proximity fallback would look for a corridor a second time. That mark is exactly what Leaflet consults
+              // (Renderer/Map _fireDOMEvent returns on originalEvent._stopped), so this is propagation semantics, not
+              // timing.
+              stopClick(event);
+              // The map adapter knows nothing about the store: it reports the identity and the collection it was drawn
+              // from, and the application decides what that means.
+              onSelect({ id: entry.corridorId, domain: entry.selectionDomain ?? null });
             });
           }
           const decorate = () => mark(path, featureAttributes(entry));

@@ -10,6 +10,14 @@ import { MAX_OUTINGS, OUTING_STATUS, OUTING_STORAGE_STATUS, createOuting, moveRo
   readStoredOutings, removeRoadEverywhere, updateOuting, withoutRoad, withRoad, writeStoredOutings } from './outings.js';
 import { CANDIDATE_STORAGE_STATUS, readStoredCandidates, writeStoredCandidates } from './candidate-persistence.js';
 
+// WHICH SELECTION PATH A CORRIDOR BELONGS TO.
+//
+// The map draws corridors from two collections that the application selects through different, already-authoritative
+// paths: national discovery results (`selectDiscovery`) and the candidate list - the pilot's corridors among them
+// (`select`). A road drawn on the map has to say which collection it came from, because the map cannot infer it: identity
+// and selection domain are separate facts, and neither is encoded in an id.
+export const SELECTION_DOMAIN = Object.freeze({ DISCOVERY: 'discovery', CANDIDATE: 'candidate' });
+
 export function createStore({ storage } = {}) {
   const initialQuery = Object.freeze({ status: 'idle', coverage: null, reason: null, provenance: null, missingRoadIds: [], note: null });
   const initialDiscovery = Object.freeze({ status: 'idle', results: Object.freeze([]), coverage: null, diagnostics: null, promotionError: null,

@@ -104,6 +104,8 @@ test('an unavailable occurrence source never blocks the rest of the panel and ne
 
 test('only precise public observations reach the map, and distances are real projected measurements', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 950 });
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
   await stubInaturalist(page);
   // The direct-click trace, so the click path below is measured rather than inferred.
   const layers = [];
@@ -188,29 +190,19 @@ test('only precise public observations reach the map, and distances are real pro
   await page.mouse.click(probe.x, probe.y);
   await page.waitForTimeout(900);
   expect(layers.length, 'the click reaches the corridor line itself').toBeGreaterThan(0);
-  // No click the map answers itself may take a corridor by proximity; the discovery flow in the map gate has no such click
-  // at all, and this line records how many this flow produces.
-  for (const line of fallbacks) {
-    expect(JSON.parse(line.replace('MAP_CLICK_FALLBACK ', '')).corridorId,
-      'a click the map answers itself must never select a corridor by proximity').toBe(null);
-  }
-  // THE SELECTION IS THE CLICKED CORRIDOR, read from the application's own detail panel: the pilot declaration maps the id
-  // the click reached to the name that panel shows. (The pilot flow expresses selection in the candidate list and detail
-  // panel rather than through the discovery selection the map's `data-selected` attribute follows.)
-  console.log(`OCCURRENCE_CLICKS ${JSON.stringify({ layers, fallbacks })}`);
-  // WHAT THIS FLOW GUARANTEES, AND WHAT IT DOES NOT. The click reaches the corridor line itself - recorded above - even
-  // with twelve occurrence points on screen, and no click the map answers itself takes a corridor by proximity. What the
-  // pilot flow does not do is carry that click into the candidate selection: the map's own select callback is the
-  // discovery one (src/app/main.js), so a pilot corridor clicked on the map does not become the selected candidate. That
-  // gap is older than this layer and belongs to the corridor selection path, not to occurrences, so it is recorded here
-  // rather than fixed here.
-  const detailAfterClick = await page.locator('#candidate-detail').innerText();
+  expect(fallbacks, 'and a click the line answered is not answered again by the map').toEqual([]);
+  // THE PILOT CORRIDOR CLICKED ON THE MAP IS THE ONE THE APPLICATION SELECTS: the pilot declaration maps the id the click
+  // reached to the name the detail panel shows, so the map, the list and the detail agree.
   const landedName = await page.evaluate(async id => {
     const pilot = await (await fetch('data/roads/or-roads-pilot.json')).json();
     return pilot.candidates.find(entry => entry.id === id)?.name ?? null;
   }, probe.id);
-  console.log(`OCCURRENCE_SELECTION ${JSON.stringify({ clicked: probe.id, landedName,
-    selectionChanged: detailAfterClick.includes(landedName) })}`);
+  expect(landedName, 'the clicked corridor is one the pilot declares').toBeTruthy();
+  await expect(page.locator('#candidate-detail'), 'the corridor under the cursor is the selected one')
+    .toContainText(landedName, { timeout: 30000 });
+  console.log(`OCCURRENCE_SELECTION ${JSON.stringify({ clicked: probe.id, landedName, layers: layers.length,
+    fallbacks: fallbacks.length })}`);
+  expect(errors, 'and no click on a pilot corridor raises an error').toEqual([]);
   console.log(`OCCURRENCE_CLICKS ${JSON.stringify({ layers: layers.length, fallbacks: fallbacks.length })}`);
 
   await page.locator('#occurrence-layer').uncheck();

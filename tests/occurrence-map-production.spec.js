@@ -163,17 +163,18 @@ test('the deployed map draws the occurrence points its own explicit query return
   }
   console.log(`OCCURRENCE_CLICKS ${JSON.stringify({ layers: layers.length, fallbacks: fallbacks.length,
     fallout: fallbacks.map(line => JSON.parse(line.replace('MAP_CLICK_FALLBACK ', ''))) })}`);
-  // THE POINTS DO NOT INTERCEPT THE CLICK: it reaches the corridor line itself. The pilot flow does not carry that click
-  // into the candidate selection - the map's own select callback is the discovery one (src/app/main.js) - so the exact
-  // selection that the discovery flow proves in tests/map-interaction.spec.js is recorded here rather than asserted.
+  // THE POINTS DO NOT INTERCEPT THE CLICK: it reaches the corridor line itself, and the corridor it reached is the one the
+  // application selects - the pilot declaration maps that id to the name the detail panel shows.
   const landedName = await page.evaluate(async id => {
     const response = await fetch('data/roads/or-roads-pilot.json');
     const pilot = await response.json();
     return pilot.candidates.find(entry => entry.id === id)?.name ?? null;
   }, probe.id);
-  const detail = await page.locator('#candidate-detail').innerText();
-  console.log(`OCCURRENCE_SELECTION ${JSON.stringify({ clicked: probe.id, landedName,
-    selectionChanged: landedName ? detail.includes(landedName) : null })}`);
+  expect(landedName, 'the clicked corridor is one the pilot declares').toBeTruthy();
+  await expect(page.locator('#candidate-detail'), 'the corridor under the cursor is the selected one')
+    .toContainText(landedName, { timeout: 30000 });
+  console.log(`OCCURRENCE_SELECTION ${JSON.stringify({ clicked: probe.id, landedName, layers: layers.length,
+    fallbacks: fallbacks.length })}`);
   expect(await camera(), 'the click must not move the camera').toEqual(cameraBefore);
 
   // SWITCHING THE POINTS OFF HIDES THEM, FETCHES NOTHING, AND MOVES NOTHING.
@@ -182,9 +183,5 @@ test('the deployed map draws the occurrence points its own explicit query return
   expect(deep.length, 'hiding the layer must query nothing either').toBe(requestsAfterQuery);
   expect(await camera(), 'and must not move the camera').toEqual(cameraBefore);
   expect(await fitCount()).toBe(fitsBefore);
-  // ONE PAGE ERROR IS TOLERATED, AND NAMED. The map's own select callback is the discovery one, so clicking a *pilot*
-  // corridor throws `Unknown discovery corridor` - a gap in the pilot's map-to-list selection that predates this layer
-  // (recorded by OCCURRENCE_SELECTION above). Every other page error is a failure.
-  expect(pageErrors.filter(message => message !== 'Unknown discovery corridor'),
-    'the page must stay error-free apart from the pilot map-selection gap').toEqual([]);
+  expect(pageErrors, 'a click on a pilot corridor must not raise an error').toEqual([]);
 });

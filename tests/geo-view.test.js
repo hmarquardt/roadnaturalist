@@ -96,7 +96,7 @@ test('geometry is converted to geographic coordinates, and malformed geometry is
 test('one selection state: the list selects on the map, and the map reports clicks back', () => {
   const { leaflet, map } = fakeLeaflet();
   const selected = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selected.push(selection?.id ?? null) });
   view.draw({ corridors: [corridor('a'), corridor('b')] });
   assert.equal(view.selectedId(), null);
   // The list's selection is applied to the map, and it does not move the camera.
@@ -114,6 +114,16 @@ const NEAR = { id: 'corridor-near', name: 'Near Rd', distanceFromCenterM: 900,
   geometry: { type: 'LineString', coordinates: [[-87.5, 38.3], [-87.4, 38.31]] } };
 const CLICKED = { id: 'corridor-clicked', name: 'Clicked Rd', distanceFromCenterM: 1609,
   geometry: { type: 'LineString', coordinates: [[-87.5201, 38.2801], [-87.42, 38.29]] } };
+// THE TWO COLLECTIONS THE MAP DRAWS BESIDE EACH OTHER. A discovery result and a pilot/candidate corridor are drawn the
+// same way and selected differently, so each descriptor says which one it came from; the id itself never does.
+const DISCOVERY_ROAD = { id: 'drv1-river-rd-c455-s1', name: 'River Rd', selectionDomain: 'discovery',
+  geometry: { type: 'LineString', coordinates: [[-87.53, 38.27], [-87.44, 38.30]] } };
+// A CORRIDOR IN SEVERAL PARTS: one corridor, several paths, one identity and one collection.
+const MULTI_PARTS = { id: 'corridor-multi', name: 'Multi Rd', distanceFromCenterM: 1200,
+  geometry: { type: 'MultiLineString', coordinates: [[[-87.52, 38.28], [-87.44, 38.29]],
+    [[-87.44, 38.29], [-87.4, 38.31]]] } };
+const PILOT_ROAD = { id: 'or-roads-cornelius-pass-rd', name: 'NW Cornelius Pass Rd', selectionDomain: 'candidate',
+  geometry: { type: 'LineString', coordinates: [[-87.51, 38.26], [-87.45, 38.31]] } };
 
 // A BUFFER THAT COVERS THE ROAD. The buffer fixture is deliberately a polygon around the corridor it belongs to, so the
 // tests below exercise the case that matters: a road drawn inside a visible overlay must stay exactly as clickable as it
@@ -155,7 +165,7 @@ const OCCURRENCE_OVERLAY = Object.freeze({ candidateId: CLICKED.id, excluded: 2,
 test('a click on a drawn line selects that corridor, not the nearest vertex', () => {
   const { leaflet, calls } = fakeLeaflet();
   const chosen = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => chosen.push(id) });
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => chosen.push(selection?.id ?? null) });
   view.draw({ corridors: [CLICKED, NEAR] });
   const pathOf = id => calls.polylines.filter(path => path.corridorId === id).at(-1);
   // The click point is a hair from NEAR's vertex and nowhere near CLICKED's, yet the person clicked CLICKED's line.
@@ -167,7 +177,7 @@ test('a click on a drawn line selects that corridor, not the nearest vertex', ()
 test('a line click is answered once, and the proximity fallback does not override it', () => {
   const { leaflet, map, calls } = fakeLeaflet();
   const chosen = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => chosen.push(id) });
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => chosen.push(selection?.id ?? null) });
   view.draw({ corridors: [CLICKED, NEAR] });
   const path = calls.polylines.filter(item => item.corridorId === CLICKED.id).at(-1);
   const event = { latlng: { lat: 38.3001, lng: -87.4999 }, propagatedFrom: path };
@@ -181,7 +191,7 @@ test('pick mode keeps precedence: a line click does not select the corridor', ()
   const { leaflet, calls } = fakeLeaflet();
   const chosen = [];
   const picked = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => chosen.push(id),
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => chosen.push(selection?.id ?? null),
     onPickCoordinate: coordinate => picked.push(coordinate) });
   view.draw({ corridors: [CLICKED] });
   view.setPickMode(true);
@@ -192,7 +202,7 @@ test('pick mode keeps precedence: a line click does not select the corridor', ()
 test('a click on the map itself still uses proximity, and selects nothing when nothing is near', () => {
   const { leaflet, map } = fakeLeaflet();
   const chosen = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => chosen.push(id) });
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => chosen.push(selection?.id ?? null) });
   view.draw({ corridors: [NEAR] });
   map.handlers.click({ latlng: { lat: 38.3001, lng: -87.4999 } });
   assert.deepEqual(chosen, [NEAR.id], 'a click just off the line resolves the nearest corridor');
@@ -291,7 +301,7 @@ test('pick mode hands a coordinate back and does not touch the search definition
   const picked = [];
   const selected = [];
   const view = createGeoView({ style: {} }, { leaflet, onPickCoordinate: coordinate => picked.push(coordinate),
-    onSelect: id => selected.push(id) });
+    onSelect: selection => selected.push(selection?.id ?? null) });
   view.draw({ corridors: [corridor('a')] });
   view.setPickMode(true);
   map.handlers.click({ latlng: { lat: 38.3, lng: -87.5 } });
@@ -344,9 +354,9 @@ test('a click on a line opens that corridor card, after the re-draw the selectio
   const { leaflet, calls } = fakeLeaflet();
   const selected = [];
   let view = null;
-  view = createGeoView({ style: {} }, { leaflet, onSelect: id => {
-    selected.push(id);
-    view.draw({ corridors: [CLICKED, NEAR], selectedId: id });
+  view = createGeoView({ style: {} }, { leaflet, onSelect: selection => {
+    selected.push(selection?.id ?? null);
+    view.draw({ corridors: [CLICKED, NEAR], selectedId: selection?.id ?? null });
   } });
   view.draw({ corridors: [CLICKED, NEAR] });
   const path = calls.polylines.filter(item => item.corridorId === CLICKED.id).at(-1);
@@ -361,7 +371,7 @@ test('a click on a line opens that corridor card, after the re-draw the selectio
 test('clicking a second corridor leaves the second corridor as the active card', () => {
   const { leaflet, calls } = fakeLeaflet();
   let view = null;
-  view = createGeoView({ style: {} }, { leaflet, onSelect: id => view.draw({ corridors: [CLICKED, NEAR], selectedId: id }) });
+  view = createGeoView({ style: {} }, { leaflet, onSelect: selection => view.draw({ corridors: [CLICKED, NEAR], selectedId: selection?.id ?? null }) });
   view.draw({ corridors: [CLICKED, NEAR] });
   const pathOf = id => calls.polylines.filter(item => item.corridorId === id).at(-1);
   pathOf(CLICKED.id).emit('click', { latlng: { lat: 38.29, lng: -87.5 }, propagatedFrom: pathOf(CLICKED.id) });
@@ -381,7 +391,7 @@ test('a multi-part corridor is drawn as several paths, each naming that same cor
       [[-87.39, 38.32], [-87.30, 38.33]]] } };
   const { leaflet, calls } = fakeLeaflet();
   const selected = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selected.push(selection?.id ?? null) });
   view.draw({ corridors: [MULTI] });
   // One paint: a draw paints the results layer and then repaints it to mark the selection, so the paths under test are
   // the ones a single paint creates. (calls.polylines is the creation log; the layer holds the latest paint.)
@@ -526,7 +536,7 @@ test('a corridor descriptor is normalized into the corridor feature, and the car
 test('search geometry is typed: the same centre, the same radius, the same roles, the same non-interaction', () => {
   const { leaflet, calls } = fakeLeaflet();
   const selected = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selected.push(selection?.id ?? null) });
   const search = { kind: 'radius', center: [-87.5, 38.3], radiusMiles: 25, bounds: [-88, 37, -87, 39],
     regionBounds: [-124, 42, -116, 46] };
   view.setSearch(search);
@@ -604,7 +614,7 @@ test('the shape reader knows lines, areas and points, and refuses anything else'
 test('the corridor DOM contract is unchanged by the typed path, and one click still selects one corridor', () => {
   const { leaflet, calls, map } = fakeLeaflet();
   const selected = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selected.push(selection?.id ?? null) });
   view.draw({ corridors: [CLICKED, NEAR], selectedId: CLICKED.id });
   // The clickable copy is the base one; the emphasis drawn above it is stamped with the same corridor but is not
   // interactive, so it can never be what a click reaches.
@@ -670,7 +680,7 @@ test('habitat source rows normalize into their own typed family, with identity f
 test('habitat source features draw as their own family, never as corridors', () => {
   const { leaflet, calls, map } = fakeLeaflet();
   const selected = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selected.push(selection?.id ?? null) });
   view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, overlay: HABITAT_OVERLAY });
 
   // The observed geometry types, drawn as themselves: two wetlands as areas (one of them a multipolygon) and two
@@ -787,7 +797,7 @@ test('occurrence rows normalize into points, with the identity the evidence is k
 test('occurrence points draw as their own family, and cannot be selected', () => {
   const { leaflet, calls, map } = fakeLeaflet();
   const selected = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selected.push(selection?.id ?? null) });
   view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, occurrenceOverlay: OCCURRENCE_OVERLAY });
 
   const points = calls.markerLayers.filter(path => path.attributes['data-role'] === 'occurrence');
@@ -873,6 +883,95 @@ test("every path the map draws is one typed family with exactly that family iden
   assert.ok(before > 0);
 });
 
+test('a drawn road carries the collection it came from, and reports it with the click', () => {
+  // THE DOMAIN IS CARRIED, NOT DERIVED. The map never reads an id's shape: it is told which collection a road belongs to
+  // and reports that back with the click, so the application can route the selection to the path that owns it.
+  const discovery = corridorFeature(DISCOVERY_ROAD);
+  const pilot = corridorFeature(PILOT_ROAD);
+  assert.equal(discovery.selectionDomain, 'discovery');
+  assert.equal(pilot.selectionDomain, 'candidate');
+  assert.equal(corridorFeature(CLICKED).selectionDomain, null, 'a descriptor without one carries none');
+  // It is not DOM identity: the element says what it is, and the collection is the application's business.
+  assert.deepEqual(featureAttributes(discovery), { role: 'candidate', corridorId: DISCOVERY_ROAD.id, selected: false });
+  assert.equal('selectionDomain' in featureAttributes(discovery), false);
+
+  const { leaflet, calls, map } = fakeLeaflet();
+  const selections = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selections.push(selection) });
+  view.draw({ corridors: [DISCOVERY_ROAD, PILOT_ROAD], selectedId: DISCOVERY_ROAD.id });
+  const pathOf = id => calls.polylines.filter(item => item.attributes['data-corridor-id'] === id
+    && item.options.interactive).at(-1);
+
+  // A discovery road reports the discovery collection, once.
+  const discoveryEvent = { latlng: { lat: 38.29, lng: -87.5 }, originalEvent: {} };
+  pathOf(DISCOVERY_ROAD.id).emit('click', { ...discoveryEvent, propagatedFrom: pathOf(DISCOVERY_ROAD.id) });
+  assert.deepEqual(selections, [{ id: DISCOVERY_ROAD.id, domain: 'discovery' }]);
+  // A pilot corridor reports the candidate collection - never the discovery one.
+  const pilotEvent = { latlng: { lat: 38.29, lng: -87.5 }, originalEvent: {} };
+  pathOf(PILOT_ROAD.id).emit('click', { ...pilotEvent, propagatedFrom: pathOf(PILOT_ROAD.id) });
+  assert.deepEqual(selections, [{ id: DISCOVERY_ROAD.id, domain: 'discovery' },
+    { id: PILOT_ROAD.id, domain: 'candidate' }], 'exactly one selection per click, in the right collection');
+
+  // ONE DIRECT CLICK IS ANSWERED ONCE. The layer marks the click handled - what Leaflet consults before it would offer the
+  // click to the map as well - so the proximity fallback is never given the same event.
+  assert.equal(pilotEvent.originalEvent._stopped, true, 'the handled click is marked handled, for Leaflet to see');
+  map.handlers.click({ ...pilotEvent, propagatedFrom: pathOf(PILOT_ROAD.id) });
+  assert.equal(selections.length, 2, 'the map does not answer a click a corridor line already answered');
+
+  // THE BACKGROUND FALLBACK STILL EXISTS, AND CARRIES THE DOMAIN. A click on the map itself, near a corridor, resolves
+  // that corridor through the same domain it was drawn with - so it can never produce an unknown-corridor selection.
+  const beforeFallback = selections.length;
+  map.handlers.click({ latlng: { lat: 38.2701, lng: -87.5299 } });
+  assert.equal(selections.length, beforeFallback + 1, 'a background click near a road resolves it');
+  assert.deepEqual(selections.at(-1), { id: DISCOVERY_ROAD.id, domain: 'discovery' },
+    'and resolves it in the collection it was drawn from');
+  // Far from everything, the background click selects nothing.
+  const before = selections.length;
+  map.handlers.click({ latlng: { lat: 38.9, lng: -87.9 } });
+  assert.equal(selections.length, before, 'a click on empty map selects nothing');
+});
+
+test('every part of a multi-part corridor carries that corridor and its collection', () => {
+  const multi = { ...MULTI_PARTS, selectionDomain: 'candidate' };
+  const { leaflet, calls } = fakeLeaflet();
+  const selections = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selections.push(selection) });
+  view.draw({ corridors: [multi], selectedId: null });
+  const parts = calls.polylines.filter(item => item.attributes['data-corridor-id'] === multi.id);
+  assert.ok(parts.length > 1, 'a MultiLineString is drawn as several paths');
+  for (const part of parts) {
+    assert.equal(part.corridorId, multi.id);
+    assert.equal(part.options.interactive, true);
+  }
+  parts[0].emit('click', { latlng: { lat: 38.3, lng: -87.5 }, originalEvent: {}, propagatedFrom: parts[0] });
+  parts[1].emit('click', { latlng: { lat: 38.3, lng: -87.5 }, originalEvent: {}, propagatedFrom: parts[1] });
+  assert.deepEqual(selections, [{ id: multi.id, domain: 'candidate' }, { id: multi.id, domain: 'candidate' }],
+    'either part selects that corridor, in the same collection');
+});
+
+test('pick mode suppresses both selection paths, for either collection', () => {
+  const { leaflet, calls, map } = fakeLeaflet();
+  const selections = [];
+  const picks = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selections.push(selection),
+    onPickCoordinate: coordinate => picks.push(coordinate) });
+  view.draw({ corridors: [DISCOVERY_ROAD, PILOT_ROAD], selectedId: null });
+  for (const road of [DISCOVERY_ROAD, PILOT_ROAD]) {
+    view.setPickMode(true);
+    const path = calls.polylines.filter(item => item.attributes['data-corridor-id'] === road.id
+      && item.options.interactive).at(-1);
+    const event = { latlng: { lat: 38.29, lng: -87.5 }, originalEvent: {} };
+    path.emit('click', { ...event, propagatedFrom: path });
+    map.handlers.click({ ...event, propagatedFrom: path });
+  }
+  assert.deepEqual(selections, [], 'pick mode selects no corridor, whatever collection it came from');
+  assert.equal(picks.length, 2, 'and the coordinate is the answer, twice');
+  assert.deepEqual(picks[0], [-87.5, 38.29], 'as [longitude, latitude]');
+  view.setPickMode(false);
+  assert.equal(calls.polylines.length > 0, true);
+});
+
+
 // THE 1 km HABITAT BUFFER: A TYPED OVERLAY WITH ITS OWN IDENTITY, DRAWN UNDER THE ROAD IT BELONGS TO.
 test('the habitat buffer normalizes from the analysis output the product already holds', () => {
   const buffer = habitatBufferFeature(BUFFER_OVERLAY);
@@ -894,7 +993,7 @@ test('the habitat buffer normalizes from the analysis output the product already
 test('the buffer draws as a polygon under the road, and the road inside it stays clickable', () => {
   const { leaflet, calls, map } = fakeLeaflet();
   const selected = [];
-  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selected.push(selection?.id ?? null) });
   view.draw({ corridors: [CLICKED, NEAR], selectedId: CLICKED.id, overlay: BUFFER_OVERLAY });
 
   const buffers = calls.polygons.filter(path => path.attributes['data-role'] === 'habitat-buffer');
