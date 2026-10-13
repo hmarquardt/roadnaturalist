@@ -243,17 +243,25 @@ export function occurrenceIdentity(row) {
 export function occurrenceFeatures(overlay) {
   const features = [];
   const unidentified = [];
+  const duplicates = [];
+  // ONE POINT PER SOURCE RECORD. The analysis fetches records per search region, and the same public observation is
+  // returned by more than one region when it sits near their boundary; identity is the record, so it is plotted once and
+  // the repeat is reported rather than drawn twice at the same coordinate.
+  const seen = new Set();
   for (const row of overlay?.points ?? []) {
     const occurrenceId = occurrenceIdentity(row);
     const point = toLatLngPoint(row?.location);
     if (!occurrenceId || !point) { unidentified.push(row); continue; }
+    if (seen.has(occurrenceId)) { duplicates.push(row); continue; }
+    seen.add(occurrenceId);
     features.push(Object.freeze({ kind: FEATURE_KIND.OCCURRENCE, occurrenceId, source: row.source,
       sourceRecordId: String(row.sourceRecordId), label: row.label ?? null, taxonomicGroup: row.taxonomicGroup ?? null,
       distanceToCorridorM: row.distanceToCorridorM ?? null,
       // The geometry is the row's own coordinate, in Leaflet order in `point` and in GeoJSON order in `geometry`.
       geometry: { type: 'Point', coordinates: [point[1], point[0]] }, point, style: OCCURRENCE_STYLE.point }));
   }
-  return Object.freeze({ features: Object.freeze(features), unidentified: Object.freeze(unidentified) });
+  return Object.freeze({ features: Object.freeze(features), unidentified: Object.freeze(unidentified),
+    duplicates: Object.freeze(duplicates) });
 }
 
 export function featureShape(geometry) {

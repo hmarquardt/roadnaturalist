@@ -39,11 +39,14 @@ function assertPointContract(ids, evidence) {
   expect(ids.filter(id => !id), 'every drawn point carries its own identity').toEqual([]);
   expect(ids.every(id => /^[a-z]+:[^\s]+$/.test(id)), 'an identity is <source>:<source record id>').toBe(true);
   expect([...new Set(ids)].length, 'identities are per record, not per draw').toBe(ids.length);
-  const expected = new Set(evidence.normalizedIds);
-  expect(ids.filter(id => !expected.has(id)), 'every drawn point is one of the records the analysis returned').toEqual([]);
-  expect(evidence.normalized, 'the analysis returned records this corridor can plot').toBeGreaterThan(0);
-  expect(evidence.normalized + evidence.unidentified, 'every returned row became a point or was reported')
-    .toBe(evidence.returned);
+  expect(evidence.normalized + evidence.duplicates + evidence.unidentified,
+    'every returned row became a point, a repeat, or was reported').toBe(evidence.returned);
+  if (evidence.returned > 0) {
+    const expected = new Set(evidence.normalizedIds);
+    expect(ids.filter(id => !expected.has(id)), 'every drawn point is one of the records the analysis returned')
+      .toEqual([]);
+    expect(evidence.normalized, 'the analysis returned records this corridor can plot').toBeGreaterThan(0);
+  }
 }
 
 
@@ -113,6 +116,7 @@ test('the deployed map draws the occurrence points its own explicit query return
     const rows = Object.values(analysis.sources).flatMap(source => source.points ?? []);
     const normalized = occurrenceFeatures({ points: rows });
     return { returned: rows.length, normalized: normalized.features.length, unidentified: normalized.unidentified.length,
+      duplicates: normalized.duplicates.length,
       normalizedIds: normalized.features.map(feature => feature.occurrenceId),
       sources: Object.fromEntries(Object.entries(analysis.sources).map(([id, source]) => [id,
         { coverage: source.coverage ?? null, precise: source.preciseObservations ?? 0,

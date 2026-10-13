@@ -755,6 +755,10 @@ test('occurrence rows normalize into points, with the identity the evidence is k
   assert.equal(features[0].distanceToCorridorM, 38.2);
   assert.equal(features[0].style.radius, 4, 'a point is a small disc, not an image marker');
   assert.equal(unidentified.length, 1, 'the row with no source record id is reported rather than named');
+  // The same public record returned by two search regions is one point, plotted once, with the repeat reported.
+  const repeated = occurrenceFeatures({ points: [OCCURRENCE_OVERLAY.points[0], OCCURRENCE_OVERLAY.points[0]] });
+  assert.equal(repeated.features.length, 1, 'one point per source record');
+  assert.equal(repeated.duplicates.length, 1, 'and the repeat is reported rather than drawn twice at the same place');
   // Its own role and its own identity attribute, and no other family identity.
   assert.deepEqual(featureAttributes(features[0]), { role: 'occurrence', occurrenceId: 'inaturalist:obs-1' });
   assert.deepEqual(Object.keys(featureAttributes(features[0])).sort(), ['occurrenceId', 'role']);
