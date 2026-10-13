@@ -4,8 +4,8 @@ import { readFileSync } from 'node:fs';
 
 import { TILE_PROVIDERS, tileProvider } from '../src/map/basemap.js';
 import { attributeName, basemapFailureNote, boundsOfGeometries, corridorFeature, createGeoView, drawableShapes,
-  featureAttributes, featureShape, habitatBufferFeature, popupHtml, searchFeatures, toLatLngs, unavailableView,
-  FEATURE_DOM, FEATURE_KIND }
+  featureAttributes, featureShape, habitatBufferFeature, habitatFeatures, habitatIdentity, popupHtml, searchFeatures,
+  toLatLngs, unavailableView, FEATURE_DOM, FEATURE_KIND }
   from '../src/map/geo-view.js';
 import { createMapView } from '../src/map/index.js';
 
@@ -121,6 +121,24 @@ const CLICKED = { id: 'corridor-clicked', name: 'Clicked Rd', distanceFromCenter
 const BUFFER_OVERLAY = Object.freeze({ candidateId: CLICKED.id, distanceM: 1000,
   bufferGeometry: { type: 'Polygon', coordinates: [[[-87.60, 38.20], [-87.30, 38.20], [-87.30, 38.40],
     [-87.60, 38.40], [-87.60, 38.20]]] } });
+
+// THE HABITAT SOURCE ROWS, AS THE ANALYSIS HANDS THEM OVER: the fields the query returns and the geometry types it
+// actually produces (wetlands are polygons and multipolygons, NHD flowlines are multilinestrings). The last row has no
+// source feature id, which is the case that must be reported rather than named.
+const HABITAT_OVERLAY = Object.freeze({ candidateId: CLICKED.id, distanceM: 1000,
+  bufferGeometry: BUFFER_OVERLAY.bufferGeometry,
+  features: [
+    { layer: 'wetland', sourceFeatureId: 'W1', label: 'Freshwater Emergent Wetland', code: 'PEM1C',
+      geometry: { type: 'Polygon', coordinates: [[[-87.53, 38.27], [-87.51, 38.27], [-87.51, 38.29], [-87.53, 38.27]]] } },
+    { layer: 'flowline', sourceFeatureId: 'H1', label: 'Stream/River', code: null,
+      geometry: { type: 'MultiLineString', coordinates: [[[-87.55, 38.25], [-87.52, 38.26]],
+        [[-87.52, 38.26], [-87.5, 38.28]]] } },
+    { layer: 'wetland', sourceFeatureId: 'W2', label: 'Freshwater Pond', code: 'PUBF',
+      geometry: { type: 'MultiPolygon', coordinates: [[[[-87.48, 38.31], [-87.46, 38.31], [-87.46, 38.33], [-87.48, 38.31]]],
+        [[[-87.45, 38.35], [-87.44, 38.35], [-87.44, 38.36], [-87.45, 38.35]]]] } },
+    { layer: 'flowline', sourceFeatureId: null, label: 'Stream/River', code: null,
+      geometry: { type: 'MultiLineString', coordinates: [[[-87.6, 38.2], [-87.59, 38.21]]] } },
+  ] });
 
 test('a click on a drawn line selects that corridor, not the nearest vertex', () => {
   const { leaflet, calls } = fakeLeaflet();
@@ -590,25 +608,142 @@ test('the corridor DOM contract is unchanged by the typed path, and one click st
   assert.deepEqual(selected, [CLICKED.id], 'one click, one corridor');
 });
 
-test('a row that has not been typed yet keeps the corridor-shaped handling it has today', () => {
+test('habitat source rows normalize into their own typed family, with identity from the row', () => {
+  const { features, unidentified } = habitatFeatures(HABITAT_OVERLAY);
+  assert.equal(features.length, 3, 'every source row with an identity becomes a feature');
+  const [wetland, flowline, pond] = features;
+  assert.equal(wetland.kind, FEATURE_KIND.HABITAT);
+  assert.equal(wetland.habitatId, 'wetland:W1', 'the layer and the source dataset\'s own feature id');
+  assert.equal(flowline.habitatId, 'flowline:H1');
+  assert.equal(pond.habitatId, 'wetland:W2');
+  assert.equal(wetland.layer, 'wetland');
+  assert.equal(wetland.sourceFeatureId, 'W1');
+  assert.equal(wetland.label, 'Freshwater Emergent Wetland');
+  assert.equal(wetland.geometry, HABITAT_OVERLAY.features[0].geometry, 'the row\'s own geometry, not a copy of it');
+  // A wetland is an area and a flowline is a line: the two are told apart by their own geometry and styled apart.
+  assert.equal(wetland.style.fill, true, 'a wetland is drawn as ground');
+  assert.equal(flowline.style.fill, false, 'a flowline is drawn as a line');
+  assert.notEqual(wetland.style.fillColor, flowline.style.color, 'and the families are not the same colour');
+  assert.equal(wetland.style.dashArray, undefined, 'neither borrows the analysis outline\'s dash');
+  assert.equal(flowline.style.dashArray, undefined);
+  // A row from a layer this build has not seen is still habitat, and is never styled as a road.
+  const [unknown] = habitatFeatures({ features: [{ layer: 'spring', sourceFeatureId: 'S1',
+    geometry: { type: 'Point', coordinates: [-87.5, 38.3] } }] }).features;
+  assert.equal(unknown.style.color, '#4b5563');
+  assert.notEqual(unknown.style.color, '#1d4ed8', 'and not the corridor blue');
+  // A ROW WITHOUT A DURABLE IDENTITY IS REPORTED, NOT NAMED. Nothing is invented: no id built from the corridor, the
+  // list position or the label.
+  assert.deepEqual(unidentified, [HABITAT_OVERLAY.features[3]], 'the row with no source feature id is reported');
+  const missing = habitatFeatures({ features: [{ layer: null, sourceFeatureId: 'W9', geometry: null },
+    { layer: 'wetland', sourceFeatureId: null, geometry: null }, { layer: 'wetland', sourceFeatureId: '', geometry: null }] });
+  assert.equal(missing.features.length, 0, 'an identity needs both halves of it');
+  assert.equal(missing.unidentified.length, 3);
+  assert.equal(habitatIdentity({ layer: 'wetland', sourceFeatureId: 101390 }), 'wetland:101390',
+    'a numeric source id is used as it is, not discarded');
+  assert.equal(habitatIdentity({ layer: 'flowline' }), null);
+  assert.equal(habitatIdentity(null), null);
+  // No corridor anywhere in the descriptors: this family has no corridor identity to give away.
+  for (const feature of features) {
+    assert.equal(feature.corridorId, undefined, 'no corridor identity on a habitat feature');
+    assert.deepEqual(Object.keys(featureAttributes(feature)).sort(), ['habitatId', 'role']);
+    assert.deepEqual(featureAttributes(feature), { role: 'habitat', habitatId: feature.habitatId });
+  }
+  assert.equal(FEATURE_DOM[FEATURE_KIND.HABITAT].clickable, undefined, 'a habitat feature is never a selection target');
+  assert.equal(featureAttributes(features[0]).corridorId, undefined);
+});
+
+test('habitat source features draw as their own family, never as corridors', () => {
+  const { leaflet, calls, map } = fakeLeaflet();
+  const selected = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: id => selected.push(id) });
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, overlay: HABITAT_OVERLAY });
+
+  // The observed geometry types, drawn as themselves: two wetlands as areas (one of them a multipolygon) and two
+  // multilinestring flowlines, one path per line.
+  const habitatAreas = calls.polygons.filter(path => path.attributes['data-role'] === 'habitat');
+  const habitatLines = calls.polylines.filter(path => path.attributes['data-role'] === 'habitat');
+  assert.equal(habitatAreas.length, 2, 'the Polygon and the MultiPolygon are both drawn as areas');
+  assert.equal(habitatLines.length, 2, 'a MultiLineString is one path per line');
+  assert.deepEqual(habitatAreas.map(path => path.attributes['data-habitat-id']).sort(),
+    ['wetland:W1', 'wetland:W2'], 'each area carries its own source identity');
+  assert.deepEqual(habitatLines.map(path => path.attributes['data-habitat-id']).sort(),
+    ['flowline:H1', 'flowline:H1'], 'both lines of the multipart flowline are the same feature');
+  // A multipolygon keeps its own rings, in Leaflet order.
+  const pond = habitatAreas.find(path => path.attributes['data-habitat-id'] === 'wetland:W2');
+  assert.equal(pond.latlngs.length, 2, 'both polygons of the multipolygon are drawn');
+  assert.deepEqual(pond.latlngs[0][0], [38.31, -87.48], 'GeoJSON [lon, lat] in, Leaflet [lat, lon] out');
+  // The row with no source feature id is not on the map at all, and nothing else took its place.
+  assert.equal([...habitatAreas, ...habitatLines].length, 4, 'no path was invented for the row without an identity');
+
+  // NO HABITAT PATH IS A CANDIDATE, and none carries a corridor.
+  for (const path of [...habitatAreas, ...habitatLines]) {
+    assert.ok(!('data-corridor-id' in path.attributes), 'a habitat feature is never attributed to a corridor');
+    assert.ok(!('data-selected' in path.attributes), 'and it is not a selection');
+    assert.equal(path.attributes['data-habitat-id'], path.attributes['data-habitat-id']);
+    assert.equal(path.options.interactive, false, 'a habitat feature cannot be pointed at, so it cannot take a click');
+    assert.equal(path.corridorId, undefined, 'and the map-level handler has no corridor to read from it');
+    assert.equal(path.popup, undefined, 'no card is bound to a habitat feature');
+  }
+  // It cannot select, and it cannot make the map answer by proximity either: a habitat feature has no handler at all.
+  habitatAreas[0].emit('click', { latlng: { lat: 38.28, lng: -87.52 }, propagatedFrom: habitatAreas[0] });
+  habitatLines[0].emit('click', { latlng: { lat: 38.28, lng: -87.52 }, propagatedFrom: habitatLines[0] });
+  assert.deepEqual(selected, [], 'clicking a habitat feature selects nothing');
+
+  // THE ROAD INSIDE A VISIBLE WETLAND STAYS EXACTLY AS CLICKABLE AS IT WAS.
+  const corridor = calls.polylines.filter(path => path.attributes['data-corridor-id'] === CLICKED.id).at(-1);
+  assert.ok(corridor, 'the road is drawn through the habitat features');
+  assert.equal(corridor.options.interactive, true);
+  corridor.emit('click', { latlng: { lat: 38.28, lng: -87.5 }, propagatedFrom: corridor });
+  assert.deepEqual(selected, [CLICKED.id], 'the road under the wetland is the corridor that gets selected');
+  // And the buffer beside them is still its own third thing.
+  const buffers = calls.polygons.filter(path => path.attributes['data-role'] === 'habitat-buffer');
+  assert.equal(buffers.length, 1);
+  assert.equal(buffers[0].attributes['data-habitat-corridor-id'], CLICKED.id);
+  assert.ok(!('data-habitat-id' in buffers[0].attributes), 'buffer and source features are separate families');
+  map.handlers.click({ latlng: { lat: 38.28, lng: -87.5 }, propagatedFrom: corridor });
+  assert.deepEqual(selected, [CLICKED.id], 'and one click still selects one corridor');
+});
+
+test('habitat features join the overlay without moving the viewport', () => {
   const { leaflet, calls } = fakeLeaflet();
   const view = createGeoView({ style: {} }, { leaflet });
-  // The habitat overlay is handed over as *rows* today. A line among them is drawn exactly as it is now - the candidate
-  // role, no corridor id of its own - and a polygon is skipped, because the map paints lines only until the overlay slice
-  // types these rows. This test records the interim state so that slice can show what it changed.
-  view.draw({ corridors: [CLICKED], overlay: { candidateId: CLICKED.id, features: [
-    { layer: 'hydrography', sourceFeatureId: 'H1', label: 'Riverine',
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
+  const cameraBefore = view.camera();
+  const fitsBefore = view.fitCount();
+  const before = calls.polylines.length + calls.polygons.length;
+  // The habitat toggle arriving with an analysis: the buffer, the source features, and nothing else.
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, overlay: HABITAT_OVERLAY });
+  assert.ok(calls.polylines.length + calls.polygons.length > before, 'the habitat features are drawn');
+  assert.deepEqual(view.camera(), cameraBefore, 'turning the habitat layer on must not move the camera');
+  assert.equal(view.fitCount(), fitsBefore, 'and must not fit');
+  // Turning it off leaves the camera alone too, and takes the habitat geometry away with it.
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
+  assert.deepEqual(view.camera(), cameraBefore, 'turning it off must not move the camera either');
+  assert.equal(calls.polygons.filter(path => path.attributes['data-role'] === 'habitat-buffer').length, 1,
+    'and the buffer from the earlier draw is not drawn again');
+});
+
+test('an untyped row keeps the corridor-shaped handling, and never invents an identity', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  // The occurrence overlay is the one family still handed over as rows. A line among them is drawn exactly as it is now -
+  // the candidate role, and no corridor id of its own - and a polygon is skipped, because only a typed feature draws
+  // anything other than a line. This is the retained fallback, and this test is what keeps it honest until the
+  // occurrence family is migrated: an untyped row with no identity gets none.
+  view.draw({ corridors: [CLICKED], occurrenceOverlay: { candidateId: CLICKED.id, features: [
+    { layer: 'occurrence', sourceFeatureId: 'O1', label: 'Observation',
       geometry: { type: 'LineString', coordinates: [[-87.5, 38.3], [-87.45, 38.31]] } },
-    { layer: 'wetland', sourceFeatureId: 'W1', label: 'Freshwater Emergent Wetland',
+    { layer: 'occurrence', sourceFeatureId: 'O2',
       geometry: { type: 'Polygon', coordinates: [[[-87.55, 38.25], [-87.5, 38.25], [-87.5, 38.3], [-87.55, 38.25]]] } } ] } });
   const untyped = calls.polylines.filter(path => path.attributes['data-role'] === 'candidate'
     && path.attributes['data-corridor-id'] === undefined);
-  assert.equal(untyped.length, 1, 'the hydrography line is drawn the way it is today');
-  assert.ok(!('data-habitat-id' in untyped[0].attributes), 'and it is not yet a habitat feature');
-  assert.equal(calls.polygons.length, 0, 'the wetland polygon is not drawn: the map paints lines only today');
+  assert.equal(untyped.length, 1, 'the untyped line is drawn the way it is today');
+  assert.ok(!('data-habitat-id' in untyped[0].attributes), 'and it is not a habitat feature');
+  assert.equal(calls.polygons.length, 0, 'the untyped polygon is not drawn: only a typed feature draws an area');
   assert.ok(calls.polylines.some(path => path.attributes['data-corridor-id'] === CLICKED.id),
     'while the corridor beside it is drawn as a corridor');
 });
+
 
 
 

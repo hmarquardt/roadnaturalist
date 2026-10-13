@@ -166,6 +166,16 @@ export function searchFeatures(search) {
 const HABITAT_STYLE = Object.freeze({
   // The style the habitat buffer has always been described by in this project's stylesheet: cool, dashed, subordinate.
   buffer: Object.freeze({ color: '#3f7f8c', weight: 1.4, opacity: 0.75, dashArray: '6 4', fill: false }),
+  // A WETLAND IS AN AREA: a translucent green fill with a thin outline, so a wetland reads as ground the road crosses
+  // inside the analysis area, rather than as one more line among the roads.
+  wetland: Object.freeze({ color: '#2f6f5e', weight: 1, opacity: 0.8, fillColor: '#5da271', fillOpacity: 0.25,
+    fill: true }),
+  // A FLOWLINE IS A LINE: thin and cool, and deliberately not dashed - the dash already means the analysis outline, and
+  // a watercourse is not an outline.
+  flowline: Object.freeze({ color: '#0e7490', weight: 1.2, opacity: 0.8, fill: false }),
+  // A source row from a layer this build has not seen is still habitat, and is drawn as something plainly subordinate
+  // rather than assumed to be a road.
+  other: Object.freeze({ color: '#4b5563', weight: 1, opacity: 0.6, fill: false }),
 });
 
 export function habitatBufferFeature(overlay) {
@@ -175,6 +185,36 @@ export function habitatBufferFeature(overlay) {
   // no selector looking for a candidate can ever match a buffer.
   return Object.freeze({ kind: FEATURE_KIND.HABITAT_BUFFER, corridorId: overlay?.candidateId ?? null, geometry,
     label: null, style: HABITAT_STYLE.buffer });
+}
+
+// HABITAT SOURCE FEATURES, TYPED, WITH THEIR OWN IDENTITY.
+//
+// The habitat analysis hands over the source rows it measured - wetlands and flowlines - and each one becomes a feature of
+// its own kind here. That is the whole point of the type: a source feature can no longer reach the map as a row that
+// merely resembles a corridor, which is how these rows were drawn (candidate role, clickable) before the family existed.
+//
+// IDENTITY COMES FROM THE ROW, NOT FROM THE CORRIDOR: `<layer>:<sourceFeatureId>`, built from the layer the row was read
+// from and the source dataset's own feature id. Both fields travel with every row the query returns, and a row missing
+// either is reported in `unidentified` rather than given a made-up name - an invented identity would be indistinguishable
+// from a real one downstream, and would attribute a wetland to something it is not.
+export function habitatIdentity(row) {
+  const layer = typeof row?.layer === 'string' && row.layer.length ? row.layer : null;
+  const source = row?.sourceFeatureId == null ? null : String(row.sourceFeatureId);
+  return layer && source && source.length ? `${layer}:${source}` : null;
+}
+
+export function habitatFeatures(overlay) {
+  const features = [];
+  const unidentified = [];
+  for (const row of overlay?.features ?? []) {
+    const habitatId = habitatIdentity(row);
+    if (!habitatId) { unidentified.push(row); continue; }
+    features.push(Object.freeze({ kind: FEATURE_KIND.HABITAT, habitatId, layer: row.layer,
+      sourceFeatureId: String(row.sourceFeatureId), label: row.label ?? null, geometry: row.geometry ?? null,
+      // The style follows the layer the row came from; an unknown layer is drawn plainly, never as a road.
+      style: HABITAT_STYLE[row.layer] ?? HABITAT_STYLE.other }));
+  }
+  return Object.freeze({ features: Object.freeze(features), unidentified: Object.freeze(unidentified) });
 }
 
 export function featureShape(geometry) {
@@ -392,14 +432,19 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       if (corridor.saved) return LINE_STYLE.saved;
       return LINE_STYLE.normal;
     }
-    // ONE PAINT PATH, AND TODAY IT PAINTS WHAT TODAY DRAWS. A typed feature says what it is - its identity, geometry and
-    // style - and the tables above say how it is marked and whether it can be clicked. The habitat and occurrence
-    // overlays are still handed over as rows that have not been typed yet, so those rows keep the corridor-shaped
-    // handling they have today; typing them is the next slice, and until then their DOM is what it was.
+    // ONE PAINT PATH, AND IT PAINTS WHAT DRAWS. A typed feature says what it is - its identity, geometry and style - and
+    // the tables above say how it is marked and whether it can be clicked: corridors, the search geometry, the habitat
+    // buffer and the habitat source features all arrive typed.
+    //
+    // THE UNTYPED ROW PATH IS RETAINED FOR EXACTLY ONE CALLER. The occurrence overlay still hands over rows without a
+    // kind (`paint(layers.occurrence, occurrenceOverlay?.features ?? [])` in draw), so the fallback stays until that
+    // family is migrated - removing it now would silently stop drawing occurrences. What it may never do again is carry a
+    // row that *is* a known family, which is why the habitat rows stopped coming through it, and a row it does carry
+    // gets no identity it does not have: with no `id` there is no `data-corridor-id`, which the tests pin.
     //
     // Nothing else about today's drawing changes: the same line geometry, the same layer, the same interactive
     // behaviour, the same click handler, the same card, the same marks, the same draw order. Only the line shape is
-    // painted - a polygon row is skipped exactly as it is today - and pick mode still keeps precedence.
+    // painted for an untyped row - a polygon row among them is skipped - and pick mode still keeps precedence.
     function paint(layer, entries) {
       layer.clearLayers();
       // The cards follow the layers: a path that is no longer drawn cannot show a card.
@@ -444,7 +489,10 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
           // which is what opens the corridor's card, so a selection would silently lose its explanation. Bubbling is
           // left intact instead; the map handler recognises the line's identity on `propagatedFrom` and declines to
           // answer a click that has already been answered.
-          path.corridorId = feature.corridorId;
+          // ONLY A KIND THAT CAN BE CLICKED CARRIES A CORRIDOR ON ITS PATH. The map-level handler reads this identity to
+          // decide whether a click has already been answered, so a feature with no corridor to name must not appear to
+          // name one - not even as `undefined`.
+          if (contract.clickable) path.corridorId = feature.corridorId;
           if (contract.clickable && typeof path.on === 'function') {
             path.on('click', () => {
               if (pickMode) return;
@@ -502,11 +550,13 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         // drawn twice simply because it is both a candidate and saved.
         const visible = new Set(corridors.map(corridor => corridor.id));
         paint(layers.saved, savedRoads.filter(road => !visible.has(road.id)));
-        // THE HABITAT OVERLAY: the analysis buffer first, then the source rows as they are handed over today. The buffer
-        // is a typed feature and is drawn under the roads (the results layer is repainted after this, in setSelected), so
-        // it can frame the corridor without covering it or its selection styling.
+        // THE HABITAT OVERLAY: the analysis buffer first, then the typed source features. The buffer is a typed feature
+        // and is drawn under the roads (the results layer is repainted after this, in setSelected), so it can frame the
+        // corridor without covering it or its selection styling; the source features are typed for the same reason.
         const buffer = habitatBufferFeature(overlay);
-        paint(layers.overlay, [...(buffer ? [buffer] : []), ...(overlay?.features ?? [])]);
+        // THE SOURCE FEATURES NO LONGER ARRIVE AS ROWS. Each is a habitat feature with its own identity, so a wetland
+        // cannot be drawn as a candidate-shaped line and cannot be clicked into a selection.
+        paint(layers.overlay, [...(buffer ? [buffer] : []), ...habitatFeatures(overlay).features]);
         paint(layers.occurrence, occurrenceOverlay?.features ?? []);
         if (search !== undefined) setSearch(search);
         view.setSelected(selectedId);
