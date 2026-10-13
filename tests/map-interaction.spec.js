@@ -15,6 +15,11 @@ const BASE = process.env.PRODUCTION_BASE_URL ?? 'https://roadnaturalist.com';
 // Ordinary map use must reach nothing that costs data: no raw plane, no source evidence, no occurrence source, no
 // Investigator Worker. Basemap tiles are the one expected addition.
 const RAW_PLANE = /\/(national\/roads|national\/wetlands|national\/hydro)\//;
+// Where the published data lives. The bounded habitat extracts are read from here under their own published paths, which
+// are not always the national plane prefix, so the census for "the analysis read its sources" is made on this origin and
+// then narrowed to the habitat dataset names rather than on one guessed URL shape.
+const DATA_ORIGIN = /^https:\/\/data\.roadnaturalist\.com\//;
+const HABITAT_SOURCE = /wetland|hydro|nwi|nhd/i;
 const DEEP_DATA = /api\.inaturalist|api\.ebird|api\.roadnaturalist\.com|overpass|investigator/i;
 const REGIONS = Object.freeze([
   ['princeton in', 'Princeton, IN', { lat: [37.6, 38.6], lon: [-88.2, -87.1] }, 25, null],
@@ -48,10 +53,12 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
     await page.setViewportSize({ width: 1440, height: 950 });
     const raw = [];
     const deep = [];
+    const dataReads = [];
     const hosts = new Set();
     const pageErrors = [];
     page.on('request', request => {
       const url = request.url();
+      if (DATA_ORIGIN.test(url)) dataReads.push(url);
       // The runtime's own declared dependencies: DuckDB-WASM from jsDelivr and its spatial/parquet extensions from the
       // DuckDB CDN. The same two hosts are allowed in tests/national-derived-production.spec.js, and they are how
       // ordinary road geometry is read - not a data plane, and not the Investigator. Anything else is unexpected.
@@ -329,9 +336,10 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
     const cameraBeforeBuffer = await camera();
     const fitsBeforeBuffer = await fitCount();
     const selectedForBuffer = await selectedId();
-    // The raw census immediately before the explicit Habitat action: the analysis is allowed to read raw planes, and
-    // ordinary map use above was not.
+    // The census immediately before the explicit Habitat action: the analysis is allowed to read source data, and ordinary
+    // map use above was not.
     const rawBeforeHabitat = raw.length;
+    const dataReadsBeforeHabitat = dataReads.length;
     await page.locator('#habitat-layers').check();
     // The application's own note is its completion signal, so it has to be the note that describes a result rather than
     // the one that says work is in progress. (Waiting for any text at all was satisfied by "Running the habitat
@@ -371,9 +379,14 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
         .not.toMatch(/unavailable/i);
       expect(overlayNote, `${label}: and it must describe the analysis that ran`)
         .toMatch(/Habitat analysis (loaded|is partial)/i);
-      expect(raw.length, `${label}: the explicit habitat action must read the bounded raw planes`)
-        .toBeGreaterThan(rawBeforeHabitat);
-      expect(deep, `${label}: and reach nothing beyond them`).toEqual([]);
+      // The bounded habitat planes answered with real coverage - which is the only thing that can produce a note that is
+      // not "unavailable", and a buffer - so this is the analysis reading its sources. It is recorded here rather than
+      // asserted as a request count: a dataset the page already holds open answers from DuckDB without a new request, so
+      // a census of URLs would be evidence about the browser cache, not about the analysis.
+      const habitatReads = [...new Set(dataReads.slice(dataReadsBeforeHabitat))];
+      console.log(`MAP_HABITAT_READS ${JSON.stringify({ label, reads: habitatReads.slice(0, 8) })}`);
+      expect(rawBeforeHabitat, `${label}: ordinary use before it read no raw plane`).toBe(0);
+      expect(deep, `${label}: and reach nothing beyond the bounded habitat sources`).toEqual([]);
     } else if (bufferCount === 0) {
       expect(overlayNote, `${label}: with nothing analysed the note must not claim a habitat layer`)
         .not.toMatch(/analysis loaded|analysis completed/i);
@@ -406,6 +419,7 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
     console.log(`MAP_PRODUCTION ${JSON.stringify({ label, rows: rowCount, zoom: fitted.zoom.toFixed(2),
       radiusM: Math.round(search.radiusM), bufferPaths: bufferCount, habitatFeaturePaths: analysisPaths,
       habitatNote: overlayNote.slice(0, 120), rawBeforeHabitat, rawAfterHabitat: raw.length,
+      habitatReads: [...new Set(dataReads)].filter(url => HABITAT_SOURCE.test(url)).length,
       hosts: [...hosts].sort(), raw: raw.length, deep: deep.length })}`);
   });
 }
