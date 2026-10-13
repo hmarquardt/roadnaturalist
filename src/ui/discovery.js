@@ -1,5 +1,5 @@
 import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
-import { DEFAULT_SORT_NOTE, SORT_OPTIONS, WETLAND_FILTERS, coverageFlag, ecoregionOptions, filterAndSort } from '../discovery/filter.js';
+import { SORT_HELP, SORT_OPTIONS, WETLAND_FILTERS, coverageFlag, ecoregionOptions, filterAndSort, sortNote } from '../discovery/filter.js';
 import { DISCOVERY_STATUS } from '../discovery/lifecycle.js';
 import { DISCOVERY_DISPOSITION } from '../discovery/eligibility.js';
 import { MAX_RESULT_ROWS, SEGMENTED_ROAD_NOTE } from '../discovery/constants.js';
@@ -55,7 +55,7 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
     const view = filterAndSort(discovery.results, discovery.filters, discovery.sort, { radiusM });
     container.append(toolbar({ discovery, results: discovery.results, view, onFilters, onSort }));
     container.append(resultTable(view, discovery, onSelect));
-    container.append(el('p', 'discovery-note', DEFAULT_SORT_NOTE));
+    container.append(el('p', 'discovery-note', sortNote(discovery.sort, { radiusM })));
     container.append(el('p', 'discovery-note', SEGMENTED_ROAD_NOTE));
   } else if (discovery.status === 'ready') {
     container.append(el('p', 'discovery-note', 'No discovery corridor was proposed in this search area. That is a result about the declared filters and data coverage, not a statement about the roads on the ground.'));
@@ -689,6 +689,12 @@ function toolbar({ discovery, results, view, onFilters, onSort }) {
   form.append(sortField);
   const wrapper = el('div', 'discovery-toolbar');
   wrapper.append(form, el('p', 'discovery-count', `${view.length} of ${results.length} corridor(s) shown`));
+  // THE TWO ORDERINGS, EXPLAINED ONCE, BESIDE THE CONTROL. Their option labels stay short because the menu is a
+  // control, not a paragraph; this line is where a person can tell them apart without switching between them. It is
+  // derived from the model's own help text, so the menu and the explanation cannot drift apart.
+  wrapper.append(el('p', 'discovery-note discovery-sort-help',
+    Object.entries(SORT_HELP).map(([key, text]) =>
+      `${SORT_OPTIONS.find(option => option.key === key)?.label ?? key}: ${text}`).join(' ')));
   return wrapper;
 }
 

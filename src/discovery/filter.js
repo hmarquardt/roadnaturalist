@@ -19,22 +19,60 @@ export const SORT_OPTIONS = Object.freeze([
   // The two orderings that are not raw measured values, listed last and named as orders rather than measurements so
   // neither can be mistaken for one. They answer different questions: `naturalistInterest` scores the mapped
   // environmental context and does not change with the search centre; `explorationOrder` adjusts that score by
-  // distance from the search centre, so the list leads with roads it is practical to consider first.
+  // distance from the search centre, so the list leads with roads it is practical to consider first. Their labels
+  // stay short; the meaning of each is explained beside the control (see SORT_HELP).
   Object.freeze({ key: 'naturalistInterest', label: 'Naturalist interest', unit: 'score',
     direction: 'desc', heuristic: true, version: naturalistInterest({}).version }),
-  Object.freeze({ key: 'explorationOrder', label: 'Exploration order (interest + distance from your centre)',
-    unit: 'score', direction: 'desc', heuristic: true, version: EXPLORATION_ORDER_VERSION }),
+  Object.freeze({ key: 'explorationOrder', label: 'Exploration order', unit: 'score',
+    direction: 'desc', heuristic: true, version: EXPLORATION_ORDER_VERSION }),
 ]);
+
+// THE PRODUCT DEFAULT, IN ONE PLACE. A search is a request to find roads worth considering *from where the person
+// searched*, so the table leads with the distance-aware exploration order: mapped naturalist interest with a
+// bounded, radius-normalized preference for roads that are closer to the centre. `naturalistInterest` remains the
+// centre-independent environmental-context order, and every factual sort is untouched. A declared box search has no
+// centre, so the exploration order honestly reduces to the interest score there rather than inventing a distance.
+export const DEFAULT_SORT = 'explorationOrder';
+
+// The baseline the ranking evaluation compares against. It is deliberately NOT the product default: the committed
+// evaluations (`data/ranking/naturalist-interest-v1-evaluation.json` and its v2 successor) measured the interest
+// order against this measured-value baseline, and re-pointing it would silently rewrite that history. See
+// docs/RANKING-DECISION.md.
+export const EVALUATION_BASELINE_SORT = 'wetlandArea250';
+
+// What each heuristic ordering means, said once and shown beside the control. A factual sort needs no help: its
+// label names the value it orders by and its unit is in the option.
+export const SORT_HELP = Object.freeze({
+  explorationOrder: 'Balances mapped naturalist interest with distance from your search centre.',
+  naturalistInterest: 'Uses mapped wetlands, water and ecological variety without considering distance.',
+});
+
+// The line under the results. It follows the ordering that is actually active, and it never calls a heuristic a
+// measurement or the other way round.
+export function sortNote(sortKey = DEFAULT_SORT, { radiusM = null } = {}) {
+  if (sortKey === 'explorationOrder') {
+    const because = radiusM == null
+      ? 'This search declares no centre, so no distance is considered.'
+      : 'Roads closer to your search centre are preferred, modestly: distance can settle a near tie but never bury a '
+        + 'clearly more interesting road.';
+    return 'Roads are ordered by mapped naturalist interest with a bounded preference for roads closer to your '
+      + `search centre. ${because} This is an exploration heuristic, not a wildlife prediction, an access `
+      + 'recommendation, or a drivability assessment.';
+  }
+  if (sortKey === 'naturalistInterest') {
+    return 'Roads are ordered by mapped naturalist interest alone - mapped wetlands, water and ecological variety - '
+      + 'with the search centre not considered. It is not a wildlife prediction, an access or safety statement, or a '
+      + 'claim that one road is better.';
+  }
+  return 'The table is ordered by one measured value. It is not a ranking, a score, or a statement that the first '
+    + 'road is better than the last.';
+}
 
 // Shown wherever the interest score is offered, so the claim is never implicit.
 export const NATURALIST_INTEREST_NOTE = 'A score for the mapped naturalist-interest signals around a corridor - '
   + 'wetland area at the analysis distances, proximity to water, mapped crossings, and ecological variety. It does '
   + 'not change with your search centre. It is not a wildlife prediction, an access or safety statement, or a claim '
   + 'that one road is better.';
-export const DEFAULT_SORT = 'wetlandArea250';
-export const DEFAULT_SORT_NOTE = 'Display default only: it orders the table by one measured value. '
-  + 'It is not a ranking, a score, or a statement that the first road is better than the last.';
-
 export const DEFAULT_FILTERS = Object.freeze({
   minLengthMi: null, maxLengthMi: null, roadClasses: Object.freeze([]), wetland: 'any',
   maxNearestWetlandM: null, minCrossings: null, ecoregion: null,

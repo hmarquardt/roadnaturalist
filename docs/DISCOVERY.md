@@ -31,6 +31,11 @@ interesting road, and it is normalized by the radius the search asked for, so 20
 treated as 20 miles in a 25-mile search. A search with no centre - a declared box - has no distance, and the order
 falls back to the interest score. See `docs/EXPLORATION-ORDER-EVALUATION.md`.
 
+**The results table leads with `Exploration order`.** It is the product default because a search is a request to find
+roads worth considering *from where the person searched*; `Naturalist interest` is offered beside it as the
+centre-independent view, and every factual sort is unchanged. A declared box search has no centre, so the default
+there reduces to the interest order and the results line says exactly that rather than implying a distance.
+
 **Version boundary.** `naturalist-interest-v1` was evaluated across eight U.S. regions while the derived reader
 reported every corridor as two ecoregions with no transitions, so its ecological-variety component was a constant.
 The weights and transforms never changed; the version is `v2` because the corrected ecology *inputs* move the order,

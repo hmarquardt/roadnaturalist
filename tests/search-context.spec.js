@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+import { DEFAULT_SORT } from '../src/discovery/filter.js';
+
 // SEARCH CONTEXT in the browser: the label a centre gets (a chosen place, the nearest published place, or the
 // coordinates), and the measured distance and direction every discovered corridor reports from that centre.
 //
@@ -196,7 +198,7 @@ test('sorting by distance from the center is explicit, deterministic and off by 
   await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 180000 });
   await expect(page.locator('#discovery-sort option[value="distanceFromCenter"]')).toHaveText('Distance from center (m)');
   expect(await page.locator('#discovery-sort').inputValue()).not.toBe('distanceFromCenter');
-  expect(await page.locator('#discovery-sort').inputValue()).toBe('wetlandArea250');
+  expect(await page.locator('#discovery-sort').inputValue()).toBe(DEFAULT_SORT);
   await page.locator('#discovery-sort').selectOption('distanceFromCenter');
   const cells = await distanceCells(page);
   const miles = cells.map(milesOf);

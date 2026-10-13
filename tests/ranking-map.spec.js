@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 
 import { RANKING_VERSION } from '../src/discovery/ranking.js';
 import { EXPLORATION_ORDER_VERSION } from '../src/discovery/exploration-order.js';
+import { DEFAULT_SORT } from '../src/discovery/filter.js';
+import { cameraOf } from './map-contract.js';
 
 // A QUALITATIVE SANITY CHECK OF THE EXPLORATION ORDER ON THE REAL MAP.
 //
@@ -63,20 +65,24 @@ for (const id of REGIONS) {
     await page.locator('#discover-roads').click();
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
 
-    // Order by the exploration heuristic, exactly as a person would.
-    await page.locator('#discovery-sort').selectOption('naturalistInterest');
-    const shown = await page.locator('#discovery-results tbody tr').evaluateAll(rows =>
-      rows.slice(0, 10).map(row => ({ id: row.dataset.candidateId, text: row.innerText.split('\n')[0] })));
+    const camera = () => cameraOf(page);
+    const rows = () => page.locator('#discovery-results tbody tr').evaluateAll(nodes =>
+      nodes.slice(0, 10).map(row => ({ id: row.dataset.candidateId, text: row.innerText.split('\n')[0] })));
+
+    // ---------------------------------------------------------------- a fresh search leads with the default
+    // THE DEFAULT IS THE EXPLORATION ORDER, and it is already selected without anyone choosing it.
+    const sortSelect = page.locator('#discovery-sort');
+    await expect(sortSelect).toHaveValue(DEFAULT_SORT);
+    const order = orderArtifact().regions.find(entry => entry.id === id);
+    expect(order, `the exploration evaluation must include ${id}`).toBeTruthy();
+    const expectedOrder = order.selected.order.map(entry => entry.corridorId);
+    const shown = await rows();
     expect(shown.length).toBeGreaterThan(0);
-    const expected = region.comparison.interest.map(entry => entry.corridorId);
-    console.log(`RANKING_MAP ${id} ${JSON.stringify(shown)}`);
-    console.log(`RANKING_MAP_EXPECTED ${id} ${JSON.stringify(expected)}`);
+    console.log(`RANKING_MAP_DEFAULT ${id} ${JSON.stringify(shown)}`);
+    expect(shown.map(row => row.id)).toEqual(expectedOrder.slice(0, shown.length));
 
-    // THE SHIPPED ORDER IS THE EVALUATED ORDER. Same ids, same sequence, for the top of the list.
-    expect(shown.map(row => row.id)).toEqual(expected.slice(0, shown.length));
-
-    // AND THE MAP DRAWS THEM. Every top-ranked corridor has candidate geometry on the map - a list entry the map
-    // never drew would be the listing and the map disagreeing about what the search found. Existence, not viewport
+    // THE MAP DRAWS THEM. Every top-ranked corridor has candidate geometry on the map - a list entry the map never
+    // drew would be the listing and the map disagreeing about what the search found. Existence, not viewport
     // visibility: the camera covers the whole result set, and an individual short segment can still sit at the SVG
     // edge, but the element being present is the synchronisation claim.
     const drawnIds = await page.locator('#map path[data-role="candidate"][data-corridor-id]')
@@ -87,18 +93,6 @@ for (const id of REGIONS) {
     // A degenerate list would repeat one corridor; the order must name several distinct roads.
     expect(new Set(shown.map(row => row.id)).size).toBe(shown.length);
 
-    // ---------------------------------------------------------------- the distance-aware exploration order
-    // The same search, ordered the second way. `explorationOrder` is the interest score adjusted by distance from
-    // the search centre, and the shipped list must be the one the evaluation measured.
-    const order = orderArtifact().regions.find(entry => entry.id === id);
-    expect(order, `the exploration evaluation must include ${id}`).toBeTruthy();
-    await page.locator('#discovery-sort').selectOption('explorationOrder');
-    const ordered = await page.locator('#discovery-results tbody tr').evaluateAll(rows =>
-      rows.slice(0, 10).map(row => row.dataset.candidateId));
-    const expectedOrder = order.selected.order.map(entry => entry.corridorId);
-    console.log(`RANKING_MAP_ORDER ${id} ${JSON.stringify(ordered)}`);
-    expect(ordered).toEqual(expectedOrder.slice(0, ordered.length));
-
     // PORTLAND: the rim bias the evaluation found is gone in the shipped list. The distance-aware order's median
     // top-10 distance is materially below the interest order's, which is the whole point of the transform.
     if (id === 'portland-or') {
@@ -106,6 +100,22 @@ for (const id of REGIONS) {
       const orderMedian = order.candidates[order.selectedCandidate].metrics.distanceAfter.median;
       expect(orderMedian).toBeLessThan(interestMedian / 2);
     }
+
+    // ---------------------------------------------------------------- switching sorts changes only the order
+    // CHOOSING THE INTEREST ORDER STILL WORKS, and it matches the committed interest evaluation.
+    const before = await camera();
+    await sortSelect.selectOption('naturalistInterest');
+    const interest = await rows();
+    const expectedInterest = region.comparison.interest.map(entry => entry.corridorId);
+    console.log(`RANKING_MAP_INTEREST ${id} ${JSON.stringify(interest.map(row => row.id))}`);
+    expect(interest.map(row => row.id)).toEqual(expectedInterest.slice(0, interest.length));
+    expect(await camera(), 'changing the sort must not move the camera').toEqual(before);
+
+    // SWITCHING BACK RESTORES THE DEFAULT ORDER, and the camera still has not moved.
+    await sortSelect.selectOption(DEFAULT_SORT);
+    const restored = await rows();
+    expect(restored.map(row => row.id)).toEqual(expectedOrder.slice(0, restored.length));
+    expect(await camera(), 'changing the sort back must not move the camera either').toEqual(before);
 
     // BOTH SCORES ARE ON SCREEN, and the selection panel never labels one as the other.
     await page.locator('#discovery-results tbody tr').first().locator('.discovery-row').click();

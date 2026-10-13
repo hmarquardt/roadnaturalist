@@ -288,3 +288,45 @@ it is a *different* order from the one the product has shipped, and the product 
 "most interesting" or "sensible to consider first"?) is a product decision, not a measurement. Both orderings are
 offered side by side, and neither is presented as the other.
 
+
+---
+
+# Decision: `Exploration order` is the default sort
+
+The exploration-order evaluation above clears the bar the v2 evaluation set, so the product default moves: a normal
+centre/radius search now leads with **Exploration order**, and **Naturalist interest** stays beside it as the
+centre-independent environmental-context view. Every factual sort is unchanged.
+
+**Why, in the measured numbers.** Across the same eight regions the order cuts the median top-10 distance from
+18.13 mi to 10.13 mi (8/8 regions closer), keeps **98–100%** of the naturalist-interest quality (worst region −1.52
+points), keeps the interest's first road inside the top ten in 7 of 8 regions, and settles near ties toward the
+nearer road 83% of the time. Portland - the case that motivated the work - goes from a 24.20 mi median to 10.64 mi.
+No centre-hugging, no rim cliff, and no strong-road suppression beyond one honest near tie (Evansville: a 1.9-point
+swap inside a 3.5-point band).
+
+**What changed: one constant.** `DEFAULT_SORT` in `src/discovery/filter.js` is the single authoritative default and
+now names `explorationOrder`; the store and `sortResults` already read it, so nothing else needed a default. Two
+things were deliberately *not* changed:
+
+* **No ranking math.** `naturalist-interest-v2` and `exploration-order-v1` are untouched - same weights, transforms,
+  components and distance penalty. Regenerating both evaluations from this code reproduces the committed artifacts
+  exactly.
+* **The evaluation baseline did not follow the default.** `EVALUATION_BASELINE_SORT` is now its own constant
+  (`wetlandArea250`), because the committed v1 and v2 evaluations were measured *against* that baseline and
+  re-pointing it would silently rewrite published history.
+
+**A search with no centre.** A declared box/region search has no centre, so the exploration order honestly reduces to
+the interest score rather than inventing a distance - and the line under the results says so ("This search declares
+no centre, so no distance is considered") instead of implying one.
+
+**Persistence audit.** Discovery sorts are **not persisted and are not in the URL**: `src/discovery/persistence.js`
+remembers promoted/dismissed marks, the last search definition and the search history, and nothing else. So a fresh
+load takes the new default; an explicit choice lasts the session and is never pushed back to the default by a run or
+a re-render; there is no stored or URL sort to honour; and there is nothing to migrate. A test asserts the absence of
+a persisted sort key so the audit stays true.
+
+**Copy.** The two options are named exactly `Exploration order` and `Naturalist interest`, with the meaning of each
+said once beside the control (derived from the model's own help text), and the line under the table follows the
+active ordering - a heuristic is never described as a measurement, and a measurement is never described as a
+heuristic.
+

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { RANKING_VERSION, RANKING_WEIGHTS, naturalistInterest } from '../src/discovery/ranking.js';
-import { DEFAULT_SORT } from '../src/discovery/filter.js';
+import { DEFAULT_SORT, EVALUATION_BASELINE_SORT } from '../src/discovery/filter.js';
 import { BASELINE_SORT, compareOrderings, compareVersions, evaluateRegion, evaluationRow,
   rankingEvaluationArtifact, RANKING_EVALUATION_KIND, topUnder } from '../src/discovery/ranking-evaluation.js';
 
@@ -55,9 +55,11 @@ test('the evaluation is deterministic and carries the ranking version it is abou
   const artifact = rankingEvaluationArtifact({ regions: [evaluateRegion({ id: 'x', name: 'X', center: [0, 0],
     radiusMiles: 25, results: fixture(), topN: 4 })], radiusMiles: 25, topN: 4, generatedAt: 'fixed' });
   assert.equal(artifact.rankingVersion, RANKING_VERSION);
-  assert.equal(artifact.baselineKey, BASELINE_SORT);
-  assert.equal(artifact.baselineKey, DEFAULT_SORT, 'the baseline is the product default, named once');
+  assert.equal(artifact.baselineKey, EVALUATION_BASELINE_SORT, 'the baseline is the evaluation baseline, named once');
   assert.equal(artifact.baselineKey, 'wetlandArea250');
+  assert.notEqual(EVALUATION_BASELINE_SORT, DEFAULT_SORT,
+    'the evaluation baseline is not the product default: the committed evaluations were measured against it, and '
+    + 're-pointing it would rewrite that history');
 });
 
 test('the top-N is stable for a fixed fixture and independent of input order', () => {

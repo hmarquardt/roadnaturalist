@@ -1,5 +1,5 @@
 import { RANKING_VERSION, naturalistInterest, rankResults } from './ranking.js';
-import { DEFAULT_SORT, sortResults } from './filter.js';
+import { EVALUATION_BASELINE_SORT, sortResults } from './filter.js';
 import { DEFAULT_DISTANCE_TRANSFORM, DISTANCE_TRANSFORMS, EXPLORATION_ORDER_VERSION, TRANSFORM_KEYS,
   explorationOrder, rankExploration } from './exploration-order.js';
 
@@ -124,8 +124,10 @@ export function compareOrderings(results, { topN = 10, baselineKey = BASELINE_SO
 }
 
 
-// Which baseline the default ordering is: named here, once, so the evaluation and the product cannot drift.
-export const BASELINE_SORT = DEFAULT_SORT;
+// Which baseline the evaluation compares against: the measured-value default the committed v1 and v2 evaluations
+// were measured against. It is NOT the product default (that is the exploration order) and must not follow it, or
+// the history in the artifacts would no longer be reproducible.
+export const BASELINE_SORT = EVALUATION_BASELINE_SORT;
 
 // ---------------------------------------------------------------- pathology probes
 // Each probe answers one of the failure classes the model claims to avoid, from the results themselves. A probe

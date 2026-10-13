@@ -6,7 +6,7 @@ import { buildDiscoveryUnits, normalizeRoadName } from '../src/discovery/units.j
 import { segmentationCount, segmentUnit } from '../src/discovery/segment.js';
 import { MIN_CORRIDOR_M, TARGET_CORRIDOR_M, MAX_CORRIDOR_M, MAX_RESULT_ROWS, JOIN_TOLERANCE_M } from '../src/discovery/constants.js';
 import { endpointGapM } from '../src/roads/normalize.js';
-import { DEFAULT_SORT, DEFAULT_SORT_NOTE, coverageFlag, filterResults, sortResults, SORT_OPTIONS } from '../src/discovery/filter.js';
+import { DEFAULT_SORT, coverageFlag, filterResults, sortNote, sortResults, SORT_OPTIONS } from '../src/discovery/filter.js';
 import { combineDiscoveryCoverage, summarizeDiscoveryCoverage } from '../src/discovery/coverage.js';
 import { buildDiscoveryResult } from '../src/discovery/signals.js';
 import { DISCOVERY_STATUS, NO_DECLARED_SOURCES, applyMarks, markDiscovery, normalizeMarks, promoteDiscoveryResult, statusFor } from '../src/discovery/lifecycle.js';
@@ -379,11 +379,22 @@ test('sorts are explicit measured dimensions, and unknown values sort last', () 
   for (const option of SORT_OPTIONS.filter(entry => entry.unit)) assert.ok(option.unit.length > 0);
 });
 
-test('the default ordering is a display default, not a recommendation', () => {
+test('the default ordering is the exploration order, and it is labelled as a heuristic rather than a measurement', () => {
   const results = sortableResults();
-  assert.equal(sortResults(results).map(result => result.id).join(','), sortResults(results, DEFAULT_SORT).map(result => result.id).join(','));
-  assert.match(DEFAULT_SORT_NOTE, /Display default only/);
-  assert.match(DEFAULT_SORT_NOTE, /not a ranking/);
+  assert.equal(DEFAULT_SORT, 'explorationOrder');
+  assert.equal(sortResults(results).map(result => result.id).join(','),
+    sortResults(results, DEFAULT_SORT).map(result => result.id).join(','), 'the no-argument sort is the default sort');
+  // The note follows the ordering that is actually active: the default is a heuristic and says so, a factual sort is
+  // a measurement and says that instead - and neither is ever described as the other.
+  assert.match(sortNote('explorationOrder'), /exploration heuristic/);
+  assert.match(sortNote('explorationOrder'), /not a wildlife prediction/);
+  assert.match(sortNote('explorationOrder', { radiusM: null }), /declares no centre/,
+    'a search with no centre says that no distance is considered');
+  assert.match(sortNote('explorationOrder', { radiusM: 40_000 }), /closer to your search centre/);
+  assert.match(sortNote('naturalistInterest'), /search centre not considered/);
+  assert.match(sortNote('wetlandArea250'), /one measured value/);
+  assert.match(sortNote('wetlandArea250'), /not a ranking/);
+  assert.doesNotMatch(sortNote('wetlandArea250'), /heuristic/);
 });
 
 
