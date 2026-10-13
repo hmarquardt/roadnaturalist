@@ -142,6 +142,14 @@ export function resolveSearchArea(area) {
   return Object.freeze({ ...area, bbox: searchAreaBounds(area), radiusM: area.kind === 'radius' ? area.radiusMiles * METRES_PER_MILE : null });
 }
 
+// The radius a search actually asked for, in metres; null when the area declares no radius (a declared box search).
+// This is the denominator the exploration order normalises distance against, so it is derived in exactly one place.
+// It does not throw on a malformed area: a search with no usable radius simply has no distance term.
+export function requestedRadiusM(area) {
+  if (area?.kind !== 'radius' || !Number.isFinite(area.radiusMiles) || area.radiusMiles <= 0) return null;
+  return area.radiusMiles * METRES_PER_MILE;
+}
+
 export function searchAreaById(declaration, id) {
   const area = declaration?.searchAreas?.find(entry => entry.id === id);
   if (!area) throw new TypeError(`Unknown search area: ${id}`);

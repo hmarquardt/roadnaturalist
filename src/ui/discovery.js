@@ -8,6 +8,9 @@ import { CUSTOM_SEARCH_AREA_ID, DEFAULT_RADIUS_MILES, MAX_RADIUS_MILES, MIN_RADI
   searchRefusal, searchRegionCoverage, storedDefinition } from '../discovery/search-definition.js';
 import { parsePlaceQuery, placeDetail, placeLabel, placeTypeLabel, searchPlaces, nearestPlace } from '../discovery/place-gazetteer.js';
 import { CENTER_LABEL_KIND, CONTEXT_NOTE, centerPresentation, formatContextDistance, formatContextDirection, runCenterPresentation } from '../discovery/search-context.js';
+import { requestedRadiusM } from '../discovery/search-area.js';
+import { naturalistInterest } from '../discovery/ranking.js';
+import { EXPLORATION_ORDER_NOTE, explorationOrder } from '../discovery/exploration-order.js';
 import { LOCATION_STATUS, accuracyLabel } from '../discovery/geolocation.js';
 import { formatArea, formatDistance, formatLength } from './render.js';
 
@@ -27,6 +30,9 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
   onFilters, onSort, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace,
   onUseLocation, locationSupported = false } = {}) {
   container.replaceChildren();
+  // The radius this run asked for, in metres. The exploration order normalises distance against it, and the panel
+  // shows it beside the two scores; a declared box search has none, so the order falls back to the interest score.
+  const radiusM = requestedRadiusM(discovery.searchArea);
   container.append(controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, loadPlaceTier,
     onDiscover, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation,
     locationSupported }));
@@ -46,7 +52,7 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
   if (stale) container.append(el('p', 'discovery-note', stale));
   const selected = discovery.selectedId ? discovery.results.find(result => result.id === discovery.selectedId) : null;
   if (discovery.status === 'ready' && discovery.results.length) {
-    const view = filterAndSort(discovery.results, discovery.filters, discovery.sort);
+    const view = filterAndSort(discovery.results, discovery.filters, discovery.sort, { radiusM });
     container.append(toolbar({ discovery, results: discovery.results, view, onFilters, onSort }));
     container.append(resultTable(view, discovery, onSelect));
     container.append(el('p', 'discovery-note', DEFAULT_SORT_NOTE));
@@ -54,7 +60,7 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
   } else if (discovery.status === 'ready') {
     container.append(el('p', 'discovery-note', 'No discovery corridor was proposed in this search area. That is a result about the declared filters and data coverage, not a statement about the roads on the ground.'));
   }
-  if (selected) container.append(selectedResult(selected, { onPromote, onDismiss, onSelect }));
+  if (selected) container.append(selectedResult(selected, { onPromote, onDismiss, onSelect, radiusM }));
   return container;
 }
 
@@ -757,13 +763,22 @@ function analyticalGeometryLine(facts) {
   return `Minor topology repair applied (${facts.method}): canonical road geometry preserved, nothing moved${removed}`;
 }
 
-function selectedResult(result, { onPromote, onDismiss, onSelect }) {
+function selectedResult(result, { onPromote, onDismiss, onSelect, radiusM = null }) {
   const block = el('div', 'discovery-selected');
   block.id = 'discovery-selected';
   block.append(el('span', 'eyebrow', 'Selected discovery corridor'));
   block.append(el('h3', null, `${result.name} (${result.id})`));
   const facts = el('dl', 'coverage-list discovery-facts');
+  // BOTH SCORES, SIDE BY SIDE. Naturalist interest is the mapped-context score and does not depend on where the
+  // search was made; the exploration order is that same score adjusted by distance from the search centre. Neither
+  // is ever labelled as the other.
+  const interest = naturalistInterest(result);
+  const order = explorationOrder(result, { radiusM });
   const rows = [
+    ['Naturalist interest', interest.score == null ? 'Not measured here' : `${interest.score} / 100`],
+    ['Exploration order', order.score == null ? 'Not measured here' : `${order.score} / 100`
+      + (order.distanceFraction == null ? ' (no search centre)'
+        : ` · ${formatContextDistance(result.distanceFromCenterM)} from your centre, ${Math.round(order.distanceFraction * 100)}% of the radius`)],
     ['Length', `${(result.lengthM / 1609.344).toFixed(2)} mi · ${Math.round(result.lengthM).toLocaleString('en-US')} m`],
     // Orientation, not recommendation: where the nearest part of this road lies relative to the centre the
     // person chose. The measurement is the same one the exact-radius search used to include the corridor.
@@ -791,6 +806,9 @@ function selectedResult(result, { onPromote, onDismiss, onSelect }) {
     facts.append(row);
   }
   block.append(facts);
+  // The distance-aware order is explained only where it actually applies: a search with no centre has no distance,
+  // and the panel must not imply one.
+  if (radiusM != null) block.append(el('p', 'discovery-note', EXPLORATION_ORDER_NOTE));
   if (result.distanceFromCenterM != null) block.append(el('p', 'discovery-note', CONTEXT_NOTE));
   const coverageList = el('dl', 'coverage-list discovery-coverage-list');
   const labels = { [COVERAGE_DATASET.ROAD_NETWORK]: 'Road network', [COVERAGE_DATASET.WETLANDS]: 'Wetlands', [COVERAGE_DATASET.HYDROGRAPHY]: 'Hydrography' };

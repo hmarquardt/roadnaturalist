@@ -16,11 +16,20 @@ search area -> bounded road network -> eligible road units -> deterministic segm
      -> filter / sort / inspect -> promote -> normal candidate -> existing evidence workflow
 ```
 
-## The exploration order (`naturalist-interest-v2`)
+## The two orderings: `naturalist-interest-v2` and `exploration-order-v1`
 
 Discovery's sorts were, until now, all raw measured values. `Naturalist interest` is the first ordering that is a
 *model*, so it is implemented as one pure module (`src/discovery/ranking.js`), versioned, and explained in the panel
-rather than asserted.
+rather than asserted. It answers "how interesting is the mapped context around this road?" and does **not** change
+with where the search was made.
+
+`Exploration order` is a **different question and a different family**: "which roads should I consider first from
+*where I searched*?" It is `naturalistInterest - penalty(distanceFromCentre / requestedRadius)`, implemented in
+`src/discovery/exploration-order.js`, and it consumes the interest score rather than changing it. The penalty is
+bounded (six points with the selected transform), so distance settles near-ties and can never bury a clearly more
+interesting road, and it is normalized by the radius the search asked for, so 20 miles in a 50-mile search is not
+treated as 20 miles in a 25-mile search. A search with no centre - a declared box - has no distance, and the order
+falls back to the interest score. See `docs/EXPLORATION-ORDER-EVALUATION.md`.
 
 **Version boundary.** `naturalist-interest-v1` was evaluated across eight U.S. regions while the derived reader
 reported every corridor as two ecoregions with no transitions, so its ecological-variety component was a constant.

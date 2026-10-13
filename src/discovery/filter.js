@@ -1,5 +1,6 @@
 import { COVERAGE } from '../domain/corridor.js';
 import { naturalistInterest } from './ranking.js';
+import { EXPLORATION_ORDER_VERSION, explorationOrder } from './exploration-order.js';
 
 // Filters and sorts are deterministic and local: discovery measures every corridor once, and the
 // interface only selects and orders what was measured. Every sort dimension is a raw measured value,
@@ -15,14 +16,21 @@ export const SORT_OPTIONS = Object.freeze([
   Object.freeze({ key: 'crossings', label: 'Mapped water crossings', unit: 'count', direction: 'desc' }),
   Object.freeze({ key: 'ecoregionTransitions', label: 'Ecoregion transitions', unit: 'count', direction: 'desc' }),
   Object.freeze({ key: 'ecoregionCount', label: 'Distinct ecoregions', unit: 'count', direction: 'desc' }),
-  // The one ordering that is not a raw measured value: an exploration heuristic over mapped physical context. It is
-  // listed last and named as an order rather than a measurement, so it can never be mistaken for one.
-  Object.freeze({ key: 'naturalistInterest', label: 'Naturalist interest (exploration order)', unit: 'score',
+  // The two orderings that are not raw measured values, listed last and named as orders rather than measurements so
+  // neither can be mistaken for one. They answer different questions: `naturalistInterest` scores the mapped
+  // environmental context and does not change with the search centre; `explorationOrder` adjusts that score by
+  // distance from the search centre, so the list leads with roads it is practical to consider first.
+  Object.freeze({ key: 'naturalistInterest', label: 'Naturalist interest', unit: 'score',
     direction: 'desc', heuristic: true, version: naturalistInterest({}).version }),
+  Object.freeze({ key: 'explorationOrder', label: 'Exploration order (interest + distance from your centre)',
+    unit: 'score', direction: 'desc', heuristic: true, version: EXPLORATION_ORDER_VERSION }),
 ]);
 
-// Shown wherever the order is offered, so the claim is never implicit.
-export const NATURALIST_INTEREST_NOTE = 'An exploration order built from mapped physical context - wetland area at '  + 'the analysis distances, proximity to water, mapped crossings, and ecological variety. It is not a wildlife '  + 'prediction, an access or safety statement, or a claim that one road is better.';
+// Shown wherever the interest score is offered, so the claim is never implicit.
+export const NATURALIST_INTEREST_NOTE = 'A score for the mapped naturalist-interest signals around a corridor - '
+  + 'wetland area at the analysis distances, proximity to water, mapped crossings, and ecological variety. It does '
+  + 'not change with your search centre. It is not a wildlife prediction, an access or safety statement, or a claim '
+  + 'that one road is better.';
 export const DEFAULT_SORT = 'wetlandArea250';
 export const DEFAULT_SORT_NOTE = 'Display default only: it orders the table by one measured value. '
   + 'It is not a ranking, a score, or a statement that the first road is better than the last.';
@@ -67,7 +75,10 @@ export function filterResults(results, filters = {}) {
   });
 }
 
-export function sortResults(results, sortKey = DEFAULT_SORT) {
+// `context` carries the search context an ordering may legitimately need - today only the requested radius, which
+// the exploration order normalizes distance against. Every other sort ignores it, so a caller that has no context
+// still gets the raw-value order it always had.
+export function sortResults(results, sortKey = DEFAULT_SORT, context = {}) {
   const option = SORT_OPTIONS.find(entry => entry.key === sortKey) ?? SORT_OPTIONS.find(entry => entry.key === DEFAULT_SORT);
   const value = result => {
     switch (option.key) {
@@ -80,6 +91,8 @@ export function sortResults(results, sortKey = DEFAULT_SORT) {
       case 'ecoregionTransitions': return result.ecology.transitions;
       case 'ecoregionCount': return result.ecology.ecoregionCount;
       case 'naturalistInterest': return naturalistInterest(result).score;
+      case 'explorationOrder': return explorationOrder(result, { radiusM: context.radiusM ?? null,
+        transform: context.transform }).score;
       default: return result.signals.wetlands.area250M2;
     }
   };
@@ -97,8 +110,8 @@ export function sortResults(results, sortKey = DEFAULT_SORT) {
   });
 }
 
-export function filterAndSort(results, filters, sortKey) {
-  return sortResults(filterResults(results, filters), sortKey);
+export function filterAndSort(results, filters, sortKey, context = {}) {
+  return sortResults(filterResults(results, filters), sortKey, context);
 }
 
 export function ecoregionOptions(results) {

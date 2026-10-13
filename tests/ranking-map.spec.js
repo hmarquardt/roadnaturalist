@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
 import { RANKING_VERSION } from '../src/discovery/ranking.js';
+import { EXPLORATION_ORDER_VERSION } from '../src/discovery/exploration-order.js';
 
 // A QUALITATIVE SANITY CHECK OF THE EXPLORATION ORDER ON THE REAL MAP.
 //
@@ -24,6 +25,14 @@ test.skip(!process.env.RUN_RANKING_MAP, 'set RUN_RANKING_MAP=1 to sanity-check t
 function artifact() {
   const path = process.env.RANKING_EVAL_ARTIFACT ?? '../data/ranking/naturalist-interest-v2-evaluation.json';
   return JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
+}
+
+function orderArtifact() {
+  const path = process.env.RANKING_ORDER_ARTIFACT ?? '../data/ranking/exploration-order-v1-evaluation.json';
+  const evaluation = JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
+  expect(evaluation.orderVersion).toBe(EXPLORATION_ORDER_VERSION);
+  expect(evaluation.interestVersion).toBe(RANKING_VERSION);
+  return evaluation;
 }
 
 for (const id of REGIONS) {
@@ -77,6 +86,33 @@ for (const id of REGIONS) {
     }
     // A degenerate list would repeat one corridor; the order must name several distinct roads.
     expect(new Set(shown.map(row => row.id)).size).toBe(shown.length);
+
+    // ---------------------------------------------------------------- the distance-aware exploration order
+    // The same search, ordered the second way. `explorationOrder` is the interest score adjusted by distance from
+    // the search centre, and the shipped list must be the one the evaluation measured.
+    const order = orderArtifact().regions.find(entry => entry.id === id);
+    expect(order, `the exploration evaluation must include ${id}`).toBeTruthy();
+    await page.locator('#discovery-sort').selectOption('explorationOrder');
+    const ordered = await page.locator('#discovery-results tbody tr').evaluateAll(rows =>
+      rows.slice(0, 10).map(row => row.dataset.candidateId));
+    const expectedOrder = order.selected.order.map(entry => entry.corridorId);
+    console.log(`RANKING_MAP_ORDER ${id} ${JSON.stringify(ordered)}`);
+    expect(ordered).toEqual(expectedOrder.slice(0, ordered.length));
+
+    // PORTLAND: the rim bias the evaluation found is gone in the shipped list. The distance-aware order's median
+    // top-10 distance is materially below the interest order's, which is the whole point of the transform.
+    if (id === 'portland-or') {
+      const interestMedian = order.candidates[order.selectedCandidate].metrics.distanceFrom.median;
+      const orderMedian = order.candidates[order.selectedCandidate].metrics.distanceAfter.median;
+      expect(orderMedian).toBeLessThan(interestMedian / 2);
+    }
+
+    // BOTH SCORES ARE ON SCREEN, and the selection panel never labels one as the other.
+    await page.locator('#discovery-results tbody tr').first().locator('.discovery-row').click();
+    const panel = page.locator('#discovery-selected');
+    await expect(panel).toContainText('Naturalist interest');
+    await expect(panel).toContainText('Exploration order');
+
     // Ranking reads measured context only: no raw plane and no source-evidence rebuild is triggered by ordering.
     expect(rawReads, `ordering must not read a raw plane or rebuild source evidence: ${rawReads.join(', ')}`).toEqual([]);
     expect(errors).toEqual([]);

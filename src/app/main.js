@@ -37,7 +37,7 @@ import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDerivedCandidate, p
 import { createEvidenceRequests, detailLevelFor, evidenceLabel, sourceEvidence, unavailableMessage } from '../discovery/evidence.js';
 import { SOURCE_EVIDENCE_TIMEOUT_MS, createSourceEvidenceRun, runSourceEvidence } from '../discovery/source-evidence-run.js';
 import { identityStagePayload } from '../discovery/identity-evidence.js';
-import { defaultSearchArea, searchAreaBounds, validateSearchAreas } from '../discovery/search-area.js';
+import { defaultSearchArea, requestedRadiusM, searchAreaBounds, validateSearchAreas } from '../discovery/search-area.js';
 import { CUSTOM_SEARCH_AREA_ID, addSearchHistory, areaCoverage, createInteractiveSearchArea,
   definitionFromSearchArea, formatRadius, initialSearchSelection, interactiveSearchTemplate, placeForSearch, radiusPresets,
   readSearchDefinition, searchDefinitionOf, searchIsRunnable, searchRefusal, searchRegionCoverage, withSearchQuery } from '../discovery/search-definition.js';
@@ -48,6 +48,7 @@ import { nearestPlace } from '../discovery/place-gazetteer.js';
 import { centerPresentation, formatContextDirection, pendingSearchContext, runCenterPresentation, storedSearchContext } from '../discovery/search-context.js';
 import { filterAndSort } from '../discovery/filter.js';
 import { naturalistInterest } from '../discovery/ranking.js';
+import { explorationOrder } from '../discovery/exploration-order.js';
 import { MAX_RESULT_ROWS } from '../discovery/constants.js';
 import { LOCATION_STATUS, createLocationProvider, createLocationRequest, locationSearchDefinition, locationStatusMessage } from '../discovery/geolocation.js';
 
@@ -1374,7 +1375,10 @@ function discoveryDescriptors(state) {
   const discovery = state.discovery;
   if (discovery.status !== 'ready' || !discovery.results.length) return null;
   const results = applyMarks(discovery.results, discovery.marks);
-  const view = filterAndSort(results, discovery.filters, discovery.sort).slice(0, MAX_RESULT_ROWS);
+  // The radius this run was measured against: the exploration order normalises distance with it, and a declared box
+  // search has none, so the order falls back to the interest score there.
+  const radiusM = requestedRadiusM(discovery.searchArea);
+  const view = filterAndSort(results, discovery.filters, discovery.sort, { radiusM }).slice(0, MAX_RESULT_ROWS);
   const search = state.search;
   // The centre this run was measured against: a radius search defines one, and a declared box defines none.
   const center = search.areaId === CUSTOM_SEARCH_AREA_ID ? (search.definition?.center ?? null) : null;
@@ -1394,6 +1398,9 @@ function discoveryDescriptors(state) {
       nearestCenterPoint: result.nearestCenterPoint ?? null,
       distanceFromCenterM: result.distanceFromCenterM ?? null,
       ranking: naturalistInterest(result),
+      // The distance-aware order travels BESIDE the interest score, never in place of it: a card can show both, and
+      // neither can be mistaken for the other.
+      exploration: explorationOrder(result, { radiusM }),
       nearestCenterPoint: result.nearestCenterPoint ?? null,
       distanceLabel: result.distanceFromCenterM == null ? null
         : formatContextDirection({ distanceM: result.distanceFromCenterM, cardinal: result.cardinalFromCenter }) })),

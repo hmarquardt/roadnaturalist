@@ -379,6 +379,11 @@ export function popupHtml(corridor) {
   } else if (corridor?.ranking) {
     parts.push('<p>Naturalist interest: not measured here</p>');
   }
+  // THE DISTANCE-AWARE ORDER, when the search had a centre to measure distance from. It is a different number from
+  // the interest score above and is named as what it is.
+  if (Number.isFinite(corridor?.exploration?.score)) {
+    parts.push(`<p class="map-popup-order">Exploration order <strong>${corridor.exploration.score}</strong></p>`);
+  }
   if (Number.isFinite(corridor?.distanceFromCenterM)) {
     parts.push(`<p>${(corridor.distanceFromCenterM / 1609.344).toFixed(1)} mi from search centre</p>`);
   }

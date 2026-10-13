@@ -17,11 +17,14 @@ import { fileURLToPath } from 'node:url';
 
 import { selectDerivedCells, validateDerivedManifest } from '../src/discovery/derived-catalog.js';
 import { validateNationalDerivedCatalog } from '../src/discovery/national-catalog.js';
-import { radiusBounds } from '../src/discovery/search-area.js';
+import { radiusBounds, requestedRadiusM } from '../src/discovery/search-area.js';
 import { queryDerivedCorridors } from '../src/gis/derived-query.js';
 import { runDiscovery } from '../src/discovery/run.js';
 import { RANKING_VERSION } from '../src/discovery/ranking.js';
-import { evaluateRegion, rankingEvaluationArtifact } from '../src/discovery/ranking-evaluation.js';
+import { DEFAULT_DISTANCE_TRANSFORM, DISTANCE_TRANSFORMS, EXPLORATION_ORDER_VERSION, TRANSFORM_KEYS }
+  from '../src/discovery/exploration-order.js';
+import { evaluateExplorationRegion, evaluateRegion, explorationEvaluationArtifact,
+  rankingEvaluationArtifact } from '../src/discovery/ranking-evaluation.js';
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const argOf = name => { const index = process.argv.indexOf(name); return index < 0 ? null : process.argv[index + 1]; };
@@ -50,6 +53,24 @@ const mdPath = argOf('--md') ?? join(ROOT, 'docs/RANKING-EVALUATION-V2.md');
 // An earlier evaluation to diff against (the same regions, an earlier ranking version). It isolates the effect of
 // one input change from a weight change, because nothing else differs between the two runs.
 const comparePath = argOf('--compare') ?? null;
+// The distance-aware exploration order: its own artifact, its own report, and the transform selected for it.
+const orderOutPath = argOf('--order-out') ?? join(ROOT, 'data/ranking/exploration-order-v1-evaluation.json');
+const orderMdPath = argOf('--order-md') ?? join(ROOT, 'docs/EXPLORATION-ORDER-EVALUATION.md');
+const orderCandidates = (argOf('--candidates') ?? '').split(',').filter(Boolean);
+const CANDIDATES = orderCandidates.length ? orderCandidates : TRANSFORM_KEYS;
+for (const key of CANDIDATES) if (!DISTANCE_TRANSFORMS[key]) throw new Error(`unknown distance transform: ${key}`);
+const SELECTED_TRANSFORM = argOf('--transform') ?? DEFAULT_DISTANCE_TRANSFORM;
+if (!DISTANCE_TRANSFORMS[SELECTED_TRANSFORM]) throw new Error(`unknown --transform ${SELECTED_TRANSFORM}`);
+// STATED BEFORE THE RESULTS ARE SEEN, so the choice of transform is judged against a rule rather than a preference.
+const SUCCESS_CRITERIA = Object.freeze({
+  portlandRimBiasReduced: 'Portland top-10 median distance falls materially from its naturalist-interest value (24.2 mi)',
+  distanceImprovesMostRegions: 'the median top-10 distance falls in at least 5 of 8 regions',
+  interestRetentionHigh: 'mean naturalist-interest score of the top 10 falls by no more than ~2 points in every region',
+  strongRoadsSurvive: 'the naturalist-interest #1 stays inside the exploration top 10 in every region',
+  noCenterHugging: 'the top 10 is not dominated by roads at the centre: its mean interest stays within the retention rule',
+  nearTiesResolveTowardNearer: 'among near-tied pairs (within 1 interest point) where the nearer road scores lower, the nearer road is preferred more often than not',
+  deterministic: 'the same results and radius always produce the same order',
+});
 
 // One DuckDB query, run through the project's `uv` convention (the same tool the offline verifiers use). The SQL
 // is the runtime's own derived-corridor SELECT, so the rows are exactly what a browser would read.
@@ -108,6 +129,7 @@ function gisFor(selection) {
 }
 
 const regions = [];
+const samples = [];
 for (const entry of CENTERS) {
   const bounds = radiusBounds(entry.center, radiusMiles);
   const selection = selectDerivedCells(manifest, bounds);
@@ -118,6 +140,10 @@ for (const entry of CENTERS) {
   const region = evaluateRegion({ id: entry.id, name: entry.name, center: entry.center, radiusMiles,
     results: run.results, topN });
   regions.push(region);
+  // The exploration evaluation needs the results themselves and the radius the run actually used, so the same rows
+  // feed both evaluations rather than a second read.
+  samples.push({ id: entry.id, name: entry.name, center: entry.center, radiusMiles,
+    radiusM: requestedRadiusM(run.searchArea) ?? radiusMiles * 1609.344, results: run.results });
   const summary = [region.id.padEnd(15), `${region.searched}`.padStart(6), 'corridors',
     `${region.comparison.overlap}/${topN}`.padStart(6), 'overlap',
     `top score ${region.comparison.interest[0]?.interestScore ?? 'n/a'}`].join('  ');
@@ -137,6 +163,28 @@ console.log(`\nranking: ${RANKING_VERSION}   baseline: ${artifact.baselineKey}  
 console.log(`mean overlap ${artifact.summary.meanOverlap}/${topN}   (min ${artifact.summary.minOverlap}, max ${artifact.summary.maxOverlap})`);
 console.log(`artifact: ${outPath}`);
 console.log(`summary:  ${mdPath}`);
+
+// ---------------------------------------------------------------- the distance-aware exploration order
+// The same eight regions and the same rows, ordered a second way: naturalist interest adjusted by distance from the
+// search centre. Every candidate transform is measured on every region, so the choice is made from numbers.
+const explorationRegions = samples.map(sample => evaluateExplorationRegion({ ...sample, topN,
+  candidates: CANDIDATES, selectedCandidate: SELECTED_TRANSFORM }));
+const explorationArtifact = explorationEvaluationArtifact({ regions: explorationRegions, radiusMiles, topN,
+  candidates: CANDIDATES, selectedCandidate: SELECTED_TRANSFORM, generatedAt: new Date().toISOString(),
+  successCriteria: SUCCESS_CRITERIA, baselineKey: artifact.baselineKey, derivedPlane: artifact.derivedPlane });
+mkdirSync(dirname(orderOutPath), { recursive: true });
+writeFileSync(orderOutPath, `${JSON.stringify(explorationArtifact, null, 1)}\n`);
+writeFileSync(orderMdPath, renderOrderMarkdown(explorationArtifact, artifact));
+console.log('');
+console.log(`exploration order ${EXPLORATION_ORDER_VERSION}  interest ${RANKING_VERSION}  selected ${SELECTED_TRANSFORM}`);
+for (const key of CANDIDATES) {
+  const candidate = explorationArtifact.summary.byCandidate[key];
+  console.log(`  ${key.padEnd(10)} overlap ${candidate.meanOverlap}/${topN}  median dist ${candidate.meanMedianDistanceBefore}`
+    + ` -> ${candidate.meanMedianDistanceAfter} mi  interest ${candidate.meanInterestDelta} (worst ${candidate.worstInterestDelta})`
+    + `  top-1 kept ${candidate.topInterestRetainedInTop10}/${candidate.regions}  near-tie ${candidate.nearTieShare}`);
+}
+console.log(`artifact: ${orderOutPath}`);
+console.log(`summary:  ${orderMdPath}`);
 
 
 // The human-readable half. Every number comes from the same artifact, so the two never disagree.
@@ -238,6 +286,78 @@ function renderMarkdown(artifact) {
       + `(${o.missingData.shareOfResults}), in top ${o.missingData.topWithPartialEvidence.length}`);
     lines.push(`- distance: v1 median ${o.distance.interestMedianMi} mi (max ${o.distance.interestMaxMi}), `
       + `baseline median ${o.distance.baselineMedianMi} mi (max ${o.distance.baselineMaxMi})`);
+    lines.push('');
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+
+// The exploration-order report. It never restates the interest numbers: both come from the same artifacts.
+function renderOrderMarkdown(order, interest) {
+  const lines = [];
+  lines.push(`# Exploration order: \`${order.orderVersion}\` over \`${order.interestVersion}\``);
+  lines.push('');
+  lines.push(`Generated ${order.generatedAt}. Derived plane \`${order.derivedPlane?.fingerprint ?? 'n/a'}\`, `
+    + `radius ${order.radiusMiles} mi, top ${order.topN}, near-tie interval ${order.nearTieInterval} interest point.`);
+  lines.push('');
+  lines.push('**Two different numbers.** `naturalistInterest` scores the mapped environmental context around a '
+    + 'corridor and does not change with the search centre. `explorationOrder` is that score minus a bounded '
+    + 'distance penalty, normalized by the radius the search asked for, so the list leads with roads it is '
+    + 'practical to consider first. The interest score is never relabelled as the order, and the order never '
+    + 'changes it.');
+  lines.push('');
+  lines.push('## Success criteria, stated before the results');
+  lines.push('');
+  for (const [key, text] of Object.entries(order.successCriteria ?? {})) lines.push(`- **${key}** — ${text}`);
+  lines.push('');
+  lines.push('## The candidate transforms, measured on the same eight regions');
+  lines.push('');
+  lines.push('| transform | cap | mean overlap with interest top | mean median distance before → after (mi) | regions closer | mean interest delta | worst interest delta | interest #1 kept in top 10 | near-tie resolved toward nearer |');
+  lines.push('|---|---|---|---|---|---|---|---|---|');
+  for (const candidate of order.candidates) {
+    const c = order.summary.byCandidate[candidate.key];
+    lines.push(`| ${candidate.key}${candidate.key === order.selectedCandidate ? ' **(selected)**' : ''} | ${candidate.cap} `
+      + `| ${c.meanOverlap}/${order.topN} | ${c.meanMedianDistanceBefore} → ${c.meanMedianDistanceAfter} `
+      + `| ${c.regionsDistanceReduced}/${c.regions} | ${c.meanInterestDelta} | ${c.worstInterestDelta} `
+      + `| ${c.topInterestRetainedInTop10}/${c.regions} | ${c.nearTieShare} (${c.nearTiePairs} pairs) |`);
+  }
+  lines.push('');
+  lines.push(`Selected: **${order.selectedCandidate}**. Interest baseline for comparison:`);
+  lines.push('');
+  lines.push('| region | searched | overlap with default | median dist, interest top (mi) |');
+  lines.push('|---|---|---|---|');
+  for (const region of interest.regions) {
+    lines.push(`| ${region.name} | ${region.searched} | ${region.comparison.overlap}/${order.topN} `
+      + `| ${region.observations.distance.interestMedianMi} |`);
+  }
+  lines.push('## Regions under the selected transform');
+  lines.push('');
+  for (const region of order.regions) {
+    const candidate = region.candidates[order.selectedCandidate];
+    const m = candidate.metrics;
+    lines.push(`### ${region.name}`);
+    lines.push('');
+    lines.push(`Center \`[${region.center.join(', ')}]\`, radius ${region.radiusMiles} mi, ${region.searched} corridors. `
+      + `Overlap with the interest top: **${candidate.overlap}/${order.topN}**.`);
+    lines.push('');
+    lines.push(`Distance: median ${m.distanceFrom.median} → **${m.distanceAfter.median}** mi, mean ${m.distanceFrom.mean} → `
+      + `**${m.distanceAfter.mean}**, p90 ${m.distanceFrom.p90} → **${m.distanceAfter.p90}**, max ${m.distanceFrom.max} → `
+      + `**${m.distanceAfter.max}**. Interest: top-10 mean ${m.interestTopMean} → **${m.orderTopMean}** `
+      + `(delta ${m.interestDelta}, retained ${Math.round((m.interestRetainedRatio ?? 0) * 100)}%). `
+      + `Interest #1 kept in top 3/5/10: ${m.topInterestRetained.inTop3}/${m.topInterestRetained.inTop5}/${m.topInterestRetained.inTop10}. `
+      + `Near-tie pairs ${m.nearTie.tension}, resolved toward the nearer road ${m.nearTie.resolvedTowardNearer} `
+      + `(share ${m.nearTie.share}).`);
+    lines.push('');
+    lines.push('| # | road | interest | exploration | dist mi | fraction of radius | penalty |');
+    lines.push('|---|---|---|---|---|---|---|');
+    for (const row of region.selected.order) {
+      lines.push(`| ${row.rank} | ${row.name ?? ''} | ${row.interestScore ?? 'n/a'} | ${row.explorationScore ?? 'n/a'} `
+        + `| ${row.distanceFromCenterMi ?? 'n/a'} | ${row.distanceFraction ?? 'n/a'} | ${row.distancePenalty ?? 'n/a'} |`);
+    }
+    lines.push('');
+    lines.push(`Entered the top: ${candidate.promoted.length ? candidate.promoted.join(', ') : 'nothing'}`);
+    lines.push('');
+    lines.push(`Left the top: ${candidate.demoted.length ? candidate.demoted.join(', ') : 'nothing'}`);
     lines.push('');
   }
   return `${lines.join('\n')}\n`;

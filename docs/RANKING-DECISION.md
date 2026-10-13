@@ -214,3 +214,77 @@ With ecology restored, the two questions from v1 stand on their own and must be 
 product decision about whether an exploration order decays with distance) and the **nesting of `ecoregionCount`**
 (`max(l3_count, l4_count)` rather than the two-level sum) - neither bundled with a plumbing fix.
 
+
+---
+
+# Update: `exploration-order-v1` — distance as convenience, layered on the interest score
+
+The v2 evaluation left one measured problem: the interest ordering can lead with roads at the rim of the search
+(Portland's median top-10 distance was 24.2 mi in a 25-mile search). Distance is evidence of convenience, not of
+environmental interest, so it must not enter the interest score. It is therefore a **separate family** that consumes
+it:
+
+```text
+explorationOrder = naturalistInterest - penalty(distanceFromCentre / requestedRadius)
+```
+
+`naturalist-interest-v2` is untouched - same weights, same transforms, same score - and every exploration row carries
+the interest score it adjusted.
+
+## Four transforms, measured before one was chosen
+
+All eight regions, 25-mile radius, top 10, same rows. Full numbers:
+`data/ranking/exploration-order-v1-evaluation.json`, `docs/EXPLORATION-ORDER-EVALUATION.md`.
+
+| transform | cap | mean overlap with interest top | mean median distance before → after | regions closer | worst interest delta | interest #1 kept in top 10 / top 3 | worst replacement gap | near-tie resolved toward nearer |
+|---|---|---|---|---|---|---|---|---|
+| `linear` | 10 | 4.5/10 | 18.13 → 8.44 mi | 8/8 | −2.21 | 7/8 · 4/8 | **5.5** | 0.88 |
+| `quadratic` | 10 | 4.63/10 | 18.13 → 9.37 mi | 8/8 | −2.48 | 5/8 · 4/8 | 3.4 | 0.90 |
+| `tiered` | 10 | 4.0/10 | 18.13 → 7.46 mi | 8/8 | −2.99 | 5/8 · 3/8 | 3.5 | 0.79 |
+| **`gentle`** (selected) | 6 | 6.0/10 | 18.13 → **10.13 mi** | 8/8 | **−1.52** | **7/8 · 6/8** | 3.4 | 0.83 |
+
+## Why `gentle` (quadratic decay, capped at 6 points)
+
+It is the only candidate that satisfies every criterion stated before the results were seen:
+
+1. **Portland's rim bias is materially reduced**: median top-10 distance 24.2 → **10.64 mi**; p90 also falls.
+2. **Distance improves in all eight regions** (the rule asked for five).
+3. **Interest retention is high**: the worst region gives up **1.52** points of interest (the others −0.2 to −1.0);
+   the top-10 mean never falls more than ~2%.
+4. **Strong roads survive.** The interest #1 stays in the exploration top 10 in **7 of 8 regions**, and in the top 3
+   in 6. The one region where it leaves (Evansville) is the honest case: the interest top-10 there spans only 3.5
+   points, and the road that replaces the #1 is **1.9 points behind it** - a near-tie settled by 19 miles of
+   convenience, not a strong road buried. The `replacedByGap` column is in the artifact precisely so that claim is
+   measurable rather than asserted.
+5. **No centre-hugging**: the near roads that rise are genuinely strong (interest 79–82 in Evansville's case), and
+   the top-10 mean interest barely moves.
+6. **Near-ties settle toward the nearer road** (share 0.83 over the pairs where the nearer road scores lower), mostly
+   by construction: the penalty is a function of distance alone, so it can never make a far road look more
+   interesting, only less convenient.
+
+The `linear` and `tiered` caps charge their whole price for being anywhere that is not the centre, which is what
+produces the largest replacement gaps (5.5 points) and the weakest retention. `quadratic` at cap 10 moves distance
+furthest but keeps the interest #1 in only 5 of 8 regions. `gentle` is the smallest bounded change that still halves
+the median distance everywhere.
+
+## Sanity at other radii (Portland, Princeton, Phoenix)
+
+| radius | regions closer | worst interest delta | interest #1 kept | near-tie |
+|---|---|---|---|---|
+| 10 mi | 3/3 | −0.98 | 3/3 | 0.87 |
+| 25 mi | 3/3 | −1.52 | 3/3 | 0.87 |
+| 50 mi | 3/3 | −0.93 | 3/3 | 0.84 |
+
+The normalization is what makes that consistent: the exploration top-10 lands at **39–65% of the radius** at every
+radius, rather than at a fixed number of miles, and in a 10-mile search the term barely moves anything because there
+is no rim to correct. The same road is penalized at 20 miles in a 25-mile search (0.8 of the radius) and at 20 miles
+in a 50-mile search (0.4) by different, correctly-scaled amounts.
+
+## Recommendation
+
+**B — keep the exploration order optional; do not change the default.** It is now a real, measured improvement to
+practical ordering - the rim bias is gone, interest is preserved, and the behaviour is bounded and explainable - but
+it is a *different* order from the one the product has shipped, and the product decision (does the table lead with
+"most interesting" or "sensible to consider first"?) is a product decision, not a measurement. Both orderings are
+offered side by side, and neither is presented as the other.
+
