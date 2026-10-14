@@ -152,16 +152,30 @@ function tripDetail(trip, { summary, roadNames, onDeleteTrip, onExportTrip, onFi
   actions.append(exportButton);
   detail.append(actions);
 
-  // DELETION IS THE PERSON'S, AND IT IS NARROW: the trip, its points and its events. The confirmation says exactly what
-  // is removed and what is not.
-  const remove = el('button', 'quiet-button trip-delete', 'Delete this recorded trip');
-  remove.type = 'button';
-  remove.id = `trip-delete-${trip.id}`;
-  remove.addEventListener('click', () => {
-    const ok = globalThis.confirm?.('Delete this recorded trip? Its track, its notes and its sightings are removed from this device. Your outing, your saved roads and your road notes are not affected.');
-    if (ok !== false) onDeleteTrip?.(trip.id);
+  // DELETION IS THE PERSON'S, AND IT IS NARROW: the trip, its points and its events. It follows this project's own
+  // confirmation convention - one restrained control that asks, then two explicit answers - and the question says
+  // exactly what is removed and what is not.
+  const removal = el('div', 'trip-removal');
+  const ask = el('button', 'quiet-button warn', 'Delete this recorded trip');
+  ask.type = 'button';
+  ask.id = `trip-delete-${trip.id}`;
+  const note = el('p', 'small muted',
+    'Deleting removes this trip, its recorded points, its notes and its sightings from this device. Your outing, your saved roads and your road notes are not affected.');
+  ask.addEventListener('click', () => {
+    const row = el('div', 'decision-actions');
+    const yes = el('button', 'quiet-button warn', 'Confirm deletion');
+    yes.type = 'button';
+    yes.id = `trip-delete-confirm-${trip.id}`;
+    yes.addEventListener('click', () => onDeleteTrip?.(trip.id));
+    const no = el('button', 'quiet-button', 'Keep trip');
+    no.type = 'button';
+    no.id = `trip-delete-cancel-${trip.id}`;
+    no.addEventListener('click', () => removal.replaceChildren(ask, note));
+    row.append(yes, no);
+    removal.replaceChildren(row, note);
   });
-  detail.append(remove);
+  removal.append(ask, note);
+  detail.append(removal);
   return detail;
 }
 

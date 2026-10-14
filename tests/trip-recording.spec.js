@@ -293,9 +293,14 @@ test('a trip is recorded only because it was asked for, and live location and re
   expect(geojson.properties.note).toContain('no route was reconstructed');
   await expect(page.locator('#trips')).toContainText('written to your device and sent nowhere');
 
-  // 24. DELETING THE TRIP DELETES THE TRIP, AND THE PLAN IS UNTOUCHED.
-  page.once('dialog', dialog => dialog.accept());
+  // 24. DELETING THE TRIP DELETES THE TRIP, AND THE PLAN IS UNTOUCHED. It takes the same two explicit answers every
+  // destructive control in this project takes: one control that asks, then a confirmation.
   await page.locator(`#trip-delete-${tripId}`).click();
+  await expect(page.locator(`#trip-delete-cancel-${tripId}`), 'the question can be answered with "keep"').toBeVisible();
+  await page.locator(`#trip-delete-cancel-${tripId}`).click();
+  await expect(page.locator('#trip-list li.trip'), 'and keeping it keeps it').toHaveCount(1);
+  await page.locator(`#trip-delete-${tripId}`).click();
+  await page.locator(`#trip-delete-confirm-${tripId}`).click();
   await expect(page.locator('#trip-list li.trip')).toHaveCount(0);
   await expect(page.locator('#trip-count')).toHaveText('0');
   await expect(page.locator('#outing-list article.outing-card'), 'the plan is still there').toHaveCount(1);
