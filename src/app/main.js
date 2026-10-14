@@ -32,6 +32,9 @@ import { renderSavedRoads } from '../ui/saved-roads.js';
 import { renderOutings } from '../ui/outings.js';
 import { comparisonIds, savedCounts } from '../state/saved-roads.js';
 import { outingMapRoads, outingPlan, savedRoadsById } from '../state/outing-plan.js';
+import { fieldView } from '../state/outing-field.js';
+import { storedUserMeta } from '../state/user-meta.js';
+import { renderFieldMode as renderFieldModeView } from '../ui/field.js';
 import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, writeDiscoveryMarks,
   writeDiscoverySearch, writeDiscoverySearchHistory } from '../discovery/persistence.js';
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDerivedCandidate, promoteDiscoveryResult } from '../discovery/lifecycle.js';
@@ -152,7 +155,7 @@ let places = null;
 const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverlay: null, resolvedId: null,
   savedRoads: null, savedMeta: null, savedDurable: null, savedStorage: null, savedEcology: null, savedHabitat: null,
   savedOutingSelection: null, savedOutings: null,
-  outings: null, outingStorage: null, outingSelection: null, selectedOuting: null, outingKey: undefined,
+  outings: null, outingStorage: null, outingSelection: null, selectedOuting: null, outingKey: undefined, fieldView: null,
   discoveryNodes: null, discoverySignature: null, searchKey: null };
 
 function activeSearch() { return store.getState().search; }
@@ -1141,8 +1144,51 @@ function saveOutingNotes(id, value, { immediate = false } = {}) {
   outingNoteTimers.set(id, setTimeout(() => { outingNoteTimers.delete(id); store.updateOuting(id, { notes: value }); }, NOTE_DEBOUNCE_MS));
 }
 
+// THE FIELD VIEW, READ FROM THE SAME PLAN. It resolves the open outing against the saved roads exactly as the workspace
+// does, derives which road is current from the person's own progress, and hands the interface one view to render. The
+// field view writes only what the workspace writes: the plan's progress, its notes, its checklist and the road's note.
+function renderFieldMode(state, outing) {
+  const plan = outingPlan({ outing, savedRoads: savedRoadsById(state) });
+  const view = fieldView({ outing, plan, selectedId: state.fieldRoadId });
+  const currentId = view?.currentId ?? null;
+  const meta = currentId ? storedUserMeta(state.userMetaById?.[currentId]) : null;
+  renderFieldModeView(nodes.outings, state, {
+    view,
+    roadNote: meta?.note ?? '',
+    roadFavorite: meta?.favorite === true,
+    onExit: () => store.setFieldMode(false),
+    onSelectRoad: roadId => store.selectFieldRoad(roadId),
+    onPrevious: roadId => store.selectFieldRoad(roadId),
+    onNext: roadId => store.selectFieldRoad(roadId),
+    onMarkVisited: (roadId, visited) => store.markRoadVisited(outing.id, roadId, visited),
+    // SHOW ON MAP IS THE ORDINARY SELECTION, and nothing else: the map emphasises the road, and the camera stays where
+    // the person left it.
+    onShowOnMap: roadId => store.select(roadId),
+    // FITTING IS EXPLICIT AND USES THE MAP'S OWN ACTION for the selected road.
+    onFitRoad: roadId => { store.select(roadId); map.fitSelected(); },
+    onRoadNote: (roadId, value, options) => saveCandidateNote(roadId, value, options),
+    onNotes: (value, options) => saveOutingNotes(outing.id, value, options),
+    onToggleItem: itemId => store.updateOuting(outing.id, { checklist: (outing.checklist ?? [])
+      .map(item => item.id === itemId ? { ...item, checked: !item.checked } : item) }),
+    onAddItem: text => store.updateOuting(outing.id, { checklist: [...(outing.checklist ?? []), { text, checked: false }] }),
+  });
+}
+
 // The outings panel is rebuilt only when the plans, the selection or the roads they point at change.
 function renderOutingsPanel(state) {
+  const selectedOuting = (state.outings ?? []).find(entry => entry.id === state.selectedOutingId) ?? null;
+  // FIELD MODE IS A VIEW OF THE OPEN PLAN: the panel renders the field view instead of the workspace, and the panel is
+  // marked so a phone can put it first. Leaving field mode restores the workspace exactly as it was.
+  const inField = Boolean(state.fieldMode && selectedOuting);
+  nodes.outings.parentElement?.classList.toggle('is-field', inField);
+  if (inField) {
+    if (drawn.fieldView === fieldSignature(state, selectedOuting)) return;
+    drawn.fieldView = fieldSignature(state, selectedOuting);
+    renderFieldMode(state, selectedOuting);
+    nodes.outingCount.textContent = String((state.outings ?? []).length);
+    return;
+  }
+  drawn.fieldView = null;
   if (drawn.outings === state.outings && drawn.outingStorage === state.outingStorage
     && drawn.outingSelection === state.outingSelection && drawn.selectedOuting === state.selectedOutingId
     && drawn.outingRoads === state.userMetaById && drawn.outingDurable === state.durableCandidateIds) return;
@@ -1172,7 +1218,9 @@ function renderOutingsPanel(state) {
       store.updateOuting(id, { checklist: (outing?.checklist ?? []).filter(item => item.id !== itemId) }); },
     onRemoveOuting: id => store.removeOuting(id),
     // Fitting the plan is the map's own explicit camera action, asked for from where the plan is read.
-    onFitOuting: () => map.fitOuting() });
+    onFitOuting: () => map.fitOuting(),
+    // FIELD MODE: the same plan, read on a phone. It needs no data of its own.
+    onFieldMode: id => { store.selectOuting(id); store.setFieldMode(true); } });
 }
 
 // NOTES ARE WRITTEN ON A SHORT DEBOUNCE, not on every keystroke: typing stays smooth, and the write either lands
@@ -1342,6 +1390,17 @@ function signature(state) {
   // The person's plans are part of what this panel renders - the "Add to an outing" control lists them - so a new outing,
   // a rename or a plan becoming the open one rebuilds the panel rather than leaving a stale list of destinations.
   return `${discovery.status}|${discovery.results.length}|${discovery.selectedId}|${Object.keys(discovery.marks).length}|${discovery.sort}|${JSON.stringify(discovery.filters)}|${discovery.error ?? ''}|${JSON.stringify(state.search)}|${state.selectedOutingId ?? ''}|${(state.outings ?? []).map(outing => `${outing.id}:${outing.title}`).join(',')}`;
+}
+
+// WHAT THE FIELD VIEW IS RENDERED FROM: the plan's own state (progress, notes, checklist, title), the road the person is
+// standing on, and the annotations and saved roads the view reads. A note typed into a field re-renders the view it was
+// typed in, and nothing else on the page is touched.
+function fieldSignature(state, outing) {
+  return [outing.id, outing.title, outing.date ?? '', outing.status, outing.updatedAt ?? '',
+    outing.roadIds.join(','), JSON.stringify(outing.roadState ?? {}), outing.notes.length,
+    (outing.checklist ?? []).map(item => `${item.id}:${item.checked ? 1 : 0}`).join(','),
+    state.fieldRoadId ?? '', (state.durableCandidateIds ?? []).join(','),
+    JSON.stringify(state.userMetaById?.[state.fieldRoadId ?? ''] ?? null)].join('|');
 }
 
 // The discovery panel is rendered only when its own state changed: selecting a candidate must not

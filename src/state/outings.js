@@ -1,13 +1,21 @@
 // OUTINGS: A PLAN MADE FROM ROADS THAT WERE ALREADY SAVED.
 //
 // An outing is an ordered list of saved roads plus planning notes - a title, an optional calendar date, a
-// planning note, a small checklist, and a status the person sets. It is *not* a route: the order is the person's
-// own sequence, chosen with move up / move down, and nothing here computes, optimises, ranks or recommends an
-// order. There are no distances between roads, no travel times, no directions, and no connected line on the map.
+// planning note, a small checklist, a status the person sets, and which of its roads they have already visited. It is
+// *not* a route: the order is the person's own sequence, chosen with move up / move down, and nothing here computes,
+// optimises, ranks or recommends an order. There are no drive distances, no travel times, no directions, no tracking
+// and no connected line on the map.
 //
-// An outing owns only user state (order, note, checklist, date, status). Road facts stay with the candidates:
-// an outing stores references, and the workspace resolves them against the saved collection. Nothing here
-// measures anything, reads any dataset, or contacts anything.
+// An outing owns only user state (order, note, checklist, date, status, progress through the list). Road facts stay
+// with the candidates: an outing stores references, and the workspace resolves them against the saved collection.
+// Nothing here measures anything, reads any dataset, or contacts anything.
+//
+// SCHEMA AND VERSION. `roadState` (which roads of this plan have been visited) is an optional addition to an unchanged
+// version 1, and the version is deliberately not bumped: the reader builds every record from the fields it names and
+// validates each one, so a record written before progress existed reads exactly as it did - as an unvisited plan - and
+// a record that carries progress is read by this build and by any build that ignores a field it does not know. Bumping
+// the version would make every existing plan unreadable to an older build for no gain, because nothing about the
+// contract changed: a plan without progress was always a valid plan.
 export const OUTINGS_KEY = 'roadnaturalist.outings.v1';
 export const OUTINGS_KIND = 'roadnaturalist-outings';
 export const OUTINGS_SCHEMA_VERSION = 1;
@@ -119,30 +127,87 @@ export function normalizeRoadIds(value) {
   return Object.freeze(ids);
 }
 
+// WHICH ROADS OF THIS PLAN HAVE BEEN VISITED - and nothing else about the day.
+//
+// This is progress through the person's own list, not a trip: there is no distance covered, no elapsed time, no ETA and
+// no route completion, because nothing here tracks anything. It belongs to the OUTING, not to the road: the same saved
+// road can be visited in one plan and unvisited in another, and a road that leaves a plan takes its progress with it.
+//
+// It is stored as `{ [roadId]: { visited: true, visitedAt } }`, so "not visited" is the absence of an entry rather than
+// a second value to keep in step. Every entry is validated and every key is checked against the plan's own roads, so a
+// hand-edited record can neither invent a road nor carry progress for one that is no longer in the list.
+export function normalizeRoadState(value, { roadIds = [] } = {}) {
+  const allowed = new Set(normalizeRoadIds(roadIds));
+  const entries = [];
+  for (const [roadId, entry] of Object.entries(value && typeof value === 'object' && !Array.isArray(value) ? value : {})) {
+    if (!allowed.has(roadId)) continue;                       // a road this plan does not have
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    if (entry.visited !== true) continue;                     // not visited is the absence of an entry
+    entries.push([roadId, Object.freeze({ visited: true, visitedAt: storedTimestamp(entry.visitedAt) })]);
+  }
+  return Object.freeze(Object.fromEntries(entries));
+}
+
+export function isRoadVisited(roadState, roadId) {
+  return roadState?.[roadId]?.visited === true;
+}
+
+export function visitedAt(roadState, roadId) {
+  return roadState?.[roadId]?.visited === true ? roadState[roadId].visitedAt ?? null : null;
+}
+
+export function markRoadVisited(roadState, roadId, { at = new Date().toISOString() } = {}) {
+  return Object.freeze({ ...(roadState ?? {}), [roadId]: Object.freeze({ visited: true, visitedAt: storedTimestamp(at) }) });
+}
+
+export function unmarkRoadVisited(roadState, roadId) {
+  if (!roadState?.[roadId]) return Object.freeze({ ...(roadState ?? {}) });
+  const { [roadId]: removed, ...rest } = roadState;
+  void removed;
+  return Object.freeze(rest);
+}
+
+// How far through the plan the person is: roads they marked, out of the roads the plan holds. An unvisited road counts
+// in the total whether or not it can be resolved right now, because the plan still holds it.
+export function roadProgress(outing) {
+  const total = outing?.roadIds?.length ?? 0;
+  const visited = (outing?.roadIds ?? []).filter(roadId => isRoadVisited(outing?.roadState, roadId)).length;
+  return Object.freeze({ total, visited, remaining: total - visited,
+    percent: total ? Math.round(100 * visited / total) : 0 });
+}
+
+
 function storedTimestamp(value) {
   if (typeof value !== 'string' || !value) return null;
   return Number.isFinite(new Date(value).getTime()) ? value : null;
 }
 
 export function createOuting({ title = '', date = null, roadIds = [], notes = '', checklist = [], status = OUTING_STATUS.PLANNED,
-  at = new Date().toISOString() } = {}, { existing = [] } = {}) {
+  roadState = {}, at = new Date().toISOString() } = {}, { existing = [] } = {}) {
   const stamp = storedTimestamp(at) ?? new Date().toISOString();
+  const ids = normalizeRoadIds(roadIds);
   return Object.freeze({ id: outingId([...existing]), title: normalizeTitle(title), date: normalizeDate(date),
-    status: normalizeStatus(status), roadIds: Object.freeze(normalizeRoadIds(roadIds)), notes: normalizeOutingNote(notes),
-    checklist: normalizeChecklist(checklist), createdAt: stamp, updatedAt: stamp });
+    status: normalizeStatus(status), roadIds: ids, notes: normalizeOutingNote(notes),
+    checklist: normalizeChecklist(checklist), roadState: normalizeRoadState(roadState, { roadIds: ids }),
+    createdAt: stamp, updatedAt: stamp });
 }
 
 // Only the fields a person can change, and only in the shape the model allows. `updatedAt` moves with a real
 // change; `createdAt` never does.
 export function updateOuting(outing, patch = {}, { at = new Date().toISOString() } = {}) {
   const stamp = storedTimestamp(at) ?? new Date().toISOString();
+  const roadIds = patch.roadIds !== undefined ? normalizeRoadIds(patch.roadIds) : outing.roadIds;
+  // PROGRESS FOLLOWS THE ROADS. Whatever a patch does to the list, the progress kept is progress for the roads the plan
+  // still holds - so removing a road cannot leave its visited state behind, and a patch that only touches a title cannot
+  // drop anyone's progress either.
+  const roadState = normalizeRoadState(patch.roadState !== undefined ? patch.roadState : outing.roadState,
+    { roadIds });
   return Object.freeze({ ...outing, title: patch.title !== undefined ? normalizeTitle(patch.title) : outing.title,
     date: patch.date !== undefined ? normalizeDate(patch.date) : outing.date,
     status: patch.status !== undefined ? normalizeStatus(patch.status) : outing.status,
-    roadIds: patch.roadIds !== undefined ? Object.freeze(normalizeRoadIds(patch.roadIds)) : outing.roadIds,
-    notes: patch.notes !== undefined ? normalizeOutingNote(patch.notes) : outing.notes,
+    roadIds, notes: patch.notes !== undefined ? normalizeOutingNote(patch.notes) : outing.notes,
     checklist: patch.checklist !== undefined ? normalizeChecklist(patch.checklist) : outing.checklist,
-    updatedAt: stamp });
+    roadState, updatedAt: stamp });
 }
 
 // THE ORDER IS THE PERSON'S. Moving a road swaps it with its neighbour and stops at the ends; nothing returns a
@@ -171,6 +236,9 @@ export function withRoad(outing, roadId) {
   return Object.freeze({ outing: updateOuting(outing, { roadIds: [...outing.roadIds, roadId] }), changed: true, reason: null });
 }
 
+// A ROAD THAT LEAVES THE PLAN TAKES ITS PROGRESS WITH IT. `updateOuting` prunes the progress to the roads the plan still
+// holds, so this is the one place removal has to be right - and a road re-added later starts unvisited, because it is a
+// new stop in the plan rather than the old one restored.
 export function withoutRoad(outing, roadId) {
   if (!outing.roadIds.includes(roadId)) return outing;
   return updateOuting(outing, { roadIds: outing.roadIds.filter(id => id !== roadId) });
@@ -196,9 +264,14 @@ export function storedOuting(value) {
   if (typeof value.title !== 'string') return null;
   const createdAt = storedTimestamp(value.createdAt);
   const updatedAt = storedTimestamp(value.updatedAt) ?? createdAt;
+  const roadIds = normalizeRoadIds(value.roadIds);
   return Object.freeze({ id: value.id, title: normalizeTitle(value.title), date: normalizeDate(value.date),
-    status: normalizeStatus(value.status), roadIds: Object.freeze(normalizeRoadIds(value.roadIds)),
+    status: normalizeStatus(value.status), roadIds,
     notes: normalizeOutingNote(value.notes), checklist: normalizeChecklist(value.checklist),
+    // PROGRESS IS READ LIKE EVERY OTHER FIELD. A record written before progress existed has none, and that reads exactly
+    // as an unvisited plan rather than as a broken one; a record that names a road this plan no longer holds drops that
+    // entry rather than carrying it forward.
+    roadState: normalizeRoadState(value.roadState, { roadIds }),
     createdAt, updatedAt });
 }
 
@@ -245,6 +318,13 @@ export function writeStoredOutings(outings, { storage = defaultStorage(), savedA
   const records = (outings ?? []).map(outing => ({ id: outing.id, title: normalizeTitle(outing.title), date: normalizeDate(outing.date),
     status: normalizeStatus(outing.status), roadIds: [...normalizeRoadIds(outing.roadIds)], notes: normalizeOutingNote(outing.notes),
     checklist: normalizeChecklist(outing.checklist).map(item => ({ id: item.id, text: item.text, checked: item.checked })),
+    // Which of this plan's roads have been visited, pruned to the roads it holds and written only when there is any
+    // progress: a plan nobody has started serializes exactly as it did before progress existed.
+    ...(() => {
+      const roadIds = normalizeRoadIds(outing.roadIds);
+      const roadState = normalizeRoadState(outing.roadState, { roadIds });
+      return Object.keys(roadState).length ? { roadState } : {};
+    })(),
     createdAt: outing.createdAt ?? null, updatedAt: outing.updatedAt ?? null }));
   if (records.length > MAX_OUTINGS) {
     return Object.freeze({ ok: false, count: 0, bytes: 0, status: OUTING_STORAGE_STATUS.FULL,

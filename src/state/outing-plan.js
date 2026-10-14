@@ -31,6 +31,16 @@ export function representativePoint(geometry, searchContext = null) {
   return geometryMidpoint(geometry);
 }
 
+// WHICH OF THE TWO RULES PRODUCED THE POINT, so a plan can say where its own point came from - the separations it
+// measures and the coordinate a navigation app is handed are the same point, and it is named once.
+export const REPRESENTATIVE_RULE = Object.freeze({ MEASURED: 'measured-search-context', MIDPOINT: 'geometry-midpoint' });
+
+export function representativeRule(geometry, searchContext = null) {
+  const nearest = searchContext?.nearestCenterPoint ?? null;
+  if (Array.isArray(nearest) && nearest.length === 2 && nearest.every(Number.isFinite)) return REPRESENTATIVE_RULE.MEASURED;
+  return geometryMidpoint(geometry) ? REPRESENTATIVE_RULE.MIDPOINT : null;
+}
+
 export function geometryMidpoint(geometry) {
   const lines = linesOf(geometry);
   let total = 0;
@@ -79,6 +89,7 @@ function member(roadId, index, entry) {
   const stop = index + 1;
   if (!entry) {
     return Object.freeze({ roadId, stop, resolved: false, name: null, geometry: null, representative: null,
+      representativeRule: null,
       lengthM: null, naturalistInterest: null, interestVersion: null, explorationScore: null, explorationBasis: null,
       explorationRadiusMiles: null, distanceFromSearchCentreM: null, searchContext: null, favorite: false, note: '',
       intersectsWetland: null, crossingCount: null, ecoregionTransitions: null, recordedAt: null,
@@ -97,6 +108,9 @@ function member(roadId, index, entry) {
     { radiusM }) : null;
   return Object.freeze({ roadId, stop, resolved: true, name: candidate.name ?? null,
     geometry: candidate.geometry ?? null, representative: representativePoint(candidate.geometry, searchContext),
+    // THE RULE THAT PRODUCED THE POINT travels with it, so a plan can say where its own point came from, and the field
+    // view can hand the same point to a navigation app without inventing a second one.
+    representativeRule: representativeRule(candidate.geometry, searchContext),
     lengthM: candidate.corridor?.lengthM ?? null,
     naturalistInterest: interest?.score ?? null, interestVersion: interest?.version ?? null,
     // The two full results travel with the member, so the map's own card and the workspace read the same numbers from
@@ -108,7 +122,9 @@ function member(roadId, index, entry) {
     distanceFromSearchCentreM: searchContext?.distanceFromCenterM ?? null, searchContext,
     favorite: entry.meta?.favorite === true, note: entry.meta?.note ?? '',
     intersectsWetland: planning?.signals?.wetlands?.intersectsCorridor ?? null,
+    wetlandArea250M2: planning?.signals?.wetlands?.area250M2 ?? null,
     crossingCount: planning?.signals?.hydrography?.crossingCount ?? null,
+    ecoregionCount: planning?.ecology?.ecoregionCount ?? null,
     ecoregionTransitions: planning?.ecology?.transitions ?? null,
     recordedAt: planning?.recordedAt ?? null, unavailableReason: null });
 }

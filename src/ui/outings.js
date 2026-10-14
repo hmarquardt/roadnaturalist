@@ -12,7 +12,7 @@ import { savedDateLabel } from '../state/user-meta.js';
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 
 export function renderOutings(container, state, { onOpenOuting, onSelectRoad, onRename, onDate, onNotes, onStatus,
-  onMove, onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting, onFitOuting } = {}) {
+  onMove, onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting, onFitOuting, onFieldMode } = {}) {
   container.replaceChildren();
   const outings = state.outings ?? [];
   const counts = { total: outings.length, planned: outings.filter(outing => outing.status === OUTING_STATUS.PLANNED).length,
@@ -35,7 +35,8 @@ export function renderOutings(container, state, { onOpenOuting, onSelectRoad, on
   }
   container.append(list({ state, outings, selectedId: state.selectedOutingId, onOpenOuting }));
   if (selected) container.append(detail({ state, outing: selected, roadsById: roadsById(state), onSelectRoad, onRename, onDate,
-    onNotes, onStatus, onMove, onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting, onFitOuting }));
+    onNotes, onStatus, onMove, onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting, onFitOuting,
+    onFieldMode }));
 }
 
 // Saved roads are the source of road facts: an outing holds references, and every fact shown here is read from
@@ -83,7 +84,7 @@ export function statusLabel(status) {
 // THE DETAIL OF ONE OUTING. Every control is labelled, the order is changed with buttons that name the road they
 // move, and nothing on this screen claims to know how to travel between two roads.
 function detail({ state, outing, roadsById: roads, onSelectRoad, onRename, onDate, onNotes, onStatus, onMove,
-  onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting, onFitOuting }) {
+  onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting, onFitOuting, onFieldMode }) {
   const block = el('section', 'outing-detail');
   block.id = 'outing-detail';
   block.dataset.outingId = outing.id;
@@ -117,6 +118,16 @@ function detail({ state, outing, roadsById: roads, onSelectRoad, onRename, onDat
     statusGroup.append(button);
   }
   block.append(statusGroup);
+  // FIELD MODE: the same plan, read on a phone where the road is. It opens a view of this outing, never a second copy.
+  const field = el('div', 'outing-field-entry');
+  const enter = el('button', 'primary-button', 'Field mode');
+  enter.type = 'button';
+  enter.id = 'outing-field-mode';
+  enter.disabled = !outing.roadIds.length;
+  enter.addEventListener('click', () => onFieldMode?.(outing.id));
+  field.append(enter, el('p', 'small muted', 'Work through these roads one at a time: mark progress, read what each road '
+    + 'measured, keep your notes and checklist, and hand a point on the road to your mapping app.'));
+  block.append(field);
   // THE PLAN, READ AS A PLAN: the roads in the person's order, what each one measured, and the straight-line gap between
   // each consecutive pair. Everything on this screen comes from the saved roads themselves - no measurement is made here.
   const plan = outingPlan({ outing, savedRoads: roads });

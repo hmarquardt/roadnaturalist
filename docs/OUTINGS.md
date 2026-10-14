@@ -89,6 +89,46 @@ direction. The sequence is read from the numbered list and from each road's own 
 The camera belongs to you: adding, removing, reordering and noting never moves it, and **Fit outing** is the one
 control that fits the plan's roads, when you press it.
 
+**Field mode: the same plan, read where the road is.** Pressing **Field mode** in the outing's workspace opens a
+streamlined view of that plan — the same persisted outing, not a second one — sized for a phone. It shows the plan's
+title and date, `2 / 5 roads visited` with a percentage, the current road, and for that road: its name, its saved note,
+its favourite state, what it measured (Naturalist interest, wetlands within 250 m, mapped water crossings, ecoregions
+and transitions, its length), the straight-line gap to the next road in *your* order, the plan's checklist, and the
+plan's notes.
+
+**Which road is current**, in one rule: the road you chose explicitly while it is still in the plan; otherwise the
+first road you have not visited; otherwise the first road. **Previous** and **Next** walk your own order and stop at
+its ends — nothing wraps around, nothing suggests an order, and no itinerary is computed. Marking the current road
+visited advances a *derived* position to the next road you have not visited; a road you chose yourself stays where it
+is, and offers **Undo visited**.
+
+**Visited is your mark.** `visited` is stored on the outing as `roadState: { "<roadId>": { visited: true, visitedAt } }`,
+so the same saved road can be visited in one plan and unvisited in another, and a road that leaves a plan takes its
+progress with it. Nothing infers it: no position is requested, no proximity is measured, no elapsed time is assumed,
+and there is no tracking of any kind. Progress is `roads you marked` out of `roads the plan holds` — never miles
+driven, never a time remaining, never an ETA, never a percentage of a route.
+
+**Navigation is a handoff, not a route.** Each resolved road offers **Navigate with Google Maps** and **Navigate with
+Apple Maps**: ordinary `https://` links built from that road's *representative point* — the same point the plan
+measures its separations from, to five decimals (about a metre). Road Naturalist does not call a routing service, does
+not fetch directions, and never learns what the app did with the coordinate. The point is a representative point on
+the road: it is **not** a parking location, a legal access point, an entrance or the start of the road, and the view
+says so: *Navigation opens a representative point on the road in your mapping app. It is not an access, parking or
+road-condition recommendation. Verify access, road conditions and where you can safely stop.*
+
+**An unresolvable road keeps its place in the field too.** It is listed with `Road details unavailable`, no Navigate
+link is offered, no fact is invented for it — and it can still be marked visited, because you may well have been
+there. Previous and Next walk straight past it.
+
+**Show on map** selects the current road (the map's own selection, nothing new), and **Fit current road** uses the
+map's existing fit for the selected road. Moving between roads never moves the camera.
+
+**With no signal.** Everything field mode reads was already written to this device: the plan, its progress, its notes
+and checklist, the saved roads and the measurements their scores came from. Working a plan — moving between roads,
+marking progress, ticking the checklist, writing notes, reading a road's facts — makes **no network request at all**.
+What still needs a network is the basemap's map tiles and the mapping application you hand a coordinate to; neither is
+required to work through a plan, and the field view is fully usable without them.
+
 **Storage and honesty.** Outings live in their own versioned device-local entry,
 `roadnaturalist.outings.v1`:
 
@@ -99,9 +139,14 @@ control that fits the plan's roads, when you press it.
 The entry is validated as untrusted input: a record that is not a usable outing is skipped with its reason and
 never costs the valid ones, an unknown version is reported and left byte-for-byte untouched, a full device (50
 outings) refuses another plan rather than evicting one, and a device where the write fails says *Not saved on this
-device* while the session keeps working. Reloading saved roads and outings reads this device only: 0 network
-requests — no derived partition, no R2, no iNaturalist, no eBird, no Overpass, no Investigator, no geocoder and no
-geolocation — until you explicitly ask for one.
+device* while the session keeps working. `roadState` (which roads have been visited) is an **optional addition to an
+unchanged version 1**: the reader builds every record from the fields it names and validates each one, so a plan
+written before progress existed reads exactly as it did — as an unvisited plan — and a plan that carries progress is
+read by this build and by any build that ignores a field it does not know. The version is deliberately not bumped:
+bumping it would make every existing plan unreadable to an older build for no gain, because nothing about the
+contract changed — a plan without progress was always a valid plan. Reloading saved roads and outings reads this
+device only: 0 network requests — no derived partition, no R2, no iNaturalist, no eBird, no Overpass, no
+Investigator, no geocoder and no geolocation — until you explicitly ask for one.
 
 A plan's *own* numbers need one more thing from storage. An outing may be opened long after the search that found
 its roads, so each **saved** road keeps the handful of measurements its Naturalist interest was computed from

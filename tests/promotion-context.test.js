@@ -402,8 +402,12 @@ test('a promotion with no centre, and a candidate built before this feature, bot
 test('carrying a context changes nothing but the context, and a later search cannot rewrite it', () => {
   const result = discoveryResult({});
   const features = [feature({ geometry: result.geometry })];
-  const plain = promoteDiscoveryResult(result, { features });
-  const carried = promoteDiscoveryResult(result, { features, searchContext: contextFor(result) });
+  // BOTH PROMOTIONS ARE PINNED TO THE SAME MOMENT. A promotion records when it measured the corridor
+  // (`planningContext.recordedAt`), so two promotions a millisecond apart are two different moments by design; pinning
+  // them keeps this comparison about the search context and nothing else.
+  const at = '2026-09-28T10:00:00.000Z';
+  const plain = promoteDiscoveryResult(result, { features, at });
+  const carried = promoteDiscoveryResult(result, { features, searchContext: contextFor(result), at });
   assert.deepEqual(Object.keys(carried).sort(), Object.keys(plain).sort());
   const withoutContext = candidate => { const { searchContext, ...rest } = JSON.parse(JSON.stringify(candidate)); return rest; };
   assert.equal(JSON.stringify(withoutContext(carried)), JSON.stringify(withoutContext(plain)),

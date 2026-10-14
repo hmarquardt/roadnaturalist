@@ -6,8 +6,8 @@ import { nearPlaceMetadata, storedPlaceMetadata } from '../discovery/place-gazet
 import { IDLE_LOCATION } from '../discovery/geolocation.js';
 import { DEFAULT_USER_META, favoritedUserMeta, notedUserMeta, savedUserMeta, storedUserMeta } from './user-meta.js';
 import { SAVED_FILTERS, SAVED_SORTS, nextComparison, savedRoadRows } from './saved-roads.js';
-import { MAX_OUTINGS, OUTING_STATUS, OUTING_STORAGE_STATUS, createOuting, moveRoad, outingsUsingRoad,
-  readStoredOutings, removeRoadEverywhere, updateOuting, withoutRoad, withRoad, writeStoredOutings } from './outings.js';
+import { MAX_OUTINGS, OUTING_STATUS, OUTING_STORAGE_STATUS, createOuting, markRoadVisited, moveRoad, outingsUsingRoad,
+  readStoredOutings, removeRoadEverywhere, unmarkRoadVisited, updateOuting, withoutRoad, withRoad, writeStoredOutings } from './outings.js';
 import { CANDIDATE_STORAGE_STATUS, readStoredCandidates, writeStoredCandidates } from './candidate-persistence.js';
 import { readDiscoverySort, writeDiscoverySort } from '../discovery/persistence.js';
 
@@ -52,6 +52,10 @@ export function createStore({ storage } = {}) {
   let state = Object.freeze({ candidates: [], selectedId: null, pilotId: null, pilotLoaded: false, roadsByCandidate: {}, roadQuery: initialQuery, ecologyByCandidate: {}, habitatByCandidate: {}, habitatOverlay: null, occurrenceByCandidate: {}, occurrenceOverlay: null, investigationByCandidate: {}, accessReviewByCandidate: {}, liveOsm: false, workerStatus: null, investigatorFeature: initialInvestigatorFeature, durableCandidateIds: Object.freeze([]), restoredCandidateIds: Object.freeze([]),
     userMetaById: Object.freeze({}), savedRoads: initialSavedRoads, candidateStorage: initialCandidateStorage,
     outings: initialOutings, outingStorage: initialOutingStorage, outingSelection: Object.freeze([]), selectedOutingId: null,
+    // FIELD MODE IS INTERFACE STATE, like every other selection in this application: which plan is open, whether it is
+    // being read in the field, and which of its roads the person is standing on. None of it is persisted - the plan and
+    // its progress are - so a reload returns to the workspace with the progress intact.
+    fieldMode: false, fieldRoadId: null,
     discovery: initialDiscovery, search: initialSearch });
   const listeners = new Set();
   const publish = next => { state = Object.freeze(next); for (const listener of listeners) listener(state); };
@@ -333,17 +337,52 @@ export function createStore({ storage } = {}) {
     removeOuting(id) {
       if (!state.outings.some(outing => outing.id === id)) return null;
       const outings = state.outings.filter(outing => outing.id !== id);
+      const removed = state.selectedOutingId === id;
       const next = { ...state, outings: Object.freeze(outings),
-        selectedOutingId: state.selectedOutingId === id ? (outings[0]?.id ?? null) : state.selectedOutingId,
+        selectedOutingId: removed ? (outings[0]?.id ?? null) : state.selectedOutingId,
+        // The field view cannot outlive the plan it was reading.
+        fieldMode: removed ? false : state.fieldMode, fieldRoadId: removed ? null : state.fieldRoadId,
         outingSelection: Object.freeze(state.outingSelection.filter(entry => entry !== id)) };
       publish({ ...next, outingStorage: storageAfterOutingWrite(saveOutings(next)) });
       return next.selectedOutingId;
     },
     selectOuting(id) {
-      if (id == null) { publish({ ...state, selectedOutingId: null }); return null; }
+      if (id == null) { publish({ ...state, selectedOutingId: null, fieldMode: false, fieldRoadId: null }); return null; }
       if (!state.outings.some(outing => outing.id === id)) return null;
-      publish({ ...state, selectedOutingId: id });
+      // Opening ANOTHER plan leaves field mode, and the road the person was standing on with it: it belonged to the plan
+      // they were reading, not to the workspace. Reopening the same plan keeps both, so stepping out to the workspace and
+      // back does not lose the person's place.
+      const changed = state.selectedOutingId !== id;
+      publish({ ...state, selectedOutingId: id,
+        fieldMode: changed ? false : state.fieldMode, fieldRoadId: changed ? null : state.fieldRoadId });
       return id;
+    },
+    // FIELD MODE: a view of the open plan, not a second plan. It needs a plan to open, and it never changes the plan.
+    setFieldMode(enabled) {
+      const active = Boolean(enabled) && Boolean(state.selectedOutingId);
+      publish({ ...state, fieldMode: active, fieldRoadId: active ? state.fieldRoadId : null });
+      return active;
+    },
+    // WHICH ROAD THE PERSON IS ON. Explicit, never inferred from anything: an id that is not in the open plan is refused
+    // rather than stored, and clearing it lets the field view fall back to the first road not yet visited.
+    selectFieldRoad(roadId) {
+      const outing = state.outings.find(entry => entry.id === state.selectedOutingId) ?? null;
+      if (!outing) return null;
+      if (roadId == null) { publish({ ...state, fieldRoadId: null }); return null; }
+      if (!outing.roadIds.includes(roadId)) return null;
+      publish({ ...state, fieldRoadId: roadId });
+      return roadId;
+    },
+    // VISITED IS THE PERSON'S OWN MARK, written to the plan that holds the road and persisted with it. Nothing infers it:
+    // no location, no proximity, no elapsed time.
+    markRoadVisited(id, roadId, visited = true) {
+      const outing = state.outings.find(entry => entry.id === id) ?? null;
+      if (!outing || !outing.roadIds.includes(roadId)) return null;
+      const roadState = visited ? markRoadVisited(outing.roadState, roadId) : unmarkRoadVisited(outing.roadState, roadId);
+      const next = { ...state, outings: Object.freeze(state.outings.map(entry => entry.id === id
+        ? updateOuting(entry, { roadState }) : entry)) };
+      publish({ ...next, outingStorage: storageAfterOutingWrite(saveOutings(next)) });
+      return next.outings.find(entry => entry.id === id);
     },
     // The roads chosen for a new outing: interface state, separate from the comparison selection.
     toggleOutingSelection(roadId) {

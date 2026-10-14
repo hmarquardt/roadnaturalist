@@ -102,3 +102,45 @@
 .outing-plan{max-width:44rem}
 .outing-remove{margin-top:1rem}
 @media(max-width:700px){.outings-panel{order:7}.outing-fields,.outing-add-road,.outing-add-item{flex-direction:column;align-items:stretch}.outing-road-controls{flex-direction:column;align-items:stretch}}
+/* FIELD MODE — THE SAME PLAN, READ WHERE THE ROAD IS.
+   One column, thumb-sized controls and no table: the person is standing next to a car, not reading a dashboard. On a
+   phone the panel moves to the top of the page while field mode is open, because the field view is the thing being used. */
+.outing-field-entry{margin:.7rem 0}
+.field-mode{display:grid;gap:.85rem;padding:1rem}
+.field-mode-note{margin:0}
+.field-head{display:grid;gap:.2rem}
+.field-title{margin:0;font-size:1.22rem}
+.field-head-facts,.field-current-meta{margin:0}
+.field-progress{margin:.25rem 0;font-weight:700;font-size:1rem;color:#205646}
+.field-current{border:1px solid #cfe0d5;border-radius:7px;padding:.8rem;background:#f7faf4;min-width:0}
+.field-stop{margin:0;color:#527364;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em}
+.field-current-name{margin:.15rem 0 .4rem;font-size:1.16rem;overflow-wrap:anywhere}
+.field-current-facts{list-style:none;margin:.45rem 0;padding:0;display:grid;gap:.18rem;font-size:.88rem}
+.field-unavailable{margin:.3rem 0;font-weight:700;color:#8a5a2b}
+.field-leg{margin:.5rem 0 0;font-style:italic;color:#526b5d;font-size:.82rem}
+.field-move,.field-visit,.field-map-controls{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.6rem}
+.field-move button{flex:1 1 8rem;min-height:2.7rem}
+.field-visit button{flex:1 1 100%;min-height:3rem}
+.field-map-controls button{flex:1 1 9rem;min-height:2.5rem}
+.field-navigate{display:grid;gap:.4rem;margin-top:.7rem;border-top:1px solid #e2e9df;padding-top:.65rem}
+.field-navigate-link{display:block;min-height:3rem;line-height:3rem;text-align:center;border:1px solid #205646;border-radius:6px;color:#205646;text-decoration:none;font-weight:700}
+.field-navigate-link:hover{background:#eaf3ec}
+.field-destination{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}
+.field-navigate-note{margin:0}
+.field-roads h4,.field-checklist h4,.field-road-note h4{margin:0 0 .4rem;font-size:.94rem}
+.field-road-list{list-style:none;margin:0;padding:0;display:grid;gap:.3rem}
+.field-road{display:flex;align-items:center;gap:.5rem;border:1px solid #e0e8dd;border-radius:6px;padding:.35rem .55rem;min-height:2.7rem}
+.field-road.current{border-color:#205646;background:#eef5ef}
+.field-road-name{border:0;background:none;padding:0;text-align:left;font:inherit;color:#21392f;cursor:pointer;flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
+.field-road[data-visited="true"] .field-road-name{text-decoration:line-through;color:#6b7f74}
+.field-checklist-items{list-style:none;margin:0;padding:0;display:grid;gap:.3rem}
+.field-checklist-item{display:flex;align-items:center;gap:.55rem;min-height:2.5rem;font-size:.92rem}
+.field-checklist-item input[type="checkbox"]{width:1.2rem;height:1.2rem}
+.field-add-item{display:flex;gap:.5rem;margin-top:.45rem}
+.field-input,.field-textarea{font:inherit;font-size:.92rem;padding:.55rem;border:1px solid #c8d3c6;border-radius:6px;background:#fffef9;color:#21392f;width:100%}
+.field-textarea{resize:vertical;white-space:pre-wrap}
+.field-label{display:block;font-size:.78rem;color:#526b5d;margin-bottom:.2rem}
+.field-empty{padding:1rem;color:#526b5d}
+@media(min-width:900px){.field-mode{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start}
+  .field-head,.field-mode-note{grid-column:1 / -1}}
+@media(max-width:700px){.outings-panel.is-field{order:-1}}
