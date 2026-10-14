@@ -1,7 +1,8 @@
 import { searchContextLine } from '../discovery/search-context.js';
 import { MAX_CHECKLIST_ITEMS, MAX_CHECKLIST_TEXT, MAX_OUTING_ROADS, OUTING_NOTE_MAX_LENGTH, OUTING_STATUS,
   OUTING_STORAGE_STATUS, OUTINGS_NOTE, roadPosition } from '../state/outings.js';
-import { savedDateLabel, storedUserMeta } from '../state/user-meta.js';
+import { OUTING_PLAN_NOTE, OUTING_SEPARATION_LABEL, outingPlan, savedRoadsById, separationLine } from '../state/outing-plan.js';
+import { savedDateLabel } from '../state/user-meta.js';
 
 // OUTINGS: PLANS, NOT ROUTES.
 //
@@ -11,7 +12,7 @@ import { savedDateLabel, storedUserMeta } from '../state/user-meta.js';
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 
 export function renderOutings(container, state, { onOpenOuting, onSelectRoad, onRename, onDate, onNotes, onStatus,
-  onMove, onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting } = {}) {
+  onMove, onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting, onFitOuting } = {}) {
   container.replaceChildren();
   const outings = state.outings ?? [];
   const counts = { total: outings.length, planned: outings.filter(outing => outing.status === OUTING_STATUS.PLANNED).length,
@@ -34,18 +35,14 @@ export function renderOutings(container, state, { onOpenOuting, onSelectRoad, on
   }
   container.append(list({ state, outings, selectedId: state.selectedOutingId, onOpenOuting }));
   if (selected) container.append(detail({ state, outing: selected, roadsById: roadsById(state), onSelectRoad, onRename, onDate,
-    onNotes, onStatus, onMove, onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting }));
+    onNotes, onStatus, onMove, onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting, onFitOuting }));
 }
 
 // Saved roads are the source of road facts: an outing holds references, and every fact shown here is read from
-// the candidate it points at, not copied into the plan.
+// the candidate it points at, not copied into the plan. The resolver is the planning module's own, so the workspace and
+// the map can never disagree about which roads a plan has.
 function roadsById(state) {
-  const rows = new Map();
-  const durable = state.durableCandidateIds ?? [];
-  for (const candidate of state.candidates ?? []) {
-    if (durable.includes(candidate.id)) rows.set(candidate.id, { candidate, meta: storedUserMeta(state.userMetaById?.[candidate.id]) });
-  }
-  return rows;
+  return savedRoadsById(state);
 }
 
 function list({ state, outings, selectedId, onOpenOuting }) {
@@ -86,7 +83,7 @@ export function statusLabel(status) {
 // THE DETAIL OF ONE OUTING. Every control is labelled, the order is changed with buttons that name the road they
 // move, and nothing on this screen claims to know how to travel between two roads.
 function detail({ state, outing, roadsById: roads, onSelectRoad, onRename, onDate, onNotes, onStatus, onMove,
-  onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting }) {
+  onRemoveRoad, onAddRoad, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting, onFitOuting }) {
   const block = el('section', 'outing-detail');
   block.id = 'outing-detail';
   block.dataset.outingId = outing.id;
@@ -120,10 +117,15 @@ function detail({ state, outing, roadsById: roads, onSelectRoad, onRename, onDat
     statusGroup.append(button);
   }
   block.append(statusGroup);
+  // THE PLAN, READ AS A PLAN: the roads in the person's order, what each one measured, and the straight-line gap between
+  // each consecutive pair. Everything on this screen comes from the saved roads themselves - no measurement is made here.
+  const plan = outingPlan({ outing, savedRoads: roads });
+  block.append(summaryBlock(plan, { onFitOuting }));
   block.append(el('h3', null, `Roads in this order (${outing.roadIds.length} of ${MAX_OUTING_ROADS})`));
   const roadsList = el('ol', 'outing-roads');
   roadsList.id = 'outing-roads';
-  for (const roadId of outing.roadIds) {
+  for (const member of plan.members) {
+    const roadId = member.roadId;
     const entry = roads.get(roadId) ?? null;
     const position = roadPosition(outing, roadId);
     const item = el('li', 'outing-road');
@@ -132,15 +134,28 @@ function detail({ state, outing, roadsById: roads, onSelectRoad, onRename, onDat
     const open = el('button', 'outing-road-name', name);
     open.type = 'button';
     open.dataset.openRoad = roadId;
+    open.setAttribute('aria-label', `Select ${name} and show its corridor details`);
     if (entry) open.addEventListener('click', () => onSelectRoad?.(roadId));
     else open.disabled = true;
     item.append(el('span', 'outing-position', `${position}.`), open);
     const facts = [];
-    if (entry) {
+    if (member.resolved) {
       facts.push(`${(entry.candidate.corridor.lengthM / 1609.344).toFixed(1)} mi`);
+      // WHAT THE ROAD ITSELF MEASURED, read from the saved road's own kept numbers: the interest score its search
+      // computed, and the exploration order against its own search centre when that search had one.
+      facts.push(member.naturalistInterest == null ? 'Naturalist interest: not recorded for this saved road'
+        : `Naturalist interest ${member.naturalistInterest}/100`);
+      if (member.explorationScore != null && member.explorationScore !== member.naturalistInterest) {
+        facts.push(`Exploration order ${member.explorationScore}`
+          + (member.explorationRadiusMiles ? ` within ${member.explorationRadiusMiles} mi of its search centre` : ''));
+      }
+      if (member.distanceFromSearchCentreM != null) {
+        facts.push(`${(member.distanceFromSearchCentreM / 1609.344).toFixed(1)} mi from the search that found it`);
+      }
       const context = searchContextLine(entry.candidate.searchContext);
       facts.push(context ? `Found ${context} · ${savedDateLabel(entry.meta)}` : `Saved ${savedDateLabel(entry.meta).replace('Saved ', '')}`);
-      if (entry.meta.favorite) facts.push('Favorite');
+      if (member.favorite) facts.push('Favorite');
+      if (member.note) facts.push('Note saved');
     } else facts.push('It is not in Saved roads any more.');
     item.append(el('p', 'outing-road-facts small muted', facts.join(' · ')));
     const controls = el('div', 'outing-road-controls');
@@ -166,11 +181,71 @@ function detail({ state, outing, roadsById: roads, onSelectRoad, onRename, onDat
     controls.append(up, down, remove);
     item.append(controls);
     roadsList.append(item);
+    // THE GAP TO THE NEXT ROAD IN THE PERSON'S OWN ORDER, stated as what it is: a straight line between two
+    // representative points, not a drive, not a time, and not a route.
+    const leg = plan.legs[position - 1] ?? null;
+    if (leg) {
+      const separation = el('li', 'outing-separation');
+      separation.dataset.fromRoad = leg.fromId;
+      separation.dataset.toRoad = leg.toId;
+      separation.append(el('p', 'outing-separation-line', separationLine(leg, { toName: nextName(plan, leg.toId) })));
+      roadsList.append(separation);
+    }
   }
   block.append(roadsList);
+  // HOW A DISTANCE BETWEEN TWO ROADS IN THIS PLAN IS MEASURED, AND WHAT IT IS NOT. It is stated once, beside the list that
+  // shows the numbers, because a straight line between two roads is the single most misreadable number on this screen.
+  block.append(el('p', 'small muted outing-distance-note', OUTING_PLAN_NOTE));
+  block.append(el('p', 'small muted outing-distance-label', OUTING_SEPARATION_LABEL));
   block.append(addRoad({ state, outing, roads, onAddRoad }));
   block.append(notesAndChecklist({ outing, onNotes, onAddItem, onToggleItem, onRemoveItem, onRemoveOuting }));
   return block;
+}
+
+// THE SUMMARY OF A PLAN, from measurements that already exist. Every line names where its number came from - a score, a
+// count, or the span of the plan's own bounds - and no line is a composite: there is no "outing score", no verdict, and
+// nothing here says one plan is better than another.
+function summaryBlock(plan, { onFitOuting } = {}) {
+  const summary = plan.summary;
+  const block = el('div', 'outing-summary');
+  block.id = 'outing-summary';
+  block.append(el('h3', null, `${plan.title} - ${summary.roads} road${summary.roads === 1 ? '' : 's'}`));
+  const facts = el('ul', 'outing-summary-facts');
+  const line = (id, text) => { const item = el('li', null, text); item.id = id; facts.append(item); };
+  line('outing-span', summary.spanMiles == null
+    ? 'Approximate geographic span: not available (no road geometry to measure across).'
+    : `Approximate geographic span: ${summary.spanMiles.toFixed(1)} mi - the straight-line diagonal of this plan's own bounds.`);
+  if (summary.scored) {
+    line('outing-interest', summary.interestMin === summary.interestMax
+      ? `Naturalist interest: ${summary.interestMin} (the same score for every road here)`
+      : `Naturalist interest: ${summary.interestMin}-${summary.interestMax} across ${summary.scored} of ${summary.resolved} roads`);
+  } else {
+    line('outing-interest', 'Naturalist interest: not recorded for the saved roads in this plan.');
+  }
+  line('outing-wetland', `Roads overlapping a mapped wetland: ${summary.intersectsMappedWetland} of ${summary.resolved}`);
+  line('outing-crossings', `Mapped water crossings: ${summary.waterCrossings} in total`);
+  line('outing-transitions', `Ecoregion transition corridors: ${summary.transitionCorridors}`);
+  line('outing-coordinates', `Coordinates in this plan: ${summary.vertices}`);
+  if (summary.unresolved) {
+    line('outing-unresolved', `${summary.unresolved} road${summary.unresolved === 1 ? '' : 's'} in this plan cannot be `
+      + 'resolved against Saved roads and are not measured above.');
+  }
+  block.append(facts);
+  block.append(el('p', 'small muted outing-summary-note',
+    'These are the facts the roads themselves already measured. There is no combined outing score, and nothing here ranks '
+    + 'one plan above another.'));
+  const fit = el('button', 'quiet-button', 'Fit outing');
+  fit.type = 'button';
+  fit.id = 'outing-fit';
+  fit.disabled = !summary.resolved;
+  fit.addEventListener('click', () => onFitOuting?.());
+  block.append(fit, el('p', 'small muted', 'Fitting moves the map once, when you ask. Adding, removing or reordering a road never moves it.'));
+  return block;
+}
+
+function nextName(plan, roadId) {
+  const member = plan.members.find(entry => entry.roadId === roadId) ?? null;
+  return member?.name ?? 'the next road';
 }
 
 // Adding a road picks from what is already saved, and never from anywhere else: an outing references saved roads.

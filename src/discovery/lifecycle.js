@@ -1,4 +1,4 @@
-import { naturalistInterest } from './ranking.js';
+import { RANKING_VERSION, naturalistInterest } from './ranking.js';
 import { COVERAGE, COVERAGE_DATASET, createCandidate, createCoverage, setDatasetCoverage } from '../domain/corridor.js';
 import { corridorRoad, createRoad, groupRoadFeatures } from '../roads/road.js';
 import { DEFAULT_TOLERANCE_M } from '../roads/normalize.js';
@@ -7,6 +7,20 @@ import { PROMOTION_MAX_DRIFT_M } from './promotion.js';
 import { verifyPromotionSearchContext } from './search-context.js';
 import { DETAIL_LEVEL, derivedEvidence, detailLevelFor } from './evidence.js';
 import { derivedRoad } from '../roads/road.js';
+import { planningContextFrom } from '../state/planning-context.js';
+
+// THE LAST STEP OF EVERY PROMOTION, in one place, so both levels finish a candidate the same way: the search
+// context is verified against the corridor this promotion actually publishes, and the measurements the score came
+// from are kept beside it. A candidate that no longer remembers its own numbers cannot be scored inside an outing
+// months later, so the few numbers ARE saved - not the datasets, not the geometry, just what was measured.
+function finishPromotion(candidate, result, { searchContext = null, at = null } = {}) {
+  const verified = verifyPromotionSearchContext(searchContext, candidate.geometry, { toleranceM: PROMOTION_MAX_DRIFT_M });
+  if (!verified.ok) throw new Error(`search context: ${verified.reason}`);
+  const planningContext = planningContextFrom(result, { rankingVersion: RANKING_VERSION,
+    at: at ?? new Date().toISOString() });
+  return createCandidate({ ...candidate, ...(verified.context ? { searchContext: verified.context } : {}),
+    ...(planningContext ? { planningContext } : {}) });
+}
 
 // Discovery lifecycle: a discovered candidate is either left alone, promoted into the ordinary
 // candidate pipeline, or dismissed. Promotion is a real promotion: it builds the same road records and
@@ -43,7 +57,7 @@ export function markDiscovery(marks, id, status) {
 
 export function promoteDiscoveryResult(result, { features = [], provenance = null, toleranceM = DEFAULT_TOLERANCE_M,
   dataCatalogUrl = null, corridor = null, searchContext = null, derived = null, derivedVersion = null,
-  sourceEvidence = null, evidenceLevels = null } = {}) {
+  sourceEvidence = null, evidenceLevels = null, at = null } = {}) {
   const members = features.filter(feature => result.road.sourceFeatureIds.includes(String(feature.sourceFeatureId)));
   if (!members.length) throw new TypeError(`Promotion needs the source features of ${result.id}`);
   const groups = groupRoadFeatures(members);
@@ -86,18 +100,15 @@ export function promoteDiscoveryResult(result, { features = [], provenance = nul
     ],
     questions: ['Is this road publicly accessible, and under what restrictions?'],
   });
-  // SEARCH CONTEXT. Two steps, deliberately: the discovered relationship is verified against the corridor this
-  // promotion actually publishes, and the values that are kept are re-derived from that corridor. A context
-  // that disagrees beyond the corridor tolerance fails the promotion closed (the caller reports why) rather
-  // than being silently carried or silently dropped; a run with no centre carries no context at all.
+  // SEARCH CONTEXT AND THE MEASUREMENTS THE SCORE CAME FROM, finished in one shared step: the context is verified
+  // against the corridor this promotion actually publishes, and the numbers behind the interest score are kept beside
+  // it. A context that disagrees beyond the corridor tolerance fails the promotion closed (the caller reports why)
+  // rather than being silently carried or silently dropped; a run with no centre carries no context at all.
   //
   // The tolerance is the promotion geometry tolerance: a derived row is verified to within a metre of the raw
   // corridor it was reconstructed from, and the minimum distance from a point to a line is 1-Lipschitz in that
   // drift, so a legitimate promotion can never fail this check.
-  const verified = verifyPromotionSearchContext(searchContext, candidate.geometry, { toleranceM: PROMOTION_MAX_DRIFT_M });
-  if (!verified.ok) throw new Error(`search context: ${verified.reason}`);
-  if (verified.context) return createCandidate({ ...candidate, searchContext: verified.context });
-  return candidate;
+  return finishPromotion(candidate, result, { searchContext, at });
 }
 
 // THE DERIVED CANDIDATE. A discovered corridor becomes an ordinary candidate from the derived row alone: its
@@ -107,7 +118,7 @@ export function promoteDiscoveryResult(result, { features = [], provenance = nul
 // (promoteDiscoveryResult, below), and a candidate that has only ever been derived is never presented as if its
 // wetlands and hydrography had been re-read.
 export function promoteDerivedCandidate(result, { corridor = null, derived = null, derivedVersion = null,
-  dataCatalogUrl = null, searchContext = null, provenance = null, sourceEvidence = null } = {}) {
+  dataCatalogUrl = null, searchContext = null, provenance = null, sourceEvidence = null, at = null } = {}) {
   if (!corridor?.geometry) throw new TypeError(`A derived candidate needs the corridor row of ${result.id}`);
   const roads = [derivedRoad(corridor, result.road ?? {}, { derivedVersion, provenance })];
   const flag = coverageFlag(result);
@@ -148,9 +159,7 @@ export function promoteDerivedCandidate(result, { corridor = null, derived = nul
     ],
     questions: ['Is this road publicly accessible, and under what restrictions?'],
   });
-  const verified = verifyPromotionSearchContext(searchContext, candidate.geometry, { toleranceM: PROMOTION_MAX_DRIFT_M });
-  if (!verified.ok) throw new Error(`search context: ${verified.reason}`);
-  return verified.context ? createCandidate({ ...candidate, searchContext: verified.context }) : candidate;
+  return finishPromotion(candidate, result, { searchContext, at });
 }
 
 // WHY THIS ROAD SURFACED, AND WHAT IT IS NOT.

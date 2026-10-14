@@ -28,7 +28,7 @@ const CLASS_LABELS = Object.freeze({ S1200: 'Secondary road', S1400: 'Local road
 export function renderDiscovery(container, { discovery, searchAreas = [], searchAreaId = null, search = null,
   presets = [], region = null, gazetteer = null, loadPlaceTier = null, onDiscover, onSelect, onPromote, onDismiss,
   onFilters, onSort, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace,
-  onUseLocation, locationSupported = false } = {}) {
+  onUseLocation, locationSupported = false, outings = [], selectedOutingId = null, onAddToOuting } = {}) {
   container.replaceChildren();
   // The radius this run asked for, in metres. The exploration order normalises distance against it, and the panel
   // shows it beside the two scores; a declared box search has none, so the order falls back to the interest score.
@@ -60,7 +60,8 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
   } else if (discovery.status === 'ready') {
     container.append(el('p', 'discovery-note', 'No discovery corridor was proposed in this search area. That is a result about the declared filters and data coverage, not a statement about the roads on the ground.'));
   }
-  if (selected) container.append(selectedResult(selected, { onPromote, onDismiss, onSelect, radiusM }));
+  if (selected) container.append(selectedResult(selected, { onPromote, onDismiss, onSelect, radiusM, outings,
+    selectedOutingId, onAddToOuting }));
   return container;
 }
 
@@ -769,7 +770,8 @@ function analyticalGeometryLine(facts) {
   return `Minor topology repair applied (${facts.method}): canonical road geometry preserved, nothing moved${removed}`;
 }
 
-function selectedResult(result, { onPromote, onDismiss, onSelect, radiusM = null }) {
+function selectedResult(result, { onPromote, onDismiss, onSelect, radiusM = null, outings = [], selectedOutingId = null,
+  onAddToOuting = null }) {
   const block = el('div', 'discovery-selected');
   block.id = 'discovery-selected';
   block.append(el('span', 'eyebrow', 'Selected discovery corridor'));
@@ -842,6 +844,39 @@ function selectedResult(result, { onPromote, onDismiss, onSelect, radiusM = null
   clear.addEventListener('click', () => onSelect?.(null));
   actions.append(promote, dismiss, clear);
   block.append(actions);
+  block.append(outingAction({ result, outings, selectedOutingId, onAddToOuting }));
+  return block;
+}
+
+// ADD TO OUTING.
+//
+// An outing references saved roads, so adding a corridor that has only ever been discovered keeps it first - through the
+// same promotion the Promote button runs, with the same honesty about what was and was not read. The control is one
+// select and one button: the person picks the plan they mean, or asks for a new one, and nothing is created behind their
+// back. A road already in the chosen outing is not added twice; the application says so instead of quietly duplicating.
+export const NEW_OUTING_VALUE = '__new__';
+
+function outingAction({ result, outings = [], selectedOutingId = null, onAddToOuting = null }) {
+  const block = el('div', 'discovery-outing');
+  const open = outings.find(outing => outing.id === selectedOutingId) ?? null;
+  const field = el('label', 'discovery-field', 'Add to an outing');
+  const select = el('select', 'discovery-input');
+  select.id = 'discovery-add-outing';
+  const add = (label, value) => { const option = el('option', null, label); option.value = value; select.append(option); };
+  if (open) add(`Add to ${open.title}`, open.id);
+  for (const outing of outings) if (outing.id !== open?.id) add(outing.title, outing.id);
+  // A NEW OUTING IS NAMED AFTER THE ROAD, because that is the one thing the person already told us; it is renamed in the
+  // workspace like any other plan.
+  add(outings.length ? 'New outing…' : 'New outing', NEW_OUTING_VALUE);
+  const button = el('button', 'quiet-button', 'Add to outing');
+  button.type = 'button';
+  button.id = 'discovery-add-to-outing';
+  button.addEventListener('click', () => onAddToOuting?.({
+    roadId: result.id, outingId: select.value === NEW_OUTING_VALUE ? null : select.value, title: result.name }));
+  field.append(select);
+  block.append(field, button);
+  block.append(el('p', 'small muted discovery-outing-note',
+    'An outing holds saved roads, so adding a discovered corridor saves it first. The plan is a list you arrange - not a route.'));
   return block;
 }
 

@@ -1,19 +1,24 @@
 import { COVERAGE, CANDIDATE_STATUS, COVERAGE_DATASET, createCandidate, createCoverage, setDatasetCoverage } from '../domain/corridor.js';
 import { storedSearchContext } from '../discovery/search-context.js';
 import { DEFAULT_USER_META, storedUserMeta, userMetaRecord } from './user-meta.js';
+import { storedPlanningContext } from './planning-context.js';
 
 // CANDIDATE PERSISTENCE (device-local).
 //
 // A promoted corridor is something a person keeps, so it should still be there after a reload. One versioned
 // localStorage entry holds the durable candidate state and nothing else: identity, the road records and corridor
-// geometry, coverage, status, the evidence already part of the candidate, and the verified search context. It
-// stays on this device - no account, no server, no cloud state, no cross-device sync - and it is written only
-// when a person promotes, decides, re-measures or removes a candidate.
+// geometry, coverage, status, the evidence already part of the candidate, the verified search context, and the small
+// measurements the corridor's own Naturalist interest was computed from. It stays on this device - no account, no
+// server, no cloud state, no cross-device sync - and it is written only when a person promotes, decides, re-measures
+// or removes a candidate.
 //
 // WHAT IS NOT PERSISTED, deliberately:
 //   * the per-candidate analysis results (ecology, habitat, occurrence, the access investigation and a human
 //     review). They are owned by their own store slices, are re-derived by explicit actions, and can be large; a
 //     restored candidate says plainly that they have not run in this session instead of pretending otherwise;
+//   * the datasets themselves. `planningContext` is a dozen numbers already measured (wetland proximity and area,
+//     water crossings, ecoregion counts and transitions), kept only so a saved road can still show the score its own
+//     search produced after the search result is long gone. No geometry, no source archive, no national extract;
 //   * discovery state: candidates, marks and the last search keep their own entries;
 //   * everything about the interface (selection, filters, overlays, transient errors).
 //
@@ -39,7 +44,7 @@ export const MAX_PERSISTED_CANDIDATES = 100;
 // tampered record are dropped rather than spread into the candidate, and a new candidate field is persisted only
 // by naming it here.
 export const PERSISTED_CANDIDATE_FIELDS = Object.freeze(['id', 'name', 'status', 'summary', 'dataCatalogUrl',
-  'geometry', 'roads', 'coverage', 'evidence', 'access', 'questions', 'searchContext']);
+  'geometry', 'roads', 'coverage', 'evidence', 'access', 'questions', 'searchContext', 'planningContext']);
 // User metadata is stored beside the candidate facts, never inside them: `candidate` stays exactly what the
 // domain built, and a note can never be mistaken for evidence. `PERSISTED_CANDIDATE_FIELDS` deliberately does
 // not include it, so a hand-edited record cannot smuggle a field into the candidate model either.
@@ -65,7 +70,10 @@ function pick(value, fields) {
 // identical bytes. `userMeta` rides beside the candidate fields and never inside them.
 export function persistedCandidateRecord(candidate, userMeta = DEFAULT_USER_META) {
   const record = pick(candidate, PERSISTED_CANDIDATE_FIELDS);
-  return { ...record, searchContext: storedSearchContext(record.searchContext), userMeta: userMetaRecord(userMeta) };
+  return { ...record, searchContext: storedSearchContext(record.searchContext),
+    // The measurements a saved road's own score came from, re-validated on the way out exactly as they are on the way
+    // in: a candidate that never had them stores `null` rather than an empty object claiming to hold measurements.
+    planningContext: storedPlanningContext(record.planningContext), userMeta: userMetaRecord(userMeta) };
 }
 
 // A coverage map from storage, rebuilt through the domain validator: an unknown dataset or an unknown coverage
@@ -107,7 +115,8 @@ export function restoreCandidateRecord(record) {
   try {
     candidate = createCandidate({ ...pick(record, PERSISTED_CANDIDATE_FIELDS), status, roads,
       coverage: storedCoverage(record.coverage), questions: storedQuestions(record.questions),
-      searchContext: storedSearchContext(record.searchContext) });
+      searchContext: storedSearchContext(record.searchContext),
+      planningContext: storedPlanningContext(record.planningContext) });
   } catch (error) {
     return { ok: false, reason: error.message };
   }

@@ -31,6 +31,7 @@ import { renderDiscovery, eligibilityNote } from '../ui/discovery.js';
 import { renderSavedRoads } from '../ui/saved-roads.js';
 import { renderOutings } from '../ui/outings.js';
 import { comparisonIds, savedCounts } from '../state/saved-roads.js';
+import { outingMapRoads, outingPlan, savedRoadsById } from '../state/outing-plan.js';
 import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, writeDiscoveryMarks,
   writeDiscoverySearch, writeDiscoverySearchHistory } from '../discovery/persistence.js';
 import { DISCOVERY_STATUS, applyMarks, markDiscovery, promoteDerivedCandidate, promoteDiscoveryResult } from '../discovery/lifecycle.js';
@@ -133,7 +134,8 @@ const nodes = {
   list: document.getElementById('candidate-list'), detail: document.getElementById('candidate-detail'),
   context: document.getElementById('data-context'), count: document.getElementById('candidate-count'),
   list: document.getElementById('candidate-list'), caption: document.getElementById('map-caption'), fitResults: document.getElementById('fit-results'),
-  fitSelected: document.getElementById('fit-selected'), basemapToggle: document.getElementById('basemap-toggle'),
+  fitSelected: document.getElementById('fit-selected'), fitOuting: document.getElementById('fit-outing'),
+  basemapToggle: document.getElementById('basemap-toggle'),
   basemapNote: document.getElementById('basemap-note'),
   load: document.getElementById('load-pilot'), overlayNote: document.getElementById('habitat-layers-note'),
   discovery: document.getElementById('discovery'), discoveryCount: document.getElementById('discovery-count'),
@@ -150,7 +152,7 @@ let places = null;
 const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverlay: null, resolvedId: null,
   savedRoads: null, savedMeta: null, savedDurable: null, savedStorage: null, savedEcology: null, savedHabitat: null,
   savedOutingSelection: null, savedOutings: null,
-  outings: null, outingStorage: null, outingSelection: null, selectedOuting: null,
+  outings: null, outingStorage: null, outingSelection: null, selectedOuting: null, outingKey: undefined,
   discoveryNodes: null, discoverySignature: null, searchKey: null };
 
 function activeSearch() { return store.getState().search; }
@@ -510,9 +512,22 @@ function promotionSearchContext(result) {
 }
 
 async function promoteDiscoveryCorridor(id) {
+  await saveDiscoveredRoad(id);
+  nodes.list.scrollIntoView({ block: 'nearest' });
+}
+
+// KEEPING A DISCOVERED ROAD, ONCE, FOR EVERYONE WHO NEEDS IT.
+//
+// Promote keeps a corridor so it can be studied; adding a corridor to an outing has to keep it too, because an outing
+// references saved roads and the search that found it may be long gone. Both go through this, so both read exactly the
+// same evidence and neither invents a second path: the derived level opens the precomputed metrics, the source level
+// reconstructs the corridor from the published extract, and a reconstruction that fails reports why and keeps nothing.
+// Returns the saved candidate's id, or null after the failure has been reported.
+async function saveDiscoveredRoad(id) {
   const state = store.getState();
   const result = state.discovery.results.find(entry => entry.id === id);
-  if (!result) return;
+  if (!result) return null;
+  if (state.durableCandidateIds.includes(id)) return id;   // already saved: nothing to read a second time
   const searchContext = promotionSearchContext(result);
   store.clearDiscoveryPromotion();
   try {
@@ -524,13 +539,27 @@ async function promoteDiscoveryCorridor(id) {
       : promoteRawResult(result, searchContext, state);
     store.promoteDiscoveryCandidate(candidate, id);
     writeDiscoveryMarks(store.getState().discovery.marks);
-    nodes.list.scrollIntoView({ block: 'nearest' });
+    return candidate.id;
   } catch (error) {
     // A missing raw source is not a failed reconstruction: the corridor was never read, and the person is told
     // exactly what has not been published rather than that the data disagreed with itself.
     store.noteDiscoveryPromotion(id, error.rawUnavailable ? error.message
       : `the corridor could not be reconstructed from the published data (${error.message})`);
+    return null;
   }
+}
+
+// ADD TO OUTING, from anywhere a road is on screen.
+//
+// The road is kept first when it is not saved yet (an outing references saved roads, and a plan that outlived its search
+// still has to open), then added to the plan the person chose. With no plan chosen, a new one is created and named after
+// the road, and the workspace opens it. The same road is never added twice: the store refuses the duplicate and says so.
+async function addRoadToOuting({ roadId, outingId = null, title = '' } = {}) {
+  const savedId = store.getState().durableCandidateIds.includes(roadId) ? roadId : await saveDiscoveredRoad(roadId);
+  if (!savedId) return;                                  // the failure is already on screen, with its reason
+  if (outingId) { store.addRoadToOuting(outingId, savedId); return; }
+  const created = store.createOutingFromRoads([savedId], { title });
+  if (!created.ok) store.setOutingStorage({ status: 'unavailable', reason: created.reason });
 }
 
 // LEVEL 1. A promotion opens the corridor's precomputed metrics: the row the discovery run already loaded, its
@@ -1077,6 +1106,16 @@ function corridorDescriptors(state) {
   });
 }
 
+// THE PLAN THE MAP DRAWS, computed from the open outing and the saved roads it references. The application resolves the
+// roads - the map is handed geometry and a stop number and derives nothing - and a member that cannot be resolved is
+// simply not in the list: an unavailable road is reported in the workspace, never drawn from a remembered guess.
+function activeOutingLayer(state) {
+  const outing = (state.outings ?? []).find(entry => entry.id === state.selectedOutingId) ?? null;
+  if (!outing) return null;
+  const plan = outingPlan({ outing, savedRoads: savedRoadsById(state) });
+  return Object.freeze({ id: plan.id, roads: outingMapRoads(plan, { selectionDomain: SELECTION_DOMAIN.CANDIDATE }) });
+}
+
 function badgeText(roads) {
   const evidence = roadEvidenceSummary(roads);
   const vintage = roads[0].provenance.vintage ?? roads[0].provenance.datasetVersion ?? 'source';
@@ -1131,7 +1170,9 @@ function renderOutingsPanel(state) {
       store.updateOuting(id, { checklist: (outing?.checklist ?? []).map(item => item.id === itemId ? { ...item, checked: !item.checked } : item) }); },
     onRemoveItem: (id, itemId) => { const outing = (store.getState().outings ?? []).find(entry => entry.id === id);
       store.updateOuting(id, { checklist: (outing?.checklist ?? []).filter(item => item.id !== itemId) }); },
-    onRemoveOuting: id => store.removeOuting(id) });
+    onRemoveOuting: id => store.removeOuting(id),
+    // Fitting the plan is the map's own explicit camera action, asked for from where the plan is read.
+    onFitOuting: () => map.fitOuting() });
 }
 
 // NOTES ARE WRITTEN ON A SHORT DEBOUNCE, not on every keystroke: typing stays smooth, and the write either lands
@@ -1247,12 +1288,24 @@ store.subscribe(state => {
   const overlay = state.habitatOverlay && state.habitatOverlay.candidateId === shownId ? state.habitatOverlay : null;
   const occurrenceOverlay = state.occurrenceOverlay && state.occurrenceOverlay.candidateId === selected?.id ? state.occurrenceOverlay : null;
   const discoveryLayer = discoveryDescriptors(state);
+  // THE ACTIVE PLAN IS THE OUTING THE WORKSPACE HAS OPEN, and it is drawn as a plan: the roads in the person's order,
+  // each knowing which stop it holds. `null` when no outing is open, and a plan whose roads cannot be resolved simply
+  // has fewer roads to draw - the workspace is where an unavailable member is reported.
+  const outingLayer = activeOutingLayer(state);
+  // FITTING A PLAN IS EXPLICIT: the control is live whenever the open outing has at least one road on the map, and
+  // adding, removing, reordering or noting a road never touches the camera.
+  nodes.fitOuting.disabled = !(outingLayer && outingLayer.roads.length);
   // EXACTLY ONE AUTOMATIC FIT PER COMPLETED SEARCH. The request was made where the run completed and is spent here,
   // once, at the first render that actually has that search's geometry. It is not inferred from state: selecting,
   // sorting, saving, promoting or finishing an analysis has no request to spend and cannot move the camera.
   const discoveryKey = `${state.discovery.status}|${state.discovery.selectedId}|${discoveryLayer?.corridors.length ?? 0}|${discoveryLayer?.promotedIds.join(',') ?? ''}`;
+  // A PLAN CHANGE IS A DRAWING CHANGE, and nothing else: adding, removing or reordering a road repaints the plan's roads
+  // and never moves the camera. The key is the plan's identity and its order, so a note or a checklist item - which do
+  // not change what is drawn - does not redraw the map at all.
+  const outingKey = outingLayer ? `${outingLayer.id}|${outingLayer.roads.map(road => road.id).join(',')}` : '';
   if (selected?.id !== drawn.selectedId || drawn.corridors.length !== state.candidates.length
-    || drawn.overlay !== overlay || drawn.occurrenceOverlay !== occurrenceOverlay || drawn.discoveryKey !== discoveryKey) {
+    || drawn.overlay !== overlay || drawn.occurrenceOverlay !== occurrenceOverlay || drawn.discoveryKey !== discoveryKey
+    || drawn.outingKey !== outingKey) {
     // The map is given the discovery layer's corridors as well as the promoted candidates: a search's results are
     // the geometry a person is looking at, and a map that only ever drew promoted candidates would show nothing for
     // a search - which is also why the completed search had nothing to fit.
@@ -1260,7 +1313,8 @@ store.subscribe(state => {
     drawn.overlay = overlay;
     drawn.occurrenceOverlay = occurrenceOverlay;
     drawn.discoveryKey = discoveryKey;
-    map.draw({ corridors: drawn.corridors, selectedId: shownId, overlay, occurrenceOverlay,
+    drawn.outingKey = outingKey;
+    map.draw({ corridors: drawn.corridors, selectedId: shownId, overlay, occurrenceOverlay, outing: outingLayer,
       savedIds: discoveryLayer?.savedIds ?? [], dismissedIds: discoveryLayer?.dismissedIds ?? [] });
     // THE MAP EMPHASISES THE CORRIDOR THE APPLICATION SHOWS, by the one rule that names it: a discovery selection when
     // there is one, and the selected candidate otherwise. Reading only the discovery selection left a pilot corridor
@@ -1285,7 +1339,9 @@ store.subscribe(state => {
 
 function signature(state) {
   const discovery = state.discovery;
-  return `${discovery.status}|${discovery.results.length}|${discovery.selectedId}|${Object.keys(discovery.marks).length}|${discovery.sort}|${JSON.stringify(discovery.filters)}|${discovery.error ?? ''}|${JSON.stringify(state.search)}`;
+  // The person's plans are part of what this panel renders - the "Add to an outing" control lists them - so a new outing,
+  // a rename or a plan becoming the open one rebuilds the panel rather than leaving a stale list of destinations.
+  return `${discovery.status}|${discovery.results.length}|${discovery.selectedId}|${Object.keys(discovery.marks).length}|${discovery.sort}|${JSON.stringify(discovery.filters)}|${discovery.error ?? ''}|${JSON.stringify(state.search)}|${state.selectedOutingId ?? ''}|${(state.outings ?? []).map(outing => `${outing.id}:${outing.title}`).join(',')}`;
 }
 
 // The discovery panel is rendered only when its own state changed: selecting a candidate must not
@@ -1304,6 +1360,11 @@ function renderDiscoveryPanel(state) {
     onSelect: id => store.selectDiscovery(id),
     onPromote: id => promoteDiscoveryCorridor(id),
     onDismiss: id => markDiscoveryCorridor(id),
+    // ADDING TO A PLAN: the road is kept first if it is not saved yet, then added to the plan the person chose - or to a
+    // new one named after the road.
+    outings: state.outings ?? [], selectedOutingId: state.selectedOutingId ?? null,
+    onAddToOuting: request => { addRoadToOuting(request).catch(error => store.setOutingStorage({ status: 'unavailable',
+      reason: `The road could not be added to an outing: ${error.message}` })); },
     onFilters: filters => store.setDiscoveryFilters(filters),
     onSort: sort => store.setDiscoverySort(sort),
     // A selected place is the same input a map click or a typed coordinate produces; only the label differs.
@@ -1450,6 +1511,9 @@ async function fetchJson(url) {
 nodes.load.addEventListener('click', openPilot);
 nodes.fitResults.addEventListener('click', () => map.fitResults());
 nodes.fitSelected.addEventListener('click', () => map.fitSelected());
+// FITTING A PLAN IS A CAMERA MOVE THE PERSON ASKED FOR. Nothing else in the outing workflow moves the viewport: adding,
+// removing, reordering and noting a road all leave the camera exactly where it was.
+nodes.fitOuting.addEventListener('click', () => map.fitOuting());
 nodes.basemapToggle?.addEventListener('change', event => map.setBasemap(event.target.checked));
 nodes.occurrenceNote = document.getElementById('occurrence-note');
 nodes.occurrenceToggle = document.getElementById('occurrence-layer');

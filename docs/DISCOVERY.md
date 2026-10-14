@@ -855,11 +855,17 @@ written only when a person promotes, decides, re-measures or removes a candidate
 | road records (with their provenance and source feature ids) and the corridor geometry | discovery state: candidates, marks, the last search (each has its own entry) |
 | coverage per dataset, and the candidate's own evidence and questions | interface state: selection, filters, overlays, transient errors |
 | the verified search context (centre, label, place id, radius, distance, bearing) | the pilot corridors themselves (they come back from their own button) |
+| `planningContext`: the dozen measurements the corridor's own Naturalist interest was computed from (wetland proximity and area, water crossings, ecoregion counts and transitions), with the ranking version and when they were recorded | the datasets themselves: no geometry, no source archive, no national extract |
 
 * **Validated on read.** `localStorage` is untrusted: every record is re-validated through the same domain
-  constructor that built it, coverage is rebuilt through the domain validator, and the search context goes
-  through `storedSearchContext`. A record that cannot be read is left out **on its own** with its reason — the
-  candidate list reports how many and why — while the rest load. The entry is never silently rewritten by a read.
+  constructor that built it, coverage is rebuilt through the domain validator, the search context goes
+  through `storedSearchContext`, and `planningContext` goes through `storedPlanningContext`. A record that cannot
+  be read is left out **on its own** with its reason — the candidate list reports how many and why — while the rest
+  load. The entry is never silently rewritten by a read. A snapshot that is unusable is dropped rather than
+  believed, and **losing the measurements never costs the road**: it restores as a saved candidate that says its
+  score was not recorded. `planningContext` is an optional addition to an unchanged schema version 2, because the
+  reader already validates the fields it reads — a road saved before it existed reads exactly as it did, with no
+  snapshot, rather than as a road whose score is zero.
 * **Versioned from day one.** An entry with a different `kind`, an unparsable entry, or a future schema version is
   ignored and left byte-for-byte untouched, with the reason shown in the candidate list. A migration is written
   explicitly when the model changes, never guessed.

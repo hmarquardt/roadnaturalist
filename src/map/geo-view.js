@@ -73,15 +73,20 @@ export function toLatLngs(geometry) {
 // ONE KIND OWNS data-role="candidate": a corridor, named by data-corridor-id. That is the contract the production gate
 // and the click identity rest on, and it is deliberately unchanged.
 export const FEATURE_KIND = Object.freeze({
-  CORRIDOR: 'corridor', HABITAT: 'habitat', HABITAT_BUFFER: 'habitat-buffer', OCCURRENCE: 'occurrence',
-  SEARCH_CONTEXT: 'search-context', SEARCH_REGION: 'search-region', SEARCH_RADIUS: 'search-radius',
-  SEARCH_CENTRE: 'search-center',
+  CORRIDOR: 'corridor', OUTING: 'outing', HABITAT: 'habitat', HABITAT_BUFFER: 'habitat-buffer',
+  OCCURRENCE: 'occurrence', SEARCH_CONTEXT: 'search-context', SEARCH_REGION: 'search-region',
+  SEARCH_RADIUS: 'search-radius', SEARCH_CENTRE: 'search-center',
 });
 
 // idAttribute is the attribute this kind's own identity belongs to. A kind with no identity of its own declares none -
 // it never borrows another family's.
 export const FEATURE_DOM = Object.freeze({
   [FEATURE_KIND.CORRIDOR]: Object.freeze({ role: 'candidate', idAttribute: 'corridorId', idField: 'corridorId',
+    interactive: true, clickable: true }),
+  // AN OUTING ROAD IS A ROAD, DRAWN FOR A PLAN. It keeps the corridor identity contract - data-corridor-id, so a click
+  // on it selects exactly the road it was drawn for - under a role of its own, so a plan member is never read as an
+  // ordinary discovery candidate by anything looking at the DOM. It carries no connector, no route and no drive time.
+  [FEATURE_KIND.OUTING]: Object.freeze({ role: 'outing', idAttribute: 'corridorId', idField: 'corridorId',
     interactive: true, clickable: true }),
   [FEATURE_KIND.HABITAT]: Object.freeze({ role: 'habitat', idAttribute: 'habitatId', idField: 'habitatId',
     interactive: false }),
@@ -108,14 +113,18 @@ export function featureAttributes(feature) {
   const attributes = { role: contract.role };
   const value = contract.idField ? feature?.[contract.idField] : null;
   if (contract.idAttribute && value != null) attributes[contract.idAttribute] = value;
-  if (feature?.kind === FEATURE_KIND.CORRIDOR && feature.selected != null) attributes.selected = feature.selected;
+  // Selection is a property of a *road* on this map, whether it is drawn as a candidate or as a plan member, so both
+  // road roles announce it and no other kind borrows the attribute.
+  if ((feature?.kind === FEATURE_KIND.CORRIDOR || feature?.kind === FEATURE_KIND.OUTING) && feature.selected != null) {
+    attributes.selected = feature.selected;
+  }
   return attributes;
 }
 
 // A CORRIDOR, NORMALIZED. Its identity, geometry, style and card come from the corridor descriptor itself; the kind is
 // what makes it a corridor rather than a row that merely resembles one.
-export function corridorFeature(corridor, { selected = false, style = null } = {}) {
-  return Object.freeze({ kind: FEATURE_KIND.CORRIDOR, corridorId: corridor?.id ?? null,
+export function corridorFeature(corridor, { selected = false, style = null, kind = FEATURE_KIND.CORRIDOR } = {}) {
+  return Object.freeze({ kind, corridorId: corridor?.id ?? null,
     geometry: corridor?.geometry ?? null, style: style ?? LINE_STYLE.normal, selected: Boolean(selected),
     // WHICH COLLECTION THIS ROAD WAS DRAWN FROM, carried through unchanged. The map never interprets it and never guesses
     // it from the id: it reports it back with the click, and the application routes the selection.
@@ -123,6 +132,26 @@ export function corridorFeature(corridor, { selected = false, style = null } = {
     // The card follows the corridor: a corridor whose distance from the search centre was never measured has nothing to
     // say about it and is drawn without one.
     card: Number.isFinite(corridor?.distanceFromCenterM) ? popupHtml(corridor) : null });
+}
+
+// AN OUTING ROAD: THE SAME ROAD, DRAWN FOR A PLAN.
+//
+// The style is deliberately none of the discovery styles - a heavier, darker line than any candidate or saved road - so
+// a road the person put in their plan reads as part of the plan wherever it is on the map. What it is NOT is a route:
+// there is no connector between two members, no line that could be mistaken for a drive, and no direction. The stop
+// number rides in the card, which is where a sequence can be read without drawing anything between two roads that may
+// not even meet.
+const OUTING_STYLE = Object.freeze({
+  normal: Object.freeze({ color: '#6d28d9', weight: 5, opacity: 0.85, fill: false }),
+  selected: Object.freeze({ color: '#4c1d95', weight: 7, opacity: 1, fill: false }),
+});
+
+export function outingFeature(road, { selected = false } = {}) {
+  return Object.freeze({ kind: FEATURE_KIND.OUTING, corridorId: road?.id ?? null, geometry: road?.geometry ?? null,
+    style: selected ? OUTING_STYLE.selected : OUTING_STYLE.normal, selected: Boolean(selected),
+    selectionDomain: road?.selectionDomain ?? null,
+    // The card names the stop, because the plan's order is a fact about this road rather than about the map.
+    card: popupHtml(road, { stop: road?.stop ?? null, of: road?.of ?? null }) });
 }
 
 // A POLYGON OR A POINT IS NOT A LINE, and the shape of a feature is read from its own geometry rather than assumed.
@@ -362,10 +391,15 @@ export function boundsOfGeometries(geometries) {
 
 // The compact card a selected or clicked corridor shows: which road, why it surfaced, and how far it is. Component
 // wording comes from the ranking model's own labels, so the popup cannot drift from the score in the list.
-export function popupHtml(corridor) {
+export function popupHtml(corridor, { stop = null, of = null } = {}) {
   const escape = value => String(value ?? '').replace(/[&<>"']/g, character => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
   const parts = [];
+  // A PLAN'S STOP NUMBER IS THE PERSON'S OWN SEQUENCE, so it is stated as a position in their list and never as a
+  // direction, a distance along a route, or a step towards somewhere.
+  if (Number.isFinite(stop)) {
+    parts.push(`<p class="map-popup-outing">Road ${stop}${Number.isFinite(of) ? ` of ${of}` : ''} in this outing</p>`);
+  }
   if (Number.isFinite(corridor?.ranking?.score)) {
     // The version travels with the card: a screenshot of a score is only interpretable beside the model that
     // produced it, and the model is versioned precisely so that stays true.
@@ -400,7 +434,7 @@ export function popupHtml(corridor) {
 // mapping failure. Every method is a no-op that reports failure rather than throwing into the app.
 export function unavailableView(reason) {
   return { available: false, reason, draw: () => false, setSelected: () => false, setSearch: () => false,
-    setSavedRoads: () => false, setOuting: () => false, setPickMode: () => false, setBasemap: () => false,
+    setSavedRoads: () => false, setOuting: () => false, fitOuting: () => false, setPickMode: () => false, setBasemap: () => false,
     fitResults: () => false, fitSelected: () => false, selectedId: () => null, destroy: () => {},
     camera: () => null, searchGeometry: () => ({ center: null, radiusM: null }), fitCount: () => 0 };
 }
@@ -424,8 +458,8 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     // THE LEADER GETS ITS OWN LAYER, CREATED FIRST SO IT DRAWS UNDER EVERYTHING ELSE: orientation belongs beneath the
     // roads and the overlays it orients, and a layer that is only ever written by selection can be cleared by selection.
     const layers = { context: leaflet.featureGroup(), results: leaflet.featureGroup(), saved: leaflet.featureGroup(),
-      search: leaflet.featureGroup(), overlay: leaflet.featureGroup(), occurrence: leaflet.featureGroup(),
-      selected: leaflet.featureGroup() };
+      outing: leaflet.featureGroup(), search: leaflet.featureGroup(), overlay: leaflet.featureGroup(),
+      occurrence: leaflet.featureGroup(), selected: leaflet.featureGroup() };
     for (const layer of Object.values(layers)) map.addLayer(layer);
     let basemap = null;
     let basemapStatus = provider ? 'loading' : 'off';
@@ -455,6 +489,8 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     let corridors = [];
     let savedRoads = [];
     let outing = null;
+    // The plan's roads, in the person's order, exactly as the caller described them. The map never derives them.
+    let outingRoads = [];
     let activeCentre = null;
     let activeRadiusM = null;
     // The leader currently drawn, so a diagnostic can read back exactly what is on the map - and nothing else.
@@ -623,22 +659,60 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       return true;
     }
 
+    // THE PLAN'S ROADS, AND WHERE THEY ARE DRAWN INSTEAD OF THE CANDIDATE COLLECTION.
+    //
+    // A road is drawn once. An outing member is painted in the outing layer with the plan's own style and is left out of
+    // the results and the saved layers, so a road that is both a visible discovery result and a plan member is one line
+    // on the map rather than two stacked ones - and the line the person sees is the one that belongs to their plan. Both
+    // helpers are used by `draw` and by `setSelected`, so an emphasis can never be drawn against a set that the base copy
+    // is not in.
+    function outingIds() { return new Set(outingRoads.map(road => road.id)); }
+    function resultFeatures() {
+      const planned = outingIds();
+      return corridorFeatures(corridors.filter(corridor => !planned.has(corridor.id)));
+    }
+    function savedFeatures(visible) {
+      const planned = outingIds();
+      return corridorFeatures(savedRoads.filter(road => !visible.has(road.id) && !planned.has(road.id)));
+    }
+    function paintOuting() {
+      return paint(layers.outing, outingRoads.map(road => outingFeature(road, { selected: road.id === selectedId })));
+    }
+    // The plan's own state, set in one place: `draw` sends one with everything else, and the map's `setOuting` sends one
+    // on its own. Setting it never moves the camera and never derives anything.
+    function setOutingState(descriptor = null) {
+      const roads = Array.isArray(descriptor?.roads) ? descriptor.roads : [];
+      outing = Object.freeze({ id: descriptor?.id ?? null, roadIds: Object.freeze(roads.map(road => road.id)) });
+      outingRoads = roads.map(road => Object.freeze({ ...road, selectionDomain: road?.selectionDomain ?? null }));
+      return outing;
+    }
+    // Repaint the collections a plan member has to be taken out of, then the plan itself.
+    function repaintOutingFamily() {
+      paint(layers.results, resultFeatures());
+      paint(layers.saved, savedFeatures(new Set(corridors.map(corridor => corridor.id))));
+      paintOuting();
+    }
+
     const view = {
       available: true,
       // The whole visible candidate set, in list order, replacing whatever was drawn before - without touching the
       // viewport. `fitResults()` is the only thing that moves the camera, and only when the caller asks.
       draw({ corridors: next = [], selectedId: nextSelected = null, savedIds = [], dismissedIds = [],
-        overlay = null, occurrenceOverlay = null, search } = {}) {
+        overlay = null, occurrenceOverlay = null, search, outing: nextOuting } = {}) {
         const saved = new Set(savedIds);
         const dismissed = new Set(dismissedIds);
         corridors = next.map(corridor => ({ ...corridor, saved: saved.has(corridor.id),
           dismissed: dismissed.has(corridor.id) }));
         selectedId = nextSelected;
-        const results = paint(layers.results, corridorFeatures(corridors));
+        // THE PLAN ARRIVES WITH EVERYTHING ELSE when the caller sends one, so a redraw can never leave last week's
+        // outing roads on the map while the list has moved on. `undefined` leaves the current plan alone, which is what a
+        // caller that only draws candidates means.
+        if (nextOuting !== undefined) setOutingState(nextOuting);
+        const results = paint(layers.results, resultFeatures());
         // Saved roads that are *not* in the visible set are drawn from their own descriptors; the same road is never
         // drawn twice simply because it is both a candidate and saved.
         const visible = new Set(corridors.map(corridor => corridor.id));
-        paint(layers.saved, corridorFeatures(savedRoads.filter(road => !visible.has(road.id))));
+        paint(layers.saved, savedFeatures(visible));
         // THE HABITAT OVERLAY: the analysis buffer first, then the typed source features. The buffer is a typed feature
         // and is drawn under the roads (the results layer is repainted after this, in setSelected), so it can frame the
         // corridor without covering it or its selection styling; the source features are typed for the same reason.
@@ -649,6 +723,9 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         // THE OCCURRENCE POINTS ARE TYPED TOO: each is a point with its own source identity, drawn above the habitat
         // overlay and, like every overlay family, unable to take a selection.
         paint(layers.occurrence, occurrenceFeatures(occurrenceOverlay).features);
+        // THE PLAN'S ROADS ARE PAINTED AFTER THE OVERLAYS, so a wetland fill or an occurrence point can never cover a
+        // road the person deliberately collected into a plan.
+        paintOuting();
         if (search !== undefined) setSearch(search);
         view.setSelected(selectedId);
         return { drawn: results.drawn, skipped: results.skipped, candidates: corridors.length };
@@ -656,12 +733,20 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       // Selection changes appearance only. It is called on every list highlight precisely *because* it does not fit.
       setSelected(id) {
         selectedId = id ?? null;
-        paint(layers.results, corridorFeatures(corridors));
+        paint(layers.results, resultFeatures());
+        paintOuting();
         // The emphasised copy is drawn into its own layer so it sits above every other corridor regardless of where
         // it falls in the list order. Selection changes appearance only: it is called on every list highlight
         // precisely *because* it never moves the camera.
         layers.selected.clearLayers();
-        const selected = corridors.find(corridor => corridor.id === selectedId) ?? null;
+        // THE SELECTED ROAD IS LOOKED FOR IN THE PLAN TOO, because a road the person is planning with may not be in the
+        // visible candidate set at all. If it is a plan member, the plan's own drawing and style are what is emphasised -
+        // the selection never shows a road in one family's clothes while the base copy wears another's.
+        const planned = outingIds().has(selectedId);
+        const selected = planned ? (outingRoads.find(road => road.id === selectedId) ?? null)
+          : (corridors.find(corridor => corridor.id === selectedId) ?? null);
+        const selectedStyle = planned ? OUTING_STYLE.selected : (selected ? styleFor(selected) : null);
+        const selectedKind = planned ? FEATURE_KIND.OUTING : FEATURE_KIND.CORRIDOR;
         // THE LEADER FOLLOWS THE SELECTION, AND ONLY THE SELECTION. It is normalized from the selected corridor's own
         // measured pair, so selecting another corridor replaces it, clearing the selection removes it, and a redraw that
         // leaves the selection alone leaves the same leader - it is never accumulated and never duplicated.
@@ -673,8 +758,8 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
           // feature - it is this corridor's own copy, above everything - but an anonymous path on a map whose whole
           // taxonomy is "a thing says what it is" is the one thing this family of work exists to remove. It stays
           // non-interactive, so it can never take the click the base copy answers.
-          const emphasis = leaflet.polyline(line, { ...styleFor(selected), interactive: false }).addTo(layers.selected);
-          mark(emphasis, featureAttributes(corridorFeature(selected, { selected: true })));
+          const emphasis = leaflet.polyline(line, { ...selectedStyle, interactive: false }).addTo(layers.selected);
+          mark(emphasis, featureAttributes(corridorFeature(selected, { selected: true, kind: selectedKind })));
         }
         // ONE CARD, FOR THE CORRIDOR THAT WAS JUST ASKED FOR. The map has finished re-drawing, so a card requested by a
         // click is opened against the layer that now carries it - never against the layer the click destroyed.
@@ -683,10 +768,27 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       },
       setSearch,
       setSavedRoads(descriptors = []) { savedRoads = [...descriptors]; return true; },
-      // An outing is recorded so the API is not designed around exactly one highlighted road; no connectors, no
-      // route order and no drive times are computed here.
-      setOuting(descriptor = null) { outing = descriptor ? { id: descriptor.id ?? null, roadIds: [...(descriptor.roadIds ?? [])] } : null; return outing; },
+      // AN OUTING IS DRAWN, NOT COMPUTED. The descriptor is the plan's own roads in the person's order, each carrying the
+      // stop it holds; the map records them, paints them in the plan's own layer, and keeps them out of the candidate
+      // collections. No connector is drawn between two members, no order is derived, and nothing here knows or claims
+      // anything about driving between them.
+      setOuting(descriptor = null) {
+        const next = setOutingState(descriptor);
+        // A road can stop being a plan member while the map is already drawn: the collections that exclude it have to be
+        // repainted in the same breath, or the plan's style would outlive the plan.
+        repaintOutingFamily();
+        return next;
+      },
       outingRoadIds() { return outing ? [...outing.roadIds] : []; },
+      // AN EXPLICIT CAMERA MOVE, AND THE ONLY ONE THE PLAN HAS. The plan is fitted when the person asks and never when a
+      // road is added, removed, reordered or noted: the camera belongs to them.
+      fitOuting() {
+        const bounds = boundsOfGeometries(outingRoads.map(road => road.geometry));
+        if (!bounds) { onNotice({ kind: 'empty', note: 'This outing has no mapped road geometry to fit.' }); return false; }
+        map.fitBounds(bounds, { padding: [24, 24] });
+        fitCount += 1;
+        return true;
+      },
       setPickMode(enabled) {
         pickMode = Boolean(enabled);
         if (container.style) container.style.cursor = pickMode ? 'crosshair' : '';
@@ -710,7 +812,10 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         return true;
       },
       fitSelected() {
-        const selected = corridors.find(corridor => corridor.id === selectedId) ?? null;
+        // A selected road may be a plan member, which is not a visible candidate: the same lookup the emphasis uses.
+        const selected = outingIds().has(selectedId)
+          ? (outingRoads.find(road => road.id === selectedId) ?? null)
+          : (corridors.find(corridor => corridor.id === selectedId) ?? null);
         const bounds = boundsOfGeometries([selected?.geometry]);
         if (!bounds) return false;
         map.fitBounds(bounds, { padding: [24, 24] });

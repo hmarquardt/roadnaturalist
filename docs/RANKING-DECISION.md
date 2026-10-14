@@ -339,6 +339,31 @@ invalid ignored, older record still valid, other records intact, every offered s
 `tests/sort-preference-map.spec.js` in a browser (fresh session writes nothing, each choice survives a reload, an
 obsolete value is ignored). There is still no URL sort.
 
+**A saved road keeps the numbers its own score came from.** An outing is built from saved roads and is often opened
+long after the search that found them, and the ranking's inputs are *search results*, not candidate fields. So a
+promotion copies the dozen measurements the score was computed from into `planningContext` beside the verified
+search context: wetland coverage, corridor intersection, nearest distance and the 250/500/1000 m areas; hydrography
+coverage, crossing count, nearest flowing and standing water and the 1 km flowline length; and the ecology coverage,
+ecoregion count and transition count - with `rankingVersion` and `recordedAt` so the number can say which model
+produced it and when.
+
+Three properties keep this from becoming a second ranking model:
+
+* **The same function scores it.** An outing member's interest is `naturalistInterest(planningContext)` - the one
+  model, reading the same field names - so a saved road's score is the score its search produced, not a
+  re-measurement and not a copy of a number.
+* **Nothing is invented when the numbers are absent.** A road saved by an earlier build carries no snapshot, and the
+  workspace shows that its interest was not recorded instead of scoring it as zero; a component whose coverage was
+  never FULL/PARTIAL is still left out of the mean exactly as it is during a search.
+* **It is a snapshot, and it says so.** `recordedAt` is when the search measured it and `rankingVersion` is the model
+  that computed it. A future model version does not silently re-interpret an old saved road's stored numbers.
+
+The score itself is never stored - only its inputs - so a change to the ranking's *shaping* cannot leave a saved road
+holding a stale number that no code can reproduce. What the snapshot fixes is the *measurement*, which is the part
+that cannot be recovered once the search result is gone. This is covered by `tests/outing-plan.test.js`
+(snapshot ≡ score, hand-edited snapshot dropped, the road survives a broken snapshot) and characterised by
+`tests/outing-planning.spec.js` in a browser.
+
 **Copy.** The two options are named exactly `Exploration order` and `Naturalist interest`, with the meaning of each
 said once beside the control (derived from the model's own help text), and the line under the table follows the
 active ordering - a heuristic is never described as a measurement, and a measurement is never described as a

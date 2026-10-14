@@ -487,16 +487,26 @@ test('the tile provider is declared once, completely, and is replaceable', () =>
 // two things the overlay slices will depend on - the declared families, and the rule that a kind's identity is its own.
 test('the taxonomy declares every family, and only a corridor is a candidate', () => {
   assert.deepEqual(Object.values(FEATURE_KIND).sort(),
-    ['corridor', 'habitat', 'habitat-buffer', 'occurrence', 'search-center', 'search-context', 'search-radius',
-      'search-region']);
+    ['corridor', 'habitat', 'habitat-buffer', 'occurrence', 'outing', 'search-center', 'search-context',
+      'search-radius', 'search-region']);
   const roles = Object.values(FEATURE_DOM).map(contract => contract.role);
   assert.equal(roles.filter(role => role === 'candidate').length, 1, 'one kind is the candidate, and it is the corridor');
   assert.equal(FEATURE_DOM[FEATURE_KIND.CORRIDOR].role, 'candidate');
   assert.equal(FEATURE_DOM[FEATURE_KIND.CORRIDOR].interactive, true, 'a corridor is a clickable family');
-  assert.equal(FEATURE_DOM[FEATURE_KIND.CORRIDOR].clickable, true, 'and the only one that answers a click by selecting');
+  // TWO KINDS ARE ROADS, AND ONLY TWO. A road can be drawn as a discovery candidate or as a member of the person's own
+  // plan, and both answer a click by selecting exactly the road they were drawn for; every overlay family stays
+  // unselectable, so a wetland or a species point can never take a selection. The outing role is deliberately NOT
+  // 'candidate': a plan member is not a discovery result, and nothing reading the DOM may confuse the two.
+  const ROAD_KINDS = [FEATURE_KIND.CORRIDOR, FEATURE_KIND.OUTING];
+  for (const kind of ROAD_KINDS) {
+    assert.equal(FEATURE_DOM[kind].clickable, true, `${kind} answers a click by selecting its own road`);
+    assert.equal(FEATURE_DOM[kind].idAttribute, 'corridorId', `${kind} names its road under the corridor attribute`);
+  }
+  assert.notEqual(FEATURE_DOM[FEATURE_KIND.OUTING].role, FEATURE_DOM[FEATURE_KIND.CORRIDOR].role,
+    'a plan member is not drawn as a discovery candidate');
   for (const [kind, contract] of Object.entries(FEATURE_DOM)) {
     assert.ok(contract.role, `${kind} declares a role`);
-    if (kind === FEATURE_KIND.CORRIDOR) continue;
+    if (ROAD_KINDS.includes(kind)) continue;
     assert.notEqual(contract.clickable, true, `${kind} is not a selection target`);
     // The search centre and its radius are interactive because they carry tooltips, exactly as they do today:
     // interactivity is how a tooltip can be pointed at, and it is not the same thing as being clickable.
@@ -839,8 +849,8 @@ test('the occurrence layer is a visibility toggle: it draws what is loaded, and 
   const { leaflet, calls } = fakeLeaflet();
   const view = createGeoView({ style: {} }, { leaflet });
   view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
-  // The groups in construction order are context, results, saved, search, overlay, occurrence, selected.
-  const occurrenceLayer = calls.groups[5];
+  // The groups in construction order are context, results, saved, outing, search, overlay, occurrence, selected.
+  const occurrenceLayer = calls.groups[6];
   assert.equal(occurrenceLayer.added.length, 0, 'nothing is on the map until the layer is switched on');
   const cameraBefore = view.camera();
   const fitsBefore = view.fitCount();
@@ -1126,8 +1136,8 @@ test('the habitat toggle adds and removes the buffer without moving the viewport
   view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
   const cameraBefore = view.camera();
   const fitsBefore = view.fitCount();
-  // The groups in construction order are context, results, saved, search, overlay, occurrence, selected.
-  const overlayLayer = calls.groups[4];
+  // The groups in construction order are context, results, saved, outing, search, overlay, occurrence, selected.
+  const overlayLayer = calls.groups[5];
   const bufferCount = () => overlayLayer.added.filter(path => path.attributes['data-role'] === 'habitat-buffer').length;
   assert.equal(bufferCount(), 0, 'no habitat overlay, no buffer');
 
@@ -1141,3 +1151,141 @@ test('the habitat toggle adds and removes the buffer without moving the viewport
   assert.deepEqual(view.camera(), cameraBefore, 'and none of it moved the camera');
   assert.equal(view.fitCount(), fitsBefore, 'or asked for a fit');
 });
+
+// ------------------------------------------------------------------ the person's plan, drawn as a plan
+
+// THE MAP DRAWS A PLAN WITHOUT KNOWING ANYTHING ABOUT IT. It gets geometry, a stop number and the collection a click
+// routes to; it derives no order, draws no connector, and moves the camera only when the person asks.
+const PLAN_ROADS = [
+  { id: 'PLAN-A', name: 'Road A', geometry: GEO, stop: 1, of: 3, selectionDomain: 'candidate' },
+  { id: 'PLAN-B', name: 'Road B', geometry: { type: 'LineString', coordinates: [[-87.45, 38.32], [-87.35, 38.33]] },
+    stop: 2, of: 3, selectionDomain: 'candidate' },
+];
+const PLAN = { id: 'outing-1', roads: PLAN_ROADS };
+
+test('a plan’s roads are drawn as plan members, not as discovery candidates', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [CLICKED], selectedId: null, outing: PLAN });
+  // The plan layer is the third collection group created (context, results, saved, outing, ...), and what it holds NOW
+  // is what the map is drawing.
+  const planned = calls.groups[3].added;
+  // The plan has its own role, so nothing reading the DOM can mistake a plan member for a discovery candidate.
+  assert.deepEqual(planned.map(path => path.attributes['data-corridor-id']), ['PLAN-A', 'PLAN-B']);
+  assert.deepEqual(planned.map(path => path.attributes['data-role']), ['outing', 'outing']);
+  assert.equal(planned.every(path => path.options.interactive), true, 'a plan road can be clicked');
+  // THE CARD NAMES THE STOP, which is how the person's order is read on the map without drawing anything between roads.
+  assert.match(planned[0].popup, /Road 1 of 3 in this outing/);
+  assert.match(planned[1].popup, /Road 2 of 3/);
+  // NO CONNECTOR, NO ROUTE LINE: the plan adds only the roads themselves, and nothing is drawn as an area.
+  assert.equal(planned.length, PLAN_ROADS.length);
+  assert.equal(calls.polygons.length, 0);
+  assert.equal(view.outingRoadIds().length, 2);
+});
+
+test('a road that is both a visible candidate and a plan member is drawn once, as a member', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  // PLAN-A is also a visible discovery result and a saved road: it must appear exactly once, in the plan's own style.
+  view.setSavedRoads([{ id: 'PLAN-A', name: 'Road A', geometry: GEO, selectionDomain: 'candidate' }]);
+  view.draw({ corridors: [corridor('PLAN-A'), corridor('OTHER')], selectedId: null,
+    savedIds: ['PLAN-A'], outing: PLAN });
+  const drawn = [...calls.groups[1].added, ...calls.groups[2].added, ...calls.groups[3].added];
+  const forA = drawn.filter(path => path.attributes['data-corridor-id'] === 'PLAN-A');
+  assert.equal(forA.length, 1, 'one geometry for one road, however many collections it belongs to');
+  assert.equal(forA[0].attributes['data-role'], 'outing');
+  // The other candidate is still drawn as a candidate, and the plan's second road is drawn with the plan.
+  assert.deepEqual(drawn.filter(path => path.attributes['data-corridor-id'] === 'OTHER')
+    .map(path => path.attributes['data-role']), ['candidate']);
+  assert.deepEqual(drawn.filter(path => path.attributes['data-corridor-id'] === 'PLAN-B')
+    .map(path => path.attributes['data-role']), ['outing']);
+});
+
+test('fitting a plan is an explicit move: the control fits, ordinary plan edits never do', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  const fitsBefore = view.fitCount();
+  view.draw({ corridors: [], selectedId: null, outing: PLAN });
+  assert.equal(view.fitCount(), fitsBefore, 'drawing a plan does not fit it');
+  // ADDING A ROAD, REORDERING AND REMOVING ARE ALL JUST DRAWS.
+  const three = { id: 'outing-1', roads: [...PLAN_ROADS,
+    { id: 'PLAN-C', name: 'Road C', geometry: GEO, stop: 3, of: 3 }] };
+  view.draw({ corridors: [], selectedId: null, outing: three });
+  view.draw({ corridors: [], selectedId: null,
+    outing: { id: 'outing-1', roads: [PLAN_ROADS[1], PLAN_ROADS[0], three.roads[2]] } });
+  view.draw({ corridors: [], selectedId: null, outing: { id: 'outing-1', roads: [PLAN_ROADS[0]] } });
+  assert.equal(view.fitCount(), fitsBefore, 'editing a plan never moves the camera');
+  // THE CONTROL, HOWEVER, IS AN EXPLICIT CAMERA ACTION, and it fits the plan's own roads.
+  assert.equal(view.fitOuting(), true);
+  assert.equal(view.fitCount(), fitsBefore + 1);
+  assert.deepEqual(calls.fits.at(-1).bounds, [[38.3, -87.5], [38.31, -87.4]], 'the one remaining road’s extent');
+  view.draw({ corridors: [], selectedId: null, outing: PLAN });
+  assert.equal(view.fitOuting(), true);
+  assert.deepEqual(calls.fits.at(-1).bounds, [[38.3, -87.5], [38.33, -87.35]], 'the plan’s own extent');
+  // A plan with nothing mapped says so rather than moving the camera to nowhere, and a plan of unresolved roads is not
+  // an error either: it simply has nothing to fit.
+  const notices = [];
+  const empty = createGeoView({ style: {} }, { leaflet, onNotice: notice => notices.push(notice) });
+  assert.equal(empty.fitOuting(), false);
+  assert.equal(notices.length, 1);
+  assert.match(notices[0].note, /no mapped road geometry/);
+  const noMap = unavailableView('leaflet is unavailable');
+  assert.equal(noMap.fitOuting(), false, 'a map that cannot initialise refuses the fit instead of throwing');
+});
+
+test('a plan road carries its own facts into its card', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [], selectedId: null, outing: { id: 'outing-1', roads: [{ id: 'PLAN-A', name: 'Road A',
+    geometry: GEO, stop: 1, of: 1, selectionDomain: 'candidate', distanceFromCenterM: 5200,
+    searchCenter: [-87.55, 38.25], nearestCenterPoint: [-87.5, 38.3],
+    ranking: { score: 72.4, version: 'naturalist-interest-v2', components: { wetland: { value: 74.7, measured: true } } },
+    exploration: { score: 61.2 } }] } });
+  const path = calls.groups[3].added.at(-1);
+  assert.equal(path.attributes['data-corridor-id'], 'PLAN-A');
+  assert.match(path.popup, /Road 1 of 1 in this outing/);
+  assert.match(path.popup, /Naturalist interest 72\.4/);
+  assert.match(path.popup, /3\.2 mi from search centre/);
+  assert.match(path.popup, /Exploration order <strong>61\.2<\/strong>/);
+  // THE LEADER IS STILL ORIENTATION, NOT A ROUTE: the plan's selected road draws the measured pair it already had.
+  view.setSelected('PLAN-A');
+  const leader = calls.groups[0].added;
+  assert.equal(leader.length, 1);
+  assert.equal(leader[0].attributes['data-role'], 'search-context');
+  assert.equal(leader[0].attributes['data-corridor-id'], 'PLAN-A');
+  // The emphasised copy is the plan's own road, under the plan's own role, and it cannot take the click. The emphasis is
+  // drawn straight into its own layer rather than through `paint`, so it is found among the paths the map created.
+  const emphasis = calls.polylines.filter(entry => entry.attributes['data-role'] === 'outing'
+    && entry.options?.interactive === false);
+  assert.equal(emphasis.length, 1);
+  assert.equal(emphasis[0].attributes['data-role'], 'outing');
+  assert.equal(emphasis[0].attributes['data-selected'], 'true', 'the attribute is written as the DOM writes it');
+});
+
+test('a plan road keeps one selection state, and selecting one never moves the camera', () => {
+  const { leaflet } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [], selectedId: null, outing: PLAN });
+  const cameraBefore = view.camera();
+  const fitsBefore = view.fitCount();
+  view.setSelected('PLAN-B');
+  assert.equal(view.selectedId(), 'PLAN-B');
+  assert.deepEqual(view.camera(), cameraBefore, 'selecting a plan road never moves the camera');
+  assert.equal(view.fitCount(), fitsBefore, 'and never asks for a fit');
+  view.setSelected(null);
+  assert.equal(view.selectedId(), null);
+});
+
+test('clearing a plan takes its own drawing away and puts the candidate collection back', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [corridor('PLAN-A')], selectedId: null, outing: PLAN });
+  assert.equal(calls.polylines.filter(path => path.attributes['data-corridor-id'] === 'PLAN-A')
+    .map(path => path.attributes['data-role']).at(-1), 'outing');
+  view.draw({ corridors: [corridor('PLAN-A')], selectedId: null, outing: null });
+  assert.equal(calls.polylines.filter(path => path.attributes['data-corridor-id'] === 'PLAN-A')
+    .map(path => path.attributes['data-role']).at(-1), 'candidate',
+  'with no plan, the road is drawn as the candidate it is');
+  assert.deepEqual(view.outingRoadIds(), []);
+});
+
