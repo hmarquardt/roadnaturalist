@@ -261,7 +261,14 @@ test('a trip is recorded only because it was asked for, and live location and re
   expect(snapshot, 'the road the person marked by hand is in the record').toEqual([currentRoadId]);
   expect(await page.locator(`#trip-roads-${tripId} li[data-road-id="${thirdRoadId}"]`).count(),
     'and the road a sighting was taken on is not, because nobody marked it').toBe(0);
-  // THE STORED TRACE IS DRAWN AGAIN, AS THE SAME KIND OF LINE.
+  // THE MAP IS ALIVE AFTER THE RELOAD BEFORE ANYTHING IS SAID ABOUT WHAT IT DRAWS: a session whose map did not
+  // initialise is a different failure from a trace that is not drawn, and this gate is about the trace.
+  await expect.poll(() => page.evaluate(() => globalThis.__RN_MAP?.available ?? false), { timeout: 60000 }).toBe(true);
+  // THE STORED TRACE IS DRAWN AGAIN, AS THE SAME KIND OF LINE. The roles the map is holding are printed with the run, so
+  // a failure here says what was drawn rather than only what was missing.
+  // eslint-disable-next-line no-console -- the map's own drawing is the evidence this gate reports
+  console.log(`TRIP_MAP ${JSON.stringify({ roles: await page.locator('#map [data-role]').evaluateAll(nodes =>
+    nodes.map(node => node.getAttribute('data-role'))) })}`);
   await expect(track()).toHaveCount(1, { timeout: 30000 });
   // AND FITTING IT IS THE PERSON'S OWN CONTROL, counted like any other fit.
   const fitsBeforeFit = await fitCountOf(page);
