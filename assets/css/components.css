@@ -141,6 +141,24 @@
 .field-textarea{resize:vertical;white-space:pre-wrap}
 .field-label{display:block;font-size:.78rem;color:#526b5d;margin-bottom:.2rem}
 .field-empty{padding:1rem;color:#526b5d}
+/* LIVE LOCATION — A READING, NOT A DASHBOARD. The control, what the browser said, how far the road is, and how well the
+   device knows it. Everything here is quiet except the two things a person acts on: the button that starts it and the
+   distance they came to read. */
+.field-location{margin-top:.7rem;border-top:1px solid #e2e9df;padding-top:.65rem;display:grid;gap:.4rem}
+.field-location-controls{display:flex;flex-wrap:wrap;gap:.5rem}
+.field-location-controls button{flex:1 1 9rem;min-height:2.7rem}
+.field-location-status{margin:0;font-size:.84rem;font-weight:600;color:#527364}
+.field-location-status[data-status="active"]{color:#205646}
+.field-location-status[data-status="denied"],.field-location-status[data-status="unavailable"]{color:#8a5a2b}
+.field-location-message{margin:0;font-size:.8rem;color:#8a5a2b}
+.field-location-accuracy{margin:0}
+.field-proximity{margin:.1rem 0;font-size:1.02rem;font-weight:700;color:#21392f}
+.field-proximity[data-near="true"]{color:#205646}
+.field-proximity-note,.field-location-privacy{margin:0}
+.field-location-actions{display:flex;flex-wrap:wrap;gap:.5rem}
+.field-location-actions button{flex:1 1 9rem;min-height:2.5rem}
+.field-visit.near button{outline:2px solid #205646;outline-offset:1px}
+.field-near-note{color:#205646}
 @media(min-width:900px){.field-mode{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start}
   .field-head,.field-mode-note{grid-column:1 / -1}}
 @media(max-width:700px){.outings-panel.is-field{order:-1}}

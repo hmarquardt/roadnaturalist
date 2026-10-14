@@ -4,6 +4,7 @@ import { DISCOVERY_STATUS, markDiscovery } from '../discovery/lifecycle.js';
 import { CUSTOM_SEARCH_AREA_ID } from '../discovery/search-definition.js';
 import { nearPlaceMetadata, storedPlaceMetadata } from '../discovery/place-gazetteer.js';
 import { IDLE_LOCATION } from '../discovery/geolocation.js';
+import { IDLE_LIVE_LOCATION } from './live-location.js';
 import { DEFAULT_USER_META, favoritedUserMeta, notedUserMeta, savedUserMeta, storedUserMeta } from './user-meta.js';
 import { SAVED_FILTERS, SAVED_SORTS, nextComparison, savedRoadRows } from './saved-roads.js';
 import { MAX_OUTINGS, OUTING_STATUS, OUTING_STORAGE_STATUS, createOuting, markRoadVisited, moveRoad, outingsUsingRoad,
@@ -56,6 +57,11 @@ export function createStore({ storage } = {}) {
     // being read in the field, and which of its roads the person is standing on. None of it is persisted - the plan and
     // its progress are - so a reload returns to the workspace with the progress intact.
     fieldMode: false, fieldRoadId: null,
+    // LIVE LOCATION IS THE MOST TRANSIENT STATE IN THIS APPLICATION: one reading, in memory, for as long as the person
+    // has asked for it. It is never written to storage, never attached to an outing, never accumulated into a track, and
+    // it is discarded the moment the watch stops. The store holds it only so the map and the field view can read the
+    // same reading.
+    liveLocation: IDLE_LIVE_LOCATION,
     discovery: initialDiscovery, search: initialSearch });
   const listeners = new Set();
   const publish = next => { state = Object.freeze(next); for (const listener of listeners) listener(state); };
@@ -360,8 +366,15 @@ export function createStore({ storage } = {}) {
     // FIELD MODE: a view of the open plan, not a second plan. It needs a plan to open, and it never changes the plan.
     setFieldMode(enabled) {
       const active = Boolean(enabled) && Boolean(state.selectedOutingId);
-      publish({ ...state, fieldMode: active, fieldRoadId: active ? state.fieldRoadId : null });
+      publish({ ...state, fieldMode: active, fieldRoadId: active ? state.fieldRoadId : null,
+        // Leaving the field view stops showing a position: a reading belongs to the view that asked for it.
+        liveLocation: active ? state.liveLocation : IDLE_LIVE_LOCATION });
       return active;
+    },
+    // ONE READING, REPLACING THE LAST ONE. There is no list here to grow: the state holds where the person is now, and
+    // `setLiveLocation(IDLE_LIVE_LOCATION)` is what stopping leaves behind.
+    setLiveLocation(location) {
+      publish({ ...state, liveLocation: Object.freeze({ ...IDLE_LIVE_LOCATION, ...(location ?? {}) }) });
     },
     // WHICH ROAD THE PERSON IS ON. Explicit, never inferred from anything: an id that is not in the open plan is refused
     // rather than stored, and clearing it lets the field view fall back to the first road not yet visited.

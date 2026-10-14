@@ -123,10 +123,41 @@ there. Previous and Next walk straight past it.
 **Show on map** selects the current road (the map's own selection, nothing new), and **Fit current road** uses the
 map's existing fit for the selected road. Moving between roads never moves the camera.
 
+**Live location: where you are, relative to the road you are working.** Field mode can optionally show your own
+position. **Use my location** asks this browser for it — nothing is requested on page load, and nothing is requested
+until that button is pressed. While a reading is live the view says **Location on**, shows the device's own accuracy
+(*GPS accuracy ≈ 18 m*) and how far the current road is, and offers **Stop**. Leaving field mode, stopping, or the page
+going away all end the watch.
+
+* **One watch, one reading.** A single `watchPosition` serves the whole field session: moving between roads re-measures
+  against the same reading and never starts another watch. The reading is replaced by the next one, and there is no
+  history — no track, no breadcrumbs, no accumulation of any kind.
+* **The distance is to the road itself.** The shortest straight line from your position to the road's *mapped line*
+  (a LineString or a MultiLineString), using the same nearest-point primitive the rest of this project measures with —
+  not the road's middle, not its bounding box, and not its representative point. Only when a road has no mapped line is
+  the representative point used instead, and the sentence then says so.
+* **It is proximity, not navigation.** *About 0.4 mi from this road* means exactly that: straight-line proximity to
+  the mapped road, not driving distance and not road access. There is no route, no ETA, no turn, no arrival time and no
+  road snapping anywhere in it.
+* **A coarse fix never claims a precise distance.** When the distance is inside the device's own accuracy the view says
+  **Near this road** instead of a number, and otherwise rounds the distance to at least the accuracy the reading came
+  with. Being near a road only makes the person's own **Mark visited** button easier to see — it never marks anything:
+  visited stays explicit, and no progress changes on its own.
+* **The camera is still yours.** A reading arriving, and moving between roads, never move the map. Two explicit moves
+  exist: **Center on me** (a pan at your own zoom) and **Fit me + current road** (a fit of the two).
+* **Refusals are recoverable and never break the plan.** Permission refused, no fix, and a timeout each say what
+  happened and leave the plan fully usable — moving between roads, marking progress, notes, checklist and the
+  navigation handoff all keep working. **Use my location** is pressable again to try once more; a refused watch is
+  stopped by the app itself, and a device that simply could not fix its position keeps being watched until you stop it.
+* **Privacy, and it is true of the code.** The reading lives in this browser's memory for as long as the watch runs:
+  it is never written to storage, never attached to an outing, never uploaded, never logged with a coordinate, and it
+  is discarded when the watch stops. *Your live location stays in this browser and is not saved with the outing.*
+
 **With no signal.** Everything field mode reads was already written to this device: the plan, its progress, its notes
 and checklist, the saved roads and the measurements their scores came from. Working a plan — moving between roads,
-marking progress, ticking the checklist, writing notes, reading a road's facts — makes **no network request at all**.
-What still needs a network is the basemap's map tiles and the mapping application you hand a coordinate to; neither is
+marking progress, ticking the checklist, writing notes, reading a road's facts, and measuring how far you are from the
+current road — makes **no network request at all**; the proximity is computed locally from the stored geometry. What
+still needs a network is the basemap's map tiles and the mapping application you hand a coordinate to; neither is
 required to work through a plan, and the field view is fully usable without them.
 
 **Storage and honesty.** Outings live in their own versioned device-local entry,

@@ -1,6 +1,8 @@
 import { OUTING_STATUS, isRoadVisited, roadProgress, visitedAt } from './outings.js';
 import { METRES_PER_MILE } from '../discovery/search-area.js';
 import { separationLine } from './outing-plan.js';
+import { LIVE_LOCATION_STATUS } from './live-location.js';
+import { isNearRoad, proximityLabel, roadProximity } from './outing-proximity.js';
 
 // THE FIELD VIEW OF ONE OUTING: the same plan, read the way a person reads it while standing next to the car.
 //
@@ -48,8 +50,25 @@ export function fieldView({ outing = null, plan = null, selectedId = null } = {}
       miles: leg?.miles ?? null, text: separationLine(leg, { toName: nextMember.name ?? 'the next road' }) }) : null });
 }
 
-// THE FACTS A ROAD OFFERS IN THE FIELD, from what is already stored. Each line names what it measured, and a value that
-// was never recorded says so - never zero, and never a fresh analysis merely because the field view opened.
+// THE PERSON'S POSITION, READ AGAINST THE ROAD THEY ARE ON. It is a pure function of the current road and the current
+// reading: the same reading against another road gives another answer, and the same road with no reading gives none.
+// Nothing here decides anything - being near a road never marks it visited.
+export function fieldProximity({ view = null, location = null } = {}) {
+  const member = view?.current ?? null;
+  const point = location?.status === LIVE_LOCATION_STATUS.ACTIVE ? location.point : null;
+  if (!member || !member.resolved) return Object.freeze({ metres: null, basis: null, label: null, near: false, accuracyM: null });
+  if (!Array.isArray(point)) {
+    return Object.freeze({ metres: null, basis: null, label: null, near: false, accuracyM: location?.accuracyM ?? null });
+  }
+  const { metres, basis } = roadProximity({ point, member });
+  if (!Number.isFinite(metres)) {
+    return Object.freeze({ metres: null, basis: null, label: null, near: false, accuracyM: location?.accuracyM ?? null });
+  }
+  return Object.freeze({ metres, basis, accuracyM: Number.isFinite(location?.accuracyM) ? location.accuracyM : null,
+    label: proximityLabel({ metres, accuracyM: location?.accuracyM ?? null, basis }),
+    near: isNearRoad({ metres, accuracyM: location?.accuracyM ?? null }) });
+}
+
 export function fieldFacts(member) {
   if (!member?.resolved) return Object.freeze([]);
   const lines = [Object.freeze({ key: 'interest', label: 'Naturalist interest',

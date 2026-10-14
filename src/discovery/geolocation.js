@@ -15,6 +15,13 @@ import { coordinateNumber, readSearchDefinition } from './search-definition.js';
 // person's, and the reported accuracy is presentation only.
 export const LOCATION_OPTIONS = Object.freeze({ enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
 
+// A LIVE READING IS A DIFFERENT REQUEST, and it is asked for differently. Working out where a road is relative to a
+// person standing next to it is a proximity question, so this watch asks the device to actually fix its position
+// (`enableHighAccuracy: true`), refuses to hand back a stale fix (`maximumAge: 0`), and bounds each attempt so a device
+// that cannot answer says so instead of hanging. It is still one reading at a time, still in the browser, and still only
+// while the person has asked for it.
+export const LIVE_LOCATION_OPTIONS = Object.freeze({ enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+
 export const LOCATION_STATUS = Object.freeze({ IDLE: 'idle', REQUESTING: 'requesting', OK: 'ok',
   PERMISSION_DENIED: 'permission-denied', POSITION_UNAVAILABLE: 'position-unavailable', TIMEOUT: 'timeout',
   UNSUPPORTED: 'unsupported', REFUSED: 'refused' });
@@ -43,6 +50,14 @@ export function accuracyLabel(accuracyM) {
   if (typeof accuracyM !== 'number' || !Number.isFinite(accuracyM) || accuracyM < 0) return null;
   if (accuracyM < 1000) return `Browser location accuracy: about ${Math.max(1, Math.round(accuracyM))} m.`;
   return `Browser location accuracy: about ${(accuracyM / 1000).toFixed(1)} km.`;
+}
+
+// THE SAME RULE, SAID COMPACTLY, for a field view where every line competes for a small screen. It is the same
+// measurement and the same units; only the sentence is shorter.
+export function locationAccuracyLabel(accuracyM) {
+  if (typeof accuracyM !== 'number' || !Number.isFinite(accuracyM) || accuracyM < 0) return null;
+  if (accuracyM < 1000) return `GPS accuracy ≈ ${Math.max(1, Math.round(accuracyM))} m`;
+  return `GPS accuracy ≈ ${(accuracyM / 1000).toFixed(1)} km`;
 }
 
 // A device position, validated exactly like a typed coordinate: the numbers in, the ordinary definition out.
@@ -80,11 +95,17 @@ function defaultGeolocation() {
 
 // The geolocation boundary, injectable so tests can answer instead of a physical device. `request` never rejects
 // and never resolves twice: every outcome is a value the caller can render.
-export function createLocationProvider({ geolocation = defaultGeolocation(), options = LOCATION_OPTIONS } = {}) {
+export function createLocationProvider({ geolocation = defaultGeolocation(), options = LOCATION_OPTIONS,
+  watchOptions = LIVE_LOCATION_OPTIONS } = {}) {
   const supported = Boolean(geolocation && typeof geolocation.getCurrentPosition === 'function');
+  const canWatch = Boolean(geolocation && typeof geolocation.watchPosition === 'function');
   return Object.freeze({
     supported,
+    // A live reading needs `watchPosition`, which is a different feature from a one-shot fix: a browser can offer one
+    // without the other, and the interface says which it has rather than assuming.
+    watchSupported: canWatch,
     options,
+    watchOptions,
     request() {
       if (!supported) return Promise.resolve(failed(LOCATION_STATUS.UNSUPPORTED));
       return new Promise(resolve => {
@@ -95,6 +116,34 @@ export function createLocationProvider({ geolocation = defaultGeolocation(), opt
           resolve(failed(LOCATION_STATUS.POSITION_UNAVAILABLE, `The browser refused the location request: ${error.message}`));
         }
       });
+    },
+    // ONE WATCH, WHILE IT IS WANTED. Each reading is validated exactly like a one-shot fix, so the caller receives the
+    // same shape either way, and an error reading arrives as a status rather than as a rejection. The handle stops the
+    // watch and is idempotent: stopping twice, or stopping a watch the browser already dropped, is not an error.
+    watch(onReading) {
+      if (!canWatch) {
+        onReading?.(failed(LOCATION_STATUS.UNSUPPORTED));
+        return Object.freeze({ supported: false, stop() {} });
+      }
+      let stopped = false;
+      let id = null;
+      const deliver = reading => { if (!stopped) onReading?.(reading); };
+      try {
+        id = geolocation.watchPosition(position => deliver(positionFromBrowser(position)),
+          error => deliver(failed(locationErrorStatus(error?.code))), { ...watchOptions });
+      } catch (error) {
+        deliver(failed(LOCATION_STATUS.POSITION_UNAVAILABLE, `The browser refused the location watch: ${error.message}`));
+        return Object.freeze({ supported: true, stop() {} });
+      }
+      return Object.freeze({ supported: true, stop() {
+        if (stopped) return;
+        stopped = true;
+        try {
+          if (id != null) geolocation.clearWatch(id);
+        } catch {
+          // A browser that refuses to clear the watch has already stopped answering; there is nothing to report.
+        }
+      } });
     },
   });
 }

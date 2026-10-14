@@ -32,7 +32,8 @@ import { renderSavedRoads } from '../ui/saved-roads.js';
 import { renderOutings } from '../ui/outings.js';
 import { comparisonIds, savedCounts } from '../state/saved-roads.js';
 import { outingMapRoads, outingPlan, savedRoadsById } from '../state/outing-plan.js';
-import { fieldView } from '../state/outing-field.js';
+import { fieldProximity, fieldView } from '../state/outing-field.js';
+import { IDLE_LIVE_LOCATION, LIVE_LOCATION_STATUS, liveLocationReading, requestingLiveLocation } from '../state/live-location.js';
 import { storedUserMeta } from '../state/user-meta.js';
 import { renderFieldMode as renderFieldModeView } from '../ui/field.js';
 import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, writeDiscoveryMarks,
@@ -156,6 +157,7 @@ const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverla
   savedRoads: null, savedMeta: null, savedDurable: null, savedStorage: null, savedEcology: null, savedHabitat: null,
   savedOutingSelection: null, savedOutings: null,
   outings: null, outingStorage: null, outingSelection: null, selectedOuting: null, outingKey: undefined, fieldView: null,
+  locationKey: undefined,
   discoveryNodes: null, discoverySignature: null, searchKey: null };
 
 function activeSearch() { return store.getState().search; }
@@ -1144,6 +1146,45 @@ function saveOutingNotes(id, value, { immediate = false } = {}) {
   outingNoteTimers.set(id, setTimeout(() => { outingNoteTimers.delete(id); store.updateOuting(id, { notes: value }); }, NOTE_DEBOUNCE_MS));
 }
 
+// LIVE LOCATION: ONE WATCH, WHILE IT IS WANTED, AND NOTHING ELSE.
+//
+// The position is asked for only when a person presses the control in field mode. One `watchPosition` serves the whole
+// session - changing the current road re-reads the same reading rather than starting another watch - and it is stopped by
+// the person, by leaving field mode, by the plan being removed, or by the page going away. The reading lives in the store
+// as transient state: it is never written to storage, never attached to an outing, and never accumulated into a track.
+let liveLocationWatch = null;
+
+function startLiveLocation() {
+  // A RETRY REPLACES THE WATCH. A refused reading leaves the browser's watch open, so without this a person pressing
+  // "Use my location" again after a denial or a timeout would be asking for nothing at all.
+  liveLocationWatch?.stop();
+  store.setLiveLocation(requestingLiveLocation());
+  let handle = null;
+  handle = locationProvider.watch(reading => {
+    const next = liveLocationReading(reading);
+    store.setLiveLocation(next);
+    // A PERMANENT REFUSAL ENDS THE WATCH: nothing more will arrive until the person changes the browser's own decision,
+    // and the control that asked for it stays on screen to try again. A device that could not fix its position, or a
+    // timeout, keeps the watch open - those may answer later, and "Stop" is on screen meanwhile.
+    if (next.status === LIVE_LOCATION_STATUS.DENIED || next.status === LIVE_LOCATION_STATUS.UNSUPPORTED) {
+      handle?.stop();
+      if (liveLocationWatch === handle) liveLocationWatch = null;
+    }
+  });
+  liveLocationWatch = handle;
+  // A watch the browser cannot start at all is reported as unsupported, with the control still on screen saying so.
+  if (!handle.supported) stopLiveLocation();
+}
+
+function stopLiveLocation() {
+  liveLocationWatch?.stop();
+  liveLocationWatch = null;
+  store.setLiveLocation(IDLE_LIVE_LOCATION);
+}
+
+// The page's own lifecycle: a backgrounded or closed page stops asking the device where it is.
+globalThis.addEventListener?.('pagehide', () => stopLiveLocation());
+
 // THE FIELD VIEW, READ FROM THE SAME PLAN. It resolves the open outing against the saved roads exactly as the workspace
 // does, derives which road is current from the person's own progress, and hands the interface one view to render. The
 // field view writes only what the workspace writes: the plan's progress, its notes, its checklist and the road's note.
@@ -1152,11 +1193,21 @@ function renderFieldMode(state, outing) {
   const view = fieldView({ outing, plan, selectedId: state.fieldRoadId });
   const currentId = view?.currentId ?? null;
   const meta = currentId ? storedUserMeta(state.userMetaById?.[currentId]) : null;
+  // The distance is recomputed from the SAME reading for whichever road is current: moving between roads changes the
+  // measurement, never the watch.
+  const proximity = fieldProximity({ view, location: state.liveLocation });
   renderFieldModeView(nodes.outings, state, {
     view,
     roadNote: meta?.note ?? '',
     roadFavorite: meta?.favorite === true,
-    onExit: () => store.setFieldMode(false),
+    location: state.liveLocation,
+    proximity,
+    locationSupported: locationProvider.watchSupported,
+    onStartLocation: () => startLiveLocation(),
+    onStopLocation: () => stopLiveLocation(),
+    onCenterOnMe: () => map.centerOn(state.liveLocation?.point ?? null),
+    onFitMeAndRoad: () => map.fitUserAndRoad(state.liveLocation?.point ?? null),
+    onExit: () => { stopLiveLocation(); store.setFieldMode(false); },
     onSelectRoad: roadId => store.selectFieldRoad(roadId),
     onPrevious: roadId => store.selectFieldRoad(roadId),
     onNext: roadId => store.selectFieldRoad(roadId),
@@ -1336,6 +1387,16 @@ store.subscribe(state => {
   const overlay = state.habitatOverlay && state.habitatOverlay.candidateId === shownId ? state.habitatOverlay : null;
   const occurrenceOverlay = state.occurrenceOverlay && state.occurrenceOverlay.candidateId === selected?.id ? state.occurrenceOverlay : null;
   const discoveryLayer = discoveryDescriptors(state);
+  // LEAVING FIELD MODE STOPS THE WATCH. The store clears the reading when the view closes; this is what stops the browser
+  // asking the device for a position at all - including when the plan itself is closed or removed.
+  if (!state.fieldMode && liveLocationWatch) stopLiveLocation();
+  // AND THE READING REACHES THE MAP ON ITS OWN. A new position repaints the position layer and nothing else: no corridor
+  // changes, no selection changes, and the camera does not move.
+  const key = locationKey(state);
+  if (drawn.locationKey !== key) {
+    drawn.locationKey = key;
+    map.setUserLocation(state.liveLocation);
+  }
   // THE ACTIVE PLAN IS THE OUTING THE WORKSPACE HAS OPEN, and it is drawn as a plan: the roads in the person's order,
   // each knowing which stop it holds. `null` when no outing is open, and a plan whose roads cannot be resolved simply
   // has fewer roads to draw - the workspace is where an unavailable member is reported.
@@ -1393,14 +1454,22 @@ function signature(state) {
 }
 
 // WHAT THE FIELD VIEW IS RENDERED FROM: the plan's own state (progress, notes, checklist, title), the road the person is
-// standing on, and the annotations and saved roads the view reads. A note typed into a field re-renders the view it was
-// typed in, and nothing else on the page is touched.
+// standing on, the live reading, and the annotations and saved roads the view reads. A note typed into a field re-renders
+// the view it was typed in, and nothing else on the page is touched.
 function fieldSignature(state, outing) {
   return [outing.id, outing.title, outing.date ?? '', outing.status, outing.updatedAt ?? '',
     outing.roadIds.join(','), JSON.stringify(outing.roadState ?? {}), outing.notes.length,
     (outing.checklist ?? []).map(item => `${item.id}:${item.checked ? 1 : 0}`).join(','),
     state.fieldRoadId ?? '', (state.durableCandidateIds ?? []).join(','),
-    JSON.stringify(state.userMetaById?.[state.fieldRoadId ?? ''] ?? null)].join('|');
+    JSON.stringify(state.userMetaById?.[state.fieldRoadId ?? ''] ?? null),
+    locationKey(state)].join('|');
+}
+
+// ONE READING, ONE KEY. The map's own layer and the field view are both rendered from the same reading, so they can
+// never disagree about which position is being shown.
+function locationKey(state) {
+  const location = state.liveLocation ?? {};
+  return `${location.status ?? ''}|${location.point?.join(',') ?? ''}|${location.accuracyM ?? ''}`;
 }
 
 // The discovery panel is rendered only when its own state changed: selecting a candidate must not

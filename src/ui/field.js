@@ -1,5 +1,8 @@
 import { MAX_CHECKLIST_ITEMS, MAX_CHECKLIST_TEXT, OUTING_NOTE_MAX_LENGTH } from '../state/outings.js';
 import { FIELD_MODE_NOTE, fieldFacts } from '../state/outing-field.js';
+import { LIVE_LOCATION_PRIVACY_NOTE, LIVE_LOCATION_STATUS, liveLocationAccuracyLabel, liveLocationMessage,
+  liveLocationStatusLabel } from '../state/live-location.js';
+import { PROXIMITY_NOTE, PROXIMITY_UNAVAILABLE } from '../state/outing-proximity.js';
 import { NAVIGATION_DESTINATION_NOTE, NAVIGATION_VERIFY_NOTE, navigationDestination, navigationDestinationLabel,
   navigationLinks } from '../state/outing-navigation.js';
 import { dateLabel, statusLabel } from './outings.js';
@@ -13,7 +16,9 @@ import { dateLabel, statusLabel } from './outings.js';
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text != null) node.textContent = text; return node; }
 
 export function renderFieldMode(container, state, { view, roadNote = null, roadFavorite = false, onExit, onSelectRoad,
-  onPrevious, onNext, onMarkVisited, onShowOnMap, onFitRoad, onRoadNote, onNotes, onToggleItem, onAddItem } = {}) {
+  onPrevious, onNext, onMarkVisited, onShowOnMap, onFitRoad, onRoadNote, onNotes, onToggleItem, onAddItem,
+  location = null, proximity = null, locationSupported = false, onStartLocation, onStopLocation, onCenterOnMe,
+  onFitMeAndRoad } = {}) {
   container.replaceChildren();
   if (!view) {
     container.append(el('p', 'field-empty', 'Open an outing to use field mode.'));
@@ -24,7 +29,7 @@ export function renderFieldMode(container, state, { view, roadNote = null, roadF
   block.append(head(view, onExit));
   block.append(el('p', 'small muted field-mode-note', FIELD_MODE_NOTE));
   block.append(currentRoad({ view, roadNote, roadFavorite, onMarkVisited, onShowOnMap, onFitRoad, onPrevious, onNext,
-    onRoadNote }));
+    onRoadNote, location, proximity, locationSupported, onStartLocation, onStopLocation, onCenterOnMe, onFitMeAndRoad }));
   block.append(roadList(view, onSelectRoad));
   block.append(checklist(view, { onToggleItem, onAddItem }));
   block.append(outingNotes(view, onNotes));
@@ -54,7 +59,7 @@ function head(view, onExit) {
 
 
 function currentRoad({ view, roadNote, roadFavorite, onMarkVisited, onShowOnMap, onFitRoad, onPrevious, onNext,
-  onRoadNote }) {
+  onRoadNote, location, proximity, locationSupported, onStartLocation, onStopLocation, onCenterOnMe, onFitMeAndRoad }) {
   const member = view.current;
   const block = el('article', 'field-current');
   block.id = 'field-current';
@@ -97,8 +102,10 @@ function currentRoad({ view, roadNote, roadFavorite, onMarkVisited, onShowOnMap,
     block.append(leg);
   }
   block.append(moveControls(view, { onPrevious, onNext }));
-  block.append(visitControl(view, member, onMarkVisited));
+  block.append(visitControl(view, member, onMarkVisited, proximity));
   block.append(mapControls(member, { onShowOnMap, onFitRoad }));
+  block.append(liveLocation({ member, location, proximity, locationSupported, onStartLocation, onStopLocation,
+    onCenterOnMe, onFitMeAndRoad }));
   if (member.resolved) block.append(navigate(member));
   if (member.resolved) block.append(roadNoteBlock(member, roadNote, onRoadNote));
   return block;
@@ -122,7 +129,7 @@ function moveControls(view, { onPrevious, onNext }) {
   return row;
 }
 
-function visitControl(view, member, onMarkVisited) {
+function visitControl(view, member, onMarkVisited, proximity = null) {
   const row = el('div', 'field-visit');
   const entry = view.roads.find(road => road.roadId === member.roadId) ?? null;
   const visited = entry?.visited === true;
@@ -130,9 +137,14 @@ function visitControl(view, member, onMarkVisited) {
   button.type = 'button';
   button.id = visited ? 'field-unvisit' : 'field-visit-button';
   button.dataset.visited = String(visited);
+  // BEING NEAR A ROAD MAKES THE BUTTON EASIER TO SEE, AND DOES NOTHING ELSE. Nothing here marks anything: the person
+  // presses it, or the road stays unvisited.
+  button.dataset.near = String(proximity?.near === true);
+  if (proximity?.near === true && !visited) row.className += ' near';
   button.addEventListener('click', () => onMarkVisited?.(member.roadId, !visited));
   row.append(button);
   if (visited) row.append(el('span', 'small muted field-visited-at', 'Visited'));
+  else if (proximity?.near === true) row.append(el('span', 'small muted field-near-note', 'You appear to be near this road.'));
   return row;
 }
 
@@ -177,6 +189,101 @@ function navigate(member) {
   block.append(el('p', 'small muted field-destination', navigationDestinationLabel(navigationDestination(member))));
   block.append(el('p', 'small muted field-navigate-note', NAVIGATION_DESTINATION_NOTE));
   block.append(el('p', 'small muted field-navigate-note', NAVIGATION_VERIFY_NOTE));
+  return block;
+}
+
+// WHERE THE PERSON IS, AND HOW FAR THE ROAD THEY ARE ON IS FROM THERE.
+//
+// One control that asks, one that stops, and - while a reading exists - the distance and the accuracy it came with. The
+// position is never requested until the button is pressed, nothing is written down, and the two camera moves are the
+// person's own. The status line says what the browser said, in the field's own words.
+function liveLocation({ member, location, proximity, locationSupported, onStartLocation, onStopLocation, onCenterOnMe,
+  onFitMeAndRoad }) {
+  const block = el('div', 'field-location');
+  block.id = 'field-location';
+  const status = location?.status ?? LIVE_LOCATION_STATUS.IDLE;
+  const active = status === LIVE_LOCATION_STATUS.ACTIVE;
+  const asking = status === LIVE_LOCATION_STATUS.REQUESTING;
+  const on = active || asking;
+  // A WATCH IS STILL OPEN UNTIL IT IS STOPPED OR PERMANENTLY REFUSED, so "Stop" is offered for a device that could not
+  // fix its position and for a timeout as well: both are still being watched, and both may answer later.
+  const watchOpen = on || status === LIVE_LOCATION_STATUS.UNAVAILABLE || status === LIVE_LOCATION_STATUS.TIMEOUT;
+
+  const controls = el('div', 'field-location-controls');
+  // THE BUTTON IS A REQUEST, AND A RETRY. It reads "Location on" only while a reading is actually being watched, and it
+  // is pressable again the moment a refusal or a timeout leaves something to try - which is what makes those states
+  // recoverable rather than dead ends.
+  const start = el('button', on ? 'quiet-button' : 'primary-button', on ? 'Location on' : 'Use my location');
+  start.type = 'button';
+  start.id = 'field-location-start';
+  start.dataset.status = status;
+  start.disabled = on || !locationSupported;
+  start.addEventListener('click', () => onStartLocation?.());
+  controls.append(start);
+  if (watchOpen) {
+    const stop = el('button', 'quiet-button', 'Stop');
+    stop.type = 'button';
+    stop.id = 'field-location-stop';
+    stop.addEventListener('click', () => onStopLocation?.());
+    controls.append(stop);
+  }
+  block.append(controls);
+
+  const statusLine = el('p', 'field-location-status');
+  statusLine.id = 'field-location-status';
+  statusLine.dataset.status = status;
+  statusLine.textContent = liveLocationStatusLabel(status);
+  block.append(statusLine);
+
+  // AN UNSUPPORTED BROWSER IS TOLD SO WHERE THE CONTROL IS, and the plan carries on.
+  if (!locationSupported) {
+    const unsupported = el('p', 'small muted', liveLocationMessage(LIVE_LOCATION_STATUS.UNSUPPORTED));
+    unsupported.id = 'field-location-message';
+    block.append(unsupported);
+    const privacy = el('p', 'small muted field-location-privacy', LIVE_LOCATION_PRIVACY_NOTE);
+    privacy.id = 'field-location-privacy';
+    block.append(privacy);
+    return block;
+  }
+  if (status !== LIVE_LOCATION_STATUS.IDLE && !active) {
+    const message = el('p', 'small field-location-message', location?.message ?? liveLocationMessage(status));
+    message.id = 'field-location-message';
+    block.append(message);
+  }
+
+  if (active) {
+    const accuracy = liveLocationAccuracyLabel(location);
+    if (accuracy) {
+      const accuracyLine = el('p', 'small muted field-location-accuracy', accuracy);
+      accuracyLine.id = 'field-location-accuracy';
+      block.append(accuracyLine);
+    }
+    const proximityLine = el('p', 'field-proximity');
+    proximityLine.id = 'field-proximity';
+    proximityLine.textContent = proximity?.label ?? PROXIMITY_UNAVAILABLE;
+    proximityLine.dataset.basis = proximity?.basis ?? 'none';
+    proximityLine.dataset.near = String(proximity?.near === true);
+    block.append(proximityLine);
+    const note = el('p', 'small muted field-proximity-note', PROXIMITY_NOTE);
+    note.id = 'field-proximity-note';
+    block.append(note);
+    const moves = el('div', 'field-location-actions');
+    const center = el('button', 'quiet-button', 'Center on me');
+    center.type = 'button';
+    center.id = 'field-center-on-me';
+    center.addEventListener('click', () => onCenterOnMe?.());
+    const fitBoth = el('button', 'quiet-button', 'Fit me + current road');
+    fitBoth.type = 'button';
+    fitBoth.id = 'field-fit-me-road';
+    fitBoth.disabled = !member?.resolved;
+    fitBoth.addEventListener('click', () => onFitMeAndRoad?.());
+    moves.append(center, fitBoth);
+    block.append(moves);
+  }
+
+  const privacy = el('p', 'small muted field-location-privacy', LIVE_LOCATION_PRIVACY_NOTE);
+  privacy.id = 'field-location-privacy';
+  block.append(privacy);
   return block;
 }
 

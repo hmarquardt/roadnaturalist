@@ -75,7 +75,8 @@ export function toLatLngs(geometry) {
 export const FEATURE_KIND = Object.freeze({
   CORRIDOR: 'corridor', OUTING: 'outing', HABITAT: 'habitat', HABITAT_BUFFER: 'habitat-buffer',
   OCCURRENCE: 'occurrence', SEARCH_CONTEXT: 'search-context', SEARCH_REGION: 'search-region',
-  SEARCH_RADIUS: 'search-radius', SEARCH_CENTRE: 'search-center',
+  SEARCH_RADIUS: 'search-radius', SEARCH_CENTRE: 'search-center', USER_LOCATION: 'user-location',
+  USER_LOCATION_ACCURACY: 'user-location-accuracy',
 });
 
 // idAttribute is the attribute this kind's own identity belongs to. A kind with no identity of its own declares none -
@@ -103,6 +104,14 @@ export const FEATURE_DOM = Object.freeze({
   // target, and a kind becomes one only by declaring itself clickable.
   [FEATURE_KIND.SEARCH_RADIUS]: Object.freeze({ role: 'search-radius', interactive: true }),
   [FEATURE_KIND.SEARCH_CENTRE]: Object.freeze({ role: 'search-center', interactive: true }),
+  // WHERE THE PERSON IS, AND HOW WELL THE DEVICE KNOWS IT. Neither kind carries an identity attribute: a position is not
+  // a corridor, not a plan member and not an occurrence, so nothing can select it, no selector can match it as one, and
+  // the map's own proximity hit test - which only ever walks corridors - never considers it. They are not interactive at
+  // all: the marker is information, and it never takes a click from the road underneath it.
+  [FEATURE_KIND.USER_LOCATION]: Object.freeze({ role: 'user-location', interactive: false }),
+  // The accuracy ring is a separate feature, drawn beneath the position, so a reading without an accuracy still draws a
+  // position and a test can tell the two apart.
+  [FEATURE_KIND.USER_LOCATION_ACCURACY]: Object.freeze({ role: 'user-location-accuracy', interactive: false }),
 });
 
 // What a feature's element carries: its role, and its identity under the attribute that identity belongs to. A value
@@ -119,6 +128,33 @@ export function featureAttributes(feature) {
     attributes.selected = feature.selected;
   }
   return attributes;
+}
+
+// WHERE THE PERSON IS, TYPED. A position is a point and the device's own uncertainty is a circle around it; both come
+// from the reading the browser reported, and nothing here measures, corrects or smooths anything. The circle is drawn
+// first so the position sits on top of its own uncertainty.
+const LOCATION_STYLE = Object.freeze({
+  // A position is not a road, so it is not drawn in any road's colour or weight: a solid blue dot with a white ring, the
+  // one mark on this map that means "here".
+  position: Object.freeze({ radius: 8, color: '#ffffff', weight: 3, fillColor: '#1d7fd0', fillOpacity: 1 }),
+  // Uncertainty is an area, and it is drawn as one - faint, cool and unfilled at the centre, so the roads under it stay
+  // readable.
+  accuracy: Object.freeze({ color: '#1d7fd0', weight: 1, opacity: 0.5, fillColor: '#1d7fd0', fillOpacity: 0.08, fill: true }),
+});
+
+export function userLocationFeatures(location) {
+  const point = toLatLngPoint(Array.isArray(location?.point) ? location.point : null);
+  if (!point) return [];
+  const features = [];
+  if (Number.isFinite(location?.accuracyM) && location.accuracyM > 0) {
+    features.push(Object.freeze({ kind: FEATURE_KIND.USER_LOCATION_ACCURACY,
+      geometry: Object.freeze({ type: 'Point', coordinates: Object.freeze([point[1], point[0]]) }),
+      point, radiusM: location.accuracyM, label: null, style: LOCATION_STYLE.accuracy }));
+  }
+  features.push(Object.freeze({ kind: FEATURE_KIND.USER_LOCATION,
+    geometry: Object.freeze({ type: 'Point', coordinates: Object.freeze([point[1], point[0]]) }),
+    point, label: null, style: LOCATION_STYLE.position }));
+  return features;
 }
 
 // A CORRIDOR, NORMALIZED. Its identity, geometry, style and card come from the corridor descriptor itself; the kind is
@@ -435,6 +471,7 @@ export function popupHtml(corridor, { stop = null, of = null } = {}) {
 export function unavailableView(reason) {
   return { available: false, reason, draw: () => false, setSelected: () => false, setSearch: () => false,
     setSavedRoads: () => false, setOuting: () => false, fitOuting: () => false, setPickMode: () => false, setBasemap: () => false,
+    setUserLocation: () => false, userLocationPoint: () => null, centerOn: () => false, fitUserAndRoad: () => false,
     fitResults: () => false, fitSelected: () => false, selectedId: () => null, destroy: () => {},
     camera: () => null, searchGeometry: () => ({ center: null, radiusM: null }), fitCount: () => 0 };
 }
@@ -459,7 +496,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     // roads and the overlays it orients, and a layer that is only ever written by selection can be cleared by selection.
     const layers = { context: leaflet.featureGroup(), results: leaflet.featureGroup(), saved: leaflet.featureGroup(),
       outing: leaflet.featureGroup(), search: leaflet.featureGroup(), overlay: leaflet.featureGroup(),
-      occurrence: leaflet.featureGroup(), selected: leaflet.featureGroup() };
+      occurrence: leaflet.featureGroup(), location: leaflet.featureGroup(), selected: leaflet.featureGroup() };
     for (const layer of Object.values(layers)) map.addLayer(layer);
     let basemap = null;
     let basemapStatus = provider ? 'loading' : 'off';
@@ -491,6 +528,8 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     let outing = null;
     // The plan's roads, in the person's order, exactly as the caller described them. The map never derives them.
     let outingRoads = [];
+    // The current reading, or null. One position, replaced by the next, never accumulated and never persisted.
+    let userLocation = null;
     let activeCentre = null;
     let activeRadiusM = null;
     // The leader currently drawn, so a diagnostic can read back exactly what is on the map - and nothing else.
@@ -678,6 +717,11 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     function paintOuting() {
       return paint(layers.outing, outingRoads.map(road => outingFeature(road, { selected: road.id === selectedId })));
     }
+    // WHERE THE PERSON IS, PAINTED AND NOT FITTED. This layer is written by the reading alone: a new position repaints
+    // these features and touches nothing else - not the corridors, not the plan, and never the camera.
+    function paintLocation() {
+      return paint(layers.location, userLocationFeatures(userLocation));
+    }
     // The plan's own state, set in one place: `draw` sends one with everything else, and the map's `setOuting` sends one
     // on its own. Setting it never moves the camera and never derives anything.
     function setOutingState(descriptor = null) {
@@ -726,6 +770,8 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         // THE PLAN'S ROADS ARE PAINTED AFTER THE OVERLAYS, so a wetland fill or an occurrence point can never cover a
         // road the person deliberately collected into a plan.
         paintOuting();
+        // AND THE PERSON'S POSITION IS PAINTED LAST OF ALL, because it is the one mark that is about now.
+        paintLocation();
         if (search !== undefined) setSearch(search);
         view.setSelected(selectedId);
         return { drawn: results.drawn, skipped: results.skipped, candidates: corridors.length };
@@ -780,6 +826,40 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         return next;
       },
       outingRoadIds() { return outing ? [...outing.roadIds] : []; },
+      // ONE READING AT A TIME. The map records the position and repaints only its own layer: no camera movement, no
+      // corridor change, no selection change, and nothing about the reading is retained beyond the latest one.
+      setUserLocation(location = null) {
+        const point = toLatLngPoint(Array.isArray(location?.point) ? location.point : null);
+        userLocation = point ? Object.freeze({ point: Object.freeze([point[1], point[0]]),
+          accuracyM: Number.isFinite(location?.accuracyM) ? location.accuracyM : null }) : null;
+        paintLocation();
+        return userLocation;
+      },
+      userLocationPoint() { return userLocation ? [...userLocation.point] : null; },
+      // THE TWO CAMERA MOVES A POSITION OFFERS, AND BOTH ARE ASKED FOR. `centerOn` keeps the person's own zoom and only
+      // moves the view; `fitUserAndRoad` frames the position and the selected road together. A reading that arrives on
+      // its own calls neither.
+      centerOn(point) {
+        const target = toLatLngPoint(Array.isArray(point) ? point : null);
+        if (!target) { onNotice({ kind: 'empty', note: 'There is no current location to centre on.' }); return false; }
+        // A PAN, NOT A FIT: the person's own zoom is kept, and no fit is counted.
+        map.setView(target, map.getZoom());
+        return true;
+      },
+      fitUserAndRoad(point) {
+        const target = toLatLngPoint(Array.isArray(point) ? point : null);
+        const selected = outingIds().has(selectedId)
+          ? (outingRoads.find(road => road.id === selectedId) ?? null)
+          : (corridors.find(corridor => corridor.id === selectedId) ?? null);
+        // A single coordinate takes part in this fit as a line of one place: `boundsOfGeometries` measures LINES, and a
+        // point is not a road - which is exactly why a corridor with a point geometry is still refused by `fitResults`.
+        const here = target ? { type: 'LineString', coordinates: [[target[1], target[0]], [target[1], target[0]]] } : null;
+        const bounds = boundsOfGeometries([selected?.geometry, here]);
+        if (!bounds) { onNotice({ kind: 'empty', note: 'There is nothing to fit: no current location and no selected road.' }); return false; }
+        map.fitBounds(bounds, { padding: [24, 24] });
+        fitCount += 1;
+        return true;
+      },
       // AN EXPLICIT CAMERA MOVE, AND THE ONLY ONE THE PLAN HAS. The plan is fitted when the person asks and never when a
       // road is added, removed, reordered or noted: the camera belongs to them.
       fitOuting() {

@@ -488,7 +488,7 @@ test('the tile provider is declared once, completely, and is replaceable', () =>
 test('the taxonomy declares every family, and only a corridor is a candidate', () => {
   assert.deepEqual(Object.values(FEATURE_KIND).sort(),
     ['corridor', 'habitat', 'habitat-buffer', 'occurrence', 'outing', 'search-center', 'search-context',
-      'search-radius', 'search-region']);
+      'search-radius', 'search-region', 'user-location', 'user-location-accuracy']);
   const roles = Object.values(FEATURE_DOM).map(contract => contract.role);
   assert.equal(roles.filter(role => role === 'candidate').length, 1, 'one kind is the candidate, and it is the corridor');
   assert.equal(FEATURE_DOM[FEATURE_KIND.CORRIDOR].role, 'candidate');
@@ -1287,5 +1287,114 @@ test('clearing a plan takes its own drawing away and puts the candidate collecti
     .map(path => path.attributes['data-role']).at(-1), 'candidate',
   'with no plan, the road is drawn as the candidate it is');
   assert.deepEqual(view.outingRoadIds(), []);
+});
+
+
+// ------------------------------------------------------------------ where the person is
+
+// A POSITION IS INFORMATION, NOT A FEATURE OF THE PLAN. It has its own role, no identity at all, no interactivity, and it
+// never touches the camera unless the person asks.
+const AT = { point: [-87.5, 38.3], accuracyM: 25 };
+
+test('a live position is drawn as its own kind, with no identity and no interactivity', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [CLICKED], selectedId: null });
+  view.setUserLocation(AT);
+  const position = calls.markerLayers.filter(path => path.attributes['data-role'] === 'user-location');
+  assert.equal(position.length, 1, 'one position, one mark');
+  assert.equal(position[0].options.interactive, false, 'and it can never take a click');
+  assert.equal(position[0].attributes['data-corridor-id'], undefined, 'a position is not a corridor');
+  assert.equal(position[0].attributes['data-occurrence-id'], undefined, 'and not an occurrence either');
+  // The accuracy ring is a SEPARATE, non-interactive feature, drawn under the position.
+  const ring = calls.circleLayers.filter(path => path.attributes['data-role'] === 'user-location-accuracy');
+  assert.equal(ring.length, 1);
+  assert.equal(ring[0].options.radius, 25, 'the circle is the device’s own accuracy, in metres');
+  assert.equal(ring[0].options.interactive, false);
+  const layer = calls.groups[7].added;
+  assert.deepEqual(layer.map(path => path.attributes['data-role']), ['user-location-accuracy', 'user-location'],
+    'the ring is drawn beneath the position it describes');
+  // A READING WITHOUT AN ACCURACY STILL DRAWS A POSITION, and no ring.
+  view.setUserLocation({ point: [-87.5, 38.3], accuracyM: null });
+  assert.equal(calls.circleLayers.filter(path => path.attributes['data-role'] === 'user-location-accuracy').length, 1,
+    'no second ring is invented');
+  assert.equal(calls.groups[7].added.length, 1, 'and the layer holds the position alone');
+  // Clearing the reading clears the layer.
+  view.setUserLocation(null);
+  assert.equal(calls.groups[7].added.length, 0);
+  assert.equal(view.userLocationPoint(), null);
+  // An unusable reading is not a position at all.
+  view.setUserLocation({ point: ['x', 'y'], accuracyM: 10 });
+  assert.equal(calls.groups[7].added.length, 0);
+});
+
+test('a new reading repaints the position and moves nothing else', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, outing: PLAN });
+  const cameraBefore = view.camera();
+  const fitsBefore = view.fitCount();
+  const movementsBefore = view.movementCount();
+  const drawnBefore = calls.groups[1].added.length;
+  view.setUserLocation(AT);
+  view.setUserLocation({ point: [-87.51, 38.31], accuracyM: 12 });
+
+test('the two camera moves a position offers are asked for, and counted as fits only when they fit', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const notices = [];
+  const view = createGeoView({ style: {} }, { leaflet, onNotice: notice => notices.push(notice) });
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, outing: PLAN });
+  const fitsBefore = view.fitCount();
+  const cameraBefore = view.camera();
+  // CENTER ON ME: a pan at the person's own zoom, not a fit.
+  assert.equal(view.centerOn(AT.point), true);
+  assert.notDeepEqual(view.camera(), cameraBefore, 'the camera moves because it was asked to');
+  assert.equal(view.fitCount(), fitsBefore, 'and centring is not a fit');
+  // FIT ME + CURRENT ROAD: an explicit fit of the position and the selected road.
+  assert.equal(view.fitUserAndRoad(AT.point), true);
+  assert.equal(view.fitCount(), fitsBefore + 1);
+  assert.deepEqual(calls.fits.at(-1).bounds, [[38.2801, -87.5201], [38.3, -87.42]],
+    'the fit spans the position and the selected road');
+  // Nothing to centre on is said so rather than guessed.
+  assert.equal(view.centerOn(null), false);
+  assert.match(notices[0].note, /no current location/);
+  // WITH NO POSITION, FITTING STILL FRAMES THE SELECTED ROAD: there is something to look at, so the control works.
+  assert.equal(view.fitUserAndRoad(null), true);
+  // With neither a position nor a selection, it refuses and says why.
+  const bare = createGeoView({ style: {} }, { leaflet, onNotice: () => {} });
+  bare.draw({ corridors: [] });
+  assert.equal(bare.fitUserAndRoad(null), false);
+  assert.equal(bare.centerOn(null), false);
+  assert.equal(bare.fitUserAndRoad([-87.5, 38.3]), true, 'a position alone is somewhere to look');
+});
+
+test('a position never intercepts a road, and the plan keeps working around it', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const selected = [];
+  const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selected.push(selection?.id ?? null) });
+  view.draw({ corridors: [CLICKED], selectedId: null, savedIds: [CLICKED.id], outing: PLAN,
+    occurrenceOverlay: OCCURRENCE_OVERLAY });
+  view.setUserLocation(AT);
+  // THE PLAN IS STILL THERE, WITH THE POSITION DRAWN OVER IT.
+  assert.deepEqual(view.outingRoadIds(), ['PLAN-A', 'PLAN-B']);
+  assert.equal(calls.groups[6].added.length, 2, 'the occurrence points coexist with the position');
+  // A CLICK ON A PLAN ROAD IS STILL THE ROAD'S, answered by the line itself.
+  const planned = calls.groups[3].added.find(path => path.attributes['data-corridor-id'] === 'PLAN-A');
+  assert.equal(planned.options.interactive, true);
+  planned.emit('click', { latlng: { lat: 38.3, lng: -87.5 }, propagatedFrom: planned });
+  assert.deepEqual(selected, ['PLAN-A'], 'the position took nothing from the road under it');
+  // Fitting the plan still fits the plan, and the position is not part of it.
+  assert.equal(view.fitOuting(), true);
+  assert.deepEqual(calls.fits.at(-1).bounds, [[38.3, -87.5], [38.33, -87.35]]);
+  view.setSelected('PLAN-A');
+  assert.equal(view.fitSelected(), true, 'and fitting the selected road still works');
+});
+
+  assert.deepEqual(view.camera(), cameraBefore, 'a reading never moves the camera');
+  assert.equal(view.fitCount(), fitsBefore, 'and never counts as a fit');
+  assert.equal(view.movementCount(), movementsBefore, 'and is not a camera movement at all');
+  assert.equal(calls.groups[1].added.length, drawnBefore, 'the corridors are not repainted by a reading');
+  assert.equal(calls.groups[3].added.length, PLAN_ROADS.length, 'nor the plan');
+  assert.equal(view.outingRoadIds().length, 2);
 });
 
