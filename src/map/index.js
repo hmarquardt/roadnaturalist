@@ -12,7 +12,7 @@ export function createMapView(container, options = {}) {
   // view itself for a developer reading it, and is not part of the diagnostic surface below.
   const API = ['draw', 'setSearch', 'setSelected', 'setSavedRoads', 'setOuting', 'setPickMode', 'setBasemap',
     'fitResults', 'fitSelected', 'destroy', 'contextGeometry', 'fitOuting', 'setUserLocation', 'userLocationPoint',
-    'centerOn', 'fitUserAndRoad'];
+    'centerOn', 'fitUserAndRoad', 'setTrack', 'hasTrack', 'fitTrack'];
   const missing = [];
   for (const name of API) {
     if (typeof view[name] === 'function') continue;

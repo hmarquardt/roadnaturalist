@@ -30,10 +30,13 @@ import { ANALYSIS_DISTANCES_M } from '../gis/habitat-result.js';
 import { renderDiscovery, eligibilityNote } from '../ui/discovery.js';
 import { renderSavedRoads } from '../ui/saved-roads.js';
 import { renderOutings } from '../ui/outings.js';
+import { renderTrips } from '../ui/trips.js';
 import { comparisonIds, savedCounts } from '../state/saved-roads.js';
 import { outingMapRoads, outingPlan, savedRoadsById } from '../state/outing-plan.js';
 import { fieldProximity, fieldView } from '../state/outing-field.js';
 import { IDLE_LIVE_LOCATION, LIVE_LOCATION_STATUS, liveLocationReading, requestingLiveLocation } from '../state/live-location.js';
+import { recordingLine, tripExportFilename, tripExportText, tripEventPoint, tripSummary } from '../state/trips.js';
+import { trackGeometry } from '../state/trip-track.js';
 import { storedUserMeta } from '../state/user-meta.js';
 import { renderFieldMode as renderFieldModeView } from '../ui/field.js';
 import { readDiscoveryMarks, readDiscoverySearch, readDiscoverySearchHistory, writeDiscoveryMarks,
@@ -56,6 +59,7 @@ import { naturalistInterest } from '../discovery/ranking.js';
 import { explorationOrder } from '../discovery/exploration-order.js';
 import { MAX_RESULT_ROWS } from '../discovery/constants.js';
 import { LOCATION_STATUS, createLocationProvider, createLocationRequest, locationSearchDefinition, locationStatusMessage } from '../discovery/geolocation.js';
+import { createLocationStream } from '../discovery/location-stream.js';
 
 const PILOT_URL = new URL('../../data/roads/or-roads-pilot.json', import.meta.url);
 // Declared discovery search areas. The loader refuses an area that is not inside every dataset it
@@ -145,6 +149,7 @@ const nodes = {
   discovery: document.getElementById('discovery'), discoveryCount: document.getElementById('discovery-count'),
   savedRoads: document.getElementById('saved-roads'), savedCount: document.getElementById('saved-count'),
   outings: document.getElementById('outings'), outingCount: document.getElementById('outing-count'),
+  trips: document.getElementById('trips'), tripCount: document.getElementById('trip-count'),
 };
 let manifest = null;
 let manifestError = null;
@@ -158,6 +163,7 @@ const drawn = { corridors: [], selectedId: null, overlay: null, occurrenceOverla
   savedOutingSelection: null, savedOutings: null,
   outings: null, outingStorage: null, outingSelection: null, selectedOuting: null, outingKey: undefined, fieldView: null,
   locationKey: undefined,
+  trips: null, tripsSignature: null, recordingKey: undefined, trackKey: undefined,
   discoveryNodes: null, discoverySignature: null, searchKey: null };
 
 function activeSearch() { return store.getState().search; }
@@ -1146,44 +1152,86 @@ function saveOutingNotes(id, value, { immediate = false } = {}) {
   outingNoteTimers.set(id, setTimeout(() => { outingNoteTimers.delete(id); store.updateOuting(id, { notes: value }); }, NOTE_DEBOUNCE_MS));
 }
 
-// LIVE LOCATION: ONE WATCH, WHILE IT IS WANTED, AND NOTHING ELSE.
+// LIVE LOCATION AND TRIP RECORDING SHARE ONE BROWSER WATCH.
 //
-// The position is asked for only when a person presses the control in field mode. One `watchPosition` serves the whole
-// session - changing the current road re-reads the same reading rather than starting another watch - and it is stopped by
-// the person, by leaving field mode, by the plan being removed, or by the page going away. The reading lives in the store
-// as transient state: it is never written to storage, never attached to an outing, and never accumulated into a track.
-let liveLocationWatch = null;
+// Two separate choices consume the same device stream: live location, which shows where a person is right now and keeps
+// nothing, and trip recording, which deliberately keeps the points it is given. Each is opt-in on its own, either can run
+// without the other, and stopping one never stops the other - but there is exactly one `watchPosition` behind both. The
+// stream owns it: the first consumer opens it, the last one to leave closes it.
+//
+// A consumer's lifetime is the handle it was given. Live location's handle lives while the person has location on; the
+// recorder's handle lives while a trip is recording. Neither knows about the other.
+const locationStream = createLocationStream({ provider: locationProvider });
+let liveLocationStop = null;
+let recorderStop = null;
 
 function startLiveLocation() {
-  // A RETRY REPLACES THE WATCH. A refused reading leaves the browser's watch open, so without this a person pressing
-  // "Use my location" again after a denial or a timeout would be asking for nothing at all.
-  liveLocationWatch?.stop();
+  // A RETRY REPLACES THE CONSUMER, AND THEREFORE THE WATCH. A refused reading leaves the stream open, so without this a
+  // person pressing "Use my location" again after a denial or a timeout would be asking for nothing at all.
+  liveLocationStop?.();
   store.setLiveLocation(requestingLiveLocation());
-  let handle = null;
-  handle = locationProvider.watch(reading => {
+  let stop = null;
+  stop = locationStream.subscribe(reading => {
     const next = liveLocationReading(reading);
     store.setLiveLocation(next);
-    // A PERMANENT REFUSAL ENDS THE WATCH: nothing more will arrive until the person changes the browser's own decision,
-    // and the control that asked for it stays on screen to try again. A device that could not fix its position, or a
-    // timeout, keeps the watch open - those may answer later, and "Stop" is on screen meanwhile.
+    // A PERMANENT REFUSAL ENDS THIS CONSUMER: nothing more will arrive until the person changes the browser's own
+    // decision, and the control that asked for it stays on screen to try again. A device that could not fix its position,
+    // or a timeout, keeps listening - those may answer later, and "Stop" is on screen meanwhile. A RECORDING IS NOT
+    // AFFECTED EITHER WAY: it has its own handle, and a refused live location says nothing about whether the trip can
+    // still be recorded.
     if (next.status === LIVE_LOCATION_STATUS.DENIED || next.status === LIVE_LOCATION_STATUS.UNSUPPORTED) {
-      handle?.stop();
-      if (liveLocationWatch === handle) liveLocationWatch = null;
+      stop?.();
+      if (liveLocationStop === stop) liveLocationStop = null;
     }
   });
-  liveLocationWatch = handle;
-  // A watch the browser cannot start at all is reported as unsupported, with the control still on screen saying so.
-  if (!handle.supported) stopLiveLocation();
+  liveLocationStop = stop;
+  // A browser that cannot watch at all is reported as unsupported, with the control still on screen saying so.
+  if (!locationProvider.watchSupported) stopLiveLocation();
 }
 
 function stopLiveLocation() {
-  liveLocationWatch?.stop();
-  liveLocationWatch = null;
+  liveLocationStop?.();
+  liveLocationStop = null;
   store.setLiveLocation(IDLE_LIVE_LOCATION);
 }
 
-// The page's own lifecycle: a backgrounded or closed page stops asking the device where it is.
-globalThis.addEventListener?.('pagehide', () => stopLiveLocation());
+// THE RECORDER'S OWN CONSUMER. It keeps only what the trip's sampling rule accepts, it never touches the displayed reading,
+// and it is attached only while a trip is recording.
+function attachRecorder() {
+  if (recorderStop) return;
+  recorderStop = locationStream.subscribe(reading => {
+    const live = liveLocationReading(reading);
+    // A DEVICE THAT CANNOT SAY WHERE IT IS ADDS NOTHING TO A TRACK. This is not a sampling decision and it is not counted
+    // as one: it is a reading with no position in it.
+    if (live.status !== LIVE_LOCATION_STATUS.ACTIVE) return;
+    if (!store.getState().recordingTripId) return;
+    store.recordTripPoint(live);
+  });
+}
+
+function detachRecorder() {
+  recorderStop?.();
+  recorderStop = null;
+}
+
+function startRecording() {
+  const outcome = store.startTrip();
+  if (!outcome.ok) {
+    store.setTripStorage({ status: 'full', reason: outcome.reason });
+    return outcome;
+  }
+  attachRecorder();
+  return outcome;
+}
+
+function stopRecording() {
+  detachRecorder();
+  return store.stopTrip();
+}
+
+// The page's own lifecycle: a backgrounded or closed page stops asking the device where it is. The trip keeps what it
+// already recorded, and a recording left running is found interrupted on the next load rather than discarded.
+globalThis.addEventListener?.('pagehide', () => { stopLiveLocation(); detachRecorder(); });
 
 // THE FIELD VIEW, READ FROM THE SAME PLAN. It resolves the open outing against the saved roads exactly as the workspace
 // does, derives which road is current from the person's own progress, and hands the interface one view to render. The
@@ -1196,6 +1244,9 @@ function renderFieldMode(state, outing) {
   // The distance is recomputed from the SAME reading for whichever road is current: moving between roads changes the
   // measurement, never the watch.
   const proximity = fieldProximity({ view, location: state.liveLocation });
+  // THE TRIP BEING RECORDED, if any. Its own summary is read from its own points; the field view never measures anything
+  // about the trip itself, and the recording block renders from what the trip actually holds.
+  const recording = state.trips.find(trip => trip.id === state.recordingTripId) ?? null;
   renderFieldModeView(nodes.outings, state, {
     view,
     roadNote: meta?.note ?? '',
@@ -1207,6 +1258,18 @@ function renderFieldMode(state, outing) {
     onStopLocation: () => stopLiveLocation(),
     onCenterOnMe: () => map.centerOn(state.liveLocation?.point ?? null),
     onFitMeAndRoad: () => map.fitUserAndRoad(state.liveLocation?.point ?? null),
+    // RECORDING IS EXPLICIT, AND IT IS THE ONLY WAY ANYTHING IS KEPT: no load, no field-mode entry and no live reading
+    // starts it.
+    recording,
+    recordingSummary: recording ? tripSummary(recording, { outing }) : null,
+    events: recording?.events ?? [],
+    onStartRecording: () => startRecording(),
+    onStopRecording: () => stopRecording(),
+    onAddNote: (text, options) => store.addTripEvent({ type: 'note', text,
+      point: tripEventPoint(recording, state.liveLocation), roadId: options?.roadId ?? null }),
+    onAddSighting: (text, options) => store.addTripEvent({ type: 'sighting', text,
+      point: tripEventPoint(recording, state.liveLocation), roadId: options?.roadId ?? null }),
+    onFitTrack: () => map.fitTrack(),
     onExit: () => { stopLiveLocation(); store.setFieldMode(false); },
     onSelectRoad: roadId => store.selectFieldRoad(roadId),
     onPrevious: roadId => store.selectFieldRoad(roadId),
@@ -1325,6 +1388,97 @@ function renderSavedRoadsPanel(state) {
     onFilter: filter => store.setSavedRoadsFilter(filter) });
 }
 
+// THE RECORDED TRIPS PANEL. It renders from the trips slice alone, and a recording in progress re-renders it as its
+// points accumulate because the panel holds no text a person is typing into: the field view is where the caret lives, and
+// that one is patched rather than rebuilt.
+function tripsSignature(state) {
+  return [(state.trips ?? []).map(trip => `${trip.id}:${trip.status}:${trip.track.length}:${trip.events.length}`).join(','),
+    state.selectedTripId ?? '', state.tripStorage?.status ?? '', state.tripStorage?.reason ?? '',
+    (state.durableCandidateIds ?? []).join(',')].join('|');
+}
+
+// The trip the map is showing: the one being recorded, or the one the person opened in the history. Nothing else draws a
+// track, and no reading ever creates one.
+function shownTrip(state) {
+  return (state.trips ?? []).find(trip => trip.id === state.recordingTripId)
+    ?? (state.trips ?? []).find(trip => trip.id === state.selectedTripId) ?? null;
+}
+
+function renderTripsPanel(state) {
+  if (drawn.trips === state.trips && drawn.tripsSignature === tripsSignature(state)) return;
+  drawn.trips = state.trips;
+  drawn.tripsSignature = tripsSignature(state);
+  const roadNames = {};
+  for (const candidate of state.candidates ?? []) roadNames[candidate.id] = candidate.name;
+  const summaries = {};
+  for (const trip of state.trips ?? []) summaries[trip.id] = tripSummary(trip, { outing: store.tripOuting(trip) });
+  const recording = (state.trips ?? []).find(trip => trip.id === state.recordingTripId) ?? null;
+  nodes.tripCount.textContent = String((state.trips ?? []).length);
+  renderTrips(nodes.trips, state, {
+    trips: state.trips ?? [], selectedTripId: state.selectedTripId ?? null, recording,
+    recordingSummary: recording ? summaries[recording.id] : null, summaries, roadNames,
+    onStartRecording: () => startRecording(),
+    onStopRecording: () => stopRecording(),
+    onOpenTrip: id => store.selectTrip(id),
+    onDeleteTrip: id => store.deleteTrip(id),
+    onFinishTrip: id => store.finishTrip(id),
+    onFitTrack: id => { store.selectTrip(id); map.fitTrack(); },
+    onExportTrip: id => exportTrip(id),
+  });
+}
+
+// THE NUMBERS THAT MOVE WHILE A RECORDING RUNS ARE PATCHED, NOT RE-RENDERED. A field view rebuilt every hundred metres
+// would take the caret out of whatever the person is typing, so the recording line, the fit control and the map's trace
+// are written in place, from the same key, and only when something actually changed.
+function renderRecording(state) {
+  // THE TRACE ON THE MAP comes first, and it is written from the trip the person is looking at - the one being recorded,
+  // or the one they opened in the history. It changes only when the trip or its recorded points change, and a reading
+  // never creates one.
+  const shown = shownTrip(state);
+  const trackKey = shown ? `${shown.id}|${shown.track.length}` : 'none';
+  if (drawn.trackKey !== trackKey) {
+    drawn.trackKey = trackKey;
+    map.setTrack(trackGeometry(shown?.track ?? []));
+  }
+  // THEN THE NUMBERS THAT MOVE WHILE A RECORDING RUNS, patched in place rather than re-rendered: a field view rebuilt
+  // every hundred metres would take the caret out of whatever the person is typing.
+  const recording = (state.trips ?? []).find(trip => trip.id === state.recordingTripId) ?? null;
+  const summary = recording ? tripSummary(recording, { outing: store.tripOuting(recording) }) : null;
+  const key = recording ? `${recording.id}|${recording.track.length}|${Math.round(summary.metres)}|${summary.visitedCount}` : 'none';
+  if (drawn.recordingKey === key) return;
+  drawn.recordingKey = key;
+  const line = document.getElementById('field-recording-summary');
+  if (line && summary) {
+    line.textContent = recordingLine(summary);
+    line.dataset.points = String(summary.points);
+    line.dataset.metres = String(Math.round(summary.metres));
+    line.dataset.visited = String(summary.visitedCount);
+  }
+  const fit = document.getElementById('field-fit-track');
+  if (fit && summary) fit.disabled = summary.points < 2;
+}
+
+// EXPORT IS A DOWNLOAD, AND NOTHING ELSE: the same local file convention the evidence bundle uses. Nothing is uploaded,
+// and the only coordinates in the file are the ones this trip recorded.
+function exportTrip(id) {
+  const state = store.getState();
+  const trip = (state.trips ?? []).find(entry => entry.id === id) ?? null;
+  if (!trip) return null;
+  const text = tripExportText(trip, { outing: store.tripOuting(trip) });
+  const blob = new Blob([text], { type: 'application/geo+json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = tripExportFilename(trip);
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  store.setTripStorage({ status: state.tripStorage.status,
+    reason: `Exported ${(text.length / 1024).toFixed(1)} kB GeoJSON for this trip. It was written to your device and sent nowhere.` });
+  return text;
+}
+
 store.subscribe(state => {
   const selected = state.candidates.find(candidate => candidate.id === state.selectedId) ?? null;
   const ecology = selected ? state.ecologyByCandidate[selected.id] : null;
@@ -1375,6 +1529,10 @@ store.subscribe(state => {
   // The saved-roads workspace renders from its own state slice, and never asks for data to do it.
   renderSavedRoadsPanel(state);
   renderOutingsPanel(state);
+  // RECORDED TRIPS ARE THEIR OWN SURFACE, and their own storage entry: a recording in progress is visible here even after
+  // the person has left field mode, and it can be stopped from here.
+  renderTripsPanel(state);
+  renderRecording(state);
   // The search preview follows the search definition, not the discovery run: it is on screen while a centre
   // is being chosen, and it stays after a search so the results can be read against the area they came from.
   updateSearchPreview(state);
@@ -1388,8 +1546,9 @@ store.subscribe(state => {
   const occurrenceOverlay = state.occurrenceOverlay && state.occurrenceOverlay.candidateId === selected?.id ? state.occurrenceOverlay : null;
   const discoveryLayer = discoveryDescriptors(state);
   // LEAVING FIELD MODE STOPS THE WATCH. The store clears the reading when the view closes; this is what stops the browser
-  // asking the device for a position at all - including when the plan itself is closed or removed.
-  if (!state.fieldMode && liveLocationWatch) stopLiveLocation();
+  // asking the device for a position at all - including when the plan itself is closed or removed. A RECORDING IS NOT
+  // AFFECTED: it has its own consumer, and it keeps the device's stream while the person is still recording.
+  if (!state.fieldMode && liveLocationStop) stopLiveLocation();
   // AND THE READING REACHES THE MAP ON ITS OWN. A new position repaints the position layer and nothing else: no corridor
   // changes, no selection changes, and the camera does not move.
   const key = locationKey(state);
@@ -1456,12 +1615,18 @@ function signature(state) {
 // WHAT THE FIELD VIEW IS RENDERED FROM: the plan's own state (progress, notes, checklist, title), the road the person is
 // standing on, the live reading, and the annotations and saved roads the view reads. A note typed into a field re-renders
 // the view it was typed in, and nothing else on the page is touched.
+//
+// A RECORDING'S OWN NUMBERS ARE DELIBERATELY NOT IN THIS KEY: they move every hundred metres, and a view rebuilt that
+// often would take the caret out of whatever the person is typing. What is in the key is whether a recording exists, what
+// state it is in and how many events it holds - all of which change only when the person does something.
 function fieldSignature(state, outing) {
+  const recording = (state.trips ?? []).find(trip => trip.id === state.recordingTripId) ?? null;
   return [outing.id, outing.title, outing.date ?? '', outing.status, outing.updatedAt ?? '',
     outing.roadIds.join(','), JSON.stringify(outing.roadState ?? {}), outing.notes.length,
     (outing.checklist ?? []).map(item => `${item.id}:${item.checked ? 1 : 0}`).join(','),
     state.fieldRoadId ?? '', (state.durableCandidateIds ?? []).join(','),
     JSON.stringify(state.userMetaById?.[state.fieldRoadId ?? ''] ?? null),
+    recording ? `${recording.id}:${recording.status}:${recording.events.length}` : 'no-recording',
     locationKey(state)].join('|');
 }
 
@@ -1694,6 +1859,10 @@ loadManifest().then(async value => {
   store.restoreCandidates();
   // Outings are a second device-local entry, restored the same way and with the same zero-network promise.
   store.restoreOutings();
+  // Recorded trips are a third, and the only entry that holds coordinates on purpose. A recording left running by a
+  // closed page comes back as an interrupted trip with every point it had, and nothing is written on a load that finds
+  // nothing to change.
+  store.restoreTrips();
   renderDiscoveryPanel(store.getState());
   updateSearchPreview(store.getState());
   const discovery = store.getState().discovery;

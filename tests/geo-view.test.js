@@ -71,6 +71,13 @@ function fakeLeaflet({ failMap = false } = {}) {
   return { leaflet, map, calls };
 }
 
+// THE LAYERS, NAMED, IN THE ORDER THE VIEW CREATES THEM - because that order is the drawing order, and it is a contract
+// worth stating rather than counting: the leader and the recorded track are beneath the roads they orient, the position
+// and the emphasis above everything. A layer inserted in the middle shifts every index after it, which is exactly the kind
+// of change a test should be told about rather than discover.
+const LAYER = Object.freeze({ context: 0, track: 1, results: 2, saved: 3, outing: 4, search: 5, overlay: 6,
+  occurrence: 7, location: 8, selected: 9 });
+
 const GEO = { type: 'LineString', coordinates: [[-87.5, 38.3], [-87.4, 38.31]] };
 const corridor = (id, overrides = {}) => ({ id, name: `Road ${id}`, geometry: GEO, distanceFromCenterM: 5200,
   ranking: { score: 72.4, components: { wetland: { value: 74.7, measured: true }, water: { value: 40, measured: true },
@@ -488,7 +495,7 @@ test('the tile provider is declared once, completely, and is replaceable', () =>
 test('the taxonomy declares every family, and only a corridor is a candidate', () => {
   assert.deepEqual(Object.values(FEATURE_KIND).sort(),
     ['corridor', 'habitat', 'habitat-buffer', 'occurrence', 'outing', 'search-center', 'search-context',
-      'search-radius', 'search-region', 'user-location', 'user-location-accuracy']);
+      'search-radius', 'search-region', 'trip-track', 'user-location', 'user-location-accuracy']);
   const roles = Object.values(FEATURE_DOM).map(contract => contract.role);
   assert.equal(roles.filter(role => role === 'candidate').length, 1, 'one kind is the candidate, and it is the corridor');
   assert.equal(FEATURE_DOM[FEATURE_KIND.CORRIDOR].role, 'candidate');
@@ -850,7 +857,7 @@ test('the occurrence layer is a visibility toggle: it draws what is loaded, and 
   const view = createGeoView({ style: {} }, { leaflet });
   view.draw({ corridors: [CLICKED], selectedId: CLICKED.id });
   // The groups in construction order are context, results, saved, outing, search, overlay, occurrence, selected.
-  const occurrenceLayer = calls.groups[6];
+  const occurrenceLayer = calls.groups[LAYER.occurrence];
   assert.equal(occurrenceLayer.added.length, 0, 'nothing is on the map until the layer is switched on');
   const cameraBefore = view.camera();
   const fitsBefore = view.fitCount();
@@ -1026,7 +1033,7 @@ test('the leader follows the selection, and is never a candidate', () => {
   const selected = [];
   const view = createGeoView({ style: {} }, { leaflet, onSelect: selection => selected.push(selection) });
   // The leader is what the context layer holds: that layer is created first, so it draws under everything else.
-  const contextLayer = calls.groups[0];
+  const contextLayer = calls.groups[LAYER.context];
   const drawnLeaders = () => contextLayer.added.filter(path => path.attributes['data-role'] === 'search-context');
 
   // SELECT A: one leader, associated with A.
@@ -1137,7 +1144,7 @@ test('the habitat toggle adds and removes the buffer without moving the viewport
   const cameraBefore = view.camera();
   const fitsBefore = view.fitCount();
   // The groups in construction order are context, results, saved, outing, search, overlay, occurrence, selected.
-  const overlayLayer = calls.groups[5];
+  const overlayLayer = calls.groups[LAYER.overlay];
   const bufferCount = () => overlayLayer.added.filter(path => path.attributes['data-role'] === 'habitat-buffer').length;
   assert.equal(bufferCount(), 0, 'no habitat overlay, no buffer');
 
@@ -1169,7 +1176,7 @@ test('a plan’s roads are drawn as plan members, not as discovery candidates', 
   view.draw({ corridors: [CLICKED], selectedId: null, outing: PLAN });
   // The plan layer is the third collection group created (context, results, saved, outing, ...), and what it holds NOW
   // is what the map is drawing.
-  const planned = calls.groups[3].added;
+  const planned = calls.groups[LAYER.outing].added;
   // The plan has its own role, so nothing reading the DOM can mistake a plan member for a discovery candidate.
   assert.deepEqual(planned.map(path => path.attributes['data-corridor-id']), ['PLAN-A', 'PLAN-B']);
   assert.deepEqual(planned.map(path => path.attributes['data-role']), ['outing', 'outing']);
@@ -1190,7 +1197,7 @@ test('a road that is both a visible candidate and a plan member is drawn once, a
   view.setSavedRoads([{ id: 'PLAN-A', name: 'Road A', geometry: GEO, selectionDomain: 'candidate' }]);
   view.draw({ corridors: [corridor('PLAN-A'), corridor('OTHER')], selectedId: null,
     savedIds: ['PLAN-A'], outing: PLAN });
-  const drawn = [...calls.groups[1].added, ...calls.groups[2].added, ...calls.groups[3].added];
+  const drawn = [...calls.groups[LAYER.results].added, ...calls.groups[LAYER.saved].added, ...calls.groups[LAYER.outing].added];
   const forA = drawn.filter(path => path.attributes['data-corridor-id'] === 'PLAN-A');
   assert.equal(forA.length, 1, 'one geometry for one road, however many collections it belongs to');
   assert.equal(forA[0].attributes['data-role'], 'outing');
@@ -1241,7 +1248,7 @@ test('a plan road carries its own facts into its card', () => {
     searchCenter: [-87.55, 38.25], nearestCenterPoint: [-87.5, 38.3],
     ranking: { score: 72.4, version: 'naturalist-interest-v2', components: { wetland: { value: 74.7, measured: true } } },
     exploration: { score: 61.2 } }] } });
-  const path = calls.groups[3].added.at(-1);
+  const path = calls.groups[LAYER.outing].added.at(-1);
   assert.equal(path.attributes['data-corridor-id'], 'PLAN-A');
   assert.match(path.popup, /Road 1 of 1 in this outing/);
   assert.match(path.popup, /Naturalist interest 72\.4/);
@@ -1249,7 +1256,7 @@ test('a plan road carries its own facts into its card', () => {
   assert.match(path.popup, /Exploration order <strong>61\.2<\/strong>/);
   // THE LEADER IS STILL ORIENTATION, NOT A ROUTE: the plan's selected road draws the measured pair it already had.
   view.setSelected('PLAN-A');
-  const leader = calls.groups[0].added;
+  const leader = calls.groups[LAYER.context].added;
   assert.equal(leader.length, 1);
   assert.equal(leader[0].attributes['data-role'], 'search-context');
   assert.equal(leader[0].attributes['data-corridor-id'], 'PLAN-A');
@@ -1311,21 +1318,21 @@ test('a live position is drawn as its own kind, with no identity and no interact
   assert.equal(ring.length, 1);
   assert.equal(ring[0].options.radius, 25, 'the circle is the device’s own accuracy, in metres');
   assert.equal(ring[0].options.interactive, false);
-  const layer = calls.groups[7].added;
+  const layer = calls.groups[LAYER.location].added;
   assert.deepEqual(layer.map(path => path.attributes['data-role']), ['user-location-accuracy', 'user-location'],
     'the ring is drawn beneath the position it describes');
   // A READING WITHOUT AN ACCURACY STILL DRAWS A POSITION, and no ring.
   view.setUserLocation({ point: [-87.5, 38.3], accuracyM: null });
   assert.equal(calls.circleLayers.filter(path => path.attributes['data-role'] === 'user-location-accuracy').length, 1,
     'no second ring is invented');
-  assert.equal(calls.groups[7].added.length, 1, 'and the layer holds the position alone');
+  assert.equal(calls.groups[LAYER.location].added.length, 1, 'and the layer holds the position alone');
   // Clearing the reading clears the layer.
   view.setUserLocation(null);
-  assert.equal(calls.groups[7].added.length, 0);
+  assert.equal(calls.groups[LAYER.location].added.length, 0);
   assert.equal(view.userLocationPoint(), null);
   // An unusable reading is not a position at all.
   view.setUserLocation({ point: ['x', 'y'], accuracyM: 10 });
-  assert.equal(calls.groups[7].added.length, 0);
+  assert.equal(calls.groups[LAYER.location].added.length, 0);
 });
 
 test('a new reading repaints the position and moves nothing else', () => {
@@ -1335,7 +1342,7 @@ test('a new reading repaints the position and moves nothing else', () => {
   const cameraBefore = view.camera();
   const fitsBefore = view.fitCount();
   const movementsBefore = view.movementCount();
-  const drawnBefore = calls.groups[1].added.length;
+  const drawnBefore = calls.groups[LAYER.results].added.length;
   view.setUserLocation(AT);
   view.setUserLocation({ point: [-87.51, 38.31], accuracyM: 12 });
 
@@ -1377,9 +1384,9 @@ test('a position never intercepts a road, and the plan keeps working around it',
   view.setUserLocation(AT);
   // THE PLAN IS STILL THERE, WITH THE POSITION DRAWN OVER IT.
   assert.deepEqual(view.outingRoadIds(), ['PLAN-A', 'PLAN-B']);
-  assert.equal(calls.groups[6].added.length, 2, 'the occurrence points coexist with the position');
+  assert.equal(calls.groups[LAYER.occurrence].added.length, 2, 'the occurrence points coexist with the position');
   // A CLICK ON A PLAN ROAD IS STILL THE ROAD'S, answered by the line itself.
-  const planned = calls.groups[3].added.find(path => path.attributes['data-corridor-id'] === 'PLAN-A');
+  const planned = calls.groups[LAYER.outing].added.find(path => path.attributes['data-corridor-id'] === 'PLAN-A');
   assert.equal(planned.options.interactive, true);
   planned.emit('click', { latlng: { lat: 38.3, lng: -87.5 }, propagatedFrom: planned });
   assert.deepEqual(selected, ['PLAN-A'], 'the position took nothing from the road under it');
@@ -1393,8 +1400,93 @@ test('a position never intercepts a road, and the plan keeps working around it',
   assert.deepEqual(view.camera(), cameraBefore, 'a reading never moves the camera');
   assert.equal(view.fitCount(), fitsBefore, 'and never counts as a fit');
   assert.equal(view.movementCount(), movementsBefore, 'and is not a camera movement at all');
-  assert.equal(calls.groups[1].added.length, drawnBefore, 'the corridors are not repainted by a reading');
-  assert.equal(calls.groups[3].added.length, PLAN_ROADS.length, 'nor the plan');
+  assert.equal(calls.groups[LAYER.results].added.length, drawnBefore, 'the corridors are not repainted by a reading');
+  assert.equal(calls.groups[LAYER.outing].added.length, PLAN_ROADS.length, 'nor the plan');
   assert.equal(view.outingRoadIds().length, 2);
 });
 
+
+// A RECORDED TRACK IS A TRACE, NOT A ROAD.
+//
+// The line the person's own device reported while they were recording a trip is drawn as its own kind: under the roads, in
+// a colour no road uses, carrying no identity at all, taking no click, and moving the camera only when the person asks it
+// to. A new point extends the trace and does nothing else.
+const RECORDED = { type: 'LineString', coordinates: [[-87.51, 38.31], [-87.49, 38.32], [-87.47, 38.33]] };
+
+test('a recorded track is drawn as a trace, with no identity and no way to take a click', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, outing: PLAN });
+  assert.equal(view.setTrack(RECORDED), true);
+  const drawn = calls.groups[LAYER.track].added;
+  assert.equal(drawn.length, 1, 'one trace, one line');
+  assert.equal(drawn[0].attributes['data-role'], 'trip-track');
+  assert.equal(drawn[0].options.interactive, false, 'a trace never takes a click from the road under it');
+  assert.equal(drawn[0].attributes['data-corridor-id'], undefined, 'a trace is not a corridor');
+  assert.equal(drawn[0].attributes['data-outing-id'], undefined, 'and not a plan member');
+  assert.equal(drawn[0].attributes['data-occurrence-id'], undefined);
+  assert.deepEqual(drawn[0].latlngs, RECORDED.coordinates.map(([lon, lat]) => [lat, lon]));
+  // A CLICK ON THE MAP STILL FINDS THE ROAD, because the trace is in no collection the hit test walks.
+  const selected = [];
+  const clicking = createGeoView({ style: {} }, { leaflet, onSelect: entry => selected.push(entry.id) });
+  clicking.draw({ corridors: [CLICKED], selectedId: null });
+  clicking.setTrack(RECORDED);
+  assert.equal(clicking.setSelected(CLICKED.id), true, 'and the trace changed nothing about selection');
+  // SETTING NOTHING CLEARS IT, and a geometry the map cannot draw is refused rather than drawn as something else.
+  assert.equal(view.setTrack(null), false);
+  assert.equal(calls.groups[LAYER.track].added.length, 0);
+  assert.equal(view.hasTrack(), false);
+  assert.equal(view.setTrack({ type: 'LineString', coordinates: [] }), false);
+  assert.equal(view.hasTrack(), false);
+});
+
+test('a recorded track never owns the camera, and fitting it is asked for', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const notices = [];
+  const view = createGeoView({ style: {} }, { leaflet, onNotice: notice => notices.push(notice) });
+  view.draw({ corridors: [CLICKED], selectedId: CLICKED.id, outing: PLAN });
+  const cameraBefore = JSON.stringify(view.camera());
+  const fitsBefore = view.fitCount();
+  const movementsBefore = view.movementCount();
+  // A NEW POINT EXTENDS THE TRACE AND MOVES NOTHING.
+  view.setTrack({ type: 'LineString', coordinates: [[-87.51, 38.31], [-87.49, 38.32]] });
+  view.setTrack(RECORDED);
+  assert.equal(JSON.stringify(view.camera()), cameraBefore, 'a recorded point never moves the camera');
+  assert.equal(view.fitCount(), fitsBefore, 'and is never a fit');
+  assert.equal(view.movementCount(), movementsBefore, 'and is not a camera movement at all');
+  // FITTING THE TRACE IS THE PERSON\'S OWN CONTROL, and it is counted like every other fit.
+  assert.equal(view.fitTrack(), true);
+  assert.equal(view.fitCount(), fitsBefore + 1);
+  assert.deepEqual(calls.fits.at(-1).bounds, [[38.31, -87.51], [38.33, -87.47]], 'the fit spans the recorded trace');
+  // A TRACE WITH NOTHING TO FRAME SAYS SO RATHER THAN FITTING A POINT TO THE WHOLE WORLD.
+  const bare = createGeoView({ style: {} }, { leaflet, onNotice: notice => notices.push(notice) });
+  bare.draw({ corridors: [] });
+  assert.equal(bare.fitTrack(), false);
+  assert.match(notices.at(-1).note, /no recorded track to fit/);
+  bare.setTrack({ type: 'LineString', coordinates: [[-87.5, 38.3]] });
+  assert.equal(bare.fitTrack(), false, 'one point is not a track to frame');
+  assert.match(notices.at(-1).note, /no recorded track to fit/);
+  // AND ONE RECORDED PLACE IS NOT A LINE EITHER: the map draws lines, so a recording becomes a trace when it has two
+  // points. The first point is kept in the trip either way, and the position marker is what shows where the person is.
+  assert.equal(bare.hasTrack(), false);
+  bare.setTrack({ type: 'LineString', coordinates: [[-87.5, 38.3], [-87.49, 38.31]] });
+  assert.equal(bare.hasTrack(), true, 'and two points are a trace');
+});
+
+test('a redraw keeps the recorded track, and the map that cannot draw says so about it too', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [CLICKED], selectedId: null });
+  view.setTrack(RECORDED);
+  assert.equal(calls.groups[LAYER.track].added.length, 1);
+  // A REDRAW OF THE CANDIDATES DOES NOT ERASE A RECORD: the trace belongs to the trip, not to the collection being drawn.
+  view.draw({ corridors: [CLICKED, corridor('OTHER')], selectedId: null });
+  assert.equal(calls.groups[LAYER.track].added.length, 1);
+  assert.equal(calls.groups[LAYER.track].added[0].attributes['data-role'], 'trip-track');
+  assert.equal(view.hasTrack(), true);
+  // AND A MAP THAT COULD NOT INITIALISE REFUSES EVERY TRACK CALL RATHER THAN THROWING INTO THE APPLICATION.
+  const unavailable = unavailableView('the mapping library is not available');
+  assert.equal(unavailable.setTrack(RECORDED), false);
+  assert.equal(unavailable.hasTrack(), false);
+  assert.equal(unavailable.fitTrack(), false);
+});

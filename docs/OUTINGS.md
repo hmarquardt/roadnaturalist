@@ -153,6 +153,17 @@ going away all end the watch.
   it is never written to storage, never attached to an outing, never uploaded, never logged with a coordinate, and it
   is discarded when the watch stops. *Your live location stays in this browser and is not saved with the outing.*
 
+**Recording a trip: the one thing here that keeps a coordinate.** Live location is transient; a **trip** is a record you
+deliberately make. Field mode offers **Start recording**, and only that press begins one — nothing is recorded on page
+load, on entering field mode, or by turning live location on. While a recording runs you can add a **field note** or a
+**sighting** (free text, with the time, the position the trip last recorded and the road you were on), watch the counts
+and the recorded length grow, and **Stop recording**. When you stop, the trip freezes the roads you had marked visited
+by hand, and *Field trips* (panel 08) shows it — with **Fit recorded track**, **Export GeoJSON** and **Delete**. Live
+location and recording share **one** browser watch rather than opening two, and stopping either leaves the other alone.
+
+A trace passing a road never marks it visited, no route is reconstructed and no road is matched to the track. Recorded
+trips stay on this device unless you explicitly export them. Full detail: [docs/TRIPS.md](TRIPS.md).
+
 **With no signal.** Everything field mode reads was already written to this device: the plan, its progress, its notes
 and checklist, the saved roads and the measurements their scores came from. Working a plan — moving between roads,
 marking progress, ticking the checklist, writing notes, reading a road's facts, and measuring how far you are from the

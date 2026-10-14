@@ -1,5 +1,6 @@
 import { MAX_CHECKLIST_ITEMS, MAX_CHECKLIST_TEXT, OUTING_NOTE_MAX_LENGTH } from '../state/outings.js';
 import { FIELD_MODE_NOTE, fieldFacts } from '../state/outing-field.js';
+import { MAX_EVENT_TEXT, TRIP_PRIVACY_NOTE, TRIP_RECORDING_NOTE, eventLine, recordingLine } from '../state/trips.js';
 import { LIVE_LOCATION_PRIVACY_NOTE, LIVE_LOCATION_STATUS, liveLocationAccuracyLabel, liveLocationMessage,
   liveLocationStatusLabel } from '../state/live-location.js';
 import { PROXIMITY_NOTE, PROXIMITY_UNAVAILABLE } from '../state/outing-proximity.js';
@@ -18,7 +19,8 @@ function el(tag, className, text) { const node = document.createElement(tag); if
 export function renderFieldMode(container, state, { view, roadNote = null, roadFavorite = false, onExit, onSelectRoad,
   onPrevious, onNext, onMarkVisited, onShowOnMap, onFitRoad, onRoadNote, onNotes, onToggleItem, onAddItem,
   location = null, proximity = null, locationSupported = false, onStartLocation, onStopLocation, onCenterOnMe,
-  onFitMeAndRoad } = {}) {
+  onFitMeAndRoad, recording = null, recordingSummary = null, events = [], onStartRecording, onStopRecording,
+  onAddNote, onAddSighting, onFitTrack } = {}) {
   container.replaceChildren();
   if (!view) {
     container.append(el('p', 'field-empty', 'Open an outing to use field mode.'));
@@ -28,6 +30,8 @@ export function renderFieldMode(container, state, { view, roadNote = null, roadF
   block.id = 'field-mode';
   block.append(head(view, onExit));
   block.append(el('p', 'small muted field-mode-note', FIELD_MODE_NOTE));
+  block.append(recordingBlock({ recording, recordingSummary, events, view, onStartRecording, onStopRecording,
+    onAddNote, onAddSighting, onFitTrack }));
   block.append(currentRoad({ view, roadNote, roadFavorite, onMarkVisited, onShowOnMap, onFitRoad, onPrevious, onNext,
     onRoadNote, location, proximity, locationSupported, onStartLocation, onStopLocation, onCenterOnMe, onFitMeAndRoad }));
   block.append(roadList(view, onSelectRoad));
@@ -57,6 +61,116 @@ function head(view, onExit) {
   return head;
 }
 
+
+// TRIP RECORDING: THE ONE THING IN THIS APPLICATION THAT KEEPS A COORDINATE ON PURPOSE.
+//
+// The controls say exactly what they do. Nothing is recorded until "Start recording" is pressed - not on page load, not on
+// entering field mode, and not by turning live location on - and while a recording is running the person can add a field
+// note or a sighting, see what has been recorded so far, and stop. Live location is a separate choice and stays separate:
+// the block says so, and stopping one never stops the other.
+function recordingBlock({ recording, recordingSummary, events, view, onStartRecording, onStopRecording, onAddNote,
+  onAddSighting, onFitTrack }) {
+  const block = el('div', 'field-recording');
+  block.id = 'field-recording';
+  const active = Boolean(recording);
+  const head = el('div', 'field-recording-head');
+  head.append(el('h4', null, 'Trip recording'));
+  const status = el('p', 'field-recording-status');
+  status.id = 'field-recording-status';
+  status.dataset.status = active ? 'recording' : 'idle';
+  status.textContent = active ? 'Recording' : 'Not recording';
+  head.append(status);
+  block.append(head);
+
+  const controls = el('div', 'field-recording-controls');
+  if (active) {
+    const stop = el('button', 'primary-button', 'Stop recording');
+    stop.type = 'button';
+    stop.id = 'field-record-stop';
+    stop.addEventListener('click', () => onStopRecording?.());
+    controls.append(stop);
+  } else {
+    const start = el('button', 'primary-button', 'Start recording');
+    start.type = 'button';
+    start.id = 'field-record-start';
+    start.addEventListener('click', () => onStartRecording?.());
+    controls.append(start);
+  }
+  block.append(controls);
+
+  if (active && recordingSummary) {
+    const summary = el('p', 'field-recording-summary');
+    summary.id = 'field-recording-summary';
+    summary.dataset.points = String(recordingSummary.points);
+    summary.dataset.metres = String(Math.round(recordingSummary.metres));
+    summary.dataset.events = String(recordingSummary.events);
+    summary.dataset.visited = String(recordingSummary.visitedCount);
+    summary.textContent = recordingLine(recordingSummary);
+    block.append(summary);
+    // A RECORDING THAT HIT ITS OWN LIMIT SAYS SO rather than quietly dropping points.
+    if (recordingSummary.truncated) {
+      const full = el('p', 'field-recording-warning', 'This recording reached the limit of points it can hold. Stop and start a new recording to keep going.');
+      full.id = 'field-recording-warning';
+      block.append(full);
+    }
+    // A FIELD NOTE IS SOMETHING NOTICED NOW; the road's own note stays durable knowledge about the road.
+    block.append(eventForm('note', { view, onAddNote }));
+    block.append(eventForm('sighting', { view, onAddSighting }));
+    if (events.length) {
+      const list = el('ul', 'field-events');
+      list.id = 'field-events';
+      for (const event of events.slice(-5).reverse()) {
+        const item = el('li', 'field-event');
+        item.dataset.eventId = event.id;
+        item.dataset.eventType = event.type;
+        item.append(el('span', 'field-event-when', eventLine(event)));
+        item.append(el('span', 'field-event-text', event.text));
+        list.append(item);
+      }
+      block.append(list);
+    }
+    const fit = el('button', 'quiet-button', 'Fit recorded track');
+    fit.type = 'button';
+    fit.id = 'field-fit-track';
+    fit.disabled = (recordingSummary.points ?? 0) < 2;
+    fit.addEventListener('click', () => onFitTrack?.());
+    block.append(fit);
+  }
+
+  // THE TWO STATEMENTS THIS FEATURE OWES THE PERSON: what is kept, and what it depends on.
+  block.append(el('p', 'small muted field-recording-privacy', TRIP_PRIVACY_NOTE));
+  block.append(el('p', 'small muted field-recording-note', TRIP_RECORDING_NOTE));
+  return block;
+}
+
+// ONE FIELD EVENT, IN THE PERSON'S OWN WORDS. Free text only: there is no taxonomy here, no species picker and no source
+// lookup, because a field note is a note.
+function eventForm(type, { view, onAddNote, onAddSighting }) {
+  const submit = type === 'sighting' ? onAddSighting : onAddNote;
+  const form = el('div', 'field-event-form');
+  const label = el('label', 'field-label', type === 'sighting' ? 'Add a sighting' : 'Add a field note');
+  const row = el('div', 'field-event-row');
+  const input = el('input', 'field-input');
+  input.type = 'text';
+  input.id = type === 'sighting' ? 'field-sighting-text' : 'field-note-text';
+  input.maxLength = MAX_EVENT_TEXT;
+  input.placeholder = type === 'sighting' ? 'What you saw' : 'What you noticed';
+  label.setAttribute('for', input.id);
+  const button = el('button', 'quiet-button', type === 'sighting' ? 'Add sighting' : 'Add field note');
+  button.type = 'button';
+  button.id = type === 'sighting' ? 'field-add-sighting' : 'field-add-note';
+  const submitNow = () => {
+    const text = input.value.trim();
+    if (!text) return;
+    submit?.(text, { roadId: view?.currentId ?? null });
+    input.value = '';
+  };
+  button.addEventListener('click', submitNow);
+  input.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); submitNow(); } });
+  row.append(input, button);
+  form.append(label, row);
+  return form;
+}
 
 function currentRoad({ view, roadNote, roadFavorite, onMarkVisited, onShowOnMap, onFitRoad, onPrevious, onNext,
   onRoadNote, location, proximity, locationSupported, onStartLocation, onStopLocation, onCenterOnMe, onFitMeAndRoad }) {

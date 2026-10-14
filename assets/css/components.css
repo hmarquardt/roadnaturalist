@@ -42,6 +42,31 @@
 .candidate-user .detail-field{display:block;font-size:.78rem;color:#526b5d;margin-top:.7rem}
 .boot-note{margin:0 0 1rem;padding:.85rem 1rem;border:1px solid #d9b48a;border-left:4px solid #bd7b36;border-radius:5px;background:#fdf6ec;color:#6a4212;font-size:.86rem}
 .outings-panel{grid-column:1 / -1;grid-row:6}
+/* RECORDED TRIPS — WHAT ACTUALLY HAPPENED, KEPT ON THIS DEVICE.
+   A compact history, not a dashboard: one line per recording, and one opened at a time. */
+.trips-panel{grid-column:1 / -1;grid-row:7}
+.trips{padding:1rem}
+.trips-note{margin:.2rem 0 .8rem;max-width:60rem}
+.trips-storage-note{margin:.2rem 0 .6rem;color:#6a4212}
+.trip-recording-banner{margin:0 0 .8rem;padding:.7rem .85rem;border:1px solid #d9a08a;border-left:4px solid #be123c;border-radius:5px;background:#fdf3f1;color:#7a1f2e;font-size:.86rem;display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:space-between}
+.trip-list{list-style:none;padding:0;margin:0;display:grid;gap:.5rem}
+@media(min-width:900px){.trip-list{grid-template-columns:repeat(auto-fill,minmax(19rem,1fr))}}
+.trip{display:flex;flex-direction:column;gap:.35rem}
+.trip-open{text-align:left;font:inherit;padding:.6rem .7rem;border:1px solid #c8d3c6;border-radius:6px;background:#f7faf5;color:#21392f;cursor:pointer}
+.trip-open[aria-expanded="true"]{border-color:#be123c;background:#fdf3f1}
+.trip-headline{display:block;font-weight:600}
+.trip-facts{display:block;color:#527364;font-size:.78rem;margin-top:.2rem}
+.trip-status{display:block;font-size:.74rem;color:#8a4b2a;margin-top:.2rem}
+.trip-detail{margin-top:1rem;padding-top:.9rem;border-top:1px solid #dce3d9;display:grid;gap:.6rem;max-width:52rem}
+.trip-summary{list-style:none;padding:0;margin:0;display:grid;gap:.25rem}
+.trip-events{list-style:none;padding:0;margin:0;display:grid;gap:.4rem}
+.trip-event{padding:.45rem .6rem;border:1px solid #e2e8de;border-radius:5px;background:#fbfdf8}
+.trip-event-when{display:block;color:#527364;font-size:.75rem}
+.trip-event-text{display:block;margin-top:.15rem}
+.trip-roads{list-style:none;padding:0;margin:0;display:grid;gap:.2rem;font-size:.84rem}
+.trip-actions{display:flex;flex-wrap:wrap;gap:.5rem}
+.trip-delete{margin-top:.4rem}
+@media(max-width:700px){.trips-panel{order:8}.trip-actions{flex-direction:column;align-items:stretch}.trip-actions .quiet-button,.trip-actions .primary-button{width:100%}}
 .outings{padding:1rem}
 .outings-counts{margin:0 0 .4rem}
 .outings-note{margin:.2rem 0 .8rem;max-width:60rem}
@@ -157,6 +182,26 @@
 .field-proximity-note,.field-location-privacy{margin:0}
 .field-location-actions{display:flex;flex-wrap:wrap;gap:.5rem}
 .field-location-actions button{flex:1 1 9rem;min-height:2.5rem}
+/* TRIP RECORDING — THE ONE THING IN THIS APPLICATION THAT KEEPS COORDINATES ON PURPOSE.
+   The controls say what they will do before they do it: nothing is recorded until "Start recording" is pressed, and the
+   block states plainly that a recording depends on the browser continuing to deliver location updates. */
+.field-recording{margin-top:.9rem;border-top:1px solid #e2e9df;padding-top:.7rem;display:grid;gap:.5rem}
+.field-recording-head{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between}
+.field-recording-controls{display:flex;flex-wrap:wrap;gap:.5rem}
+.field-recording-controls button{flex:1 1 9rem;min-height:2.7rem}
+.field-recording-status{margin:0;font-size:.84rem;font-weight:600;color:#527364}
+.field-recording-status[data-status="recording"]{color:#8a1f2e}
+.field-recording-summary{margin:0;font-size:.9rem;color:#21392f}
+.field-recording-note,.field-recording-privacy{margin:0}
+.field-recording-warning{margin:0;font-size:.8rem;color:#8a5a2b}
+.field-event-form{display:flex;flex-direction:column;gap:.35rem}
+.field-event-form label{font-size:.78rem;color:#526b5d}
+.field-event-row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.field-event-row input{flex:1 1 12rem;min-width:0}
+.field-events{list-style:none;padding:0;margin:.2rem 0 0;display:grid;gap:.35rem}
+.field-event{padding:.4rem .55rem;border:1px solid #e2e8de;border-radius:5px;background:#fbfdf8}
+.field-event-when{display:block;color:#527364;font-size:.74rem}
+.field-event-text{display:block;margin-top:.1rem}
 .field-visit.near button{outline:2px solid #205646;outline-offset:1px}
 .field-near-note{color:#205646}
 @media(min-width:900px){.field-mode{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start}

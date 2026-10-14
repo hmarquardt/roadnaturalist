@@ -56,6 +56,8 @@
     "verify:outing:planning": "RUN_OUTING_PLANNING=1 playwright test tests/outing-planning.spec.js --reporter=line --retries=0",
     "verify:outing:field": "RUN_OUTING_FIELD=1 playwright test tests/outing-field.spec.js --reporter=line --retries=0",
     "verify:outing:location": "RUN_LIVE_LOCATION=1 playwright test tests/live-location.spec.js --reporter=line --retries=0",
+    "verify:trips": "RUN_TRIP_RECORDING=1 playwright test tests/trip-recording.spec.js --reporter=line --retries=0",
+    "verify:trips:local": "PRODUCTION_BASE_URL=http://127.0.0.1:8000 RUN_TRIP_RECORDING=1 playwright test tests/trip-recording.spec.js --reporter=line --retries=0",
     "benchmark:candidates": "RUN_CANDIDATE_STORAGE_BENCHMARK=1 playwright test tests/candidate-storage-benchmark.spec.js --reporter=line --retries=0",
     "benchmark:search": "RUN_SEARCH_BENCHMARK=1 playwright test tests/search-benchmark.spec.js --reporter=line --retries=0",
     "build:national-grid": "uv run --python 3.12 --with shapely --with pyshp python3 scripts/build-national-grid.py",

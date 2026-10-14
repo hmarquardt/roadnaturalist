@@ -7,9 +7,12 @@ import { IDLE_LOCATION } from '../discovery/geolocation.js';
 import { IDLE_LIVE_LOCATION } from './live-location.js';
 import { DEFAULT_USER_META, favoritedUserMeta, notedUserMeta, savedUserMeta, storedUserMeta } from './user-meta.js';
 import { SAVED_FILTERS, SAVED_SORTS, nextComparison, savedRoadRows } from './saved-roads.js';
-import { MAX_OUTINGS, OUTING_STATUS, OUTING_STORAGE_STATUS, createOuting, markRoadVisited, moveRoad, outingsUsingRoad,
-  readStoredOutings, removeRoadEverywhere, unmarkRoadVisited, updateOuting, withoutRoad, withRoad, writeStoredOutings } from './outings.js';
+import { MAX_OUTINGS, OUTING_STATUS, OUTING_STORAGE_STATUS, createOuting, isRoadVisited, markRoadVisited, moveRoad,
+  outingsUsingRoad, readStoredOutings, removeRoadEverywhere, unmarkRoadVisited, updateOuting, withoutRoad, withRoad,
+  writeStoredOutings } from './outings.js';
 import { CANDIDATE_STORAGE_STATUS, readStoredCandidates, writeStoredCandidates } from './candidate-persistence.js';
+import { MAX_TRIPS, TRIP_STATUS, addTripEvent, createTrip, finishInterruptedTrip, markTripInterrupted,
+  readStoredTrips, recordTripPoint, stopTrip, withoutTrip, writeStoredTrips } from './trips.js';
 import { readDiscoverySort, writeDiscoverySort } from '../discovery/persistence.js';
 
 // WHICH SELECTION PATH A CORRIDOR BELONGS TO.
@@ -47,6 +50,11 @@ export function createStore({ storage } = {}) {
   const initialOutings = Object.freeze([]);
   const initialOutingStorage = Object.freeze({ status: OUTING_STORAGE_STATUS.EMPTY, savedAt: null, persisted: 0,
     bytes: 0, skipped: Object.freeze([]), reason: null });
+  // TRIPS: recordings a person deliberately started and stopped, with their own entry on the device. A trip is what
+  // happened; an outing is the plan, and the two never rewrite each other.
+  const initialTrips = Object.freeze([]);
+  const initialTripStorage = Object.freeze({ status: 'empty', savedAt: null, persisted: 0, bytes: 0,
+    skipped: Object.freeze([]), reason: null });
   const initialCandidateStorage = Object.freeze({ status: CANDIDATE_STORAGE_STATUS.EMPTY, savedAt: null,
     persisted: 0, bytes: 0, skipped: Object.freeze([]), reason: null });
   const initialInvestigatorFeature = Object.freeze({ status: 'idle', reason: null });
@@ -62,6 +70,11 @@ export function createStore({ storage } = {}) {
     // it is discarded the moment the watch stops. The store holds it only so the map and the field view can read the
     // same reading.
     liveLocation: IDLE_LIVE_LOCATION,
+    // A RECORDED TRIP IS THE ONE PIECE OF STATE IN THIS APPLICATION THAT HOLDS COORDINATES ON PURPOSE, so it is held
+    // apart from everything else: its own collection, its own device entry, and its own explicit start. `recordingTripId`
+    // is which trip the device is currently feeding, and it is null whenever nothing is being recorded - entering field
+    // mode, turning live location on, and loading the page all leave it null.
+    trips: initialTrips, tripStorage: initialTripStorage, selectedTripId: null, recordingTripId: null,
     discovery: initialDiscovery, search: initialSearch });
   const listeners = new Set();
   const publish = next => { state = Object.freeze(next); for (const listener of listeners) listener(state); };
@@ -84,6 +97,19 @@ export function createStore({ storage } = {}) {
     bytes: written.bytes, skipped, migrated: false, reason: written.reason });
   const dropEntries = (map, ids) => Object.fromEntries(Object.entries(map).filter(([key]) => !ids.has(key)));
   const saveOutings = from => writeStoredOutings(from.outings, { storage });
+  // WHICH ROADS A TRIP SHOULD RECORD AS MANUALLY VISITED: the ones the person had marked in the plan the trip was
+  // started from, in the plan's own order, and nothing else. A plan that has since been deleted gives no snapshot at all
+  // rather than a guess.
+  const visitedRoadIdsFor = (from, outingId) => {
+    const outing = from.outings.find(entry => entry.id === outingId) ?? null;
+    if (!outing) return null;
+    return outing.roadIds.filter(roadId => isRoadVisited(outing.roadState, roadId));
+  };
+  const saveTrips = (from, savedAt) => writeStoredTrips(from.trips, { storage, savedAt });
+  // A refused trip write never claims the trip was persisted: `persisted` stays on the number the device actually holds.
+  const storageAfterTripWrite = (written, persisted) => Object.freeze({ status: written.status, savedAt: written.savedAt,
+    persisted: written.ok ? written.count : persisted, bytes: written.bytes, skipped: Object.freeze([]),
+    reason: written.reason });
   const storageAfterOutingWrite = (written, skipped = Object.freeze([])) => Object.freeze({ status: written.status,
     savedAt: written.savedAt, persisted: written.ok ? written.count : state.outingStorage.persisted,
     bytes: written.bytes, skipped, reason: written.reason });
@@ -296,6 +322,108 @@ export function createStore({ storage } = {}) {
         reason: stored.reason }) });
       return stored;
     },
+    // TRIPS. A recording is never started by anything but the person: this action exists, and nothing in this store
+    // calls it on its own. Every accepted point is written, so a reload or a crash loses at most the last few seconds.
+    restoreTrips() {
+      const stored = readStoredTrips(storage);
+      // A TRIP FOUND STILL RECORDING IS AN INTERRUPTED ONE: this page has only just loaded, so nothing can be feeding
+      // it. The points are kept exactly as they are and the record says what happened; nothing is invented for the end.
+      const at = new Date().toISOString();
+      let changed = false;
+      const trips = stored.trips.map(trip => {
+        if (trip.status !== TRIP_STATUS.RECORDING) return trip;
+        changed = true;
+        return markTripInterrupted(trip, { at });
+      });
+      const written = changed ? saveTrips({ trips }, at) : null;
+      publish({ ...state, trips: Object.freeze(trips), tripStorage: written
+        ? storageAfterTripWrite(written, state.tripStorage.persisted)
+        : Object.freeze({ status: stored.status, savedAt: stored.savedAt ?? null, persisted: trips.length,
+          bytes: stored.bytes ?? 0, skipped: stored.skipped, reason: stored.reason }) });
+      return Object.freeze({ ...stored, trips: Object.freeze(trips), interrupted: changed });
+    },
+    setTripStorage(note) { publish({ ...state, tripStorage: Object.freeze({ ...state.tripStorage, ...note }) }); },
+    startTrip({ at = new Date().toISOString() } = {}) {
+      if (state.recordingTripId) return Object.freeze({ ok: false, trip: null,
+        reason: 'A recording is already running. Stop it before starting another.' });
+      if (state.trips.length >= MAX_TRIPS) return Object.freeze({ ok: false, trip: null,
+        reason: `This device holds the maximum of ${MAX_TRIPS} recorded trips. Remove one to record another.` });
+      const outing = state.outings.find(entry => entry.id === state.selectedOutingId) ?? null;
+      const trip = createTrip({ outing, at }, { existing: state.trips.map(entry => entry.id) });
+      const trips = Object.freeze([trip, ...state.trips]);
+      const written = saveTrips({ trips }, at);
+      publish({ ...state, trips, selectedTripId: trip.id, recordingTripId: trip.id,
+        tripStorage: storageAfterTripWrite(written, state.tripStorage.persisted) });
+      return Object.freeze({ ok: true, trip, reason: written.ok ? null : written.reason });
+    },
+    // ONE READING, OFFERED TO THE RECORDING TRIP. The sampling and accuracy rules decide; this only stores what they
+    // accepted and counts what they did not.
+    recordTripPoint(location, { at = new Date().toISOString() } = {}) {
+      if (!state.recordingTripId) return null;
+      const trip = state.trips.find(entry => entry.id === state.recordingTripId) ?? null;
+      if (!trip) return null;
+      const outcome = recordTripPoint(trip, location, { at });
+      const trips = Object.freeze(state.trips.map(entry => entry.id === trip.id ? outcome.trip : entry));
+      const written = saveTrips({ trips }, at);
+      publish({ ...state, trips, tripStorage: storageAfterTripWrite(written, state.tripStorage.persisted) });
+      return Object.freeze({ added: outcome.added, trip: outcome.trip, reason: written.reason });
+    },
+    // A FIELD NOTE, OR A SIGHTING, IS ADDED TO THE TRIP BEING RECORDED - and only to it.
+    addTripEvent({ type = null, text = '', point = null, roadId = null, at = new Date().toISOString() } = {}) {
+      const trip = state.trips.find(entry => entry.id === state.recordingTripId) ?? null;
+      if (!trip) return Object.freeze({ ok: false, event: null, reason: 'Start recording before adding a field note.' });
+      const outcome = addTripEvent(trip, { ...(type ? { type } : {}), text, point, roadId, at });
+      if (!outcome.added) return Object.freeze({ ok: false, event: null, reason: outcome.reason });
+      const trips = Object.freeze(state.trips.map(entry => entry.id === trip.id ? outcome.trip : entry));
+      const written = saveTrips({ trips }, at);
+      publish({ ...state, trips, tripStorage: storageAfterTripWrite(written, state.tripStorage.persisted) });
+      return Object.freeze({ ok: true, event: outcome.event, reason: written.ok ? null : written.reason });
+    },
+    // STOPPING RECORDS WHAT WAS TRUE DURING THE TRIP: the roads the person had marked visited in the plan it was
+    // started from. Nothing is inferred, and stopping changes no plan.
+    stopTrip({ at = new Date().toISOString() } = {}) {
+      const trip = state.trips.find(entry => entry.id === state.recordingTripId) ?? null;
+      if (!trip) return null;
+      const visitedRoadIds = visitedRoadIdsFor(state, trip.outingId);
+      const stopped = stopTrip(trip, { at, visitedRoadIds });
+      const trips = Object.freeze(state.trips.map(entry => entry.id === trip.id ? stopped : entry));
+      const written = saveTrips({ trips }, at);
+      publish({ ...state, trips, recordingTripId: null, selectedTripId: trip.id,
+        tripStorage: storageAfterTripWrite(written, state.tripStorage.persisted) });
+      return Object.freeze({ trip: stopped, reason: written.ok ? null : written.reason });
+    },
+    // FINISHING AN INTERRUPTED RECORDING. The end is the last point that was actually recorded, so the duration stays a
+    // fact about the recording rather than the time the person happened to come back to it.
+    finishTrip(id, { at = null } = {}) {
+      const trip = state.trips.find(entry => entry.id === id) ?? null;
+      if (!trip || trip.status !== TRIP_STATUS.INTERRUPTED) return null;
+      const finished = finishInterruptedTrip(trip, { at, visitedRoadIds: visitedRoadIdsFor(state, trip.outingId) });
+      const trips = Object.freeze(state.trips.map(entry => entry.id === id ? finished : entry));
+      const written = saveTrips({ trips });
+      publish({ ...state, trips, tripStorage: storageAfterTripWrite(written, state.tripStorage.persisted) });
+      return finished;
+    },
+    // DELETING A TRIP DELETES THE TRIP: its metadata, its points and its events. No plan, saved road, road note or
+    // checklist is touched, and a recording in progress - if it is another trip - is untouched.
+    deleteTrip(id) {
+      if (!state.trips.some(trip => trip.id === id)) return null;
+      const trips = Object.freeze(withoutTrip(state.trips, id));
+      const written = saveTrips({ trips });
+      publish({ ...state, trips,
+        selectedTripId: state.selectedTripId === id ? (trips[0]?.id ?? null) : state.selectedTripId,
+        recordingTripId: state.recordingTripId === id ? null : state.recordingTripId,
+        tripStorage: storageAfterTripWrite(written, state.tripStorage.persisted) });
+      return trips.length;
+    },
+    selectTrip(id) {
+      if (id == null) { publish({ ...state, selectedTripId: null }); return null; }
+      if (!state.trips.some(trip => trip.id === id)) return null;
+      publish({ ...state, selectedTripId: id });
+      return id;
+    },
+    // The trip being recorded, and the plan a trip belongs to: read-only helpers for the views.
+    recordingTrip() { return state.trips.find(trip => trip.id === state.recordingTripId) ?? null; },
+    tripOuting(trip) { return state.outings.find(entry => entry.id === trip?.outingId) ?? null; },
     setOutingStorage(note) { publish({ ...state, outingStorage: Object.freeze({ ...state.outingStorage, ...note }) }); },
     // Only roads that are saved on this device can join a plan: an outing references saved candidates, it never
     // creates a hidden copy of one.

@@ -77,6 +77,9 @@ export const FEATURE_KIND = Object.freeze({
   OCCURRENCE: 'occurrence', SEARCH_CONTEXT: 'search-context', SEARCH_REGION: 'search-region',
   SEARCH_RADIUS: 'search-radius', SEARCH_CENTRE: 'search-center', USER_LOCATION: 'user-location',
   USER_LOCATION_ACCURACY: 'user-location-accuracy',
+  // A RECORDED TRACK IS A TRACE, NOT A ROAD: the line the person's own device reported while they were recording a
+  // trip. It is its own kind so it can never be read as a corridor, a plan member or an occurrence.
+  TRIP_TRACK: 'trip-track',
 });
 
 // idAttribute is the attribute this kind's own identity belongs to. A kind with no identity of its own declares none -
@@ -112,6 +115,10 @@ export const FEATURE_DOM = Object.freeze({
   // The accuracy ring is a separate feature, drawn beneath the position, so a reading without an accuracy still draws a
   // position and a test can tell the two apart.
   [FEATURE_KIND.USER_LOCATION_ACCURACY]: Object.freeze({ role: 'user-location-accuracy', interactive: false }),
+  // A RECORDED TRACK CARRIES NO IDENTITY AT ALL - no corridor, no outing, no trip id in the DOM - and it is not
+  // interactive, so it can never take a click from the road it happens to run along, and the map's corridor hit test
+  // never considers it.
+  [FEATURE_KIND.TRIP_TRACK]: Object.freeze({ role: 'trip-track', interactive: false }),
 });
 
 // What a feature's element carries: its role, and its identity under the attribute that identity belongs to. A value
@@ -155,6 +162,17 @@ export function userLocationFeatures(location) {
     geometry: Object.freeze({ type: 'Point', coordinates: Object.freeze([point[1], point[0]]) }),
     point, label: null, style: LOCATION_STYLE.position }));
   return features;
+}
+
+// A RECORDED TRACK, TYPED. The geometry is the LineString the trip itself accumulated - the map never measures, smooths
+// or matches it - and it is drawn in a colour no road in this application uses, beneath the roads, so a trace can be
+// seen without covering the road it runs along.
+export const TRACK_STYLE = Object.freeze({ color: '#be123c', weight: 4, opacity: 0.9, fill: false });
+
+export function tripTrackFeature(geometry) {
+  const lines = toLatLngs(geometry);
+  if (!lines?.length) return null;
+  return Object.freeze({ kind: FEATURE_KIND.TRIP_TRACK, geometry, label: null, style: TRACK_STYLE });
 }
 
 // A CORRIDOR, NORMALIZED. Its identity, geometry, style and card come from the corridor descriptor itself; the kind is
@@ -472,6 +490,7 @@ export function unavailableView(reason) {
   return { available: false, reason, draw: () => false, setSelected: () => false, setSearch: () => false,
     setSavedRoads: () => false, setOuting: () => false, fitOuting: () => false, setPickMode: () => false, setBasemap: () => false,
     setUserLocation: () => false, userLocationPoint: () => null, centerOn: () => false, fitUserAndRoad: () => false,
+    setTrack: () => false, hasTrack: () => false, fitTrack: () => false,
     fitResults: () => false, fitSelected: () => false, selectedId: () => null, destroy: () => {},
     camera: () => null, searchGeometry: () => ({ center: null, radiusM: null }), fitCount: () => 0 };
 }
@@ -494,9 +513,12 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     map.setView([39, -96], 4);
     // THE LEADER GETS ITS OWN LAYER, CREATED FIRST SO IT DRAWS UNDER EVERYTHING ELSE: orientation belongs beneath the
     // roads and the overlays it orients, and a layer that is only ever written by selection can be cleared by selection.
-    const layers = { context: leaflet.featureGroup(), results: leaflet.featureGroup(), saved: leaflet.featureGroup(),
-      outing: leaflet.featureGroup(), search: leaflet.featureGroup(), overlay: leaflet.featureGroup(),
-      occurrence: leaflet.featureGroup(), location: leaflet.featureGroup(), selected: leaflet.featureGroup() };
+    // THE RECORDED TRACK SITS WITH IT, UNDER THE ROADS: a trace is context for the road it runs along, not a thing that
+    // covers it, and it is in no way part of the candidate collection.
+    const layers = { context: leaflet.featureGroup(), track: leaflet.featureGroup(), results: leaflet.featureGroup(),
+      saved: leaflet.featureGroup(), outing: leaflet.featureGroup(), search: leaflet.featureGroup(),
+      overlay: leaflet.featureGroup(), occurrence: leaflet.featureGroup(), location: leaflet.featureGroup(),
+      selected: leaflet.featureGroup() };
     for (const layer of Object.values(layers)) map.addLayer(layer);
     let basemap = null;
     let basemapStatus = provider ? 'loading' : 'off';
@@ -530,6 +552,10 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     let outingRoads = [];
     // The current reading, or null. One position, replaced by the next, never accumulated and never persisted.
     let userLocation = null;
+    // THE RECORDED TRACK, OR NOTHING. This is the one line on the map that is a record rather than a reference: it is
+    // whatever the trip recorder accumulated, it is replaced whenever that changes, and the map never derives, extends or
+    // corrects it. It is not the reading above - a trace and a position are different facts.
+    let recordedTrack = null;
     let activeCentre = null;
     let activeRadiusM = null;
     // The leader currently drawn, so a diagnostic can read back exactly what is on the map - and nothing else.
@@ -722,6 +748,11 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
     function paintLocation() {
       return paint(layers.location, userLocationFeatures(userLocation));
     }
+    // THE RECORDED TRACK, PAINTED AND NOT FITTED. Like the position, writing it touches nothing else: not the corridors,
+    // not the plan, and never the camera.
+    function paintTrack() {
+      return paint(layers.track, recordedTrack ? [recordedTrack] : []);
+    }
     // The plan's own state, set in one place: `draw` sends one with everything else, and the map's `setOuting` sends one
     // on its own. Setting it never moves the camera and never derives anything.
     function setOutingState(descriptor = null) {
@@ -772,6 +803,9 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         paintOuting();
         // AND THE PERSON'S POSITION IS PAINTED LAST OF ALL, because it is the one mark that is about now.
         paintLocation();
+        // A REDRAW KEEPS THE RECORDED TRACK: it belongs to the trip, not to the candidate collection being redrawn, and
+        // a repaint of the results must not make a recorded trace disappear.
+        paintTrack();
         if (search !== undefined) setSearch(search);
         view.setSelected(selectedId);
         return { drawn: results.drawn, skipped: results.skipped, candidates: corridors.length };
@@ -836,6 +870,23 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         return userLocation;
       },
       userLocationPoint() { return userLocation ? [...userLocation.point] : null; },
+      // A RECORDED TRACK, REPLACING THE LAST ONE. The caller hands over the LineString the trip accumulated; the map
+      // types it, draws it under the roads, and moves nothing. `null` clears it.
+      setTrack(geometry = null) {
+        recordedTrack = tripTrackFeature(geometry);
+        paintTrack();
+        return Boolean(recordedTrack);
+      },
+      hasTrack() { return Boolean(recordedTrack); },
+      // THE ONE CAMERA MOVE A RECORDED TRACK OFFERS, AND ONLY WHEN IT IS ASKED FOR. A trace never follows itself, and a
+      // new point never moves the view: this is the person's own button.
+      fitTrack() {
+        const line = toLatLngs(recordedTrack?.geometry)?.[0] ?? [];
+        if (line.length < 2) { onNotice({ kind: 'empty', note: 'There is no recorded track to fit yet.' }); return false; }
+        map.fitBounds(boundsOfGeometries([recordedTrack.geometry]), { padding: [24, 24] });
+        fitCount += 1;
+        return true;
+      },
       // THE TWO CAMERA MOVES A POSITION OFFERS, AND BOTH ARE ASKED FOR. `centerOn` keeps the person's own zoom and only
       // moves the view; `fitUserAndRoad` frames the position and the selected road together. A reading that arrives on
       // its own calls neither.
