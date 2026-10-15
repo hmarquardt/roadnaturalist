@@ -16,6 +16,89 @@ search area -> bounded road network -> eligible road units -> deterministic segm
      -> filter / sort / inspect -> promote -> normal candidate -> existing evidence workflow
 ```
 
+## Recommendations first, the workbench second
+
+A search used to answer with a table. It now answers with a small ranked set of **recommendation cards** above that table:
+the top five roads in the recommendation order, each with one short verdict and two or three reasons in plain English,
+and the full workbench one heading below.
+
+```
+Discover roads
+   -> Best road-naturalist drives near this search          <- the answer: five cards, #1 Best overall
+        #1 Best overall   Co Rd 100 N
+                          Wetland and water corridor
+                          Mapped wetland crosses the road, 127 ha within 250 m
+                          Frequent water crossings: 14 mapped
+                          1.2 mi from the search center · 7.3 mi of road
+                          [Show on map] [Save]
+        #2 ... #5
+   -> Explore all results                                   <- the workbench: unchanged
+        filters · sort by · the full table · the detail panel
+```
+
+**The order is the evaluated one.** The cards are the prefix of `rankExploration` - the same
+`exploration-order-v1` the table leads with, over the same centre and radius - and nothing in the card layer ranks
+anything. A committed browser gate compares the five cards against the committed evaluation artifact for Princeton,
+Portland and Phoenix (`southwest-dry`), so the surface cannot drift from the order the evaluation measured.
+
+**One best overall, and no fake precision.** The first card is marked `#1 Best overall`; the rest are `#2`–`#5`. When the
+next road is within `NEAR_TIE_POINTS` (the evaluation's own `nearTieInterval` of one point) the card says so in words -
+*Close call: the next road is near-equal on the same measurements* / *Another strong option: near-equal to #1 on the same
+measurements* - rather than letting a fraction of a point read as a verdict. No decimal score is ever the headline; the
+score travels as a data attribute a reader can check.
+
+**Every sentence is produced by a measurement.** `src/discovery/recommendation.js` is pure, deterministic and reads only
+the components `naturalistInterest` already computed:
+
+| Component band | Verdict | Reason, with the number it came from |
+|---|---|---|
+| wetland ≥ 60 and water ≥ 60 | `Wetland and water corridor` | `Mapped wetland crosses the road, 127 ha within 250 m` · `Frequent water crossings: 14 mapped` |
+| wetland ≥ 60 | `Wetland-rich corridor` | `18 ha of mapped wetland within 250 m` |
+| water ≥ 60 | `Water and crossings` | `Flowing water 120 m away` |
+| ecological variety ≥ 60 | `Habitat transition zone` | `Crosses 3 mapped ecoregions with 1 transition` |
+| both ≥ 35 | `Wetland and water nearby` | … |
+| all below 15 | `Limited mapped context` | `Nearest mapped wetland 4200 m away` · `No mapped crossing or nearby water` |
+| nothing measured | `Context not measured here` | no reason at all, and `Not measured here: mapped wetland, mapped water and ecological variety` |
+
+The bands are the same 60 / 35 / 15 thresholds the rest of the interface already uses for a component value, so a verdict
+can never disagree with the number the detail panel shows. A component that was **not measured** produces no claim about it
+and no reason; a component that was measured and found nothing nearby produces a factual line rather than praise. A card
+never says *wildlife*, *scenic*, *guaranteed* or *abundance*: none of those is measured by anything here, and a committed
+gate asserts the absence in all three regions.
+
+**A distance-flavoured verdict was considered and deliberately left out.** `Strong nearby option` cannot honestly fire:
+the score is a weighted mean of the measured components, so a road whose components are all below the moderate band cannot
+score in the strong band, and a road that does score strongly already has a habitat verdict above it. Proximity is still
+stated - `1.2 mi from the search center`, and the near-tie sentence - but it is a fact, not a category.
+
+**Actions reuse what exists.** `Show on map` and the road's own name both make the *ordinary* discovery selection
+(`selectDiscovery`), the same one the table row and a map click make: one selection state, exactly one corridor emphasised
+on the map, and no camera movement and no fit. `Save` is the existing promotion, so a recommended road becomes an ordinary
+saved road through exactly the path the detail panel's own control runs, and a road already kept reads `Saved`. There is no
+`Take me there`: navigation in this project is built from a *plan member's* representative point (field mode), and a
+discovery result has no representative point, so nothing is invented for a card.
+
+**Fewer than five, or none.** The cards are however many the search produced - one card if there is one, none if there are
+none - and the panel states the count instead of padding the layout. A dismissed road is never recommended (dismissing it
+is an explicit judgement about that search); if every corridor was dismissed the section says so and the table below is
+unchanged.
+
+**A declared area has no centre, so it has no distance.** The heading becomes `Top roads in this search area`, no card
+shows a distance, and the order is the centreless fallback the exploration order already documents.
+
+**The workbench is untouched.** Filters, the sort control, the full table, the coverage notes, the segmented-road note and
+the detail panel are all exactly where they were, under `Explore all results`. If the person sorts by something else, the
+recommendation section says so in one line (*The full results below are ordered by Road name. The recommendations above
+always use the recommendation order.*) rather than letting two lists disagree silently. Nothing is hidden, and Pass 1
+removes no capability.
+
+**Verify it:**
+
+```sh
+npm test                          # the focused tests: top five, labels, reasons, missing data, near ties, selection
+npm run verify:recommendations    # the browser gate: Princeton, Portland, Phoenix, a phone, and a centreless area
+```
+
 ## The two orderings: `naturalist-interest-v2` and `exploration-order-v1`
 
 Discovery's sorts were, until now, all raw measured values. `Naturalist interest` is the first ordering that is a

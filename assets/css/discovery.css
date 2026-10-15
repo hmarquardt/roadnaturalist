@@ -76,3 +76,35 @@
 @media(max-width:700px){.discovery-panel .discovery-body{padding:.85rem}.discovery-filters{flex-direction:column;align-items:stretch}.discovery-input,.discovery-select{width:100%}.discovery-table-wrap{max-height:none}.discovery-table th:nth-child(6),.discovery-table td:nth-child(6){display:none}.discovery-search{padding:.7rem}.discovery-search-row,.discovery-radius-row{flex-direction:column;align-items:stretch}.discovery-range{width:100%}.discovery-place .discovery-field{max-width:none}.discovery-place-results{max-height:12rem}}
 /* The line the panel names: the place a person chose, the nearest published place, or the coordinates. */
 .discovery-center-label{font-weight:600;color:#22322c}
+
+/* RECOMMENDATIONS FIRST, THE WORKBENCH SECOND.
+   The answer a person came for: five ranked cards built from the measurements the run already made. Mobile-first, because
+   this is the screen someone reads standing next to a car: one column, tappable actions, no metric grid, no overflow. */
+.discovery-recommendations{margin:1rem 0 .2rem;display:grid;gap:.55rem}
+.discovery-recommendations-head{display:flex;flex-direction:column;gap:.15rem}
+.discovery-recommendations-head h3{margin:0;font-size:1.12rem}
+.discovery-recommendations-head .eyebrow{margin-bottom:0}
+.recommendations-note{margin:0;max-width:60rem}
+.recommendations-sort-note{margin:0;color:#7a5a2b}
+.recommendation-list{list-style:none;padding:0;margin:.35rem 0 0;display:grid;gap:.7rem}
+.recommendation{border:1px solid #c8d3c6;border-radius:7px;background:#fffef9;padding:.8rem .9rem;display:grid;gap:.4rem;min-width:0;overflow-wrap:anywhere}
+/* THE BEST OVERALL CARD IS NOT ONE OF FIVE EQUAL THINGS: it carries the rank in its own edge, and the reason is stated in
+   words as well as in weight, so the emphasis survives a black-and-white screen or a colour-blind reader. */
+.recommendation.best{border-color:#205646;border-left:5px solid #205646;background:#f5faf2}
+.recommendation.selected{border-color:#b45309;box-shadow:inset 0 0 0 1px #b45309}
+.recommendation-rank{margin:0;font:700 .7rem/1.4 ui-monospace,SFMono-Regular,monospace;letter-spacing:.12em;text-transform:uppercase;color:#527364}
+.recommendation.best .recommendation-rank{color:#205646}
+.recommendation-name{font:inherit;font-family:Georgia,"Times New Roman",serif;font-size:1.06rem;font-weight:600;background:none;border:0;padding:.15rem 0;min-height:1.75rem;color:#1c3b2c;cursor:pointer;text-align:left}
+.recommendation-name:hover{text-decoration:underline}
+.recommendation-label{margin:0;font-size:.95rem;font-weight:700;color:#205646}
+.recommendation-reasons{margin:0;padding-left:1.05rem;display:grid;gap:.15rem;font-size:.85rem;color:#3c5245}
+.recommendation-facts{margin:0;font-size:.78rem;color:#527364}
+.recommendation-note{margin:0;font-size:.78rem;color:#7a5a2b}
+.recommendation-caution{margin:0;font-size:.78rem;color:#8a5a2b}
+.recommendation-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.15rem}
+.recommendation-actions button{flex:1 1 8rem;min-height:2.5rem}
+@media(min-width:900px){.recommendation-list{grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))}}
+/* THE BOUNDARY: a heading, not a hidden drawer. Everything below it is exactly what was there before. */
+.discovery-advanced{margin:1.5rem 0 .2rem;padding-top:1rem;border-top:1px solid #dce3d9}
+.discovery-advanced h3{margin:0;font-size:1.06rem}
+.discovery-advanced-note{margin:.25rem 0 0;max-width:60rem}

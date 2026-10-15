@@ -1,5 +1,5 @@
 import { COVERAGE, COVERAGE_DATASET } from '../domain/corridor.js';
-import { SORT_HELP, SORT_OPTIONS, WETLAND_FILTERS, coverageFlag, ecoregionOptions, filterAndSort, sortNote } from '../discovery/filter.js';
+import { SORT_HELP, SORT_OPTIONS, WETLAND_FILTERS, DEFAULT_SORT, coverageFlag, ecoregionOptions, filterAndSort, sortNote } from '../discovery/filter.js';
 import { DISCOVERY_STATUS } from '../discovery/lifecycle.js';
 import { DISCOVERY_DISPOSITION } from '../discovery/eligibility.js';
 import { MAX_RESULT_ROWS, SEGMENTED_ROAD_NOTE } from '../discovery/constants.js';
@@ -11,6 +11,8 @@ import { CENTER_LABEL_KIND, CONTEXT_NOTE, centerPresentation, formatContextDista
 import { requestedRadiusM } from '../discovery/search-area.js';
 import { naturalistInterest } from '../discovery/ranking.js';
 import { EXPLORATION_ORDER_NOTE, explorationOrder } from '../discovery/exploration-order.js';
+import { ADVANCED_HEADING, ADVANCED_NOTE, RECOMMENDATION_LIMIT, RECOMMENDATION_NOTE, RECOMMENDED_TERM,
+  recommendationHeading, recommendations } from '../discovery/recommendation.js';
 import { LOCATION_STATUS, accuracyLabel } from '../discovery/geolocation.js';
 import { formatArea, formatDistance, formatLength } from './render.js';
 
@@ -52,6 +54,11 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
   if (stale) container.append(el('p', 'discovery-note', stale));
   const selected = discovery.selectedId ? discovery.results.find(result => result.id === discovery.selectedId) : null;
   if (discovery.status === 'ready' && discovery.results.length) {
+    // RECOMMENDATIONS FIRST, THE WORKBENCH SECOND. The same measured results, the same selection and the same promote
+    // action: the cards are the top of one order over what was measured, and everything the workspace could always do is
+    // still below them, unchanged and one heading away.
+    container.append(recommendationsSection({ discovery, radiusM, onSelect, onPromote }));
+    container.append(advancedBoundary());
     const view = filterAndSort(discovery.results, discovery.filters, discovery.sort, { radiusM });
     container.append(toolbar({ discovery, results: discovery.results, view, onFilters, onSort }));
     container.append(resultTable(view, discovery, onSelect));
@@ -615,6 +622,140 @@ function coverageBanner(coverage, diagnostics, searchArea = null, centerLabel = 
   }
   if (diagnostics?.batch?.reason) block.append(el('p', 'small', `Batch diagnostics: ${diagnostics.batch.reason}`));
   return block;
+}
+
+// THE RECOMMENDATION SECTION: THE ANSWER BEFORE THE MACHINERY.
+//
+// One order, one prefix of it, and one card per road: the rank, the name, one short verdict, two or three reasons in plain
+// English, how far and how long, and two actions. Every word comes from `recommendation.js`, which reads only the
+// measurements the discovery run already made - so a card cannot claim anything the analysis did not measure.
+function recommendationsSection({ discovery, radiusM = null, onSelect, onPromote }) {
+  const section = el('section', 'discovery-recommendations');
+  section.id = 'discovery-recommendations';
+  // A ROAD THE PERSON DISMISSED IS NOT RECOMMENDED. Dismissing it is an explicit judgement about this search, and putting
+  // it back in the answer would be the interface arguing with them. Its row and its detail panel are still below.
+  const results = (discovery.results ?? []).filter(result => result.status !== DISCOVERY_STATUS.DISMISSED);
+  // WHETHER THE SEARCH HAS A CENTRE IS READ FROM THE RESULTS, not guessed from the search definition: a distance exists
+  // exactly when the run measured one, so the heading and the cards can never disagree about whether there is a distance.
+  const hasCenter = results.some(result => result.distanceFromCenterM != null);
+  const head = el('div', 'discovery-recommendations-head');
+  head.append(el('p', 'eyebrow', RECOMMENDED_TERM));
+  const title = el('h3', null, recommendationHeading({ hasCenter }));
+  title.id = 'recommendations-heading';
+  head.append(title);
+  section.append(head);
+  section.append(el('p', 'small muted recommendations-note', RECOMMENDATION_NOTE));
+  // THE TABLE'S OWN ORDER IS NOT THE RECOMMENDATION ORDER, and when they differ the panel says so rather than letting two
+  // lists on one screen disagree silently.
+  if (discovery.sort !== DEFAULT_SORT) {
+    const chosen = SORT_OPTIONS.find(option => option.key === discovery.sort)?.label ?? discovery.sort;
+    const note = el('p', 'small muted recommendations-sort-note',
+      `The full results below are ordered by ${chosen}. The recommendations above always use the recommendation order.`);
+    note.id = 'recommendations-sort-note';
+    section.append(note);
+  }
+  if (!results.length) {
+    const empty = el('p', 'discovery-note', 'Every corridor in this search has been dismissed. The full result set is '
+      + 'below, and a dismissed road can be brought back from its own detail panel.');
+    empty.id = 'recommendations-empty';
+    section.append(empty);
+    return section;
+  }
+  const cards = recommendations(results, { radiusM });
+  const list = el('ol', 'recommendation-list');
+  list.id = 'recommendation-list';
+  cards.forEach(entry => list.append(recommendationCard(entry, { discovery, onSelect, onPromote })));
+  section.append(list);
+  // FEWER THAN FIVE IS NOT A FAILURE AND IS NOT PADDED. The count is stated so an empty-ish answer cannot read as a
+  // layout that failed to fill.
+  if (cards.length < RECOMMENDATION_LIMIT) {
+    const fewer = el('p', 'small muted recommendations-note', `This search proposed ${cards.length} `
+      + `corridor${cards.length === 1 ? '' : 's'}, so there ${cards.length === 1 ? 'is' : 'are'} ${cards.length} `
+      + `recommendation${cards.length === 1 ? '' : 's'}.`);
+    fewer.id = 'recommendations-count-note';
+    section.append(fewer);
+  }
+  return section;
+}
+
+// THE BOUNDARY. Everything the workspace could always do is below this heading, unchanged: the filters, the sort control,
+// the full table, the coverage notes and the detail panel. Pass 1 establishes the hierarchy by order and by name; it hides
+// nothing and removes nothing.
+function advancedBoundary() {
+  const block = el('div', 'discovery-advanced');
+  block.id = 'discovery-advanced';
+  const title = el('h3', null, ADVANCED_HEADING);
+  title.id = 'discovery-advanced-heading';
+  block.append(title, el('p', 'small muted discovery-advanced-note', ADVANCED_NOTE));
+  return block;
+}
+
+// ONE CARD. It carries the measurements behind its own sentences as data attributes, so a reader (and a committed test)
+// can check the words against the numbers the analysis produced.
+function recommendationCard({ result, summary }, { discovery, onSelect, onPromote }) {
+  const card = el('li', 'recommendation');
+  card.id = `recommendation-${result.id}`;
+  card.dataset.candidateId = result.id;
+  card.dataset.rank = String(summary.rank);
+  card.dataset.best = String(summary.best);
+  card.dataset.label = summary.label;
+  card.dataset.score = summary.score == null ? '' : String(summary.score);
+  card.dataset.wetland = summary.components.wetland == null ? '' : String(summary.components.wetland);
+  card.dataset.water = summary.components.water == null ? '' : String(summary.components.water);
+  card.dataset.variety = summary.components.ecologicalVariety == null ? '' : String(summary.components.ecologicalVariety);
+  card.dataset.distanceM = result.distanceFromCenterM == null ? '' : String(Math.round(result.distanceFromCenterM));
+  if (summary.best) card.classList.add('best');
+  if (result.id === discovery.selectedId) card.classList.add('selected');
+
+  const rank = el('p', 'recommendation-rank', summary.rankText);
+  rank.id = `recommendation-rank-${result.id}`;
+  const name = el('button', 'recommendation-name', result.name);
+  name.type = 'button';
+  name.id = `recommendation-open-${result.id}`;
+  name.setAttribute('aria-current', result.id === discovery.selectedId ? 'true' : 'false');
+  name.addEventListener('click', () => onSelect?.(result.id));
+  const label = el('p', 'recommendation-label', summary.label);
+  label.id = `recommendation-label-${result.id}`;
+  card.append(rank, name, label);
+
+  const reasons = el('ul', 'recommendation-reasons');
+  reasons.id = `recommendation-reasons-${result.id}`;
+  for (const reason of summary.reasons) {
+    const item = el('li', null, reason.text);
+    item.dataset.reason = reason.key;
+    reasons.append(item);
+  }
+  if (reasons.childElementCount) card.append(reasons);
+
+  const facts = el('p', 'recommendation-facts', [summary.distanceText, summary.lengthText].filter(Boolean).join(' · '));
+  facts.id = `recommendation-facts-${result.id}`;
+  card.append(facts);
+  if (summary.note) card.append(el('p', 'recommendation-note', summary.note));
+  if (summary.caution) {
+    const caution = el('p', 'recommendation-caution', summary.caution);
+    caution.id = `recommendation-caution-${result.id}`;
+    card.append(caution);
+  }
+
+  const actions = el('div', 'recommendation-actions');
+  // SHOW ON MAP IS THE ORDINARY SELECTION, and nothing else: the same call the table row and a map click make. It
+  // emphasises this corridor and moves no camera.
+  const show = el('button', 'quiet-button', 'Show on map');
+  show.type = 'button';
+  show.id = `recommendation-show-${result.id}`;
+  show.addEventListener('click', () => onSelect?.(result.id));
+  actions.append(show);
+  // SAVE IS THE EXISTING PROMOTION, unchanged: the road is kept on this device through exactly the path the detail
+  // panel's own control runs. A road already kept says so instead of offering to keep it twice.
+  const saved = result.status === DISCOVERY_STATUS.PROMOTED;
+  const save = el('button', saved ? 'quiet-button' : 'primary-button', saved ? 'Saved' : 'Save');
+  save.type = 'button';
+  save.id = `recommendation-save-${result.id}`;
+  save.disabled = saved;
+  save.addEventListener('click', () => onPromote?.(result.id));
+  actions.append(save);
+  card.append(actions);
+  return card;
 }
 
 function toolbar({ discovery, results, view, onFilters, onSort }) {
