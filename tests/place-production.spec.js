@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 import { REPRESENTATIVE_IDENTITY } from '../src/discovery/identity-evidence.js';
 import { MILES_TO_M, drawnSearchCentre, searchGeometry } from './map-contract.js';
@@ -61,12 +61,15 @@ test('deployed place search resolves the named places and runs national discover
   async function choosePlace(query) {
     const input = page.locator('#discovery-place');
     await input.fill(query);
+    await openChangeLocation(page);
     await expect(page.locator('#discovery-place-results')).toBeVisible({ timeout: 120000 });
     const labels = await page.locator('#discovery-place-results .discovery-place-option').evaluateAll(nodes =>
       nodes.map(node => `${node.querySelector('.discovery-place-name').textContent}`
         + ` · ${node.querySelector('.discovery-place-type').textContent}`
         + ` — ${node.querySelector('.discovery-place-detail').textContent.replace(/^ *— */, '')}`));
+    await openChangeLocation(page);
     await page.locator('#discovery-place-results .discovery-place-option').first().click();
+    await openChangeLocation(page);
     await expect(page.locator('#discovery-place-results')).toBeHidden();
     return labels;
   }
@@ -80,7 +83,9 @@ test('deployed place search resolves the named places and runs national discover
 
   async function boot() {
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await openChangeLocation(page);
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
+    await openChangeLocation(page);
     await expect(page.locator('#discovery-place')).toBeVisible({ timeout: 180000 });
   }
 
@@ -101,6 +106,7 @@ test('deployed place search resolves the named places and runs national discover
     // A place inside the conterminous states is inside the published derived region, so its search is runnable.
     expect(entry.coverage, query).toBe('FULL');
     expect(entry.runnable, query).toBe(true);
+    await openChangeLocation(page);
     await expect(page.locator('#discovery-center-label')).toContainText(expected);
   }
 
@@ -112,8 +118,9 @@ test('deployed place search resolves the named places and runs national discover
     await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL', { timeout: 120000 });
     const before = derivedCells.length;
     const started = Date.now();
+    await openChangeLocation(page);
     await page.locator('#discover-roads').click();
-    await expect(page.locator('#discovery-summary')).toContainText('25-mile radius search', { timeout: 600000 });
+    await expect(page.locator('#discovery-summary')).toContainText('within 25 mi', { timeout: 600000 });
     await openAllResults(page);
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 300000 });
     const row = await page.locator('#discovery-results tbody tr').first().innerText();
@@ -142,7 +149,7 @@ test('deployed place search resolves the named places and runs national discover
     expect(['FULL', 'PARTIAL', 'NONE']).toContain(entry.coverage);
     // The corridor row carries the ecology, wetland and hydrography summary the derived plane holds.
     expect(entry.firstRow, region).toMatch(/\d/);
-    expect(entry.summary, region).toContain('25-mile radius search');
+    expect(entry.summary, region).toContain('within 25 mi');
     expect(entry.recent, region).toContain(expected);
     // The map moved to the chosen place, stated in the geographic map's own contract instead of the retired schematic's
     // DOM: a search centre is drawn, and the search geometry the map holds is the requested radius around the chosen
@@ -234,19 +241,26 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
       if (debug) { globalThis.__RN_DEBUG_EVIDENCE = true; globalThis.__RN_SOURCE_TIMEOUT_MS = timeoutMs; }
     }, { debug: Boolean(process.env.EVIDENCE_DEBUG), timeoutMs: Number(process.env.EVIDENCE_TIMEOUT_MS ?? 90000) });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await openChangeLocation(page);
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
+    await openChangeLocation(page);
     await expect(page.locator('#discovery-place')).toBeVisible({ timeout: 180000 });
   }
 
   async function discovery(query) {
+    await openChangeLocation(page);
     await page.locator('#discovery-place').fill(query);
+    await openChangeLocation(page);
     await expect(page.locator('#discovery-place-results')).toBeVisible({ timeout: 120000 });
+    await openChangeLocation(page);
     await page.locator('#discovery-place-results .discovery-place-option').first().click();
+    await openChangeLocation(page);
     await expect(page.locator('#discovery-place-results')).toBeHidden();
     await openAdvancedSearch(page);
     await page.locator('#discovery-radius-input').fill('25');
     await page.locator('#discovery-radius-input').press('Enter');
     await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL', { timeout: 120000 });
+    await openChangeLocation(page);
     await page.locator('#discover-roads').click();
     await openAllResults(page);
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });

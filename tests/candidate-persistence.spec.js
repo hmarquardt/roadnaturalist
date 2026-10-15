@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 // CANDIDATES KEPT ON THIS DEVICE.
 //
@@ -56,6 +56,7 @@ function watchBoot(page) {
 
 async function expectBooted(page, problems) {
   try {
+    await openChangeLocation(page);
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   } catch (error) {
     throw new Error(`${error.message.split('\n')[0]} | boot diagnostics: ${problems.join(' | ') || 'nothing reported'}`);
@@ -88,8 +89,9 @@ async function applyCoordinates(page, { lat, lon }, radius) {
 }
 
 async function runSearch(page, radius) {
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText(`${radius}-mile radius search`, { timeout: 180000 });
+  await expect(page.locator('#discovery-summary')).toContainText(`within ${radius} mi`, { timeout: 180000 });
 }
 
 // Promote one row and wait until it is a candidate *and* written to this device, so the next action never races
@@ -147,6 +149,7 @@ test('a promoted candidate is still there after a reload, with the same corridor
   await waitForQuietNetwork(page);
   const reads = watchDataReads(page);
   await page.reload();
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   const title = page.locator('#candidate-detail .detail-title');
   await expect(title).toHaveText(promoted.title, { timeout: 60000 });
@@ -228,6 +231,7 @@ test('a corrupt stored record is left out without taking the readable ones with 
     localStorage.setItem(key, JSON.stringify(entry));
   }, CANDIDATES_KEY);
   await page.reload();
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await expect(page.locator('#candidate-detail .detail-title')).toHaveText(promoted.title, { timeout: 60000 });
   await expect(page.locator('#candidate-list .candidate-card')).toHaveCount(1);
@@ -249,6 +253,7 @@ test('a corridor promoted from the declared window restores with no search conte
   const external = await watchExternal(page);
   await boot(page);
   // The declared pilot window is a box, not a radius: no centre, so no bearing and no distance.
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
   await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage', { timeout: 300000 });

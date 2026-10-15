@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 // Opt-in verification of the *deployed* location-as-centre path, and of the deployed candidate lifecycle, in a
 // real browser.
@@ -26,6 +26,7 @@ async function grantedLocation(page, context) {
 
 async function boot(page) {
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
 }
 
@@ -50,11 +51,14 @@ test('a deployed location fix becomes a search centre, a candidate, a durable re
   await page.locator('#discovery-radius-input').fill('10');
   await page.locator('#discovery-radius-input').press('Enter');
   await expect(page.locator('#discovery-radius-value')).toHaveText('10 mi');
+  await openChangeLocation(page);
   await page.locator('#discovery-use-location').click();
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5229');
   await expect(page.locator('#discovery-center-lon')).toHaveValue('-122.9898');
   await expect(page.locator('#discovery-radius-value')).toHaveText('10 mi');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('Near Hillsboro, OR');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-location-status')).toContainText('Browser location accuracy: about 120 m.');
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   log('centre', { url: new URL(page.url()).search, radius: '10 mi', label: 'Near Hillsboro, OR', coverage: 'FULL',
@@ -65,9 +69,10 @@ test('a deployed location fix becomes a search centre, a candidate, a durable re
   // 2. THE SEARCH IS THE ORDINARY DERIVED SEARCH.
   const derivedBefore = derived.length;
   const partitionsBefore = partitions.length;
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 300000 });
-  await expect(page.locator('#discovery-summary')).toContainText('Near Hillsboro, OR');
+  await expect(page.locator('#discovery-summary')).toContainText('within 10 mi', { timeout: 300000 });
+  await expect(page.locator('#discovery-compact-line')).toContainText('Near Hillsboro, OR');
   await openAllResults(page);
   expect(await page.locator('#discovery-results tbody tr').count()).toBeGreaterThan(0);
   log('search', { derivedCells: derived.length - derivedBefore, rawPartitions: partitions.length - partitionsBefore,
@@ -104,6 +109,7 @@ test('a deployed location fix becomes a search centre, a candidate, a durable re
   await expect(page.locator('#candidate-list .candidate-card')).toHaveCount(0, { timeout: 180000 });
   log('removal', { removed: promotedTitle, remaining: 0 });
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await expect(page.locator('#candidate-list .candidate-card')).toHaveCount(0);
   await expect(page.locator('#candidate-detail')).toContainText('Investigation starts with a road');

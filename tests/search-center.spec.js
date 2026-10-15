@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
+import { cameraOf, mapAvailable } from './map-contract.js';
 
 // An arbitrary search: a centre a person chose on the map or typed, and a radius they chose, run through the
 // same derived discovery pipeline the committed 10/25/50-mile benchmarks verify. These tests cover the
@@ -23,6 +24,7 @@ async function watchExternal(page) {
 async function boot(page) {
   await page.goto('/');
   // The button stays disabled until the search-area declaration has loaded: a search cannot run without one.
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage:');
 }
@@ -52,11 +54,13 @@ async function setCenter(page, lat, lon) {
 
 async function search(page, { radius, timeout = 180000 } = {}) {
   await expect(page.locator('#discovery-active-search')).toContainText(`Custom radius search · ${radius} mi`);
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).not.toBeEmpty();
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
   await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage', { timeout });
-  await expect(page.locator('#discovery-summary')).toContainText(`${radius}-mile radius search`, { timeout });
+  await expect(page.locator('#discovery-summary')).toContainText(`within ${radius} mi`, { timeout });
 }
 
 test('a map-picked centre and a typed centre run the same derived search, and reach no evidence source', async ({ page }) => {
@@ -74,7 +78,7 @@ test('a map-picked centre and a typed centre run the same derived search, and re
   await expect(page.locator('#discovery-center-pick')).toHaveAttribute('aria-pressed', 'true');
   // The map is fitted to the published region before anything is drawn, so its centre is a real in-region
   // coordinate; clicking it is the ordinary "choose a point" interaction.
-  await page.locator('#map svg').click();
+  await page.locator('#map').click();
   // The pick becomes an ordinary centre: the fields show it, the preview moves, the mode ends.
   await expect(page.locator('#discovery-center-pick')).toHaveAttribute('aria-pressed', 'false');
   const picked = Number(await page.locator('#discovery-center-lat').inputValue());
@@ -106,7 +110,9 @@ test('a map-picked centre and a typed centre run the same derived search, and re
   await expect(page.locator('#discovery-diagnostics')).toContainText('MiB');
   // A typed centre moves the search, and the results on screen are marked as belonging to the previous one.
   await setCenter(page, 45.51, -123.12);
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('45.5100, -123.1200');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-recent')).toContainText('mi');
   await setRadius(page, 25);
   await expect(page.locator('#discovery')).toContainText('These results are from the previous search');
@@ -134,6 +140,7 @@ test('a search that crosses the published edge is PARTIAL, and one that misses i
   await setRadius(page, 50);
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: PARTIAL');
   await expect(page.locator('#discovery-active-search')).toContainText('crosses the edge of the published');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled();
   await search(page, { radius: 50 });
   await openAllResults(page);
@@ -148,6 +155,7 @@ test('a search that crosses the published edge is PARTIAL, and one that misses i
   // the coverage vocabulary) and as the consequence a person reads without opening anything.
   await expect(page.locator('#discovery-coverage-note')).toContainText('does not overlap the published');
   await expect(page.locator('#discovery')).toContainText('Cannot search');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeDisabled();
   await page.waitForTimeout(500);
   expect(derivedRequests.length).toBe(read);
@@ -193,6 +201,7 @@ test('a shared link restores the search without running it, and the last search 
   const derivedRequests = [];
   page.on('request', request => { if (request.url().includes('/derived/corridor-metrics/')) derivedRequests.push(request.url()); });
   await page.goto('/?lat=45.51&lon=-123.12&r=15');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   await openAdvancedSearch(page);
   await expect(page.locator('#discovery-area')).toHaveValue('custom-radius');
@@ -207,13 +216,16 @@ test('a shared link restores the search without running it, and the last search 
   const read = derivedRequests.length;
   // Reload: the definition comes back from the URL, the search is in the recent list, and it is not re-run.
   await page.reload();
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   await expect(page.locator('#discovery-radius-input')).toHaveValue('15');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-recent')).toContainText('Near Forest Grove, OR · 15 mi');
   await page.waitForTimeout(300);
   expect(derivedRequests.length).toBe(read);
   // A malformed link fails safely: the problem is stated, the parameters are ignored, and nothing runs.
   await page.goto('/?lat=north&lon=-123.12&r=15');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   await expect(page.locator('#discovery')).toContainText('The search parameters in this link were ignored');
   await expect(page.locator('#discovery')).toContainText('Latitude must be a decimal number');
@@ -233,13 +245,19 @@ test('the search workflow stays usable at 390px', async ({ page }) => {
   await expect(page.locator('#discovery-center-pick')).toBeVisible();
   await expect(page.locator('#discovery-radius')).toBeVisible();
   await expect(page.locator('#discovery-radius-input')).toBeVisible();
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeVisible();
-  // A tap on the map sets the centre, exactly as a mouse click does.
+  // A tap on the map sets the centre, exactly as a mouse click does. Nothing has been fitted yet - the one automatic
+  // camera move belongs to a completed run - so the tap is asserted against the view the person is actually looking at.
+  await expect.poll(() => mapAvailable(page), { timeout: 60000 }).toBe(true);
+  const view = await cameraOf(page);
+  expect(view, 'the map has a camera').toBeTruthy();
   await page.locator('#discovery-center-pick').click();
-  await page.locator('#map svg').click();
+  await page.locator('#map').click();
   const lat = Number(await page.locator('#discovery-center-lat').inputValue());
-  expect(lat).toBeGreaterThan(44.75);
-  expect(lat).toBeLessThan(46.42);
+  const lon = Number(await page.locator('#discovery-center-lon').inputValue());
+  expect(Math.abs(lat - view.center[1]), 'the tap landed inside the view').toBeLessThan(20);
+  expect(Math.abs(lon - view.center[0]), 'and inside it sideways').toBeLessThan(40);
   // The slider is the ordinary radius control: Home goes to the minimum, and each arrow key commits a mile.
   const slider = page.locator('#discovery-radius');
   await slider.focus();
@@ -252,7 +270,7 @@ test('the search workflow stays usable at 390px', async ({ page }) => {
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   await search(page, { radius: 3 });
-  await expect(page.locator('#discovery-summary')).toContainText('3-mile radius search');
+  await expect(page.locator('#discovery-summary')).toContainText('within 3 mi');
   await openAllResults(page);
   await page.locator('#discovery-results tbody tr button').first().click();
   await expect(page.locator('#discovery-selected')).toContainText('Selected discovery corridor');

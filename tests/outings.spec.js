@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 // OUTINGS IN A BROWSER: PLANS, NOT ROUTES.
 //
@@ -9,6 +9,7 @@ import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 // because the application does not compute any of those.
 async function boot(page) {
   await page.goto('/');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
 }
 
@@ -37,8 +38,9 @@ async function saveRoads(page, count) {
   await page.locator('#discovery-center-apply').click();
   await page.locator('#discovery-radius-input').fill('10');
   await page.locator('#discovery-radius-input').press('Enter');
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 180000 });
+  await expect(page.locator('#discovery-summary')).toContainText('within 10 mi', { timeout: 180000 });
   for (let index = 0; index < count; index += 1) {
     const before = await savedCount(page);
     await openAllResults(page);
@@ -85,6 +87,7 @@ test('an outing is created from saved roads and comes back after a reload', asyn
   await quiet(page);
   const reads = watchDataReads(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await expect(page.locator('#outings-counts')).toContainText('Outings 1');
   // A reload shows the plan list; opening a plan is a deliberate click, exactly as the workspace intends.
@@ -110,6 +113,7 @@ test('marking an outing complete, and removing it, leaves every road saved', asy
   await expect(page.locator('[data-outing-status="completed"]')).toHaveAttribute('aria-pressed', 'true');
   await quiet(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await expect(page.locator('#outings-counts')).toContainText('Outings 1 · Planned 0 · Completed 1');
   await page.locator('.outing-name').first().click();
@@ -146,6 +150,7 @@ test('Remove everywhere updates an outing and preserves unrelated saved roads af
   await expect(page.locator('#saved-counts')).toContainText('Saved roads 2');
   await quiet(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await expect(page.locator('#saved-list .saved-card')).toHaveCount(2);
   await expect(page.locator('#saved-list')).not.toContainText(names[0]);

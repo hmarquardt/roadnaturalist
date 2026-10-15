@@ -154,3 +154,13 @@
 .recommendations-how .recommendations-note{margin:0;padding:.4rem .9rem .7rem}
 .recommendations-caveat{margin:.5rem 0 0;max-width:62rem;color:#6a4212}
 @media(max-width:700px){.recommendations-actions{flex-direction:column;align-items:stretch}.recommendations-actions .recommendations-change{min-height:2.5rem}.recommendations-how{width:100%}}
+
+/* THE SEARCH SURFACE AFTER IT HAS DONE ITS JOB: one statement of what was searched, and one way back to the controls.
+   It replaces the whole ordinary form, so the answer sits where the form was. */
+.discovery-compact{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.15rem .6rem;align-items:center;padding:.6rem .8rem;border:1px solid #dce3d9;border-radius:6px;background:#f7f9f4}
+.discovery-compact-line{margin:0;font-size:1rem;color:#25473b}
+.discovery-compact-facts{margin:0;color:#526b5d}
+.discovery-compact .quiet-button{grid-column:2;grid-row:1 / span 2;min-height:2.5rem;white-space:nowrap}
+@media(max-width:330px){.discovery-compact{grid-template-columns:1fr}.discovery-compact .quiet-button{grid-column:1;grid-row:auto;width:100%;margin-top:.35rem}}
+.discovery-change-body{display:grid;gap:.8rem;padding-bottom:.9rem}
+.discovery-change-body .discovery-primary{margin-top:.9rem}

@@ -25,10 +25,26 @@ export async function openDisclosure(page, selector) {
   return details;
 }
 
-// The technical half of choosing where to search: declared areas, coordinates, the map picker and the radius.
-export const openAdvancedSearch = page => openDisclosure(page, ADVANCED_SEARCH);
+// The technical half of choosing where to search: declared areas, coordinates, the map picker and the radius. It lives inside
+// the search surface, and the search surface moves behind "Change location" once a run exists - so the ancestor is opened
+// first, because a collapsed control cannot be clicked.
+export async function openAdvancedSearch(page) {
+  await openChangeLocation(page);
+  return openDisclosure(page, ADVANCED_SEARCH);
+}
 // The workbench: coverage internals, filters, sort control and the full result table.
 export const openAllResults = page => openDisclosure(page, RESULTS);
+
+// THE SEARCH SURFACE MOVES AFTER A RUN. Before a run the ordinary controls are the panel; after one they sit behind
+// "Change location", because they have done their job. A gate that sets a centre, types a place or presses Find roads after a
+// search has to open it the way a person does - and a gate doing the same thing *before* any search must not, because there is
+// no disclosure yet and the controls are already on screen. This helper decides that, so every gate can call it blindly.
+export const CHANGE_LOCATION = '#discovery-change';
+
+export async function openChangeLocation(page) {
+  if ((await page.locator(CHANGE_LOCATION).count()) === 0) return;
+  await openDisclosure(page, CHANGE_LOCATION);
+}
 
 // A CENTRE AND A RADIUS, SET THE WAY THE WORKBENCH SETS THEM. The ordinary path (a place name, or this device's location)
 // needs no helper at all; a gate that wants an exact coordinate pair opens the disclosure that holds one.

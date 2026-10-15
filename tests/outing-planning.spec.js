@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 import { OUTINGS_KEY } from '../src/state/outings.js';
 import { cameraOf, movementCount } from './map-contract.js';
@@ -120,6 +120,7 @@ test('a plan survives the session that made it, and grows across searches', asyn
     .innerText()).trim();
   const spanMiles = async () => Number((/(\d+\.\d+) mi/.exec(await page.locator('#outing-span').innerText()) ?? [0, 0])[1]);
   async function search(place) {
+    await openChangeLocation(page);
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
     await openAdvancedSearch(page);
     await page.locator('#discovery-center-lat').fill(place.center[1].toFixed(4));
@@ -127,6 +128,7 @@ test('a plan survives the session that made it, and grows across searches', asyn
     await page.locator('#discovery-center-apply').click();
     await page.locator('#discovery-radius-input').fill(String(place.radiusMiles));
     await page.locator('#discovery-radius-input').press('Enter');
+    await openChangeLocation(page);
     await page.locator('#discover-roads').click();
     // THE ROWS ARE BEHIND "Explore all results": the gate opens the workbench after each search, like a person would.
     await openAllResults(page);

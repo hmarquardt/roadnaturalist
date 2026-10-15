@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 import { DEFAULT_SORT } from '../src/discovery/filter.js';
 import { DISCOVERY_SEARCH_KEY } from '../src/discovery/persistence.js';
@@ -47,7 +47,9 @@ test('a chosen sort comes back after a reload, and a default never becomes a cho
     return raw ? (JSON.parse(raw).preferredSort ?? null) : null;
   }, DISCOVERY_SEARCH_KEY);
   async function runSearch() {
+    await openChangeLocation(page);
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
+    await openChangeLocation(page);
     await page.locator('#discover-roads').click();
     // THE ROWS THIS GATE COMPARES LIVE BEHIND "Explore all results", so the workbench is opened the way a person opens it
     // - once, after the search, rather than before the page has even loaded.

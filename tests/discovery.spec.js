@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 const summary = JSON.parse(readFileSync(new URL('./fixtures/or-roads-network.summary.json', import.meta.url)));
 // The offline extraction summary counts road units by summing source-feature lengths, while the browser
@@ -30,7 +30,9 @@ async function watchExternal(page) {
 async function runDiscovery(page) {
   // The workspace renders its controls as soon as the app boots; waiting for that keeps a slow module
   // load from looking like a missing button.
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
+  await openChangeLocation(page);
   await page.click('#discover-roads');
   await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage', { timeout: 110000 });
@@ -40,6 +42,7 @@ test.beforeEach(async ({ page }) => {
   // DuckDB-WASM and the bounded extracts are heavy: give every discovery page the same bounded boot.
   await page.goto('/');
   // The button stays disabled until the search-area declaration has loaded: a survey cannot run without one.
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
 });
 
@@ -165,6 +168,7 @@ test('a discovery run without the GIS engine reports UNKNOWN coverage, never an 
 test('the discovery workspace stays usable at 390px', async ({ page }) => {
   test.slow();
   await page.setViewportSize({ width: 390, height: 844 });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 30000 });
   await runDiscovery(page);
   await openAllResults(page);

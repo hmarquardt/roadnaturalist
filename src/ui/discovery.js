@@ -32,11 +32,19 @@ const CLASS_LABELS = Object.freeze({ S1200: 'Secondary road', S1400: 'Local road
 // machinery; a person pressing this is asking for roads.
 const PRIMARY_ACTION_LABEL = 'Find roads';
 
+// AFTER THE ANSWER, THE CONTROLS BECOME ONE SUMMARY AND ONE BUTTON. "Change location" is the ordinary way back to the place
+// field - it is deliberately not Advanced search, and it is deliberately not a new search.
+const CHANGE_LOCATION_LABEL = 'Change location';
+const CHANGE_LOCATION_HEADING = 'Find roads somewhere else';
+const CHANGE_LOCATION_NOTE = 'A place name, or this device\'s location. The radius, the exact coordinates and the declared '
+  + 'areas stay under Advanced search, and the recommendations below stay until a new search is run.';
+
+
 
 // THE DISCLOSURE PRIMITIVE. A real `<details>`/`<summary>`: keyboard-native, and collapsed content is genuinely absent
 // from the tab order rather than hidden by CSS. Its open state is remembered for this session only, so a re-render (a
 // selection, a promotion, a note) never slams a section shut while somebody is reading it - and nothing is persisted.
-const disclosureState = { advancedSearch: false, results: false, how: false };
+const disclosureState = { advancedSearch: false, results: false, how: false, change: false };
 
 function disclosure({ id, key, label, note = null, className = 'discovery-disclosure' }) {
   const details = el('details', className);
@@ -53,6 +61,29 @@ function disclosure({ id, key, label, note = null, className = 'discovery-disclo
   // here; keyboard activation (Enter or Space on the summary) fires the same event, so both paths are covered.
   summary.addEventListener('click', () => { disclosureState[key] = !details.open; });
   return details;
+}
+
+// THE ONE POST-SEARCH FOCUS MOVE, AND WHY IT IS THIS SMALL.
+//
+// When a run completes and the recommendation heading is already on screen, focus moves there once: a keyboard or
+// screen-reader user is taken to the answer rather than left at the button they pressed, and a sighted user sees no change.
+// When the heading is *not* on screen nothing is focused, because moving a page a person is reading - or a camera they are
+// looking at - is worse than leaving the answer where it is. Intermediate phases never move focus, and re-renders never
+// move it again: only a run that has just finished does, and only once.
+let focusedRun = null;
+
+function focusRecommendationsOnce(discovery) {
+  if (discovery.status !== 'ready' || !(discovery.results ?? []).length) return;
+  const run = discovery.searchArea;
+  const key = run ? `${run.id ?? ''}|${run.center?.join(',') ?? ''}|${run.radiusMiles ?? ''}|${discovery.results.length}` : null;
+  if (!key || key === focusedRun) return;
+  const heading = document.getElementById('recommendations-heading');
+  if (!heading) return;
+  const rect = heading.getBoundingClientRect();
+  const onScreen = rect.top >= 0 && rect.top <= (window.innerHeight || 0);
+  focusedRun = key;
+  if (!onScreen) return;
+  heading.focus({ preventScroll: true });
 }
 
 export function renderDiscovery(container, { discovery, searchAreas = [], searchAreaId = null, search = null,
@@ -91,9 +122,8 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
     // person just chose never requires opening the full result set - and everything the workspace could always do
     // (filters, sort, every measured column, the coverage internals, the sort explanation) is one deliberate click away
     // in "Explore all results".
-    const summaryLine = searchSummaryLine(discovery.diagnostics, discovery.searchArea,
-      runCenterLabel({ discovery, search, gazetteer }));
-    if (summaryLine) container.append(summaryLine);
+    // THE ANSWER, THE DETAIL, THE WORKBENCH. What was searched is stated once, in the compact search summary at the top of
+    // the panel - so it is not repeated here.
     container.append(recommendationsSection({ discovery, radiusM, onSelect, onPromote }));
     if (selected) container.append(selectedResult(selected, { onPromote, onDismiss, onSelect, radiusM, outings,
       selectedOutingId, onAddToOuting }));
@@ -104,6 +134,9 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
       // search as it is currently defined, which is what a person is about to run.
       coverage: discovery.coverage ?? coverage,
       centerLabel: runCenterLabel({ discovery, search, gazetteer }) }));
+    // The panel is built before focus is decided: whether the answer is already on screen is a question about the DOM that
+    // was just written, not about the state that produced it.
+    focusRecommendationsOnce(discovery);
   } else if (discovery.status === 'ready') {
     container.append(el('p', 'discovery-note', 'No discovery corridor was proposed in this search area. That is a result about the declared filters and data coverage, not a statement about the roads on the ground.'));
   }
@@ -144,23 +177,114 @@ function staleResults({ discovery, search, searchAreaId }) {
   return `These results are from the previous search (${previous}). Choose a centre and radius, then search again to replace them.`;
 }
 
-// THE SEARCH SURFACE, SPLIT BY WHAT A FIRST-TIME USER NEEDS.
+// THE SEARCH SURFACE, SPLIT BY WHAT A FIRST-TIME USER NEEDS - AND BY WHETHER IT HAS ALREADY DONE ITS JOB.
 //
-// The ordinary path answers one question - where should I search? - and gets out of the way: a place name or this device's
-// location, then one button. Everything that configures *how* the search is bounded (declared areas, exact coordinates, the
-// map picker, the radius and its presets, the benchmark scenarios) is one disclosure below it, unchanged and complete.
+// Before a run the ordinary surface *is* the panel: a place name or this device's location, then one button. After a run it
+// has answered the question it asks, so the panel keeps only a compact statement of what was searched - the place, the
+// radius, how many roads - with one Change location control that brings the same controls back. The controls are built
+// once and moved, never re-created: there is no second draft, and editing the next location never touches the answer.
 function controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, loadPlaceTier = null,
   onDiscover, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace,
   onUseLocation, locationSupported }) {
   const block = el('div', 'discovery-controls');
-  block.append(searchSurface({ discovery, search, searchAreas, searchAreaId, region, gazetteer, loadPlaceTier,
-    onSelectPlace, onUseLocation, locationSupported, onSearchDefinition, onDiscover }));
-  block.append(advancedSearch({ searchAreas, searchAreaId, search, presets, region, gazetteer, loadPlaceTier,
-    onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace }));
+  // A RUN THAT CANNOT BE ANSWERED KEEPS ITS CONTROLS OPEN: a refusal must never collapse the only way to fix it.
+  const customSearch = searchAreaId === CUSTOM_SEARCH_AREA_ID;
+  const coverage = coverageOf({ search, searchAreas, searchAreaId, region });
+  const draft = search?.definition ?? null;
+  const runnable = customSearch ? Boolean(draft) && searchIsRunnable({ ok: true, coverage }) : true;
+  if (!runnable) disclosureState.change = true;
+  // A RUN IN FLIGHT COLLAPSES THE FORM: the person pressed the button, so the panel shows what is being searched and how
+  // far it has got, rather than the controls they just used.
+  if (discovery.status === 'running') disclosureState.change = false;
+  const surface = searchSurface({ discovery, search, searchAreas, searchAreaId, region, gazetteer, loadPlaceTier,
+    onSelectPlace, onUseLocation, locationSupported, onSearchDefinition, onDiscover });
+  const advanced = advancedSearch({ searchAreas, searchAreaId, search, presets, region, gazetteer, loadPlaceTier,
+    onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace });
+  if (discovery.searchArea) {
+    block.append(compactSearch({ discovery, search, gazetteer }));
+    const change = disclosure({ id: 'discovery-change', key: 'change', label: CHANGE_LOCATION_HEADING,
+      note: CHANGE_LOCATION_NOTE });
+    const body = el('div', 'discovery-change-body');
+    body.append(surface, advanced);
+    change.append(body);
+    block.append(change);
+  } else {
+    block.append(surface, advanced);
+  }
+  block.append(searchStatus({ discovery, searchAreas, runnable }));
   return block;
 }
 
-// WHERE SHOULD I SEARCH? A place, or where I am - and then one button that says what it does.
+// WHAT WAS SEARCHED, IN THREE SHORT PIECES AND NOTHING ELSE: where, how wide, and how many roads it considered. The
+// coordinates, the cell counts, the megabytes, the phase timings and the coverage vocabulary are not here - they are
+// Advanced material, and a person reading the answer does not need them.
+function compactSearch({ discovery, search, gazetteer }) {
+  const area = discovery.searchArea ?? null;
+  const box = el('div', 'discovery-compact');
+  box.id = 'discovery-search-compact';
+  const presentation = runCenterPresentation({ center: area?.center ?? null, place: search?.place ?? null,
+    near: search?.near ?? null, definitionCenter: search?.definition?.center ?? null, gazetteer });
+  // A PLACE NAME WHEN THERE IS ONE, COORDINATES WHEN THERE IS NOT. A centre typed as coordinates and never named is
+  // described as coordinates: the panel does not invent a place for it, and the nearest published place is used only when
+  // the shared label rule says it is near (the same rule the map key and the row distances use).
+  const label = presentation?.label ?? (area?.center ? formatCenter(area.center) : 'this search');
+  const line = el('p', 'discovery-compact-line');
+  line.id = 'discovery-compact-line';
+  line.append(el('strong', null, label));
+  box.append(line);
+  const facts = [];
+  if (area?.radiusMiles) facts.push(`within ${formatRadius(area.radiusMiles)}`);
+  else if (area?.name) facts.push(area.name);
+  const considered = (discovery.results ?? []).length;
+  if (considered) facts.push(`${considered} road${considered === 1 ? '' : 's'} considered`);
+  if (facts.length) {
+    // This is the run's own summary line, in the one vocabulary the ordinary path uses: the radius and the count. It keeps
+    // the id the gates and the panel have always used for "what was searched", and it carries no coordinates.
+    const detail = el('p', 'small muted discovery-compact-facts', facts.join(' · '));
+    detail.id = 'discovery-summary';
+    box.append(detail);
+  }
+  // CHANGE LOCATION REVEALS THE ORDINARY CONTROLS AND NOTHING ELSE. It is not Advanced search: a person moving from
+  // Princeton to Evansville types a place name, and never meets a latitude field.
+  const change = el('button', 'quiet-button', CHANGE_LOCATION_LABEL);
+  change.type = 'button';
+  change.id = 'discovery-change-location';
+  change.setAttribute('aria-controls', 'discovery-change');
+  change.addEventListener('click', () => revealChangeLocation());
+  box.append(change);
+  return box;
+}
+
+// The one place that opens the search surface again, whether it is opened from the summary beside the answer or from the
+// recommendation section: the disclosure is opened for the session (so a re-render keeps it open) and the place field takes
+// focus, because that is the field a person came here to use.
+function revealChangeLocation() {
+  disclosureState.change = true;
+  const details = document.getElementById('discovery-change');
+  if (details) details.open = true;
+  const place = document.getElementById('discovery-place');
+  place?.scrollIntoView?.({ block: 'nearest' });
+  place?.focus?.();
+}
+
+// The status of the search itself - the declaration still loading, a centre that cannot be searched, a run in flight, an
+// extract that could not be read. It lives beside the controls in both presentations, so nothing important is ever hidden
+// behind the disclosure a person is being asked to open.
+function searchStatus({ discovery, searchAreas, runnable }) {
+  const status = el('div', 'discovery-search-status-block');
+  status.id = 'discovery-search-status';
+  status.setAttribute('aria-live', 'polite');
+  if (!searchAreas.length) status.append(el('p', 'discovery-status', 'Loading the discovery search-area declaration…'));
+  else if (!runnable) status.append(el('p', 'discovery-status', 'Cannot search: this centre and radius do not overlap the published regional coverage.'));
+  if (discovery.status === 'running') status.append(el('p', 'discovery-status', discovery.phase || 'Preparing search…'));
+  else if (discovery.status === 'unavailable' && !discovery.error) {
+    status.append(el('p', 'discovery-status', 'The road-network extract could not be read.'));
+  }
+  return status;
+}
+
+// WHERE SHOULD I SEARCH? A place, or where I am - and then one button that says what it does. This is the whole of the
+// ordinary path, and after a run it is what Change location brings back.
 function searchSurface({ discovery, search, searchAreas, searchAreaId, region, gazetteer, loadPlaceTier = null,
   onSelectPlace, onUseLocation, locationSupported, onSearchDefinition, onDiscover }) {
   const block = el('div', 'discovery-primary');
@@ -202,17 +326,6 @@ function searchSurface({ discovery, search, searchAreas, searchAreaId, region, g
   if (!runnable) button.setAttribute('aria-describedby', 'discovery-search-status');
   button.addEventListener('click', () => onDiscover?.());
   block.append(button);
-
-  const status = el('div', 'discovery-search-status-block');
-  status.id = 'discovery-search-status';
-  status.setAttribute('aria-live', 'polite');
-  if (!searchAreas.length) status.append(el('p', 'discovery-status', 'Loading the discovery search-area declaration…'));
-  else if (!runnable) status.append(el('p', 'discovery-status', 'Cannot search: this centre and radius do not overlap the published regional coverage.'));
-  if (discovery.status === 'running') status.append(el('p', 'discovery-status', discovery.phase || 'Preparing search…'));
-  else if (discovery.status === 'unavailable' && !discovery.error) {
-    status.append(el('p', 'discovery-status', 'The road-network extract could not be read.'));
-  }
-  block.append(status);
   return block;
 }
 
@@ -620,16 +733,6 @@ function textField(id, label, value) {
 }
 
 
-// WHAT WAS SEARCHED, IN ONE PLAIN LINE, IN THE ORDINARY FLOW: the radius and the place, or the declared area. It reports
-// the search that produced these results, not the search currently typed into the controls above.
-function searchSummaryLine(diagnostics, searchArea, centerLabel = null) {
-  const shape = diagnostics?.searchShape;
-  if (!shape || shape.kind !== 'radius' || !Array.isArray(shape.center)) return null;
-  const line = el('p', 'small discovery-search-summary');
-  line.id = 'discovery-summary';
-  line.textContent = `${shape.radiusMiles}-mile radius search · ${centerLabel ?? formatCenter(shape.center)}`;
-  return line;
-}
 
 // THE RUN'S OWN INTERNALS: what was read, how many cells or partitions, how long each stage took. Diagnostic detail, and
 // it lives with the rest of the machinery under "Explore all results".
@@ -768,35 +871,14 @@ function recommendationsSection({ discovery, radiusM = null, onSelect, onPromote
   head.append(el('p', 'eyebrow', RECOMMENDED_TERM));
   const title = el('h3', null, recommendationHeading({ radiusMiles: discovery.searchArea?.radiusMiles ?? null, hasCenter }));
   title.id = 'recommendations-heading';
+  // THE HEADING CAN TAKE FOCUS, and that is the whole of the post-search focus move: when a search completes and the
+  // heading is already on screen, the answer is where a keyboard or screen-reader user lands - without the page jumping.
+  title.tabIndex = -1;
   head.append(title);
-  // HOW MANY ROADS WERE FOUND, in plain words, so the five cards are visibly a selection rather than a coincidence.
-  const found = el('p', 'small muted recommendations-found');
-  found.id = 'recommendations-found';
-  found.textContent = `Found ${(discovery.results ?? []).length} road${(discovery.results ?? []).length === 1 ? '' : 's'} `
-    + 'in this search.';
-  head.append(found);
   section.append(head);
-  // WHAT WAS COMPARED, in one sentence; the caveat, once for the whole section; and the long explanation one click away.
+  // WHAT WAS COMPARED, in one sentence. HOW MANY ROADS WERE FOUND IS NOT REPEATED HERE: the compact search summary above
+  // already says how many roads this search considered, and the panel says each thing once.
   section.append(el('p', 'small muted recommendations-explainer', RECOMMENDATION_EXPLAINER));
-  const actions = el('div', 'recommendations-actions');
-  const how = disclosure({ id: 'recommendations-how', key: 'how', label: RECOMMENDATION_HOW_HEADING,
-    className: 'discovery-disclosure recommendations-how' });
-  how.append(el('p', 'small muted recommendations-note', RECOMMENDATION_NOTE));
-  actions.append(how);
-  // SEARCHING SOMEWHERE ELSE IS ONE BUTTON IN THE ORDINARY FLOW: it brings the search surface into view and puts the
-  // cursor in the place field. Nothing has to be hunted for under a disclosure.
-  const change = el('button', 'quiet-button recommendations-change', 'Change location');
-  change.type = 'button';
-  change.id = 'recommendations-change-location';
-  change.addEventListener('click', () => {
-    const place = document.getElementById('discovery-place');
-    const surface = document.querySelector('.discovery-primary');
-    surface?.scrollIntoView?.({ block: 'nearest' });
-    place?.focus?.();
-  });
-  actions.append(change);
-  section.append(actions);
-  section.append(el('p', 'small muted recommendations-caveat', RECOMMENDATION_CAVEAT));
   // THE TABLE'S OWN ORDER IS NOT THE RECOMMENDATION ORDER, and when they differ the panel says so rather than letting two
   // lists on one screen disagree silently.
   if (discovery.sort !== DEFAULT_SORT) {
@@ -827,6 +909,16 @@ function recommendationsSection({ discovery, radiusM = null, onSelect, onPromote
     fewer.id = 'recommendations-count-note';
     section.append(fewer);
   }
+  // THE ONE CAVEAT FOR THE WHOLE SECTION, AND THE LONG EXPLANATION, COME AFTER THE ANSWER. Both belong to the
+  // recommendations - they are what the five roads do and do not claim - and neither is a warning about the data in hand,
+  // so the answer gets the screen and they follow it directly.
+  section.append(el('p', 'small muted recommendations-caveat', RECOMMENDATION_CAVEAT));
+  const actions = el('div', 'recommendations-actions');
+  const how = disclosure({ id: 'recommendations-how', key: 'how', label: RECOMMENDATION_HOW_HEADING,
+    className: 'discovery-disclosure recommendations-how' });
+  how.append(el('p', 'small muted recommendations-note', RECOMMENDATION_NOTE));
+  actions.append(how);
+  section.append(actions);
   return section;
 }
 

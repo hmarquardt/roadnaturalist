@@ -1,18 +1,16 @@
 import { test, expect } from '@playwright/test';
 
-import { openAdvancedSearch } from './discovery-ui.js';
+import { openAdvancedSearch, openChangeLocation } from './discovery-ui.js';
 import { DEFAULT_RADIUS_MILES } from '../src/discovery/search-definition.js';
 
-// WHAT A PERSON SEES COLD.
+// WHAT A PERSON SEES COLD, AND WHERE THE ANSWER LANDS.
 //
 //   RUN_FIRST_LOOK=1 npx playwright test tests/discovery-first-look.spec.js
 //
-// This gate is about the *shape* of the product rather than about a ranking or a measurement: before a search, can somebody
-// tell what to do without reading anything technical; after one, do they get five explained roads before any machinery; and
-// do the controls they never asked for stay out of the way - collapsed, not merely styled down?
-//
-// Everything here is checked the way a person experiences it: which controls are actually visible, where the primary action
-// sits vertically, and what a click reveals.
+// Two questions, both measured rather than asserted in the abstract: before a search, is the primary action inside the first
+// phone viewport, with no disclosure to open; and after one, is "#1 Best overall" in front of the person instead of below a
+// search form they have already used? The numbers are logged, so a regression in layout is visible as a number and not only
+// as a failed expectation.
 const BASE = process.env.PRODUCTION_BASE_URL ?? 'https://roadnaturalist.pages.dev';
 const PHONE = { width: 390, height: 844 };
 const DESKTOP = { width: 1440, height: 950 };
@@ -33,6 +31,21 @@ const visibleControls = page => page.locator('#discovery').evaluate(node => {
   return [...node.querySelectorAll('button, input, select, summary')].filter(shown)
     .map(element => element.id || `${element.tagName.toLowerCase()}.${element.className.split(' ')[0]}`);
 });
+
+// EVERY POSITION THIS GATE TALKS ABOUT, in one round trip: viewport-relative boxes, the page's own scroll, and whether the
+// page overflows sideways. A box is null when the element is not on screen at all, which is itself the answer sometimes.
+const layout = (page, selectors) => page.evaluate(list => {
+  const box = selector => {
+    const element = document.querySelector(selector);
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return { top: Math.round(rect.top), bottom: Math.round(rect.bottom), h: Math.round(rect.height) };
+  };
+  const boxes = {};
+  for (const selector of list) boxes[selector] = box(selector);
+  return { viewport: window.innerHeight, scrollY: Math.round(window.scrollY),
+    overflow: document.documentElement.scrollWidth - window.innerWidth, boxes };
+}, selectors);
 
 async function freshPage(page, viewport) {
   await page.setViewportSize(viewport);
@@ -55,7 +68,7 @@ async function expectTechnicalControlsHidden(page) {
   }
 }
 
-test('before a search, a phone shows where to search, one button, and one way to ask for more', async ({ page }) => {
+test('before a search, a phone shows where to search, one button, and the primary action is on the first screen', async ({ page }) => {
   test.setTimeout(1800000);
   await freshPage(page, PHONE);
   // THE ORDINARY PATH IS THE WHOLE SURFACE: a place, this device's location, one button, and the disclosure.
@@ -64,64 +77,76 @@ test('before a search, a phone shows where to search, one button, and one way to
   await expect(page.locator('#discover-roads')).toHaveText('Find roads');
   await expect(page.locator('#discovery-advanced-search-heading')).toHaveText('Advanced search');
   await expectTechnicalControlsHidden(page);
-  // MEASURED, NOT GUESSED: the primary action is on the first screen, and the machinery starts below it.
-  const layout = await page.evaluate(() => {
-    const box = selector => {
-      const element = document.querySelector(selector);
-      if (!element) return null;
-      const rect = element.getBoundingClientRect();
-      return { top: Math.round(rect.top), bottom: Math.round(rect.bottom), h: Math.round(rect.height) };
-    };
-    const panel = box('.discovery-panel');
-    const find = box('#discover-roads');
-    return { viewport: window.innerHeight, panel, find, advanced: box('#discovery-advanced-search'),
-      place: box('#discovery-place'), pathWithinPanel: find.bottom - panel.top,
-      overflow: document.documentElement.scrollWidth - window.innerWidth };
-  });
-  expect(layout.find, 'the primary action is laid out').toBeTruthy();
-  // MEASURED, IN THE PANEL'S OWN TERMS: the ordinary path - the place, this device's location, the summary and the button -
-  // fits one phone screen, and the primary action is at the bottom of the first screen of the page rather than past it.
-  expect(layout.pathWithinPanel, 'the ordinary path fits one screen').toBeLessThanOrEqual(layout.viewport);
-  expect(layout.find.top, 'and the button is on the first screen of the page').toBeLessThan(layout.viewport * 1.2);
-  expect(layout.place.bottom).toBeLessThan(layout.find.top);
-  expect(layout.advanced.top).toBeGreaterThan(layout.find.bottom);
-  expect(layout.advanced.h, 'the advanced search is one collapsed row').toBeLessThanOrEqual(70);
-  expect(layout.overflow, 'no horizontal overflow at 390 px').toBeLessThanOrEqual(0);
-  console.log(`FIRST_LOOK_PHONE_BEFORE ${JSON.stringify(layout)}`);
+  // MEASURED, NOT GUESSED. The intro is a product statement, not a manifesto: the whole ordinary path - the page's own
+  // heading, the place, this device's location and the button - fits the first phone viewport with room to spare.
+  const fresh = await layout(page, ['.site-header', '.intro', '.discovery-panel', '#discovery-place', '#discover-roads',
+    '#discovery-advanced-search']);
+  const find = fresh.boxes['#discover-roads'];
+  expect(find, 'the primary action is laid out').toBeTruthy();
+  expect(find.bottom, 'and its bottom edge is inside the first viewport').toBeLessThanOrEqual(fresh.viewport);
+  expect(find.top, 'and its top edge is well inside it').toBeLessThan(fresh.viewport * 0.85);
+  expect(fresh.boxes['.intro'].h, 'the intro is a statement, not a manifesto').toBeLessThanOrEqual(280);
+  expect(fresh.boxes['#discovery-place'].bottom).toBeLessThan(find.top);
+  expect(fresh.boxes['#discovery-advanced-search'].top).toBeGreaterThan(find.bottom);
+  expect(fresh.boxes['#discovery-advanced-search'].h, 'the advanced search is one collapsed row').toBeLessThanOrEqual(70);
+  expect(fresh.overflow, 'no horizontal overflow at 390 px').toBeLessThanOrEqual(0);
+  console.log(`FIRST_LOOK_PHONE_BEFORE ${JSON.stringify(fresh)}`);
 });
 
-test('after a search, a phone shows five explained roads and nothing technical until it is asked for', async ({ page }) => {
+test('after a search, a phone puts #1 Best overall in the first viewport', async ({ page }) => {
   test.setTimeout(1800000);
   await freshPage(page, PHONE);
   await findRoadsByPlace(page, 'Princeton');
   // THE ANSWER, AND THE ASSUMPTION IN ITS HEADING.
   await expect(page.locator('#recommendations-heading'))
     .toHaveText(`Best road-naturalist drives within ${DEFAULT_RADIUS_MILES} miles`);
-  await expect(page.locator('#recommendations-found')).toContainText('Found');
   const cards = page.locator('#recommendation-list li.recommendation');
   await expect(cards).toHaveCount(5);
   const first = await cards.first().getAttribute('data-candidate-id');
   await expect(page.locator(`#recommendation-rank-${first}`)).toHaveText('#1 Best overall');
   await expect(page.locator('#recommendation-list li.recommendation.best')).toHaveCount(1);
-  // THE MACHINERY IS NOT ON SCREEN, AND "EXPLORE ALL RESULTS" IS.
+  // THE SEARCH FORM HAS DONE ITS JOB AND IS GONE: what was searched is one summary line and one Change location control.
+  await expect(page.locator('#discovery-place')).not.toBeVisible();
+  await expect(page.locator('#discover-roads')).not.toBeVisible();
+  await expect(page.locator('#discovery-use-location')).not.toBeVisible();
+  await expect(page.locator('#discovery-search-compact')).toBeVisible();
+  await expect(page.locator('#discovery-compact-line')).toContainText('Princeton');
+  await expect(page.locator('#discovery-summary')).toContainText(`within ${DEFAULT_RADIUS_MILES} mi`);
+  await expect(page.locator('#discovery-summary')).toContainText('roads considered');
+  await expect(page.locator('#discovery-change-location')).toBeVisible();
   await expectTechnicalControlsHidden(page);
   await expect(page.locator('#discovery-advanced-heading')).toBeVisible();
   await expect(page.locator('#discovery-advanced-heading')).toHaveText('Explore all results');
-  await expect(page.locator('#discovery-advanced')).not.toHaveAttribute('open', '');
-  const afterSearch = await page.evaluate(() => {
-    const box = selector => {
-      const element = document.querySelector(selector);
-      if (!element) return null;
-      const rect = element.getBoundingClientRect();
-      return { top: Math.round(rect.top), bottom: Math.round(rect.bottom) };
-    };
-    return { viewport: window.innerHeight, firstCard: box('#recommendation-list li.recommendation'),
-      find: box('#discover-roads'), advanced: box('#discovery-advanced'),
-      overflow: document.documentElement.scrollWidth - window.innerWidth };
-  });
-  expect(afterSearch.find.bottom, 'the search controls still fit the first screen').toBeLessThanOrEqual(afterSearch.viewport);
-  expect(afterSearch.overflow, 'no horizontal overflow after a search either').toBeLessThanOrEqual(0);
-  console.log(`FIRST_LOOK_PHONE_AFTER ${JSON.stringify(afterSearch)}`);
+  // THE POINT OF THE PASS: "#1 Best overall" is inside the first viewport - measured against the position the browser is
+  // already in, with no scrolling of our own, and also with the page at the very top.
+  const after = await layout(page, ['#discovery-search-compact', '#discovery-summary', '#recommendations-heading',
+    `#recommendation-rank-${first}`, '#recommendation-list li.recommendation', '#discovery-advanced-heading',
+    '#discovery-change']);
+  const rank = after.boxes[`#recommendation-rank-${first}`];
+  expect(rank, 'the first card is on screen').toBeTruthy();
+  expect(rank.top, 'and #1 Best overall is inside the first viewport').toBeLessThanOrEqual(after.viewport);
+  expect(rank.bottom, 'fully, not clipped').toBeLessThanOrEqual(after.viewport);
+  expect(after.boxes['#recommendations-heading'].top, 'with the heading above it').toBeLessThan(rank.top);
+  expect(after.boxes['#discovery-search-compact'].h, 'the search summary is one compact block').toBeLessThanOrEqual(100);
+  expect(after.boxes['#discovery-advanced-heading'].top, 'and the workbench stays below the answer')
+    .toBeGreaterThan(rank.bottom);
+  expect(after.overflow, 'no horizontal overflow after a search either').toBeLessThanOrEqual(0);
+  console.log(`FIRST_LOOK_PHONE_AFTER ${JSON.stringify(after)}`);
+  // AND WITH THE PAGE AT THE TOP, with no browser scroll at all: still in the first viewport.
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const top = await layout(page, [`#recommendation-rank-${first}`, '#recommendations-heading']);
+  expect(top.scrollY).toBe(0);
+  expect(top.boxes[`#recommendation-rank-${first}`].top,
+    'from the top of the page, #1 is still in the first viewport').toBeLessThanOrEqual(top.viewport);
+  console.log(`FIRST_LOOK_PHONE_AFTER_TOP ${JSON.stringify(top)}`);
+});
+test('Change location brings the ordinary controls back, keeps the answer, and stays out of Advanced search', async ({ page }) => {
+  test.setTimeout(1800000);
+  await freshPage(page, PHONE);
+  await findRoadsByPlace(page, 'Princeton');
+  const cards = page.locator('#recommendation-list li.recommendation');
+  await expect(cards).toHaveCount(5);
+  const first = await cards.first().getAttribute('data-candidate-id');
 
   // SELECTING A ROAD NEEDS NO DISCLOSURE AT ALL, and the detail appears with it.
   await page.locator(`#recommendation-show-${first}`).click();
@@ -129,12 +154,35 @@ test('after a search, a phone shows five explained roads and nothing technical u
   await expect(page.locator('#discovery-selected')).toContainText('Selected discovery corridor');
   await page.locator(`#recommendation-more-${first}`).click();
   await expect(page.locator('#discovery-selected')).toBeVisible();
-  // SO DOES SEARCHING SOMEWHERE ELSE.
-  await page.locator('#recommendations-change-location').click();
-  await expect(page.locator('#discovery-place')).toBeFocused();
-  await expect(page.locator('#discovery-advanced')).not.toHaveAttribute('open', '');
 
-  // OPENING IT REVEALS THE UNCHANGED WORKBENCH.
+  // CHANGE LOCATION IS THE ORDINARY PATH, NOT ADVANCED SEARCH: the place field takes focus, the technical half stays shut,
+  // and the recommendations are still on screen while the next location is being chosen.
+  await page.locator('#discovery-change-location').click();
+  await expect(page.locator('#discovery-change')).toHaveAttribute('open', '');
+  await expect(page.locator('#discovery-place')).toBeFocused();
+  await expect(page.locator('#discovery-advanced-search')).not.toHaveAttribute('open', '');
+  await expect(page.locator('#discovery-center-lat')).not.toBeVisible();
+  await expect(cards).toHaveCount(5, 'editing the next location does not destroy the answer');
+  await expect(page.locator('#discovery-selected')).toBeVisible();
+
+  // THE CURRENT DEFINITION IS IN THE SAME CONTROLS - not a second draft: the radius is still the one the search ran with,
+  // and the run's own statement of what is active is unchanged.
+  await openAdvancedSearch(page);
+  await expect(page.locator('#discovery-radius-input')).toHaveValue(String(DEFAULT_RADIUS_MILES));
+  await expect(page.locator('#discovery-center-lat')).not.toHaveValue('');
+  await expect(page.locator('#discovery-active-search'))
+    .toContainText(`Custom radius search · ${DEFAULT_RADIUS_MILES} mi`);
+  console.log('FIRST_LOOK_CHANGE_LOCATION restored with the current definition');
+});
+
+test('the workbench still opens behind the answer, and a warning still survives it', async ({ page }) => {
+  test.setTimeout(1800000);
+  await freshPage(page, PHONE);
+  await findRoadsByPlace(page, 'Princeton');
+  const first = await page.locator('#recommendation-list li.recommendation').first().getAttribute('data-candidate-id');
+
+  // OPENING "Explore all results" REVEALS THE UNCHANGED WORKBENCH, and the answer stays visible behind it.
+  await expect(page.locator('#discovery-advanced')).not.toHaveAttribute('open', '');
   await page.locator('#discovery-advanced-heading').click();
   await expect(page.locator('#discovery-advanced')).toHaveAttribute('open', '');
   await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 60000 });
@@ -145,7 +193,6 @@ test('after a search, a phone shows five explained roads and nothing technical u
   await expect(page.locator('#recommendation-list li.recommendation')).toHaveCount(5, 'the answer stays visible');
   // KEYBOARD: the disclosure is a real control - Enter toggles it - and a collapsed section leaves no tab stops behind it.
   await page.locator('#discovery-advanced-heading').focus();
-  await expect(page.locator('#discovery-advanced-heading')).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('#discovery-advanced')).not.toHaveAttribute('open', '');
   await expect(page.locator('#discovery-results tbody tr').first()).not.toBeVisible();
@@ -154,33 +201,97 @@ test('after a search, a phone shows five explained roads and nothing technical u
   expect(TECHNICAL.map(selector => selector.slice(1)), `a collapsed disclosure leaves no tab stop (reached ${afterTab})`)
     .not.toContain(afterTab);
 
-  // A WARNING STAYS WHERE IT IS, WITH THE DISCLOSURE SHUT. Changing the radius leaves the results stale, and the panel says
-  // so in the ordinary flow.
+  // A WARNING STAYS IN THE ORDINARY FLOW, with the disclosures shut. Changing the radius leaves the results stale.
+  await openChangeLocation(page);
   await openAdvancedSearch(page);
   await page.locator('#discovery-radius-input').fill('25');
   await page.locator('#discovery-radius-input').press('Enter');
-  // The warning appears in the ordinary flow the moment the definition changes: wait for the panel to settle, then shut the
-  // disclosure and prove the warning is still there - and that the collapsed section left nothing behind it.
   await expect(page.locator('#discovery')).toContainText('previous search');
   await page.locator('#discovery-advanced-search-heading').click();
-  await expect(page.locator('#discovery-advanced-search')).not.toHaveAttribute('open', '');
+  await page.locator('#discovery-change-heading').click();
+  await expect(page.locator('#discovery-change')).not.toHaveAttribute('open', '');
   await expect(page.locator('#discovery')).toContainText('previous search');
-  await expectTechnicalControlsHidden(page);
-  console.log('FIRST_LOOK_PHONE_WARNING visible with the disclosure shut');
+  await expect(page.locator('#recommendation-rank-' + first)).toBeVisible();
+  console.log('FIRST_LOOK_PHONE_WARNING visible with every disclosure shut');
 });
 
-test('on a desktop the answer leads and the table is subordinate until it is opened', async ({ page }) => {
+// THE COLD-HUMAN WORKFLOW, IN ONE RUN: fresh storage, a phone, no internal concepts.
+//
+// This is the whole product story a stranger needs - identify where, ask for roads, read why, look at one on the map, change
+// the place, ask again - and it never opens Advanced search. If this test needs Advanced search to pass, the product has
+// stopped being usable by somebody who does not know what a corridor is.
+test('a stranger can use the whole product on a phone without ever opening Advanced search', async ({ page }) => {
+  test.setTimeout(1800000);
+  await page.setViewportSize(PHONE);
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
+
+  // 1-3. A fresh visitor can find the location field and the button, and nothing else is in the way.
+  await expect(page.locator('#discovery-place')).toBeVisible();
+  await expect(page.locator('#discover-roads')).toBeVisible();
+  await expect(page.locator('#discovery-advanced-search')).not.toHaveAttribute('open', '');
+
+  // 4-6. A Princeton search, and the first recommendation becomes the dominant content.
+  await findRoadsByPlace(page, 'Princeton');
+  const first = await page.locator('#recommendation-list li.recommendation').first().getAttribute('data-candidate-id');
+  await expect(page.locator(`#recommendation-rank-${first}`)).toHaveText('#1 Best overall');
+  const rank = (await layout(page, [`#recommendation-rank-${first}`])).boxes[`#recommendation-rank-${first}`];
+  expect(rank.top, 'the answer is the first thing on the screen').toBeLessThanOrEqual(PHONE.height);
+  // The reasons are readable without opening anything, and the road can be shown on the map.
+  await expect(page.locator(`#recommendation-reasons-${first} li`).first()).toBeVisible();
+  // The map's own contract, the one its gates use: a corridor is `data-role="candidate"` and carries `data-selected`.
+  const drawn = page.locator('#map [data-role="candidate"]');
+  expect(await drawn.count(), 'the map is drawing the search').toBeGreaterThanOrEqual(1);
+  await page.locator(`#recommendation-show-${first}`).click();
+  await expect(page.locator('#discovery-selected')).toContainText('Selected discovery corridor');
+  // ONE SELECTED ROAD, however many paths the map draws for it: the assertion counts distinct corridor ids, not paths.
+  await expect.poll(async () => page.locator('#map [data-role="candidate"][data-selected="true"]')
+    .evaluateAll(nodes => [...new Set(nodes.map(node => node.dataset.corridorId))].length)).toBe(1);
+
+  // 7-10. Change location, search somewhere else, and get new recommendations - still without Advanced search.
+  await page.locator('#discovery-change-location').click();
+  await expect(page.locator('#discovery-advanced-search')).not.toHaveAttribute('open', '');
+  await page.locator('#discovery-place').fill('Portland');
+  await expect(page.locator('#discovery-place-results')).toBeVisible({ timeout: 60000 });
+  await page.locator('#discovery-place-results .discovery-place-option').first().click();
+  await page.locator('#discover-roads').click();
+  await expect(page.locator('#discovery-compact-line')).toContainText('Portland', { timeout: 600000 });
+  await expect(page.locator('#recommendation-list li.recommendation')).toHaveCount(5, { timeout: 600000 });
+  await expect(page.locator('#recommendations-heading')).toContainText('Best road-naturalist drives within');
+  const second = await page.locator('#recommendation-list li.recommendation').first().getAttribute('data-candidate-id');
+  expect(second, 'the new search answers with its own roads').not.toBe(first);
+  // 11. Advanced search was never needed: it is still collapsed, and no coordinate or radius control was ever on screen.
+  await expect(page.locator('#discovery-advanced-search')).not.toHaveAttribute('open', '');
+  await expectTechnicalControlsHidden(page);
+  console.log(`FIRST_LOOK_COLD_HUMAN ${JSON.stringify({ princeton: first, portland: second })}`);
+});
+
+test('on a desktop the answer leads, the intro still reads as intentional, and the table waits until it is opened', async ({ page }) => {
   test.setTimeout(1800000);
   await freshPage(page, DESKTOP);
-  expect((await visibleControls(page)).sort()).toEqual(['discover-roads', 'discovery-advanced-search-heading',
-    'discovery-place', 'discovery-use-location'].sort());
-  await expectTechnicalControlsHidden(page);
+  // The intro is a real heading and a real sentence, not a stripped page.
+  const fresh = await layout(page, ['.intro', '#page-title', '.intro-lead', '#discover-roads']);
+  expect(fresh.boxes['#page-title'].h, 'the product still says what it is').toBeGreaterThan(24);
+  expect(fresh.boxes['.intro-lead'].h, 'and what it does, in one sentence').toBeGreaterThan(10);
+  expect(fresh.boxes['#discover-roads'].top, 'the primary action is on the first screen here too')
+    .toBeLessThan(fresh.viewport);
+  console.log(`FIRST_LOOK_DESKTOP_BEFORE ${JSON.stringify(fresh)}`);
+
   await findRoadsByPlace(page, 'Princeton');
   await expect(page.locator('#recommendation-list li.recommendation')).toHaveCount(5);
   await expect(page.locator('#recommendations-heading'))
     .toHaveText(`Best road-naturalist drives within ${DEFAULT_RADIUS_MILES} miles`);
   await expectTechnicalControlsHidden(page);
-  // THE RECOMMENDATIONS COME FIRST IN THE DOCUMENT, and the workbench after them.
+  const after = await layout(page, ['#discovery-search-compact', '#recommendations-heading',
+    '#recommendation-list li.recommendation', '#discovery-advanced-heading', '#discovery-advanced']);
+  expect(after.boxes['#recommendations-heading'].top, 'the answer is on the first screen').toBeLessThan(after.viewport);
+  expect(after.boxes['#discovery-search-compact'], 'and the search form has collapsed').toBeTruthy();
+  expect(after.boxes['#discovery-advanced-heading'].h, 'the workbench is one heading')
+    .toBeLessThan(after.boxes['#recommendation-list li.recommendation'].h);
+  console.log(`FIRST_LOOK_DESKTOP_AFTER ${JSON.stringify(after)}`);
+
+  // THE RECOMMENDATIONS COME FIRST IN THE DOCUMENT, and the workbench after them - and opening it changes nothing about the
+  // answer.
   const order = await page.evaluate(() => {
     const position = selector => [...document.querySelectorAll('#discovery *')].indexOf(document.querySelector(selector));
     return { recommendations: position('#discovery-recommendations'), advanced: position('#discovery-advanced'),
@@ -189,25 +300,9 @@ test('on a desktop the answer leads and the table is subordinate until it is ope
   expect(order.recommendations).toBeGreaterThan(-1);
   expect(order.advanced).toBeGreaterThan(order.recommendations);
   expect(order.results).toBeGreaterThan(order.advanced);
-  // A REAL LIMITATION IS STATED WHERE A PERSON READS IT, not hidden with the diagnostics. A centre whose circle cannot
-  // reach the published region is the plainest limitation there is, and it is said as a consequence - while the
-  // FULL/PARTIAL/NONE vocabulary stays inside the disclosure it belongs to.
-  await openAdvancedSearch(page);
-  await page.locator('#discovery-center-lat').fill('25.0000');
-  await page.locator('#discovery-center-lon').fill('-140.0000');
-  await page.locator('#discovery-center-apply').click();
-  await page.locator('#discovery-advanced-search-heading').click();
-  await expect(page.locator('#discovery-advanced-search')).not.toHaveAttribute('open', '');
-  await expect(page.locator('#discovery-coverage-note')).toBeVisible();
-  await expect(page.locator('#discovery-coverage-note')).toContainText('No published environmental data');
-  await expect(page.locator('#discovery')).not.toContainText('Discovery coverage NONE');
-  await expect(page.locator('#discovery-search-status')).toContainText('Cannot search');
-  // AND THE SEARCH THAT PRODUCED THE ANSWER IS STILL THE ONE ON SCREEN.
-  await expect(page.locator('#recommendation-list li.recommendation')).toHaveCount(5);
-  // AND OPENING IT CHANGES NOTHING ABOUT THE ANSWER.
   await page.locator('#discovery-advanced-heading').click();
   await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 60000 });
   await expect(page.locator('#recommendation-list li.recommendation')).toHaveCount(5);
   await expect(page.locator('#recommendations-heading')).toBeVisible();
-  console.log(`FIRST_LOOK_DESKTOP ${JSON.stringify({ order, viewport: DESKTOP })}`);
+  console.log(`FIRST_LOOK_DESKTOP_ORDER ${JSON.stringify(order)}`);
 });

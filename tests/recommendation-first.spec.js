@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 import { EXPLORATION_ORDER_VERSION } from '../src/discovery/exploration-order.js';
 import { RANKING_VERSION } from '../src/discovery/ranking.js';
@@ -38,14 +38,22 @@ function orderArtifact() {
 
 async function searchRegion(page, region) {
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
   const [lon, lat] = region.center;
   await openAdvancedSearch(page);
+  await openChangeLocation(page);
   await page.locator('#discovery-center-lat').fill(lat.toFixed(4));
+  await openChangeLocation(page);
   await page.locator('#discovery-center-lon').fill(lon.toFixed(4));
+  await openChangeLocation(page);
   await page.locator('#discovery-center-apply').click();
+  await openChangeLocation(page);
   await page.locator('#discovery-radius-input').fill(String(region.radiusMiles));
+  await openChangeLocation(page);
   await page.locator('#discovery-radius-input').press('Enter');
+  await openChangeLocation(page);
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
   // THE RUN FINISHES FIRST, and the workbench below is the run's own output: waiting for it means a missing recommendation
   // surface fails quickly and says so, instead of looking like a search that never came back.
@@ -137,7 +145,8 @@ for (const id of REGIONS) {
     await expect(page.locator('#recommendations-heading'))
       .toHaveText(`Best road-naturalist drives within ${region.radiusMiles} miles`);
     await expect(page.locator('#discovery-recommendations .eyebrow')).toHaveText('Recommended');
-    await expect(page.locator('#recommendations-found')).toContainText('Found');
+    // How many roads the search considered is stated once, in the compact search summary above the answer.
+    await expect(page.locator('#discovery-summary')).toContainText('roads considered');
     await expect(page.locator('#discovery-recommendations .recommendations-explainer')).toContainText('mapped wetlands');
     await expect(page.locator('#discovery-recommendations .recommendations-caveat')).toContainText('do not guarantee wildlife');
     for (const card of cards) {
@@ -261,10 +270,14 @@ test('a declared area search has no centre, so no distance is invented and the h
   test.setTimeout(1800000);
   await page.setViewportSize(DESKTOP);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
   // A DECLARED AREA, NOT A CENTRE AND RADIUS: the search itself defines no distance from anywhere.
   await openAdvancedSearch(page);
+  await openChangeLocation(page);
   await page.locator('#discovery-area').selectOption('or-pilot-window');
+  await openChangeLocation(page);
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
   await expect(page.locator('#recommendation-list li.recommendation').first()).toBeVisible({ timeout: 600000 });
   const cards = await readCards(page);

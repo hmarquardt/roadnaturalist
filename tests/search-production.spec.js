@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 // Opt-in verification of the *deployed* arbitrary-search path in a real browser.
 //
@@ -30,6 +30,7 @@ async function setSearch(page, { lat, lon, radius }) {
   await page.locator('#discovery-radius-input').press('Enter');
   await expect(page.locator('#discovery-active-search')).toContainText(`Custom radius search · ${radius} mi`);
   // The centre line names the search the way the panel does, and always keeps the coordinates beside it.
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
 }
 
@@ -46,7 +47,7 @@ function milesOf(text) {
 async function checkSearchContext(page, { radius, label }) {
   await openAllResults(page);
   await expect(page.locator('#discovery-results thead')).toContainText('From center');
-  await expect(page.locator('#discovery-summary')).toContainText(label);
+  await expect(page.locator('#discovery-compact-line')).toContainText(label);
   const cells = await distanceCells(page);
   expect(cells.length).toBeGreaterThan(0);
   for (const cell of cells) expect(cell).toMatch(/^(?:<0\.1|\d+\.\d) mi(?: (?:N|NE|E|SE|S|SW|W|NW))?$/);
@@ -81,19 +82,22 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   for (const scenario of SCENARIOS) {
     const { radius, center, coverage, label } = scenario;
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await openChangeLocation(page);
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
     await setSearch(page, { lat: center.lat, lon: center.lon, radius });
     const cellsBefore = derivedCells.length;
     const started = Date.now();
+    await openChangeLocation(page);
     await page.locator('#discover-roads').click();
     await openAllResults(page);
     await expect(page.locator('#discovery')).toContainText('Discovery coverage', { timeout: 300000 });
-    await expect(page.locator('#discovery-summary')).toContainText(`${radius}-mile radius search`, { timeout: 300000 });
+    await expect(page.locator('#discovery-summary')).toContainText(`within ${radius} mi`, { timeout: 300000 });
     await openAllResults(page);
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 120000 });
     const elapsedMs = Date.now() - started;
     const banner = await page.locator('#discovery').innerText();
     // The deployed app labels this centre from the committed gazetteer and measures every corridor it returns.
+    await openChangeLocation(page);
     await expect(page.locator('#discovery-center-label')).toContainText(label);
     const context = await checkSearchContext(page, { radius, label });
     const entry = { center: [center.lon, center.lat], radiusMiles: radius, elapsedMs, centreLabel: label,
@@ -113,10 +117,12 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
 
   // PARTIAL: a centre north of the published edge whose circle reaches back into it.
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await setSearch(page, { lat: 46.30, lon: -122.90, radius: 25 });
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: PARTIAL', { timeout: 60000 });
   const edgeBefore = derivedCells.length;
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
   await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage PARTIAL', { timeout: 300000 });
@@ -131,6 +137,7 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   await page.locator('#discovery-center-lon').fill('-120');
   await page.locator('#discovery-center-apply').click();
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: NONE', { timeout: 60000 });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeDisabled();
   report.none = { refused: true, cellsRead: derivedCells.length - beforeNone };
   log(report.none);
@@ -139,12 +146,14 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   // A map-picked centre: the deployed app labels it from the same local gazetteer, keeps the coordinate the
   // click landed on, and still runs a search from it.
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await page.locator('#discovery-center-pick').click();
-  await page.locator('#map svg').click({ position: { x: 200, y: 200 } });
+  await page.locator('#map').click({ position: { x: 200, y: 200 } });
   await expect(page.locator('#discovery-center-pick')).toHaveAttribute('aria-pressed', 'false');
   const pickedLat = await page.locator('#discovery-center-lat').inputValue();
   const pickedLon = await page.locator('#discovery-center-lon').inputValue();
+  await openChangeLocation(page);
   const pickedLabel = await page.locator('#discovery-center-label').innerText();
   report.picked = { lat: pickedLat, lon: pickedLon, label: pickedLabel, url: page.url() };
   log(report.picked);
@@ -159,10 +168,12 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   // Promotion of an arbitrary-search corridor: the raw corridor is reconstructed and verified against the
   // precomputed row, and the detailed panel measures it from the raw regional partitions.
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await setSearch(page, { lat: ARBITRARY_CENTER.lat, lon: ARBITRARY_CENTER.lon, radius: 10 });
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 300000 });
+  await expect(page.locator('#discovery-summary')).toContainText('within 10 mi', { timeout: 300000 });
   const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:text-is("FULL")') }).first();
   await expect(fullRow).toBeVisible({ timeout: 120000 });
   await fullRow.locator('.discovery-row').click();

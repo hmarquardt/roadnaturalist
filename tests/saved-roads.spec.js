@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 // SAVED ROADS IN A BROWSER.
 //
@@ -36,6 +36,7 @@ function watchDataReads(page) {
 
 async function boot(page) {
   await page.goto('/');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
 }
 
@@ -46,6 +47,7 @@ async function quiet(page) {
 async function reloadAndBoot(page) {
   await quiet(page);
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
 }
 
@@ -56,8 +58,9 @@ async function search(page, { lat, lon, radius }) {
   await page.locator('#discovery-center-apply').click();
   await page.locator('#discovery-radius-input').fill(String(radius));
   await page.locator('#discovery-radius-input').press('Enter');
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText(`${radius}-mile radius search`, { timeout: 180000 });
+  await expect(page.locator('#discovery-summary')).toContainText(`within ${radius} mi`, { timeout: 180000 });
 }
 
 async function savedCount(page) {

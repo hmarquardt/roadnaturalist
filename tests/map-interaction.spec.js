@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 import { MILES_TO_M, cameraOf, drawnSearchCentre, fitCountOf, mapAvailable, mapImplementation,
   movementCount, searchGeometry } from './map-contract.js';
@@ -36,13 +36,17 @@ const REGIONS = Object.freeze([
 test.skip(!process.env.RUN_MAP_PRODUCTION, 'set RUN_MAP_PRODUCTION=1 to verify the deployed geographic map');
 
 async function runSearch(page, query, radiusMiles = 25) {
+  await openChangeLocation(page);
   await page.locator('#discovery-place').fill(query);
+  await openChangeLocation(page);
   await page.locator('#discovery-place-results .discovery-place-option').first().waitFor({ timeout: 120000 });
+  await openChangeLocation(page);
   await page.locator('#discovery-place-results .discovery-place-option').first().click();
   await openAdvancedSearch(page);
   await page.locator('#discovery-radius-input').fill(String(radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL', { timeout: 120000 });
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
   await openAllResults(page);
   await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
@@ -80,6 +84,7 @@ for (const [query, label, geography, radiusMiles, habitat] of REGIONS) {
       if (message.type() === 'error') pageErrors.push(message.text());
     });
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await openChangeLocation(page);
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
 
     // 3. THE RUNNING MAP IS THE GEOGRAPHIC ONE. There is one map implementation, and an unavailable view is reported

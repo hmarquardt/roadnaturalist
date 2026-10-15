@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { cameraOf } from './map-contract.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 // Finding a place by name: a local lookup over the committed national gazetteer that feeds the same search
 // definition a map click or a typed coordinate produces. These tests cover the interaction (typing, mouse,
@@ -24,11 +25,14 @@ async function watchExternal(page) {
 
 async function boot(page) {
   await page.goto('/');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place')).toBeVisible();
 }
 
 async function typePlace(page, query) {
+  await openChangeLocation(page);
   await page.locator('#discovery-place').fill(query);
   return page.locator('#discovery-place-results');
 }
@@ -50,10 +54,14 @@ test('typing a place name sets the centre, keeps the radius, and searches the sa
   await expect(page.locator('#discovery-radius-value')).toHaveText('25 mi');
   const results = await typePlace(page, 'Hillsboro oregon');
   await expect(results).toBeVisible();
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place')).toHaveAttribute('aria-expanded', 'true');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place')).toHaveAttribute('aria-activedescendant', 'discovery-place-option-0');
   expect(await optionLabels(page)).toEqual(['Hillsboro, OR · City']);
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-status')).toContainText('1 matching place');
+  await openChangeLocation(page);
   await page.locator('#discovery-place-results .discovery-place-option').first().click();
   // The centre moves to the published interior point, the radius stays, and the panel says what happened.
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5268');
@@ -62,6 +70,7 @@ test('typing a place name sets the centre, keeps the radius, and searches the sa
   await expect(page.locator('#discovery-radius-value')).toHaveText('25 mi');
   // Nothing is reported about the search itself - no phase, no refusal - and the centre is stated in the ordinary flow.
   await expect(page.locator('#discovery-search-status')).toHaveText('');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toHaveText('Hillsboro, OR · 45.5268, -122.9354');
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   await expect(page.locator('#map .search-center')).toHaveCount(1);
@@ -72,11 +81,15 @@ test('typing a place name sets the centre, keeps the radius, and searches the sa
   expect(Number(url.searchParams.get('lon'))).toBe(-122.93539);
   // Choosing a place must not run a search by itself.
   await expect(page.locator('#discovery')).not.toContainText('Discovery coverage');
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('25-mile radius search', { timeout: 180000 });
-  await expect(page.locator('#discovery-summary')).toContainText('45.5268, -122.9354');
+  await expect(page.locator('#discovery-summary')).toContainText('within 25 mi', { timeout: 180000 });
+  // The coordinates are not in the ordinary summary line by design: the centre is stated where the panel states it.
+  await openChangeLocation(page);
+  await expect(page.locator('#discovery-center-label')).toContainText('45.5268, -122.9354');
   expect(Number(await page.locator('#discovery-count').innerText())).toBeGreaterThan(0);
   // The remembered search shows the place label, and the coverage panel cites the source.
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-recent')).toContainText('Hillsboro, OR · 25 mi');
   await expect(page.locator('#data-context')).toContainText('Place-name gazetteer');
   await expect(page.locator('#data-context')).toContainText('U.S. Census Bureau');
@@ -90,12 +103,14 @@ test('the whole choice works from the keyboard, and duplicates are told apart', 
   const input = page.locator('#discovery-place');
   await input.click();
   await input.type('Toledo');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results')).toBeVisible();
   // A national name collides often, so what separates the results is the state and the county printed beside
   // each one - and the most populous namesake leads.
   const labels = await optionLabels(page);
   expect(labels[0]).toBe('Toledo, OH · City');
   expect(new Set(labels.map(label => label.split(', ')[1].split(' ')[0])).size).toBeGreaterThan(1);
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results .discovery-place-detail').first()).toContainText('County');
   // ArrowDown moves the active option and announces it; Enter chooses it and does nothing else.
   await input.press('ArrowDown');
@@ -105,25 +120,31 @@ test('the whole choice works from the keyboard, and duplicates are told apart', 
   const second = labels[1].split(' · ')[0];
   await input.press('Enter');
   // The chosen result is the one the panel then names, and the URL carries its published centre.
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText(second);
   const chosen = new URL(page.url());
   expect(Number(chosen.searchParams.get('lat'))).toBeGreaterThan(24);
   expect(Number(chosen.searchParams.get('lat'))).toBeLessThan(50);
   expect(Number(chosen.searchParams.get('lon'))).toBeLessThan(-66);
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results')).toBeHidden();
   await expect(input).toHaveAttribute('aria-expanded', 'false');
   // Any conterminous place is inside the national derived plane's published region, so the default radius is
   // FULL: the PARTIAL and NONE answers belong to a centre outside the conterminous states.
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled();
   // Escape closes the list and keeps the typed text: no keyboard trap, and no accidental choice.
   await input.click();
   await input.type('Chehalis');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results')).toBeVisible();
   await input.press('Escape');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results')).toBeHidden();
   await expect(input).toHaveValue('Chehalis');
   await input.press('Tab');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results')).toBeHidden();
   expect(external).toEqual([]);
 });
@@ -135,15 +156,20 @@ test('nothing found, too short and an address are all answered without a guess',
   await openAdvancedSearch(page);
   const before = await page.locator('#discovery-center-lat').inputValue();
   await input.fill('hi');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-status')).toContainText('Type at least 3 characters');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results')).toBeHidden();
   for (const query of ['zzzz', 'xqzwv', '123 Main St', '123 Main Street, Hillsboro, OR 97123']) {
     await input.fill(query);
+    await openChangeLocation(page);
     await expect(page.locator('#discovery-place-status')).toContainText('No place matching');
+    await openChangeLocation(page);
     await expect(page.locator('#discovery-place-results')).toBeHidden();
   }
   // A query that matches nothing changes nothing at all.
   await expect(page.locator('#discovery-center-lat')).toHaveValue(before);
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled();
   expect(external).toEqual([]);
 });
@@ -155,13 +181,16 @@ test('a conterminous place is covered, and choosing one reads no metric cell', a
   await boot(page);
   const input = page.locator('#discovery-place');
   await input.fill('Chehalis');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results')).toBeVisible();
   await input.press('Enter');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('Chehalis, WA');
   // A conterminous place lies inside the national derived plane's published region, so its coverage is FULL at
   // the default radius and the search is runnable. The PARTIAL and NONE answers this test used to exercise
   // belong to a centre *outside* the conterminous states, which no published place is.
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled();
   // A lookup reads no metric cell: the search is the person's next move, never a side effect of choosing a place.
   expect(derivedRequests).toEqual([]);
@@ -173,25 +202,31 @@ test('the place field and its results stay usable at 390px, and choosing does no
   await page.setViewportSize({ width: 390, height: 844 });
   const external = await watchExternal(page);
   await boot(page);
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place')).toBeVisible();
   await openAdvancedSearch(page);
   await expect(page.locator('#discovery-radius-input')).toBeVisible();
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
-  const before = await page.locator('#map svg').getAttribute('viewBox');
+  // The map publishes its own camera; asking it is the honest way to see whether a place choice moved the view.
+  const before = await cameraOf(page);
   const results = await typePlace(page, 'Hillsboro oregon');
   await expect(results).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await openChangeLocation(page);
   await page.locator('#discovery-place-results .discovery-place-option').first().click();
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5268');
   // Choosing a result must not move the map view: the preview follows the centre, the view does not.
-  expect(await page.locator('#map svg').getAttribute('viewBox')).toBe(before);
+  expect(await cameraOf(page)).toEqual(before);
   await page.locator('#discovery-radius-input').fill('5');
   await page.locator('#discovery-radius-input').press('Enter');
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeVisible();
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
+  await expect(page.locator('#discovery-summary')).toContainText('within 5 mi', { timeout: 180000 });
   await openAllResults(page);
   await page.locator('#discovery-results tbody tr button').first().click();
   await expect(page.locator('#discovery-selected')).toContainText('Selected discovery corridor');

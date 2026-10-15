@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 // USE MY LOCATION.
 //
@@ -38,6 +38,7 @@ function watchDataReads(page) {
 
 async function boot(page) {
   await page.goto('/');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
 }
 
@@ -79,13 +80,16 @@ test('a granted location becomes the search centre: no search, the same radius, 
   await setRadius(page, 25);
   const untouched = await page.evaluate(() => document.querySelector('#discovery-summary')?.textContent ?? null);
   expect(untouched).toBe(null);
+  await openChangeLocation(page);
   await page.locator('#discovery-use-location').click();
   // The centre is the browser's position, to the same five decimals every other centre uses.
   await openAdvancedSearch(page);
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5229', { timeout: 30000 });
   await expect(page.locator('#discovery-center-lon')).toHaveValue('-122.9898');
   // Labelled by the local gazetteer, not by a reverse geocoder and not snapped to the place.
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('Near Hillsboro, OR');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('45.5229, -122.9898');
   // The accuracy is stated, and it is stated as the browser's fix.
   await expect(locationStatus(page)).toContainText('Search centre set from this device');
@@ -93,6 +97,7 @@ test('a granted location becomes the search centre: no search, the same radius, 
   // The radius is untouched, the coverage is the ordinary preview, and the URL stays coordinates.
   await expect(page.locator('#discovery-radius-value')).toHaveText('25 mi');
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-use-location')).toHaveText('Use my location');
   expect(new URL(page.url()).search).toBe('?lat=45.5229&lon=-122.9898&r=25');
   // Nothing ran, and nothing outside this origin was asked.
@@ -109,12 +114,14 @@ test('the located centre runs the ordinary derived search, and reaches no eviden
   await context.setGeolocation(HILLSBORO);
   await boot(page);
   await setRadius(page, 10);
+  await openChangeLocation(page);
   await page.locator('#discovery-use-location').click();
   await openAdvancedSearch(page);
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5229', { timeout: 30000 });
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 180000 });
-  await expect(page.locator('#discovery-summary')).toContainText('Near Hillsboro, OR');
+  await expect(page.locator('#discovery-summary')).toContainText('within 10 mi', { timeout: 180000 });
+  await expect(page.locator('#discovery-compact-line')).toContainText('Near Hillsboro, OR');
   await openAllResults(page);
   expect(await page.locator('#discovery-results tbody tr').count()).toBeGreaterThan(0);
   await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
@@ -130,11 +137,14 @@ test('permission refused: one restrained sentence, and every other way of choosi
   const external = await watchExternal(page);
   // No permission is granted for this context, which is the state a person sees when they decline the prompt.
   await boot(page);
+  await openChangeLocation(page);
   await page.locator('#discovery-use-location').click();
   await expect(locationStatus(page)).toContainText('Location permission was not granted', { timeout: 30000 });
   await expect(locationStatus(page)).toContainText('place, click the map, or enter coordinates');
   // The button comes back, so the answer can be tried again, and nothing else is disabled.
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-use-location')).toBeEnabled();
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place')).toBeEnabled();
   await openAdvancedSearch(page);
   await expect(page.locator('#discovery-center-lat')).toBeEnabled();
@@ -142,6 +152,7 @@ test('permission refused: one restrained sentence, and every other way of choosi
   await page.locator('#discovery-center-lat').fill('45.5400');
   await page.locator('#discovery-center-lon').fill('-123.1700');
   await page.locator('#discovery-center-apply').click();
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('45.5400, -123.1700');
   expect(new URL(page.url()).search).toBe('?lat=45.54&lon=-123.17&r=10');
   expect(external).toEqual([]);
@@ -152,13 +163,17 @@ test('a device that cannot answer, and a request that times out, each say so - a
   await page.setViewportSize({ width: 1440, height: 1000 });
   await mockGeolocation(page, { errorCode: 2 });
   await boot(page);
+  await openChangeLocation(page);
   await page.locator('#discovery-use-location').click();
   await expect(locationStatus(page)).toContainText('Your device could not determine a location', { timeout: 30000 });
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-use-location')).toHaveText('Use my location');
   // A second attempt is another click, and this time the browser times out instead.
   await page.evaluate(() => { navigator.geolocation.getCurrentPosition = (success, failure) => failure({ code: 3, message: 'timeout' }); });
+  await openChangeLocation(page);
   await page.locator('#discovery-use-location').click();
   await expect(locationStatus(page)).toContainText('did not report a location in time', { timeout: 30000 });
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-use-location')).toBeEnabled();
   // Nothing was set and nothing broke: the centre controls still carry the search.
   expect(new URL(page.url()).search).toBe('');
@@ -169,6 +184,7 @@ test('a late fix cannot overwrite a centre the person chose while the browser wa
   await page.setViewportSize({ width: 1440, height: 1000 });
   await mockGeolocation(page, { position: HILLSBORO, delayMs: 1500 });
   await boot(page);
+  await openChangeLocation(page);
   await page.locator('#discovery-use-location').click();
   await expect(locationStatus(page)).toContainText('Asking this browser for its location', { timeout: 30000 });
   // While the browser is still looking, the person types a centre and presses Set centre.
@@ -176,11 +192,13 @@ test('a late fix cannot overwrite a centre the person chose while the browser wa
   await page.locator('#discovery-center-lat').fill('45.5400');
   await page.locator('#discovery-center-lon').fill('-123.1700');
   await page.locator('#discovery-center-apply').click();
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('45.5400, -123.1700');
   // The fix arrives afterwards. It is discarded: the newer, explicit choice stands.
   await page.waitForTimeout(2500);
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5400');
   await expect(page.locator('#discovery-center-lon')).toHaveValue('-123.1700');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('45.5400, -123.1700');
   expect(new URL(page.url()).search).toBe('?lat=45.54&lon=-123.17&r=10');
   // And it did not turn into a location success message after the fact.
@@ -194,6 +212,7 @@ test('a reload restores the located centre without asking the browser for a loca
   await mockGeolocation(page);
   await boot(page);
   await setRadius(page, 25);
+  await openChangeLocation(page);
   await page.locator('#discovery-use-location').click();
   await openAdvancedSearch(page);
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5229', { timeout: 30000 });
@@ -201,11 +220,13 @@ test('a reload restores the located centre without asking the browser for a loca
   expect(await page.evaluate(() => window.__watchCalls)).toBe(0);
   await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
   await page.reload();
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   // The centre, the radius and the label come back from this device, not from the device's position.
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5229');
   await expect(page.locator('#discovery-center-lon')).toHaveValue('-122.9898');
   await expect(page.locator('#discovery-radius-value')).toHaveText('25 mi');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('Near Hillsboro, OR');
   // A shared link is enough: the URL stays ordinary coordinates and radius, with nothing about where they came
   // from, and reloading it does not ask the browser for anything.
@@ -230,10 +251,12 @@ test.fixme('a candidate found from a located centre is kept on this device, with
   await mockGeolocation(page);
   await boot(page);
   await setRadius(page, 10);
+  await openChangeLocation(page);
   await page.locator('#discovery-use-location').click();
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5229', { timeout: 30000 });
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 180000 });
+  await expect(page.locator('#discovery-summary')).toContainText('within 10 mi', { timeout: 180000 });
   await openAllResults(page);
   const row = page.locator('#discovery-results tbody tr').first();
   await row.locator('.discovery-row').click();
@@ -261,13 +284,17 @@ test('the location control stays reachable among the centre controls at 390px', 
   await context.grantPermissions(['geolocation']);
   await context.setGeolocation(HILLSBORO);
   await boot(page);
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-use-location')).toBeVisible();
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place')).toBeVisible();
   await openAdvancedSearch(page);
   await expect(page.locator('#discovery-center-lat')).toBeVisible();
   await expect(page.locator('#discovery-radius-input')).toBeVisible();
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await openChangeLocation(page);
   await page.locator('#discovery-use-location').click();
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5229', { timeout: 30000 });
   await expect(locationStatus(page)).toContainText('Browser location accuracy: about 120 m.');
@@ -282,12 +309,15 @@ test('a browser that cannot report a location says so and leaves every other met
   await boot(page);
   await expect(locationStatus(page)).toContainText('This browser does not offer a location');
   await expect(page.locator('#discovery-use-location')).toHaveCount(0);
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place')).toBeEnabled();
   await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill('45.4000');
   await page.locator('#discovery-center-lon').fill('-122.8000');
   await page.locator('#discovery-center-apply').click();
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('45.4000, -122.8000');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled();
 });
 

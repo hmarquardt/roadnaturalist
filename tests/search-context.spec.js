@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
+import { fitCountOf, mapAvailable } from './map-contract.js';
 
 import { DEFAULT_SORT } from '../src/discovery/filter.js';
 
@@ -31,8 +32,11 @@ async function watchExternal(page) {
 
 async function boot(page) {
   await page.goto('/');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place')).toBeVisible();
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toBeVisible();
 }
 
@@ -54,7 +58,13 @@ async function applyCoordinates(page, { lat, lon }, radius = null) {
 // equirectangular fit, so two probe picks are enough to solve where a chosen coordinate sits on screen — the
 // test aims at a known place instead of guessing a pixel.
 async function pickAtCoordinate(page, target) {
-  const svg = page.locator('#map svg');
+  // The map container, not the drawing surface: before a search there is nothing drawn, and the container is
+  // what a person taps either way.
+  const svg = page.locator('#map');
+  // The map must exist and have taken its view before any pixel means anything: the probe maths is about where a
+  // coordinate sits on the screen, and a camera still fitting would put the target somewhere else.
+  await expect.poll(() => mapAvailable(page), { timeout: 60000 }).toBe(true);
+  await expect.poll(() => fitCountOf(page), { timeout: 60000 }).toBeGreaterThanOrEqual(1);
   const box = await svg.boundingBox();
   const probe = async (x, y) => {
     await openAdvancedSearch(page);
@@ -123,6 +133,7 @@ test('typed coordinates are labelled by the nearest published place and never sn
   await openAdvancedSearch(page);
   await expect(page.locator('#discovery-center-lon')).toHaveValue('-123.1700');
   // The remembered search says the same thing, regenerated from the gazetteer.
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-recent')).toContainText('Near Forest Grove, OR · 10 mi');
   expect(external).toEqual([]);
 });
@@ -136,14 +147,19 @@ test('a centre no published place is near keeps its coordinates, and a chosen pl
   // The nearest published place is 25 miles away, which is not "near". Coordinates it is.
   await expect(label).toHaveText('Centre: 46.2800, -121.8800');
   await expect(label).not.toContainText('Near');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-recent')).toContainText('46.2800, -121.8800 · 25 mi');
   // An explicit choice outranks an inferred label: Hillsboro is named, not "near" Hillsboro.
+  await openChangeLocation(page);
   await page.locator('#discovery-place').fill('Hillsboro');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results')).toBeVisible();
+  await openChangeLocation(page);
   await page.locator('#discovery-place-results .discovery-place-option').first().click();
   await expect(label).toHaveText('Hillsboro, OR · 45.5268, -122.9354');
   await expect(label).not.toContainText('Near');
   await expect(page.locator('#map .map-key')).toContainText('Hillsboro, OR');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-recent')).toContainText('Hillsboro, OR · 25 mi');
   expect(external).toEqual([]);
 });
@@ -164,18 +180,23 @@ test('every discovered corridor reports its distance and direction from the sear
   await page.setViewportSize({ width: 1440, height: 1000 });
   const external = await watchExternal(page);
   await boot(page);
+  await openChangeLocation(page);
   await page.locator('#discovery-place').fill('Hillsboro');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results')).toBeVisible();
+  await openChangeLocation(page);
   await page.locator('#discovery-place-results .discovery-place-option').first().click();
   await openAdvancedSearch(page);
   await page.locator('#discovery-radius-input').fill('5');
   await page.locator('#discovery-radius-input').press('Enter');
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
+  await expect(page.locator('#discovery-summary')).toContainText('within 5 mi', { timeout: 180000 });
   // The summary names the place and keeps the coordinates as the search's own state.
-  await expect(page.locator('#discovery-summary')).toContainText('Hillsboro, OR');
-  await expect(page.locator('#discovery-diagnostics')).toContainText('centre 45.5268, -122.9354');
+  await expect(page.locator('#discovery-compact-line')).toContainText('Hillsboro, OR');
+  // The coordinates are the run's own state and live with the run's diagnostics, under "Explore all results".
   await openAllResults(page);
+  await expect(page.locator('#discovery-diagnostics')).toContainText('centre 45.5268, -122.9354');
   await expect(page.locator('#discovery-results thead')).toContainText('From center');
   const cells = await distanceCells(page);
   expect(cells.length).toBeGreaterThan(10);
@@ -202,8 +223,9 @@ test('sorting by distance from the center is explicit, deterministic and off by 
   const external = await watchExternal(page);
   await boot(page);
   await applyCoordinates(page, { lat: 45.54, lon: -123.17 }, 10);
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 180000 });
+  await expect(page.locator('#discovery-summary')).toContainText('within 10 mi', { timeout: 180000 });
   await openAllResults(page);
   await expect(page.locator('#discovery-sort option[value="distanceFromCenter"]')).toHaveText('Distance from center (m)');
   expect(await page.locator('#discovery-sort').inputValue()).not.toBe('distanceFromCenter');
@@ -222,11 +244,13 @@ test('at 390px the context stays readable without widening the page', async ({ p
   const external = await watchExternal(page);
   await boot(page);
   await applyCoordinates(page, { lat: 45.54, lon: -123.17 }, 5);
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-center-label')).toContainText('Near Forest Grove, OR');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
-  await expect(page.locator('#discovery-summary')).toContainText('Near Forest Grove, OR');
+  await expect(page.locator('#discovery-summary')).toContainText('within 5 mi', { timeout: 180000 });
+  await expect(page.locator('#discovery-compact-line')).toContainText('Near Forest Grove, OR');
   await openAllResults(page);
   const header = page.locator('#discovery-results thead');
   await expect(header).toContainText('From center');
@@ -248,8 +272,9 @@ test('a promoted corridor keeps the search context from the row through to the c
   await boot(page);
   // A typed centre near Forest Grove: an inferred label, a real measured relationship, and a short search.
   await applyCoordinates(page, { lat: 45.54, lon: -123.17 }, 5);
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
+  await expect(page.locator('#discovery-summary')).toContainText('within 5 mi', { timeout: 180000 });
   const rowCell = (await distanceCells(page))[0];
   expect(rowCell).toMatch(DISTANCE_CELL);
   await openAllResults(page);
@@ -291,14 +316,18 @@ test('a corridor promoted from a chosen place keeps the place name, not an infer
   await page.setViewportSize({ width: 1440, height: 1000 });
   const external = await watchExternal(page);
   await boot(page);
+  await openChangeLocation(page);
   await page.locator('#discovery-place').fill('Hillsboro');
+  await openChangeLocation(page);
   await expect(page.locator('#discovery-place-results')).toBeVisible();
+  await openChangeLocation(page);
   await page.locator('#discovery-place-results .discovery-place-option').first().click();
   await openAdvancedSearch(page);
   await page.locator('#discovery-radius-input').fill('5');
   await page.locator('#discovery-radius-input').press('Enter');
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
+  await expect(page.locator('#discovery-summary')).toContainText('within 5 mi', { timeout: 180000 });
   const rowCell = (await distanceCells(page))[0];
   await openAllResults(page);
   await page.locator('#discovery-results tbody tr button').first().click();

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 // Opt-in verification of the *deployed* saved-roads workflow in a real browser.
 //
@@ -18,6 +18,7 @@ function log(label, value) { console.log(`SAVED_ROADS_PRODUCTION ${JSON.stringif
 
 async function boot(page) {
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
 }
 
@@ -55,8 +56,9 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
   await page.locator('#discovery-radius-input').fill('10');
   await page.locator('#discovery-radius-input').press('Enter');
   mark('search');
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 300000 });
+  await expect(page.locator('#discovery-summary')).toContainText('within 10 mi', { timeout: 300000 });
   mark('searched');
   log('search', { summary: (await page.locator('#discovery-summary').innerText()).replace(/\s+/g, ' ').slice(0, 200) });
   const promoted = [];
@@ -99,6 +101,7 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
   const partitionsBefore = partitions.length;
   mark('reload 1');
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   mark('reloaded 1');
   await expect(page.locator('#saved-counts')).toContainText('Saved roads 2 · Favorites 1 · Has notes 1');
@@ -147,6 +150,7 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
   mark('removed');
   await expect.poll(() => savedCount(page)).toBe(1);
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await expect(page.locator('#saved-counts')).toContainText('Saved roads 1 · Favorites 0 · Has notes 0');
   await expect(page.locator('#saved-list .saved-card')).toHaveCount(1);

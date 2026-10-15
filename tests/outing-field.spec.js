@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 import { OUTINGS_KEY } from '../src/state/outings.js';
 import { CANDIDATES_KEY } from '../src/state/candidate-persistence.js';
@@ -76,6 +76,7 @@ test('a plan is worked through on a phone, and survives a reload', async ({ page
   }
 
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
   await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(princeton.center[1].toFixed(4));
@@ -83,6 +84,7 @@ test('a plan is worked through on a phone, and survives a reload', async ({ page
   await page.locator('#discovery-center-apply').click();
   await page.locator('#discovery-radius-input').fill(String(princeton.radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
   // THE ROWS ARE BEHIND "Explore all results": the gate opens the workbench after the search, like a person would.
   await openAllResults(page);

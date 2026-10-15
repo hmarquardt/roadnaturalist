@@ -18,37 +18,55 @@ search area -> bounded road network -> eligible road units -> deterministic segm
 
 ## Choose a location, find roads, read five recommendations
 
-The discovery panel answers one question first - *where should I search?* - and gets out of the way. Everything that
-configures **how** the search is bounded, and the whole result workbench, are real `<details>` disclosures that start
-collapsed.
+The panel answers one question first - *where should I search?* - and once it has been answered it stops asking it.
 
 ```
-Choose a location
-   Find a place ............... [ Use my location ]
-   Near Princeton, IN · 38.3553, -87.5675 · within 10 mi
-   [ Find roads ]                                        <- the one primary action
-   > Advanced search                                     <- declared areas, coordinates, map picker, radius, presets
+BEFORE A RUN - the page's own heading, one sentence, and the ordinary path
 
-Find roads
-   -> 10-mile radius search · Near Princeton, IN         <- what was searched, in plain words
-   -> Recommended
-        Best road-naturalist drives within 10 miles
-        Found 396 roads in this search.
-        Road Naturalist compares mapped wetlands, water, ecological variety and distance from your search center to
-        surface promising roads to explore.
-        [ How recommendations work ]  [ Change location ]
-        Recommendations describe mapped natural features. They do not guarantee wildlife, road access, road condition
-        or safe places to stop.
-        #1 Best overall   Co Rd 100 N
-                          Wetland and water corridor
-                          Mapped wetland crosses the road, 127 ha within 250 m
-                          Frequent water crossings: 14 mapped
-                          1.2 mi from the search center · 7.3 mi of road
-                          [ Show on map ] [ More details ] [ Save ]
-        #2 ... #5
-   -> the selected road's own detail (when a card is chosen)
-   -> > Explore all results                              <- coverage internals, filters, sort, the full table
+  Find roads worth exploring.
+  Choose a place, find the roads nearby worth a closer look, and see the mapped natural features behind each one.
+
+  01 / Discovery                                    Find a place ......... [ Use my location ]
+                                                    Near Princeton, IN · within 10 mi
+                                                    [ Find roads ]
+                                                    > Advanced search          <- declared areas, coordinates, radius
+
+AFTER A RUN - the form has done its job, so it becomes a summary
+
+  01 / Discovery
+  Princeton, IN · within 10 mi · 396 roads considered          [ Change location ]
+  > Find roads somewhere else                        <- the same place finder, Use my location and Find roads
+       > Advanced search                             <- coordinates, map picker, radius, declared areas
+  Recommended
+       Best road-naturalist drives within 10 miles
+       #1 Best overall   US Hwy 380  ...  [ Show on map ] [ More details ] [ Save ]
+       #2 ... #5
+  the selected road's own detail (when a card is chosen)
+  > Explore all results                              <- coverage internals, filters, sort, the full table
 ```
+
+**Measured, at 390 x 844.** Before a run the intro is **219 px**, the `Find roads` button's bottom edge is at **604 px**, and the
+collapsed `Advanced search` row is **46 px** - the primary action is on the first screen, with the page at the top. After a run
+the compact summary is **85 px** and, with the page still at the very top, the recommendation heading is at **569 px** and
+`#1 Best overall` is at **707 px**: the answer is in the first viewport without a single scroll, and the search form that produced
+it is gone. The long-form prose that used to stand in front of the panel - what the project is, what it measures, what it does
+not know - now lives in **About this workspace**, one click from the header, which is where a person looks for it.
+
+**Change location is not Advanced search.** It reopens the ordinary path - a place name, this device's location, `Find roads` -
+with the current definition already in it, and it never shows a latitude field to somebody moving from Princeton to Evansville.
+Advanced search stays where it was, one level further in, and holds the declared search areas, the exact coordinates, the map
+picker, the radius and its presets. The controls are built once and moved, never re-created: there is no second draft, and
+choosing the next location does not touch the recommendations already on screen.
+
+**One focus move, and no more.** When a run completes and the recommendation heading is already on screen, focus goes there once
+(`preventScroll`), so a keyboard or screen-reader user lands on the answer instead of at the button they pressed; when the heading
+is off screen nothing is focused, because moving a page a person is reading - or a camera they are looking at - is worse than
+leaving the answer where it is. Intermediate phases never move focus, and re-renders never move it again.
+
+**The answer above the machinery.** What was searched is stated once, in three short pieces (where, how wide, how many roads) and
+nowhere else: the panel does not repeat the count, the coordinates, the cell counts, the megabytes, the phase timings or the
+coverage vocabulary in the ordinary flow. Those are `Explore all results` material, and the one limitation that matters is stated
+as a consequence in plain words (see the coverage section below).
 
 **What is on the ordinary path.** The place finder, **Use my location** (one position, used as the centre, with its privacy
 line), where the search currently is, what radius it assumes, recent searches when there are any, and **Find roads**. That

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 import { cameraOf, fitCountOf } from './map-contract.js';
 
@@ -102,6 +102,7 @@ test('a trip is recorded only because it was asked for, and live location and re
     accuracy: 8, at: seconds });
 
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
   await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(princeton.center[1].toFixed(4));
@@ -109,6 +110,7 @@ test('a trip is recorded only because it was asked for, and live location and re
   await page.locator('#discovery-center-apply').click();
   await page.locator('#discovery-radius-input').fill(String(princeton.radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
   // THE ROWS ARE BEHIND "Explore all results": the gate opens the workbench after the search, like a person would.
   await openAllResults(page);
@@ -329,6 +331,7 @@ async function fourRoadFieldPlan(page, context) {
   const princeton = region('princeton-in');
   await page.setViewportSize(PHONE);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
   await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(princeton.center[1].toFixed(4));
@@ -336,6 +339,7 @@ async function fourRoadFieldPlan(page, context) {
   await page.locator('#discovery-center-apply').click();
   await page.locator('#discovery-radius-input').fill(String(princeton.radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
   await openAllResults(page);
   const rows = page.locator('#discovery-results tbody tr');

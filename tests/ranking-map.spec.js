@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 import { RANKING_VERSION } from '../src/discovery/ranking.js';
 import { EXPLORATION_ORDER_VERSION } from '../src/discovery/exploration-order.js';
@@ -53,6 +53,7 @@ for (const id of REGIONS) {
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
     await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await openChangeLocation(page);
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
 
     // The same centre the evaluation measured with: typed, not a gazetteer point, so the two runs are comparable.
@@ -64,6 +65,7 @@ for (const id of REGIONS) {
     await page.locator('#discovery-radius-input').fill(String(region.radiusMiles));
     await page.locator('#discovery-radius-input').press('Enter');
     await expect(page.locator('#discovery-radius-value')).toHaveText(`${region.radiusMiles} mi`);
+    await openChangeLocation(page);
     await page.locator('#discover-roads').click();
     await openAllResults(page);
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });

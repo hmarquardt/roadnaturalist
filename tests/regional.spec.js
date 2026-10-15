@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
+import { openAdvancedSearch, openAllResults, openChangeLocation } from './discovery-ui.js';
 
 // The regional path, as the application actually offers it: discovery reads the precomputed derived
 // corridor-metrics cells, and the detailed panel measures the raw regional partitions for the promoted
@@ -23,6 +23,7 @@ test('regional discovery reads precomputed metrics, and promotion verifies the r
   await expect(page.locator('#discovery-area')).toBeVisible();
   await page.locator('#discovery-area').selectOption('or-portland-west-regional');
   const started = Date.now();
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
   // The derived layer is the point of this path: the banner names it, the corridor count is the radius
   // selection, and no raw regional partition is touched until a corridor is promoted.
@@ -71,6 +72,7 @@ test('raw regional discovery is still available on request, and is never the aut
   const partitions = [];
   page.on('request', request => { if (request.url().includes('/data/regional/partitions/')) partitions.push(request.url()); });
   await page.goto('/');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   // A narrow box: raw discovery on the published region really does compose and measure every corridor, and
   // this test is about availability, not about re-recording its cost (npm run benchmark:regional does that).
@@ -103,17 +105,20 @@ test('a missing derived cell fails explicitly and never silently re-runs the raw
   await page.goto('/');
   await openAdvancedSearch(page);
   await page.locator('#discovery-area').selectOption('or-portland-west-regional');
+  await openChangeLocation(page);
   await page.locator('#discover-roads').click();
-  await openAllResults(page);
-  await expect(page.locator('#discovery')).toContainText('Discovery coverage UNKNOWN', { timeout: 60000 });
-  await expect(page.locator('#discovery')).toContainText('HTTP 404');
+  // A FAILED RUN HAS NO WORKBENCH TO OPEN, and it does not need one: the refusal is stated in the ordinary flow, with the
+  // reason the run actually hit, and no corridor is proposed. Nothing technical has to be opened to see that it failed.
+  await expect(page.locator('#discovery')).toContainText('HTTP 404', { timeout: 60000 });
   await expect(page.locator('#discovery-count')).toHaveText('0');
+  await expect(page.locator('#recommendation-list')).toHaveCount(0);
   expect(partitions).toEqual([]);
 });
 
 test('a missing raw habitat partition aborts a raw regional survey with UNKNOWN coverage', async ({ page }) => {
   await page.route('**/data/regional/partitions/**/wetlands/*.parquet', route => route.fulfill({ status: 404, body: 'missing' }));
   await page.goto('/');
+  await openChangeLocation(page);
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   const run = await page.evaluate(async () => {
     const { gis } = await import('/src/app/main.js');
