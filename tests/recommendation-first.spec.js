@@ -45,7 +45,12 @@ async function searchRegion(page, region) {
   await page.locator('#discovery-radius-input').fill(String(region.radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
   await page.locator('#discover-roads').click();
-  await expect(page.locator('#recommendation-list li.recommendation').first()).toBeVisible({ timeout: 600000 });
+  // THE RUN FINISHES FIRST, and the workbench below is the run's own output: waiting for it means a missing recommendation
+  // surface fails quickly and says so, instead of looking like a search that never came back.
+  await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
+  await expect(page.locator('#discovery-recommendations'), 'the recommendation surface answers the run')
+    .toBeVisible({ timeout: 60000 });
+  await expect(page.locator('#recommendation-list li.recommendation').first()).toBeVisible({ timeout: 60000 });
 }
 
 // ONE CARD, READ AS THE PAGE DRAWS IT. The measurements travel as data attributes on the card, so a sentence can be
