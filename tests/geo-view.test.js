@@ -250,6 +250,69 @@ test('the viewport belongs to the person: drawing and selecting never fit', () =
   assert.deepEqual(calls.fits[1].bounds, [[38.3, -87.5], [38.31, -87.4]], 'Fit selected fits the selected corridor');
 });
 
+test('Fit selected frames whichever corridor the workspace shows, by domain and never by id', () => {
+  // A discovery recommendation, a promoted candidate and a plan member all resolve the same way: the id is looked up in the
+  // collections the map draws, and each descriptor carries its own selection domain. Nothing parses a prefix, and a road that
+  // is a part of a long named highway is framed the same way any other corridor is.
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  const discovery = corridor('drv1-long-highway-s9', { selectionDomain: 'discovery',
+    geometry: { type: 'MultiLineString', coordinates: [[[-87.5, 38.3], [-87.4, 38.31]], [[-87.2, 38.4], [-87.1, 38.45]]] } });
+  const candidate = corridor('or-roads-cornelius-pass-rd', { selectionDomain: 'candidate' });
+  view.draw({ corridors: [discovery, candidate] });
+  assert.equal(view.canFitSelected(), false, 'nothing selected, nothing to frame');
+  view.setSelected(discovery.id);
+  assert.equal(view.canFitSelected(), true, 'a discovery corridor with geometry can be framed');
+  assert.equal(view.fitSelected(), true);
+  assert.deepEqual(calls.fits.at(-1).bounds, [[38.3, -87.5], [38.45, -87.1]],
+    'a multi-part corridor frames every part, not just the first');
+  view.setSelected(candidate.id);
+  assert.equal(view.fitSelected(), true);
+  assert.deepEqual(calls.fits.at(-1).bounds, [[38.3, -87.5], [38.31, -87.4]],
+    'a saved/promoted corridor still fits exactly as it always did');
+  // AN ID THAT LOOKS LIKE THE OTHER FAMILY IS STILL RESOLVED BY ITS DESCRIPTOR, not by its name.
+  const mislabelled = corridor('or-roads-looks-like-a-candidate', { selectionDomain: 'discovery',
+    geometry: { type: 'LineString', coordinates: [[-88.1, 39.1], [-88.0, 39.2]] } });
+  view.draw({ corridors: [mislabelled] });
+  view.setSelected(mislabelled.id);
+  assert.equal(view.fitSelected(), true);
+  assert.deepEqual(calls.fits.at(-1).bounds, [[39.1, -88.1], [39.2, -88.0]]);
+});
+
+const PLAN_GEOMETRY = { type: 'LineString', coordinates: [[-87.8, 38.2], [-87.7, 38.25]] };
+
+test('a plan member is framed from the plan, and ordinary selection is never a fit', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  // The plan holds a road that is not in the visible candidate set at all: the selection still resolves.
+  view.draw({ corridors: [] });
+  view.setOuting({ id: 'o1', roads: [{ id: 'plan-road', name: 'Plan Rd', geometry: PLAN_GEOMETRY }] });
+  view.setSelected('plan-road');
+  assert.equal(calls.fits.length, 0, 'selecting a plan member does not fit');
+  assert.equal(view.fitSelected(), true);
+  assert.deepEqual(calls.fits.at(-1).bounds, [[38.2, -87.8], [38.25, -87.7]]);
+  // ORDINARY SELECTION, OVER AND OVER, MOVES NOTHING: the fit is a button and nothing else.
+  const before = calls.fits.length;
+  view.setSelected('plan-road');
+  view.setSelected(null);
+  view.setSelected('plan-road');
+  assert.equal(calls.fits.length, before, 'selection is appearance only');
+  assert.equal(view.fitCount(), 1, 'and only explicit fits are counted');
+});
+
+test('a selection with no usable geometry refuses the fit instead of guessing', () => {
+  const { leaflet, calls } = fakeLeaflet();
+  const view = createGeoView({ style: {} }, { leaflet });
+  view.draw({ corridors: [{ id: 'unresolved', name: 'Unresolved' }] });
+  view.setSelected('unresolved');
+  assert.equal(view.canFitSelected(), false, 'and the control is told there is nothing to frame');
+  assert.equal(view.fitSelected(), false, 'a corridor the map cannot measure is not fitted');
+  assert.equal(calls.fits.length, 0);
+  assert.equal(view.fitCount(), 0);
+  assert.equal(view.fitSelected(), false, 'and asking again is still refused, not counted');
+  assert.equal(view.fitCount(), 0);
+});
+
 test('fit controls refuse honestly when there is nothing to fit', () => {
   const { leaflet, calls } = fakeLeaflet();
   const notices = [];

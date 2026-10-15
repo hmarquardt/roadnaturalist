@@ -1153,6 +1153,17 @@ function renderMapSelection(state) {
   if (nodes.mapBackToRecommendations) nodes.mapBackToRecommendations.hidden = !(state.discovery.results ?? []).length;
 }
 
+// SHOW ON MAP, IN THE ORDER THE CARD PROMISED.
+//
+// The selection is published first, so the render that follows has already redrawn the map with this corridor emphasised; the
+// fit then frames exactly that corridor, and the caller moves the page to it afterwards. The guard is what makes the order
+// safe rather than lucky: the map's own selected id must be the corridor that was asked for, so a stale or repeated render can
+// never frame the road that was selected a moment before.
+function frameSelectedDiscovery(id) {
+  if (map.selectedId?.() !== id) return false;
+  return map.fitSelected();
+}
+
 function caption(state) {
   const selected = state.candidates.find(candidate => candidate.id === state.selectedId);
   if (!selected) return 'Select a corridor to see its mapped geometry. Geometry is evidence, not an invented route.';
@@ -1557,7 +1568,6 @@ store.subscribe(state => {
   // is being chosen, and it stays after a search so the results can be read against the area they came from.
   updateSearchPreview(state);
   nodes.fitResults.disabled = !(state.discovery.status === 'ready' && state.discovery.results.length);
-  nodes.fitSelected.disabled = !selected;
   nodes.caption.textContent = caption(state);
   renderMapSelection(state);
   // THE OVERLAY BELONGS TO THE CORRIDOR THE MAP IS SHOWING, by the same rule the habitat action used to name it. Reading
@@ -1610,6 +1620,10 @@ store.subscribe(state => {
     // selected in the list with nothing emphasised on the map.
     drawn.selectedId = selected?.id ?? null;
   }
+  // FIT SELECTED FOLLOWS WHICHEVER CORRIDOR THE WORKSPACE SHOWS, and it is the map that answers whether there is anything to
+  // frame: the map owns the geometry it draws, including a plan member that is not in the visible candidate set, so the button
+  // is enabled exactly when a fit would do something.
+  nodes.fitSelected.disabled = !map.canFitSelected?.();
   // EXACTLY ONE AUTOMATIC FIT PER COMPLETED SEARCH, SPENT ONCE THE MAP ACTUALLY HOLDS GEOMETRY.
   //
   // The order matters and was the bug: the request arrives with the completed run, but the render that carries the
@@ -1672,6 +1686,7 @@ function renderDiscoveryPanel(state) {
     presets: declaredRadiusPresets, region: publishedRegion, gazetteer: places, loadPlaceTier: ensurePlaceTier,
     onDiscover: () => { discoverRoads().catch(error => store.failDiscovery({ error: error.message, marks: state.discovery.marks })); },
     onSelect: id => store.selectDiscovery(id),
+    onShowOnMap: id => frameSelectedDiscovery(id),
     onPromote: id => promoteDiscoveryCorridor(id),
     onDismiss: id => markDiscoveryCorridor(id),
     // ADDING TO A PLAN: the road is kept first if it is not saved yet, then added to the plan the person chose - or to a

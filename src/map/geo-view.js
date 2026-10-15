@@ -810,6 +810,16 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         view.setSelected(selectedId);
         return { drawn: results.drawn, skipped: results.skipped, candidates: corridors.length };
       },
+      // THE SELECTED ROAD, RESOLVED ONCE. The emphasis and the fit must frame the same geometry, so both read this: the
+      // plan first (a road the person is planning with may not be in the visible candidate set at all), then the corridors
+      // the map is drawing - which is where discovery results live, carrying their own `selectionDomain`.
+      selectedFeature() {
+        if (selectedId == null) return { feature: null, planned: false };
+        const planned = outingIds().has(selectedId);
+        const feature = planned ? (outingRoads.find(road => road.id === selectedId) ?? null)
+          : (corridors.find(corridor => corridor.id === selectedId) ?? null);
+        return { feature: feature ?? null, planned };
+      },
       // Selection changes appearance only. It is called on every list highlight precisely *because* it does not fit.
       setSelected(id) {
         selectedId = id ?? null;
@@ -822,9 +832,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         // THE SELECTED ROAD IS LOOKED FOR IN THE PLAN TOO, because a road the person is planning with may not be in the
         // visible candidate set at all. If it is a plan member, the plan's own drawing and style are what is emphasised -
         // the selection never shows a road in one family's clothes while the base copy wears another's.
-        const planned = outingIds().has(selectedId);
-        const selected = planned ? (outingRoads.find(road => road.id === selectedId) ?? null)
-          : (corridors.find(corridor => corridor.id === selectedId) ?? null);
+        const { feature: selected, planned } = view.selectedFeature();
         const selectedStyle = planned ? OUTING_STYLE.selected : (selected ? styleFor(selected) : null);
         const selectedKind = planned ? FEATURE_KIND.OUTING : FEATURE_KIND.CORRIDOR;
         // THE LEADER FOLLOWS THE SELECTION, AND ONLY THE SELECTION. It is normalized from the selected corridor's own
@@ -934,7 +942,7 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
       },
       basemapStatus: () => basemapStatus,
       tileErrorCount: () => tileErrors,
-      // The three explicit camera moves. Nothing else fits.
+      // THE EXPLICIT CAMERA MOVES, AND NOTHING ELSE. Every one of them is a button, and every one is counted.
       fitResults() {
         const bounds = boundsOfGeometries(corridors.map(corridor => corridor.geometry));
         if (!bounds) { onNotice({ kind: 'empty', note: 'No mapped corridor geometry to fit.' }); return false; }
@@ -942,14 +950,21 @@ export function createGeoView(container, { leaflet = globalThis.L ?? null, provi
         fitCount += 1;
         return true;
       },
+      // WHETHER THERE IS ANYTHING TO FRAME. The control asks this rather than guessing from the selection id, so a corridor
+      // with no usable geometry leaves the button disabled instead of offering a fit that would do nothing.
+      canFitSelected() {
+        const { feature } = view.selectedFeature();
+        return Boolean(boundsOfGeometries([feature?.geometry]));
+      },
+      // FRAME THE SELECTED ROAD, WHICHEVER COLLECTION IT CAME FROM. The geometry is the one the map is already drawing -
+      // nothing is fetched, re-measured or rebuilt - and a selection with no usable geometry is refused rather than fitted
+      // to a guess. Multi-part corridors fit all of their parts, because `boundsOfGeometries` measures every line.
       fitSelected() {
-        // A selected road may be a plan member, which is not a visible candidate: the same lookup the emphasis uses.
-        const selected = outingIds().has(selectedId)
-          ? (outingRoads.find(road => road.id === selectedId) ?? null)
-          : (corridors.find(corridor => corridor.id === selectedId) ?? null);
-        const bounds = boundsOfGeometries([selected?.geometry]);
+        const { feature } = view.selectedFeature();
+        const bounds = boundsOfGeometries([feature?.geometry]);
         if (!bounds) return false;
         map.fitBounds(bounds, { padding: [24, 24] });
+        fitCount += 1;
         return true;
       },
       selectedId: () => selectedId,

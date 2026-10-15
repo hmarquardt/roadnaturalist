@@ -307,18 +307,40 @@ test('on a desktop the answer leads, the intro still reads as intentional, and t
   await expect(page.locator('#recommendations-heading')).toBeVisible();
   console.log(`FIRST_LOOK_DESKTOP_ORDER ${JSON.stringify(order)}`);
 });
-
-// SHOW ON MAP HAS TO SHOW THE MAP.
+// SHOW ON MAP HAS TO SHOW THE MAP, AT A SCALE THE ROAD CAN BE SEEN AT.
 //
 // On a phone the map sits about two screens below the answer, so a primary action that only changed a highlight nobody could
-// see looked like nothing happened. This workflow proves the promise: the exact corridor is selected, the map is brought into
-// view, the camera and the fit count are untouched, and there is a way back that changes nothing at all.
-test('Show on map selects the road and brings the map into view, without touching the camera', async ({ page }) => {
+// see looked like nothing happened. `Show on map` now selects the exact corridor, frames it, and brings the map into view -
+// an explicit camera move, because the person explicitly asked to see that road. Ordinary selection (a road's name, a table
+// row, a map click) still moves nothing at all, and the two are asserted apart below.
+// WHERE THE SELECTED GEOMETRY IS DRAWN, as the person's browser has it: how many paths the map is drawing for it, how much of
+// the map they cover, and whether every one of them is inside the map's own rectangle. A multi-part corridor must have *all*
+// of its parts on screen, which is exactly what "inside" checks.
+const geometryOf = (page, selector) => page.evaluate(sel => {
+  const map = document.querySelector('#map');
+  const rect = map.getBoundingClientRect();
+  const paths = [...document.querySelectorAll(sel)];
+  const boxes = paths.map(path => path.getBoundingClientRect());
+  const union = boxes.length ? { top: Math.min(...boxes.map(b => b.top)), left: Math.min(...boxes.map(b => b.left)),
+    bottom: Math.max(...boxes.map(b => b.bottom)), right: Math.max(...boxes.map(b => b.right)) } : null;
+  return { paths: paths.length, width: union ? Math.round(union.right - union.left) : 0,
+    height: union ? Math.round(union.bottom - union.top) : 0,
+    map: { w: Math.round(rect.width), h: Math.round(rect.height) },
+    inside: Boolean(union) && union.top >= rect.top - 1 && union.bottom <= rect.bottom + 1
+      && union.left >= rect.left - 1 && union.right <= rect.right + 1 };
+}, selector);
+
+const selectedGeometry = page => geometryOf(page, '#map [data-role="candidate"][data-selected="true"]');
+
+// The one selected corridor, by the contract the map's own gates use.
+const selectedCorridor = page => page.locator('#map [data-role="candidate"][data-selected="true"]')
+  .evaluateAll(nodes => [...new Set(nodes.map(node => node.dataset.corridorId))]);
+
+test('Show on map selects, frames and reveals the exact road - and never touches the data plane', async ({ page }) => {
   test.setTimeout(1800000);
   await freshPage(page, PHONE);
   await findRoadsByPlace(page, 'Princeton');
-  // Data-plane reads, watched from here on: the search reads the derived plane as it must, and this assertion is about what
-  // SHOW ON MAP does afterwards - which is nothing at all on the data plane.
+  // Watched from here: the search reads the derived plane as it must; this assertion is about what Show on map does after it.
   const reads = [];
   page.on('request', request => {
     const url = request.url();
@@ -329,90 +351,138 @@ test('Show on map selects the road and brings the map into view, without touchin
   const first = await cards.first().getAttribute('data-candidate-id');
   const fifth = await cards.nth(4).getAttribute('data-candidate-id');
   await expect(page.locator(`#recommendation-rank-${first}`)).toHaveText('#1 Best overall');
+  // FIT SELECTED IS DEAD WITHOUT A SELECTION, and it is the control this action uses.
+  await expect(page.locator('#fit-selected')).toBeDisabled();
 
-  // BEFORE: the map is well below the answer, and the person can see the answer.
-  const before = await layout(page, ['#map-panel', '#recommendation-list li.recommendation', '#discovery-recommendations']);
+  // CASE A. The map is below the answer, the corridor is a few pixels at the search-area zoom.
+  const start = await layout(page, ['#map-panel', '#recommendation-list li.recommendation']);
   const cameraBefore = await cameraOf(page);
   const fitsBefore = await fitCountOf(page);
-  expect(before.boxes['#map-panel'].top, 'the map starts below the first screen').toBeGreaterThan(before.viewport);
-  expect(before.boxes['#recommendation-list li.recommendation'].top).toBeLessThan(before.viewport);
-
-  // TAP SHOW ON MAP: the exact corridor, and the map on screen.
+  expect(start.boxes['#map-panel'].top, 'the map starts below the first screen').toBeGreaterThan(start.viewport);
   await page.locator(`#recommendation-show-${first}`).click();
-  await expect(page.locator(`#recommendation-show-${first}`)).toBeVisible();
+  await expect.poll(() => selectedCorridor(page), { timeout: 60000 }).toEqual([first]);
+  // THE MAP IS BROUGHT TO THE PERSON, AND THE ROAD IS FRAMED.
   await expect.poll(async () => (await layout(page, ['#map-panel'])).boxes['#map-panel'].top,
-    { timeout: 15000, message: 'the map is brought into view' }).toBeLessThanOrEqual(0);
-  const shown = await layout(page, ['#map-panel', '#map']);
-  expect(shown.boxes['#map-panel'].top, 'the map region is at the top of the viewport').toBeLessThanOrEqual(4);
-  expect(shown.boxes['#map-panel'].bottom, 'and substantially on screen').toBeGreaterThan(shown.viewport * 0.5);
-  // THE EXACT CORRIDOR, through the one selection state the whole workspace shares.
-  await expect.poll(async () => page.locator('#map [data-role="candidate"][data-selected="true"]')
-    .evaluateAll(nodes => [...new Set(nodes.map(node => node.dataset.corridorId))])).toEqual([first]);
-  // THE MAP SAYS WHICH ROAD ARRIVED WITH THE PERSON, and offers the way back.
+    { timeout: 15000, message: 'the map is brought into view' }).toBeLessThanOrEqual(4);
+  await expect(page.locator('#map-panel')).toBeFocused();
   await expect(page.locator('#map-selection')).toBeVisible();
   await expect(page.locator('#map-selection-name')).not.toBeEmpty();
-  await expect(page.locator('#map-panel')).toBeFocused();
-  // AND THE CAMERA IS EXACTLY WHERE IT WAS: a page scroll is not a fit.
-  expect(await cameraOf(page)).toEqual(cameraBefore);
-  expect(await fitCountOf(page), 'no fit is asked for').toBe(fitsBefore);
-  console.log(`SHOWMAP_PHONE ${JSON.stringify({ before: before.boxes['#map-panel'], after: shown.boxes['#map-panel'],
-    camera: cameraBefore, fits: fitsBefore })}`);
+  const cameraAfterFirst = await cameraOf(page);
+  expect(cameraAfterFirst, 'the camera frames the road it was asked to show').not.toEqual(cameraBefore);
+  expect(await fitCountOf(page), 'exactly one explicit fit').toBe(fitsBefore + 1);
+  const framedFirst = await selectedGeometry(page);
+  expect(framedFirst.inside, 'every drawn part of the corridor is inside the map').toBe(true);
+  expect(await page.locator('#fit-selected').isEnabled(), 'and the control now has something to fit').toBe(true);
+  console.log(`SHOWMAP_FIRST ${JSON.stringify({ id: first, cameraBefore, cameraAfter: cameraAfterFirst, geometry: framedFirst })}`);
 
-  // BACK TO THE ANSWER: the same cards, the same selection, the same search - and no data read to get there.
+  // BACK TO THE ANSWER KEEPS THE CAMERA EXACTLY WHERE IT WAS: returning to the cards is a page move, not a camera move.
   await page.locator('#map-back-to-recommendations').click();
   await expect.poll(async () => (await layout(page, ['#discovery-recommendations'])).boxes['#discovery-recommendations'].top,
-    { timeout: 15000, message: 'the recommendations are back on screen' }).toBeLessThan(200);
-  await expect(cards).toHaveCount(5);
-  await expect(page.locator(`#recommendation-rank-${first}`)).toHaveText('#1 Best overall');
-  await expect(page.locator(`#recommendation-open-${first}`)).toHaveAttribute('aria-current', 'true');
-  await expect(page.locator('#recommendations-heading')).toContainText('Best road-naturalist drives within');
+    { timeout: 15000 }).toBeLessThan(200);
+  expect(await cameraOf(page), 'coming back does not reset the view').toEqual(cameraAfterFirst);
+  expect(await selectedCorridor(page)).toEqual([first]);
 
-  // THE FIFTH CARD BEHAVES LIKE THE FIRST: same map region, its own corridor. The interaction does not depend on card order.
+  // CASE B. A second recommendation frames ITSELF - one more fit, its own geometry, no stale fit from #1.
   await page.locator(`#recommendation-show-${fifth}`).click();
-  await expect.poll(async () => (await layout(page, ['#map-panel'])).boxes['#map-panel'].top,
-    { timeout: 15000, message: 'the fifth card brings the map into view too' }).toBeLessThanOrEqual(0);
-  await expect.poll(async () => page.locator('#map [data-role="candidate"][data-selected="true"]')
-    .evaluateAll(nodes => [...new Set(nodes.map(node => node.dataset.corridorId))])).toEqual([fifth]);
-  expect(await cameraOf(page)).toEqual(cameraBefore);
-  expect(await fitCountOf(page)).toBe(fitsBefore);
+  await expect.poll(() => selectedCorridor(page), { timeout: 60000 }).toEqual([fifth]);
+  await expect.poll(async () => (await layout(page, ['#map-panel'])).boxes['#map-panel'].top, { timeout: 15000 })
+    .toBeLessThanOrEqual(4);
+  const cameraAfterFifth = await cameraOf(page);
+  expect(await fitCountOf(page), 'one more fit, and only one').toBe(fitsBefore + 2);
+  expect(cameraAfterFifth, 'the fifth card frames the fifth road, not the first').not.toEqual(cameraAfterFirst);
+  const framedFifth = await selectedGeometry(page);
+  expect(framedFifth.inside, 'and every part of that one is inside the map too').toBe(true);
+  console.log(`SHOWMAP_FIFTH ${JSON.stringify({ id: fifth, cameraAfter: cameraAfterFifth, geometry: framedFifth })}`);
   expect(reads, 'showing a road on the map reads no data plane').toEqual([]);
-  console.log(`SHOWMAP_PHONE_FIFTH ${JSON.stringify({ fifth })}`);
 });
 
-// THE RULE IS VISIBILITY, NOT WIDTH.
-//
-// A page that already shows the map must not jump when a card is tapped, and a page that does not must be taken to it. The
-// layout decides which case a person is in, so the test sets up the visible case directly: the map on screen, then the card's
-// action dispatched without the browser scrolling the button into view (which is exactly what a person whose viewport already
-// shows the map would do - they tap a button they can see, and the page stays where it is).
-test('Show on map does not move a page that already shows the map, and never moves the camera', async ({ page }) => {
+test('ordinary selection moves nothing, and Fit selected is the explicit move that does', async ({ page }) => {
+  test.setTimeout(1800000);
+  await freshPage(page, PHONE);
+  await findRoadsByPlace(page, 'Portland');
+  const cards = page.locator('#recommendation-list li.recommendation');
+  await expect(cards).toHaveCount(5);
+  const ids = await cards.evaluateAll(nodes => nodes.map(node => node.dataset.candidateId));
+  const cameraBefore = await cameraOf(page);
+  const fitsBefore = await fitCountOf(page);
+  // CASE C, STEP 1: SELECTING BY NAME. A pilot corridor is a few pixels at the search-area zoom, and selecting it must still
+  // change nothing about the viewport.
+  await page.locator(`#recommendation-open-${ids[2]}`).click();
+  await expect.poll(() => selectedCorridor(page), { timeout: 60000 }).toEqual([ids[2]]);
+  expect(await cameraOf(page), 'selection is appearance only').toEqual(cameraBefore);
+  expect(await fitCountOf(page), 'and is never a fit').toBe(fitsBefore);
+  const beforeFit = await selectedGeometry(page);
+  expect(beforeFit.inside, 'the corridor is already inside the map at the search-area zoom').toBe(true);
+  await expect(page.locator('#fit-selected')).toBeEnabled();
+  // CASE C, STEP 2: THE CONTROL THE PERSON PRESSES.
+  await page.locator('#fit-selected').click();
+  await expect.poll(async () => (await cameraOf(page))?.zoom, { timeout: 20000 })
+    .toBeGreaterThan(cameraBefore.zoom);
+  expect(await fitCountOf(page), 'Fit selected is a fit, and counted as one').toBe(fitsBefore + 1);
+  const framed = await selectedGeometry(page);
+  expect(framed.inside, 'and it frames that exact corridor').toBe(true);
+  expect(framed.width, 'which now occupies a useful part of the map').toBeGreaterThan(beforeFit.width);
+  console.log(`FIT_SELECTED ${JSON.stringify({ id: ids[2], cameraBefore, cameraAfter: await cameraOf(page),
+    before: beforeFit, after: framed })}`);
+});
+
+test('a saved road still fits exactly as it always did', async ({ page }) => {
+  test.setTimeout(1800000);
+  await freshPage(page, PHONE);
+  await findRoadsByPlace(page, 'Portland');
+  const cards = page.locator('#recommendation-list li.recommendation');
+  const first = await cards.first().getAttribute('data-candidate-id');
+  // SAVE IT, then select the CANDIDATE: the same control, the other collection, unchanged behaviour.
+  await page.locator(`#recommendation-save-${first}`).click();
+  await expect(page.locator(`#recommendation-save-${first}`)).toHaveText('Saved', { timeout: 180000 });
+  const candidate = page.locator(`#saved-roads [data-candidate-id="${first}"]`);
+  await expect(candidate).toBeVisible({ timeout: 60000 });
+  const fitsBefore = await fitCountOf(page);
+  const cameraBefore = await cameraOf(page);
+  await candidate.click();
+  await expect(page.locator('#candidate-detail .detail-title')).toBeVisible({ timeout: 60000 });
+  expect(await cameraOf(page), 'selecting a saved road does not move the camera').toEqual(cameraBefore);
+  await expect(page.locator('#fit-selected')).toBeEnabled();
+  await page.locator('#fit-selected').click();
+  await expect.poll(async () => (await cameraOf(page))?.zoom, { timeout: 20000 }).toBeGreaterThan(cameraBefore.zoom);
+  expect(await fitCountOf(page)).toBe(fitsBefore + 1);
+  console.log(`FIT_SAVED ${JSON.stringify({ id: first, cameraAfter: await cameraOf(page) })}`);
+});
+
+// THE RULE IS VISIBILITY, NOT WIDTH: fitting is unconditional, but the page only moves when the map is not already there.
+test('on a desktop the map is framed and a page that already shows it does not jump', async ({ page }) => {
   test.setTimeout(1800000);
   await freshPage(page, DESKTOP);
-  await findRoadsByPlace(page, 'Princeton');
+  await findRoadsByPlace(page, 'Portland');
   const first = await page.locator('#recommendation-list li.recommendation').first().getAttribute('data-candidate-id');
   const cameraBefore = await cameraOf(page);
   const fitsBefore = await fitCountOf(page);
-  // FIRST TAP: the exact corridor, and the map on screen - dispatched without the browser scrolling the button into view,
-  // which is what a person whose viewport already shows the map would do.
-  await page.evaluate(id => document.getElementById(id).click(), `recommendation-show-${first}`);
-  await expect.poll(async () => page.locator('#map [data-role="candidate"][data-selected="true"]')
-    .evaluateAll(nodes => [...new Set(nodes.map(node => node.dataset.corridorId))])).toEqual([first]);
-  await expect.poll(async () => (await layout(page, ['#map-panel'])).boxes['#map-panel'].top,
-    { timeout: 15000, message: 'the map is on screen after the tap' }).toBeLessThanOrEqual(4);
-
-  // SECOND TAP, THE CASE THE RULE IS FOR: the road is already selected, so nothing about the layout changes - the page is
-  // already showing the map, and it must not move at all.
+  // Dispatched without the browser scrolling the button into view, which is what a person whose viewport already shows the map
+  // would do. The fit still happens - the person asked to see the road - and the page must not move under them.
   await page.locator('#map-panel').evaluate(node => node.scrollIntoView({ block: 'center' }));
   await page.waitForTimeout(500);
-  const settled = await layout(page, ['#map-panel']);
-  expect(settled.boxes['#map-panel'].top).toBeLessThan(settled.viewport);
-  const scrollBefore = settled.scrollY;
+  expect((await layout(page, ['#map-panel'])).boxes['#map-panel'].top).toBeLessThan(950);
   await page.evaluate(id => document.getElementById(id).click(), `recommendation-show-${first}`);
+  await expect.poll(() => selectedCorridor(page), { timeout: 60000 }).toEqual([first]);
+  await expect.poll(async () => (await cameraOf(page))?.zoom, { timeout: 20000 }).toBeGreaterThan(cameraBefore.zoom);
+  expect(await fitCountOf(page)).toBe(fitsBefore + 1);
+  await expect.poll(async () => (await layout(page, ['#map-panel'])).boxes['#map-panel'].top, { timeout: 15000 })
+    .toBeLessThanOrEqual(4);
+  expect((await selectedGeometry(page)).inside).toBe(true);
+
+  // SECOND TAP, WHICH IS THE CASE THE NO-JUMP RULE IS FOR: the road is already selected, so the panel above the map does not
+  // grow, the map is on screen, and the page must not move at all. The fit still happens - it is asked for every time.
+  await page.locator('#map-panel').evaluate(node => node.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(500);
+  const settledAgain = await layout(page, ['#map-panel']);
+  expect(settledAgain.boxes['#map-panel'].top).toBeLessThan(settledAgain.viewport);
+  const scrollBefore = settledAgain.scrollY;
+  const fitsBeforeSecond = await fitCountOf(page);
+  await page.evaluate(id => document.getElementById(id).click(), `recommendation-show-${first}`);
+  await expect.poll(async () => await fitCountOf(page), { timeout: 15000 }).toBe(fitsBeforeSecond + 1);
   await page.waitForTimeout(1200);
   const after = await layout(page, ['#map-panel']);
   expect(after.scrollY, 'a page that already shows the map does not jump').toBe(scrollBefore);
   expect(after.boxes['#map-panel'].top).toBeLessThan(after.viewport);
-  expect(await cameraOf(page)).toEqual(cameraBefore);
-  expect(await fitCountOf(page)).toBe(fitsBefore);
-  console.log(`SHOWMAP_VISIBLE_NO_JUMP ${JSON.stringify({ scrollBefore, scrollAfter: after.scrollY, mapTop: after.boxes['#map-panel'].top })}`);
+  console.log(`SHOWMAP_DESKTOP ${JSON.stringify({ scrollBefore, scrollAfter: after.scrollY, camera: await cameraOf(page) })}`);
 });

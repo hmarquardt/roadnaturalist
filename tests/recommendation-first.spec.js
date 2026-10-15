@@ -204,11 +204,15 @@ test('a card selects the corridor the table and the map already select, and move
   // NO CAMERA MOVE, AND NO FIT: the person asked to see it, not to be taken to it.
   expect(JSON.stringify(await cameraOf(page)), 'selecting a recommendation never moves the camera').toBe(cameraBefore);
   expect(await fitCountOf(page), 'and is never a fit').toBe(fitsBefore);
-  // SHOW ON MAP IS THE SAME SELECTION, and it says so by selecting the same corridor.
+  // SHOW ON MAP IS THE SAME SELECTION, AND IT IS AN EXPLICIT CAMERA MOVE: it selects the same corridor and frames it, because
+  // the person asked to see that road. Ordinary selection above is the case that must never move the camera.
   const second = cards[3];
   await page.locator(`#recommendation-show-${second.id}`).click();
   await expect.poll(async () => (await emphasised()).join(','), { timeout: 60000 }).toBe(second.id);
-  expect(JSON.stringify(await cameraOf(page)), 'and it moves nothing either').toBe(cameraBefore);
+  await expect.poll(async () => await fitCountOf(page), { timeout: 60000 })
+    .toBe(fitsBefore + 1, 'Show on map frames the road it was asked to show');
+  expect(JSON.stringify(await cameraOf(page)), 'so the camera is not where it started')
+    .not.toBe(cameraBefore);
   // SAVE IS THE ORDINARY PROMOTION: the road becomes a saved road, and the card says so instead of offering it twice.
   await page.locator(`#recommendation-save-${second.id}`).click();
   await expect(page.locator(`#recommendation-save-${second.id}`)).toHaveText('Saved', { timeout: 120000 });

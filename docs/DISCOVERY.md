@@ -106,12 +106,21 @@ uses, and the ranking's own names (`exploration-order-v1`, `naturalist-interest-
 **Searching somewhere else is still one click.** `Change location` in the recommendation section brings the search surface
 into view and puts the cursor in the place field, and the compact search controls stay directly above the recommendations.
 
-**Show on map shows the map.** On a phone the map sits about two screens below the answer, so a primary action that only
-changed a highlight nobody could see looked like nothing had happened. `Show on map` now selects the corridor through the one
-selection state and brings the map panel into view - and it stops there. It never pans, zooms or fits: the page scrolls, the
-geographic camera does not, and the camera and the map's own fit count are identical before and after (the map's gates assert
-both). Panning and fitting stay where they have always been, with the controls that say so: *Fit results*, *Fit selected*, *Fit
-outing*.
+**Show on map shows the map, at a scale the road can be seen at.** On a phone the map sits about two screens below the
+answer, and a recommended road can be a few pixels at the search-area zoom, so a primary action that only changed a highlight
+nobody could see looked like nothing had happened. `Show on map` now does four things in order: it selects the exact corridor
+through the one selection state, lets the map redraw it, **frames that corridor** - an explicit camera move, because the person
+explicitly asked to see that road - and then brings the map panel into view and takes focus with it. Measured on the deployed
+page: a Portland recommendation goes from zoom 9 with a 29 px line to zoom 12 with a 145 px one, one fit per tap, and no
+data-plane read at all.
+
+**The camera rule is unchanged for everything else.** Ordinary selection - a road's name, a table row, a map click, a sort, a
+saved-road selection, a source-evidence step - still moves nothing: `Fit selected`, `Fit results`, `Fit outing` and the plan's
+*Fit me + current road* are the only camera moves, they are all buttons, and they are all counted by the map's own fit count.
+`Fit selected` follows whichever corridor the workspace shows, discovery or saved or a plan member, resolved by the map's own
+lookup over the geometry it is drawing - never by parsing an id, never by refetching - and it is enabled exactly when there is
+something to frame. `Show on map` is the one card action that both selects and fits; the road's name and `More details`
+remain selection alone.
 
 The rule is **visibility, not width**: if the map is already substantially on screen - a desktop layout, or a person who has
 scrolled to it - nothing moves at all. The map region takes focus (`#map-panel`, `tabindex="-1"`, labelled by its heading) so a

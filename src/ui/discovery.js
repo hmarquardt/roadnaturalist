@@ -89,6 +89,7 @@ function focusRecommendationsOnce(discovery) {
 export function renderDiscovery(container, { discovery, searchAreas = [], searchAreaId = null, search = null,
   presets = [], region = null, gazetteer = null, loadPlaceTier = null, onDiscover, onSelect, onPromote, onDismiss,
   onFilters, onSort, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace,
+  onShowOnMap,
   onUseLocation, locationSupported = false, outings = [], selectedOutingId = null, onAddToOuting } = {}) {
   container.replaceChildren();
   // The radius this run asked for, in metres. The exploration order normalises distance against it, and the panel
@@ -124,7 +125,7 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
     // in "Explore all results".
     // THE ANSWER, THE DETAIL, THE WORKBENCH. What was searched is stated once, in the compact search summary at the top of
     // the panel - so it is not repeated here.
-    container.append(recommendationsSection({ discovery, radiusM, onSelect, onPromote }));
+    container.append(recommendationsSection({ discovery, radiusM, onSelect, onShowOnMap, onPromote }));
     if (selected) container.append(selectedResult(selected, { onPromote, onDismiss, onSelect, radiusM, outings,
       selectedOutingId, onAddToOuting }));
     container.append(workbench({ discovery, radiusM, onFilters, onSort, onSelect,
@@ -894,7 +895,7 @@ function coverageBanner(coverage, diagnostics, searchArea = null, centerLabel = 
 // The section carries the whole ordinary flow: the assumption in its heading ("within 25 miles"), one sentence saying what
 // was compared, one caveat for all five cards, a way to search somewhere else, and "How recommendations work" for the
 // longer explanation. None of the machinery is required to read it.
-function recommendationsSection({ discovery, radiusM = null, onSelect, onPromote }) {
+function recommendationsSection({ discovery, radiusM = null, onSelect, onShowOnMap, onPromote }) {
   const section = el('section', 'discovery-recommendations');
   section.id = 'discovery-recommendations';
   // A ROAD THE PERSON DISMISSED IS NOT RECOMMENDED. Dismissing it is an explicit judgement about this search, and putting
@@ -934,7 +935,7 @@ function recommendationsSection({ discovery, radiusM = null, onSelect, onPromote
   const cards = recommendations(results, { radiusM });
   const list = el('ol', 'recommendation-list');
   list.id = 'recommendation-list';
-  cards.forEach(entry => list.append(recommendationCard(entry, { discovery, onSelect, onPromote })));
+  cards.forEach(entry => list.append(recommendationCard(entry, { discovery, onSelect, onShowOnMap, onPromote })));
   section.append(list);
   // FEWER THAN FIVE IS NOT A FAILURE AND IS NOT PADDED. The count is stated so an empty-ish answer cannot read as a
   // layout that failed to fill.
@@ -982,7 +983,7 @@ function workbench({ discovery, radiusM = null, coverage = null, onFilters, onSo
 
 // ONE CARD. It carries the measurements behind its own sentences as data attributes, so a reader (and a committed test)
 // can check the words against the numbers the analysis produced.
-function recommendationCard({ result, summary }, { discovery, onSelect, onPromote }) {
+function recommendationCard({ result, summary }, { discovery, onSelect, onShowOnMap, onPromote }) {
   const card = el('li', 'recommendation');
   card.id = `recommendation-${result.id}`;
   card.dataset.candidateId = result.id;
@@ -1028,15 +1029,22 @@ function recommendationCard({ result, summary }, { discovery, onSelect, onPromot
   }
 
   const actions = el('div', 'recommendation-actions');
-  // SHOW ON MAP IS THE PRIMARY ACTION, AND IT MEANS WHAT IT SAYS: select this corridor through the ordinary selection state,
-  // then bring the map that draws it into view. The scroll happens on the next frame, because the selection itself changes
-  // the panel's height - the detail panel appears with it - and a page measured before that change would land in the wrong
-  // place. The map's camera is not touched: this is a page scroll, not a fit.
+  // SHOW ON MAP IS THE PRIMARY ACTION, AND IT MEANS WHAT IT SAYS, IN THIS ORDER:
+  //
+  //   1. select this corridor through the one selection state;
+  //   2. let the map redraw it (the selection's own render has already done that by the time this returns);
+  //   3. frame exactly that corridor - an explicit camera move, because the person asked to see it;
+  //   4. bring the map panel into view, on the next frame, because the selection changes the panel's height above it and a
+  //      page measured before that change would land in the wrong place;
+  //   5. take focus with it.
+  //
+  // Ordinary selection - the road's name, a table row, a map click - calls `onSelect` alone and never comes here.
   const show = el('button', 'primary-button', 'Show on map');
   show.type = 'button';
   show.id = `recommendation-show-${result.id}`;
   show.addEventListener('click', () => {
     onSelect?.(result.id);
+    onShowOnMap?.(result.id);
     requestAnimationFrame(() => revealMap());
   });
   actions.append(show);

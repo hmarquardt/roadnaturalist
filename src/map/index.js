@@ -11,7 +11,7 @@ export function createMapView(container, options = {}) {
   // reports "not available" rather than a boot failure in the application. The record of what was missing stays on the
   // view itself for a developer reading it, and is not part of the diagnostic surface below.
   const API = ['draw', 'setSearch', 'setSelected', 'setSavedRoads', 'setOuting', 'setPickMode', 'setBasemap',
-    'fitResults', 'fitSelected', 'destroy', 'contextGeometry', 'fitOuting', 'setUserLocation', 'userLocationPoint',
+    'fitResults', 'fitSelected', 'canFitSelected', 'destroy', 'contextGeometry', 'fitOuting', 'setUserLocation', 'userLocationPoint',
     'centerOn', 'fitUserAndRoad', 'setTrack', 'hasTrack', 'fitTrack'];
   const missing = [];
   for (const name of API) {
