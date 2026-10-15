@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // SAVED ROADS IN A BROWSER.
 //
@@ -49,6 +50,7 @@ async function reloadAndBoot(page) {
 }
 
 async function search(page, { lat, lon, radius }) {
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(lat.toFixed(4));
   await page.locator('#discovery-center-lon').fill(lon.toFixed(4));
   await page.locator('#discovery-center-apply').click();
@@ -68,6 +70,7 @@ async function savedCount(page) {
 // this row and not the one before it - which matters because two rows can share a road name.
 async function promote(page, index = 0) {
   const before = await savedCount(page);
+  await openAllResults(page);
   const row = page.locator('#discovery-results tbody tr').nth(index);
   await expect(row).toBeVisible({ timeout: 60000 });
   const previous = (await page.locator('#discovery-selected h3').count() ? page.locator('#discovery-selected h3').innerText() : '');
@@ -157,6 +160,7 @@ test('re-promoting the same corridor keeps the favorite and the note', async ({ 
   await writeNote(page, 'keep this one');
   const before = await page.evaluate(key => JSON.parse(localStorage.getItem(key)).candidates[0].userMeta, 'roadnaturalist.candidates.v1');
   // The same search, the same corridor, promoted again: one saved road, and the same annotation on it.
+  await openAllResults(page);
   const row = page.locator('#discovery-results tbody tr').first();
   await row.locator('.discovery-row').click();
   await expect(page.locator('#discovery-promote')).toBeVisible({ timeout: 60000 });

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 import { cameraOf, fitCountOf } from './map-contract.js';
 
@@ -62,6 +63,7 @@ test('a position is asked for, shown, measured, and stopped - and never decides 
   // A READING, DELIVERED BY THE GATE. Nothing happens on the device's own schedule here.
   const emit = (position) => page.evaluate(fix => globalThis.__RN_LOCATION.emit(fix), position);
   const refuse = (code) => page.evaluate(value => globalThis.__RN_LOCATION.fail(value), code);
+  await openAllResults(page);
   const rows = () => page.locator('#discovery-results tbody tr');
   const camera = async () => JSON.stringify(await cameraOf(page));
   const positions = () => page.locator('[data-role="user-location"]');
@@ -92,6 +94,7 @@ test('a position is asked for, shown, measured, and stopped - and never decides 
 
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(princeton.center[1].toFixed(4));
   await page.locator('#discovery-center-lon').fill(princeton.center[0].toFixed(4));
   await page.locator('#discovery-center-apply').click();

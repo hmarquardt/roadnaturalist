@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // Opt-in verification of the *deployed* regional discovery path in a real browser.
 //
@@ -30,12 +31,14 @@ test('deployed regional discovery verifies coverage, promotion identity and zero
 
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
+  await openAdvancedSearch(page);
   await page.locator('#discovery-area').selectOption('or-portland-west-regional');
   const started = Date.now();
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery')).toContainText('Discovery metrics', { timeout: 300000 });
   await expect(page.locator('#discovery')).toContainText('metric cell(s) selected', { timeout: 300000 });
   const elapsedMs = Date.now() - started;
+  await openAllResults(page);
   await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 120000 });
   const corridorCount = Number(await page.locator('#discovery-count').innerText());
   const banner = await page.locator('#discovery').innerText();

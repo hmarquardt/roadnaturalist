@@ -35,23 +35,44 @@ export const RECOMMENDED_TERM = 'Recommended';
 export const RECOMMENDATION_HEADING_CENTERED = 'Best road-naturalist drives near this search';
 export const RECOMMENDATION_HEADING_AREA = 'Top roads in this search area';
 
+// THE ASSUMPTION IS STATED, NOT CONFIGURED. A radius search says the radius it used, so a person can read the answer without
+// ever opening the control that chose it.
+export function recommendationHeading({ radiusMiles = null, hasCenter = false } = {}) {
+  if (Number.isFinite(radiusMiles) && radiusMiles > 0) {
+    return `Best road-naturalist drives within ${Math.round(radiusMiles)} miles`;
+  }
+  return hasCenter ? RECOMMENDATION_HEADING_CENTERED : RECOMMENDATION_HEADING_AREA;
+}
+
+// THE ONE SHORT SENTENCE BESIDE THE HEADING: what was compared, and what that buys. The equations, the version names and
+// the component bands are one disclosure below it, in "How recommendations work".
+export const RECOMMENDATION_EXPLAINER = 'Road Naturalist compares mapped wetlands, water, ecological variety and distance '
+  + 'from your search center to surface promising roads to explore.';
+
+// THE ONE CAVEAT, said once for the whole section rather than on all five cards.
+export const RECOMMENDATION_CAVEAT = 'Recommendations describe mapped natural features. They do not guarantee wildlife, '
+  + 'road access, road condition or safe places to stop.';
+
+// The long explanation, kept for the disclosure and for anyone who asks how the order is built.
 export const RECOMMENDATION_NOTE = 'These are the first roads in the recommendation order: mapped wetland, water and '
   + 'ecological variety around each corridor, with a small, bounded preference for roads nearer your search centre. It is '
   + 'an exploration order built from measurements, not a wildlife prediction, an access or safety statement, or a claim '
   + 'that one road is better than another.';
+
+export const RECOMMENDATION_HOW_HEADING = 'How recommendations work';
 
 // The boundary between the answer and the workbench. Everything the application could always do is still below it.
 export const ADVANCED_HEADING = 'Explore all results';
 export const ADVANCED_NOTE = 'The full result set, with every measured column, the filters and the sort control. Nothing '
   + 'here is removed by the recommendations above: they are the first five roads in one order over the same measurements.';
 
+// The other disclosure: the technical half of choosing where to search, which the ordinary path never needs.
+export const ADVANCED_SEARCH_HEADING = 'Advanced search';
+export const ADVANCED_SEARCH_NOTE = 'Declared search areas, exact coordinates, the map picker and the search radius. A '
+  + 'place name or this device\'s location sets the same centre without any of them.';
+
 export const BEST_OVERALL_LABEL = 'Best overall';
 
-// The heading follows the search: a centred search can honestly say "near this search", a declared box has no centre to
-// be near, so it says where the roads are instead of inventing a distance.
-export function recommendationHeading({ hasCenter = false } = {}) {
-  return hasCenter ? RECOMMENDATION_HEADING_CENTERED : RECOMMENDATION_HEADING_AREA;
-}
 
 export function recommendationRankText(rank) {
   if (!Number.isFinite(rank) || rank < 1) return null;

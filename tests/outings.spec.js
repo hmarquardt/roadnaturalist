@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // OUTINGS IN A BROWSER: PLANS, NOT ROUTES.
 //
@@ -30,6 +31,7 @@ async function savedCount(page) {
 
 // Promote `count` corridors from one search, waiting for each to be saved before the next.
 async function saveRoads(page, count) {
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill('45.5400');
   await page.locator('#discovery-center-lon').fill('-123.1700');
   await page.locator('#discovery-center-apply').click();
@@ -39,6 +41,7 @@ async function saveRoads(page, count) {
   await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 180000 });
   for (let index = 0; index < count; index += 1) {
     const before = await savedCount(page);
+    await openAllResults(page);
     const row = page.locator('#discovery-results tbody tr').nth(index);
     const previous = await page.locator('#discovery-selected h3').count() ? page.locator('#discovery-selected h3').innerText() : '';
     await row.locator('.discovery-row').click();

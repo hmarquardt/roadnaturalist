@@ -16,25 +16,87 @@ search area -> bounded road network -> eligible road units -> deterministic segm
      -> filter / sort / inspect -> promote -> normal candidate -> existing evidence workflow
 ```
 
-## Recommendations first, the workbench second
+## Choose a location, find roads, read five recommendations
 
-A search used to answer with a table. It now answers with a small ranked set of **recommendation cards** above that table:
-the top five roads in the recommendation order, each with one short verdict and two or three reasons in plain English,
-and the full workbench one heading below.
+The discovery panel answers one question first - *where should I search?* - and gets out of the way. Everything that
+configures **how** the search is bounded, and the whole result workbench, are real `<details>` disclosures that start
+collapsed.
 
 ```
-Discover roads
-   -> Best road-naturalist drives near this search          <- the answer: five cards, #1 Best overall
+Choose a location
+   Find a place ............... [ Use my location ]
+   Near Princeton, IN · 38.3553, -87.5675 · within 10 mi
+   [ Find roads ]                                        <- the one primary action
+   > Advanced search                                     <- declared areas, coordinates, map picker, radius, presets
+
+Find roads
+   -> 10-mile radius search · Near Princeton, IN         <- what was searched, in plain words
+   -> Recommended
+        Best road-naturalist drives within 10 miles
+        Found 396 roads in this search.
+        Road Naturalist compares mapped wetlands, water, ecological variety and distance from your search center to
+        surface promising roads to explore.
+        [ How recommendations work ]  [ Change location ]
+        Recommendations describe mapped natural features. They do not guarantee wildlife, road access, road condition
+        or safe places to stop.
         #1 Best overall   Co Rd 100 N
                           Wetland and water corridor
                           Mapped wetland crosses the road, 127 ha within 250 m
                           Frequent water crossings: 14 mapped
                           1.2 mi from the search center · 7.3 mi of road
-                          [Show on map] [Save]
+                          [ Show on map ] [ More details ] [ Save ]
         #2 ... #5
-   -> Explore all results                                   <- the workbench: unchanged
-        filters · sort by · the full table · the detail panel
+   -> the selected road's own detail (when a card is chosen)
+   -> > Explore all results                              <- coverage internals, filters, sort, the full table
 ```
+
+**What is on the ordinary path.** The place finder, **Use my location** (one position, used as the centre, with its privacy
+line), where the search currently is, what radius it assumes, recent searches when there are any, and **Find roads**. That
+is the whole first screen of the panel: at 390 x 844 the ordinary path is **317 px** from the panel's top, the primary
+action sits at the bottom of the first screen, and the collapsed `Advanced search` row is 46 px. The page's own intro
+section is what still occupies the first 556 px on a phone - see the note at the end of this document.
+
+**What is one deliberate click away, unchanged and complete.** `Advanced search` holds the declared search areas (the
+pilot window, the partitioned regional window, the benchmark radius scenarios), exact latitude/longitude with *Set centre*,
+*Set centre on map*, the radius slider with its numeric field and the 5/10/25/50-mile presets, and the active-search
+statement with the coverage vocabulary (`FULL`/`PARTIAL`/`NONE`/`UNKNOWN`). `Explore all results` holds the coverage banner
+and the run's diagnostics, the filters, the sort control, the full measured table, the sort explanation and the segmented
+road note. **No capability was removed, and no default changed:** the radius is still the 10 miles this product already
+defaulted to, and the table still leads with `exploration-order-v1`.
+
+**The disclosure is a real control.** `<details>`/`<summary>`, so keyboard activation works (Enter or Space), the collapsed
+content is genuinely absent from the tab order rather than hidden by CSS, and the state is written on the click itself. That
+last part is a defect this pass fixed: the `toggle` event is *queued*, so a re-render between a person's click and that
+event used to rebuild the section closed - a lost click.
+
+**Nothing important is behind a disclosure.** A failed search, a search that cannot overlap the published coverage, a
+promotion that was refused, a stale result set (`These results are from the previous search…`), the no-results state and
+the plain-language coverage consequence all stay in the ordinary flow. Only diagnostics are hidden.
+
+**Coverage jargon becomes a consequence.** A healthy search says nothing technical: the recommendation section states
+`Found 396 roads in this search.` When the data is incomplete the panel says what it means for the answer - *Some
+environmental data is unavailable here, so recommendations may use fewer signals* (PARTIAL), *No published environmental
+data covers this search area, so no recommendations can be made from it* (NONE), or *This search area's data coverage could
+not be determined…* (UNKNOWN) - and the FULL/PARTIAL/NONE vocabulary, the reasons and the run's diagnostics stay under
+`Explore all results`.
+
+**The primary action says what it does.** The button reads **Find roads**. It used to read *Discover roads*, which was the
+panel's own name for the machinery; a person pressing it is asking for roads. `Advanced search` and `Explore all results`
+say what they hold; `Recommended`, `Best overall` and `How recommendations work` are the only vocabulary the ordinary path
+uses, and the ranking's own names (`exploration-order-v1`, `naturalist-interest-v2`) appear nowhere in it.
+
+**Searching somewhere else is still one click.** `Change location` in the recommendation section brings the search surface
+into view and puts the cursor in the place field, and the compact search controls stay directly above the recommendations.
+
+**Selecting a road needs no disclosure.** The selected corridor's detail panel sits between the cards and
+`Explore all results`, so choosing a recommendation (or `More details`) shows what that road measured without opening the
+full result set. `Show on map` is the primary card action and is still the ordinary discovery selection: one selection
+state, no camera movement, no fit.
+
+## Recommendations first, the workbench second
+
+A search answers with a small ranked set of **recommendation cards**: the top five roads in the recommendation order, each
+with one short verdict and two or three reasons in plain English, above everything else.
 
 **The order is the evaluated one.** The cards are the prefix of `rankExploration` - the same
 `exploration-order-v1` the table leads with, over the same centre and radius - and nothing in the card layer ranks
@@ -270,7 +332,7 @@ else about a search:
   beside it. It is presentation only: it does not persist, does not reach the URL, and does not appear on result
   rows.
 * **No search runs by itself.** The centre appears, the coverage preview is computed with the chosen radius, and
-  nothing happens until **Discover roads** is pressed - exactly like a place, a map click or typed coordinates.
+  nothing happens until **Find roads** is pressed - exactly like a place, a map click or typed coordinates.
 * **No geocoder, and no snapping.** The centre stays exactly where the browser put it, rounded to the same five
   decimal places every other centre uses. A nearby published place is only a *label* (`Near Hillsboro, OR`, from
   the local gazetteer, within ten miles); with no place nearby the centre is labelled by its coordinates. No

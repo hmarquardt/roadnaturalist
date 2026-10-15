@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 import { RANKING_VERSION } from '../src/discovery/ranking.js';
 import { EXPLORATION_ORDER_VERSION } from '../src/discovery/exploration-order.js';
@@ -56,6 +57,7 @@ for (const id of REGIONS) {
 
     // The same centre the evaluation measured with: typed, not a gazetteer point, so the two runs are comparable.
     const [lon, lat] = region.center;
+    await openAdvancedSearch(page);
     await page.locator('#discovery-center-lat').fill(lat.toFixed(4));
     await page.locator('#discovery-center-lon').fill(lon.toFixed(4));
     await page.locator('#discovery-center-apply').click();
@@ -63,6 +65,7 @@ for (const id of REGIONS) {
     await page.locator('#discovery-radius-input').press('Enter');
     await expect(page.locator('#discovery-radius-value')).toHaveText(`${region.radiusMiles} mi`);
     await page.locator('#discover-roads').click();
+    await openAllResults(page);
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
 
     const camera = () => cameraOf(page);

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 import { REPRESENTATIVE_IDENTITY } from '../src/discovery/identity-evidence.js';
 import { MILES_TO_M, drawnSearchCentre, searchGeometry } from './map-contract.js';
@@ -71,6 +72,7 @@ test('deployed place search resolves the named places and runs national discover
   }
 
   async function setRadius(radius) {
+    await openAdvancedSearch(page);
     await page.locator('#discovery-radius-input').fill(String(radius));
     await page.locator('#discovery-radius-input').press('Enter');
     await expect(page.locator('#discovery-radius-value')).toHaveText(`${radius} mi`);
@@ -87,7 +89,8 @@ test('deployed place search resolves the named places and runs national discover
   // 1. Every place the brief names resolves from its name alone, with its county or kind beside it.
   for (const [query, expected] of PLACES) {
     const labels = await choosePlace(query);
-    const status = await page.locator('#discovery-search-status').innerText();
+    await openAdvancedSearch(page);
+    const status = await page.locator('#discovery-active-search').innerText();
     const entry = { query, expected, first: labels[0],
       centre: `${await page.locator('#discovery-center-lat').inputValue()},${await page.locator('#discovery-center-lon').inputValue()}`,
       coverage: /Coverage: (FULL|PARTIAL|NONE|UNKNOWN)/.exec(status)?.[1] ?? null,
@@ -106,11 +109,12 @@ test('deployed place search resolves the named places and runs national discover
     await boot();
     expect((await choosePlace(query))[0]).toContain(expected);
     await setRadius(25);
-    await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL', { timeout: 120000 });
+    await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL', { timeout: 120000 });
     const before = derivedCells.length;
     const started = Date.now();
     await page.locator('#discover-roads').click();
     await expect(page.locator('#discovery-summary')).toContainText('25-mile radius search', { timeout: 600000 });
+    await openAllResults(page);
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 300000 });
     const row = await page.locator('#discovery-results tbody tr').first().innerText();
     // The run's own verdict, read from the coverage banner's first (the run's) headline rather than from the
@@ -239,10 +243,12 @@ test('deployed detail opens from the precomputed row, and source evidence is a s
     await expect(page.locator('#discovery-place-results')).toBeVisible({ timeout: 120000 });
     await page.locator('#discovery-place-results .discovery-place-option').first().click();
     await expect(page.locator('#discovery-place-results')).toBeHidden();
+    await openAdvancedSearch(page);
     await page.locator('#discovery-radius-input').fill('25');
     await page.locator('#discovery-radius-input').press('Enter');
-    await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL', { timeout: 120000 });
+    await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL', { timeout: 120000 });
     await page.locator('#discover-roads').click();
+    await openAllResults(page);
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
   }
 

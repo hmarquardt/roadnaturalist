@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 const summary = JSON.parse(readFileSync(new URL('./fixtures/or-roads-network.summary.json', import.meta.url)));
 // The offline extraction summary counts road units by summing source-feature lengths, while the browser
@@ -31,6 +32,7 @@ async function runDiscovery(page) {
   // load from looking like a missing button.
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   await page.click('#discover-roads');
+  await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage', { timeout: 110000 });
 }
 
@@ -49,6 +51,9 @@ test('discovery surveys the pilot area with real data, and reaches no external e
   await runDiscovery(page);
   expect(Date.now() - started).toBeLessThan(110000);
   const panel = page.locator('#discovery');
+  // THE RUN'S OWN DIAGNOSTICS ARE UNDER "Explore all results" NOW, so the gate opens it the way a person would before
+  // reading them. The answer itself - the recommendation cards - is asserted without opening anything.
+  await openAllResults(page);
   // The browser read exactly the extract the offline summary describes.
   await expect(panel).toContainText(`${expectedFeatures} road features read`);
   await expect(panel).toContainText('corridors analysed in one GIS batch');
@@ -148,7 +153,7 @@ test('a discovery run without the GIS engine reports UNKNOWN coverage, never an 
   await page.setViewportSize({ width: 1440, height: 900 });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.getByRole('button', { name: /Discover roads/ }).click();
+  await page.getByRole('button', { name: /Find roads/ }).click();
   const panel = page.locator('#discovery');
   await expect(panel).toContainText('A failed query is not an empty search area', { timeout: 60000 });
   await expect(panel).toContainText('DuckDB Spatial initialization failed');
@@ -162,7 +167,9 @@ test('the discovery workspace stays usable at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 30000 });
   await runDiscovery(page);
+  await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage');
+  await openAllResults(page);
   await page.locator('#discovery-results tbody tr button').first().click();
   await expect(page.locator('#discovery-selected')).toContainText('Selected discovery corridor');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // Opt-in verification of the *deployed* saved-roads workflow in a real browser.
 //
@@ -47,6 +48,7 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
   mark('booted');
 
   // 1. ONE ORDINARY SEARCH, TWO PROMOTED ROADS.
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(CENTRE.lat.toFixed(4));
   await page.locator('#discovery-center-lon').fill(CENTRE.lon.toFixed(4));
   await page.locator('#discovery-center-apply').click();
@@ -60,6 +62,7 @@ test('a deployed saved road keeps its favorite and its note through reload, comp
   const promoted = [];
   for (const index of [0, 1]) {
     const before = await savedCount(page);
+    await openAllResults(page);
     const row = page.locator('#discovery-results tbody tr').nth(index);
     const previous = (await page.locator('#discovery-selected h3').count() ? page.locator('#discovery-selected h3').innerText() : '');
     await row.locator('.discovery-row').click();

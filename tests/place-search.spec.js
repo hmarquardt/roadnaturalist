@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // Finding a place by name: a local lookup over the committed national gazetteer that feeds the same search
 // definition a map click or a typed coordinate produces. These tests cover the interaction (typing, mouse,
@@ -43,6 +44,7 @@ test('typing a place name sets the centre, keeps the radius, and searches the sa
   const external = await watchExternal(page);
   await boot(page);
   // The radius is the user's decision and the place must not touch it.
+  await openAdvancedSearch(page);
   await page.locator('#discovery-radius-input').fill('25');
   await page.locator('#discovery-radius-input').press('Enter');
   await expect(page.locator('#discovery-radius-value')).toHaveText('25 mi');
@@ -58,9 +60,10 @@ test('typing a place name sets the centre, keeps the radius, and searches the sa
   await expect(page.locator('#discovery-center-lon')).toHaveValue('-122.9354');
   await expect(page.locator('#discovery-radius-input')).toHaveValue('25');
   await expect(page.locator('#discovery-radius-value')).toHaveText('25 mi');
-  await expect(page.locator('#discovery-search-status')).toContainText('Hillsboro, OR · 45.5268, -122.9354');
+  // Nothing is reported about the search itself - no phase, no refusal - and the centre is stated in the ordinary flow.
+  await expect(page.locator('#discovery-search-status')).toHaveText('');
   await expect(page.locator('#discovery-center-label')).toHaveText('Hillsboro, OR · 45.5268, -122.9354');
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   await expect(page.locator('#map .search-center')).toHaveCount(1);
   await expect(page.locator('#map .map-key')).toContainText('Hillsboro, OR');
   const url = new URL(page.url());
@@ -102,7 +105,7 @@ test('the whole choice works from the keyboard, and duplicates are told apart', 
   const second = labels[1].split(' · ')[0];
   await input.press('Enter');
   // The chosen result is the one the panel then names, and the URL carries its published centre.
-  await expect(page.locator('#discovery-search-status')).toContainText(second);
+  await expect(page.locator('#discovery-center-label')).toContainText(second);
   const chosen = new URL(page.url());
   expect(Number(chosen.searchParams.get('lat'))).toBeGreaterThan(24);
   expect(Number(chosen.searchParams.get('lat'))).toBeLessThan(50);
@@ -111,7 +114,7 @@ test('the whole choice works from the keyboard, and duplicates are told apart', 
   await expect(input).toHaveAttribute('aria-expanded', 'false');
   // Any conterminous place is inside the national derived plane's published region, so the default radius is
   // FULL: the PARTIAL and NONE answers belong to a centre outside the conterminous states.
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   await expect(page.locator('#discover-roads')).toBeEnabled();
   // Escape closes the list and keeps the typed text: no keyboard trap, and no accidental choice.
   await input.click();
@@ -129,6 +132,7 @@ test('nothing found, too short and an address are all answered without a guess',
   const external = await watchExternal(page);
   await boot(page);
   const input = page.locator('#discovery-place');
+  await openAdvancedSearch(page);
   const before = await page.locator('#discovery-center-lat').inputValue();
   await input.fill('hi');
   await expect(page.locator('#discovery-place-status')).toContainText('Type at least 3 characters');
@@ -153,11 +157,11 @@ test('a conterminous place is covered, and choosing one reads no metric cell', a
   await input.fill('Chehalis');
   await expect(page.locator('#discovery-place-results')).toBeVisible();
   await input.press('Enter');
-  await expect(page.locator('#discovery-search-status')).toContainText('Chehalis, WA');
+  await expect(page.locator('#discovery-center-label')).toContainText('Chehalis, WA');
   // A conterminous place lies inside the national derived plane's published region, so its coverage is FULL at
   // the default radius and the search is runnable. The PARTIAL and NONE answers this test used to exercise
   // belong to a centre *outside* the conterminous states, which no published place is.
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   await expect(page.locator('#discover-roads')).toBeEnabled();
   // A lookup reads no metric cell: the search is the person's next move, never a side effect of choosing a place.
   expect(derivedRequests).toEqual([]);
@@ -170,6 +174,7 @@ test('the place field and its results stay usable at 390px, and choosing does no
   const external = await watchExternal(page);
   await boot(page);
   await expect(page.locator('#discovery-place')).toBeVisible();
+  await openAdvancedSearch(page);
   await expect(page.locator('#discovery-radius-input')).toBeVisible();
   await expect(page.locator('#discover-roads')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
@@ -183,10 +188,11 @@ test('the place field and its results stay usable at 390px, and choosing does no
   expect(await page.locator('#map svg').getAttribute('viewBox')).toBe(before);
   await page.locator('#discovery-radius-input').fill('5');
   await page.locator('#discovery-radius-input').press('Enter');
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   await expect(page.locator('#discover-roads')).toBeVisible();
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
+  await openAllResults(page);
   await page.locator('#discovery-results tbody tr button').first().click();
   await expect(page.locator('#discovery-selected')).toContainText('Selected discovery corridor');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);

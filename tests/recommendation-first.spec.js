@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 import { EXPLORATION_ORDER_VERSION } from '../src/discovery/exploration-order.js';
 import { RANKING_VERSION } from '../src/discovery/ranking.js';
@@ -39,6 +40,7 @@ async function searchRegion(page, region) {
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
   const [lon, lat] = region.center;
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(lat.toFixed(4));
   await page.locator('#discovery-center-lon').fill(lon.toFixed(4));
   await page.locator('#discovery-center-apply').click();
@@ -47,6 +49,7 @@ async function searchRegion(page, region) {
   await page.locator('#discover-roads').click();
   // THE RUN FINISHES FIRST, and the workbench below is the run's own output: waiting for it means a missing recommendation
   // surface fails quickly and says so, instead of looking like a search that never came back.
+  await openAllResults(page);
   await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
   await expect(page.locator('#discovery-recommendations'), 'the recommendation surface answers the run')
     .toBeVisible({ timeout: 60000 });
@@ -130,9 +133,13 @@ for (const id of REGIONS) {
     // The distance is stated for a centred search, and the corridor length with it.
     expect(cards[0].facts).toMatch(/mi from the search center/);
     expect(cards[0].facts).toMatch(/mi of road/);
-    // THE HEADING SPEAKS TO A PERSON, AND THE MACHINERY IS NOT ON A CARD.
-    await expect(page.locator('#recommendations-heading')).toHaveText('Best road-naturalist drives near this search');
+    // THE HEADING SPEAKS TO A PERSON, STATES THE ASSUMPTION, AND KEEPS THE MACHINERY OFF THE CARDS.
+    await expect(page.locator('#recommendations-heading'))
+      .toHaveText(`Best road-naturalist drives within ${region.radiusMiles} miles`);
     await expect(page.locator('#discovery-recommendations .eyebrow')).toHaveText('Recommended');
+    await expect(page.locator('#recommendations-found')).toContainText('Found');
+    await expect(page.locator('#discovery-recommendations .recommendations-explainer')).toContainText('mapped wetlands');
+    await expect(page.locator('#discovery-recommendations .recommendations-caveat')).toContainText('do not guarantee wildlife');
     for (const card of cards) {
       expect(/exploration order|naturalist interest|\bscore\b/i.test(card.text), `no machinery on a card: ${card.text}`).toBe(false);
     }
@@ -181,6 +188,7 @@ test('a card selects the corridor the table and the map already select, and move
     .evaluateAll(paths => [...new Set(paths.map(path => path.getAttribute('data-corridor-id')))]);
   await page.locator(`#recommendation-open-${third.id}`).click();
   await expect(page.locator('#discovery-selected h3')).toContainText(third.name, { timeout: 60000 });
+  await openAllResults(page);
   const selectedRow = page.locator(`#discovery-results tbody tr[data-candidate-id="${third.id}"]`);
   await expect(selectedRow).toHaveClass(/selected/, { timeout: 60000 });
   await expect.poll(async () => (await emphasised()).join(','), { timeout: 60000 }).toBe(third.id);
@@ -255,6 +263,7 @@ test('a declared area search has no centre, so no distance is invented and the h
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
   // A DECLARED AREA, NOT A CENTRE AND RADIUS: the search itself defines no distance from anywhere.
+  await openAdvancedSearch(page);
   await page.locator('#discovery-area').selectOption('or-pilot-window');
   await page.locator('#discover-roads').click();
   await expect(page.locator('#recommendation-list li.recommendation').first()).toBeVisible({ timeout: 600000 });

@@ -108,3 +108,49 @@
 .discovery-advanced{margin:1.5rem 0 .2rem;padding-top:1rem;border-top:1px solid #dce3d9}
 .discovery-advanced h3{margin:0;font-size:1.06rem}
 .discovery-advanced-note{margin:.25rem 0 0;max-width:60rem}
+
+/* PROGRESSIVE DISCLOSURE: WHERE TO SEARCH FIRST, EVERYTHING ELSE ON REQUEST.
+   The ordinary path is a place, this device's location, and one button. The technical half of choosing where - and the
+   whole workbench - are real <details> disclosures, so collapsed content is absent from the tab order rather than hidden. */
+.discovery-primary{display:grid;gap:.6rem}
+.discovery-primary-row{display:grid;gap:.5rem;grid-template-columns:minmax(0,1fr) auto;align-items:start}
+.discovery-primary-row .discovery-place{margin:0}
+.discovery-primary-row .discovery-location{margin:0;display:grid;gap:.3rem}
+.discovery-primary-row .discovery-location .quiet-button{width:100%;min-height:2.75rem;white-space:nowrap}
+/* The note about what asking for a location costs belongs to the row, not to one column of it. */
+.discovery-primary-row .discovery-location .discovery-location-note,
+.discovery-primary-row .discovery-location .discovery-status{grid-column:1 / -1}
+@media(max-width:360px){.discovery-primary-row{grid-template-columns:1fr}}
+.discovery-search-context{display:flex;flex-wrap:wrap;gap:.15rem .5rem;align-items:baseline}
+.discovery-search-context p{margin:0}
+.discovery-primary .discovery-presets{margin:0}
+.discovery-primary .discovery-presets .quiet-button{min-height:2.5rem}
+.discovery-search-assumption{margin:0}
+.discovery-find{width:100%;min-height:3rem;font-size:1.02rem}
+@media(min-width:700px){.discovery-primary-row{grid-template-columns:minmax(0,1fr) auto;align-items:end}
+.discovery-primary-row .discovery-location .quiet-button{width:auto;padding-left:1rem;padding-right:1rem}}
+.discovery-search-status-block:empty{display:none}
+.discovery-coverage-note{margin:.6rem 0 0;padding:.6rem .8rem;border:1px solid #d9b48a;border-left:4px solid #bd7b36;border-radius:5px;background:#fdf6ec;color:#6a4212;font-size:.84rem}
+.discovery-disclosure{margin:.9rem 0 0;border:1px solid #dce3d9;border-radius:6px;background:#fbfcf8}
+.discovery-disclosure-summary{display:flex;align-items:center;gap:.5rem;padding:.7rem .9rem;cursor:pointer;font-weight:600;color:#25473b;list-style:none;min-height:2.75rem}
+.discovery-disclosure-summary::-webkit-details-marker{display:none}
+.discovery-disclosure-summary::after{content:'▾';margin-left:auto;color:#6e8075;font-size:.9rem}
+.discovery-disclosure[open] .discovery-disclosure-summary::after{content:'▴'}
+.discovery-disclosure-summary:hover{background:#f1f5ee}
+.discovery-disclosure-note{margin:0;padding:0 .9rem .6rem}
+.discovery-disclosure > *:not(summary):not(.discovery-disclosure-note){margin-left:.9rem;margin-right:.9rem}
+/* THE DISPLAY RULE IS SCOPED TO [open], ON PURPOSE: a class selector that forced `display` on the content of a closed
+   <details> would override the user agent's own hiding and leave collapsed controls on screen and in the tab order. */
+.discovery-disclosure[open] > .discovery-advanced-search-body,
+.discovery-disclosure[open] > .discovery-advanced-body{display:grid;gap:.8rem;padding-bottom:.9rem;min-width:0}
+.discovery-advanced-body .discovery-coverage,.discovery-advanced-body .discovery-summary{margin-top:0}
+.discovery-diagnostics{margin-top:.9rem;padding:.7rem .85rem;border:1px solid #d2dbd0;border-left-width:4px;border-radius:6px;background:#f7f8f3}
+.discovery-diagnostics p{margin:.3rem 0 0}
+.discovery-search-summary{margin:.6rem 0 0;color:#4c6458}
+.recommendations-found{margin:.15rem 0 0}
+.recommendations-explainer{margin:.3rem 0 0;max-width:62rem}
+.recommendations-actions{display:flex;flex-wrap:wrap;gap:.5rem;align-items:start;margin:.5rem 0 0}
+.recommendations-actions .recommendations-how{margin:0}
+.recommendations-how .recommendations-note{margin:0;padding:.4rem .9rem .7rem}
+.recommendations-caveat{margin:.5rem 0 0;max-width:62rem;color:#6a4212}
+@media(max-width:700px){.recommendations-actions{flex-direction:column;align-items:stretch}.recommendations-actions .recommendations-change{min-height:2.5rem}.recommendations-how{width:100%}}

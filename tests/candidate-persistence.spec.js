@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // CANDIDATES KEPT ON THIS DEVICE.
 //
@@ -77,6 +78,7 @@ async function reloadAndBoot(page) {
 }
 
 async function applyCoordinates(page, { lat, lon }, radius) {
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(lat.toFixed(4));
   await page.locator('#discovery-center-lon').fill(lon.toFixed(4));
   await page.locator('#discovery-center-apply').click();
@@ -93,6 +95,7 @@ async function runSearch(page, radius) {
 // Promote one row and wait until it is a candidate *and* written to this device, so the next action never races
 // the asynchronous promotion (raw reconstruction, verification, and the analysis that follows it).
 async function promoteRow(page, index) {
+  await openAllResults(page);
   const row = page.locator('#discovery-results tbody tr').nth(index);
   await expect(row).toBeVisible({ timeout: 60000 });
   const rowDistance = (await row.locator('td').nth(2).innerText()).trim();
@@ -247,7 +250,9 @@ test('a corridor promoted from the declared window restores with no search conte
   await boot(page);
   // The declared pilot window is a box, not a radius: no centre, so no bearing and no distance.
   await page.locator('#discover-roads').click();
+  await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage', { timeout: 300000 });
+  await openAllResults(page);
   const row = page.locator('#discovery-results tbody tr').first();
   await expect(row).toBeVisible({ timeout: 120000 });
   await row.locator('.discovery-row').click();

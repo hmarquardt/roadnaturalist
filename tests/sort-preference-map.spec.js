@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 import { DEFAULT_SORT } from '../src/discovery/filter.js';
 import { DISCOVERY_SEARCH_KEY } from '../src/discovery/persistence.js';
@@ -38,6 +39,7 @@ test('a chosen sort comes back after a reload, and a default never becomes a cho
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
+  await openAllResults(page);
   const sortSelect = () => page.locator('#discovery-sort');
   const topIds = () => page.locator('#discovery-results tbody tr').evaluateAll(rows =>
     rows.slice(0, 10).map(row => row.dataset.candidateId));
@@ -53,6 +55,7 @@ test('a chosen sort comes back after a reload, and a default never becomes a cho
 
   // A FRESH BROWSER: no preference stored, and the app starts on the product default without writing one.
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(place.center[1].toFixed(4));
   await page.locator('#discovery-center-lon').fill(place.center[0].toFixed(4));
   await page.locator('#discovery-center-apply').click();

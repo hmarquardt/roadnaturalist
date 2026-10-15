@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 import { OUTINGS_KEY } from '../src/state/outings.js';
 import { cameraOf, movementCount } from './map-contract.js';
@@ -45,6 +46,7 @@ test('a plan survives the session that made it, and grows across searches', asyn
     if (message.type() === 'error' && !/Failed to load resource/.test(message.text())) errors.push(message.text());
   });
 
+  await openAllResults(page);
   const rows = () => page.locator('#discovery-results tbody tr');
   const topIds = () => rows().evaluateAll(list => list.slice(0, 3).map(row => row.dataset.candidateId));
   const planIds = () => page.locator('[data-role="outing"]').evaluateAll(paths =>
@@ -120,6 +122,7 @@ test('a plan survives the session that made it, and grows across searches', asyn
   const spanMiles = async () => Number((/(\d+\.\d+) mi/.exec(await page.locator('#outing-span').innerText()) ?? [0, 0])[1]);
   async function search(place) {
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
+    await openAdvancedSearch(page);
     await page.locator('#discovery-center-lat').fill(place.center[1].toFixed(4));
     await page.locator('#discovery-center-lon').fill(place.center[0].toFixed(4));
     await page.locator('#discovery-center-apply').click();

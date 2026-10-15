@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 import { DEFAULT_SORT } from '../src/discovery/filter.js';
 
@@ -37,6 +38,7 @@ async function boot(page) {
 
 async function applyCoordinates(page, { lat, lon }, radius = null) {
   if (radius != null) {
+    await openAdvancedSearch(page);
     await page.locator('#discovery-radius-input').fill(String(radius));
     await page.locator('#discovery-radius-input').press('Enter');
     await expect(page.locator('#discovery-radius-value')).toHaveText(`${radius} mi`);
@@ -55,6 +57,7 @@ async function pickAtCoordinate(page, target) {
   const svg = page.locator('#map svg');
   const box = await svg.boundingBox();
   const probe = async (x, y) => {
+    await openAdvancedSearch(page);
     await page.locator('#discovery-center-pick').click();
     await svg.click({ position: { x, y } });
     await expect(page.locator('#discovery-center-pick')).toHaveAttribute('aria-pressed', 'false');
@@ -87,6 +90,7 @@ test('a map-picked centre near a place is labelled from the local gazetteer and 
   await expect(label).toContainText('Near Vernonia, OR');
   await expect(label).toContainText('45.8640, -123.1732');
   // The picked point is the search: it is still the coordinate the click produced, half a mile from the place.
+  await openAdvancedSearch(page);
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.8640');
   await expect(page.locator('#discovery-center-lon')).toHaveValue('-123.1732');
   expect(Math.abs(picked.lon - VERNONIA.lon)).toBeGreaterThan(0.005);
@@ -116,6 +120,7 @@ test('typed coordinates are labelled by the nearest published place and never sn
   expect((await label.innerText()).startsWith('Near ')).toBe(true);
   // The coordinates are still the typed ones, not the place centre five miles away.
   expect(Math.abs(typed.lon - FOREST_GROVE.lon)).toBeGreaterThan(0.05);
+  await openAdvancedSearch(page);
   await expect(page.locator('#discovery-center-lon')).toHaveValue('-123.1700');
   // The remembered search says the same thing, regenerated from the gazetteer.
   await expect(page.locator('#discovery-recent')).toContainText('Near Forest Grove, OR · 10 mi');
@@ -146,6 +151,7 @@ test('a centre no published place is near keeps its coordinates, and a chosen pl
 const DISTANCE_CELL = /^(?:<0\.1|\d+\.\d) mi(?: (?:N|NE|E|SE|S|SW|W|NW))?$/;
 
 async function distanceCells(page) {
+  await openAllResults(page);
   return page.locator('#discovery-results tbody tr').evaluateAll(nodes => nodes.map(node => node.children[2].textContent.trim()));
 }
 
@@ -161,13 +167,15 @@ test('every discovered corridor reports its distance and direction from the sear
   await page.locator('#discovery-place').fill('Hillsboro');
   await expect(page.locator('#discovery-place-results')).toBeVisible();
   await page.locator('#discovery-place-results .discovery-place-option').first().click();
+  await openAdvancedSearch(page);
   await page.locator('#discovery-radius-input').fill('5');
   await page.locator('#discovery-radius-input').press('Enter');
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
   // The summary names the place and keeps the coordinates as the search's own state.
   await expect(page.locator('#discovery-summary')).toContainText('Hillsboro, OR');
-  await expect(page.locator('#discovery-summary')).toContainText('centre 45.5268, -122.9354');
+  await expect(page.locator('#discovery-diagnostics')).toContainText('centre 45.5268, -122.9354');
+  await openAllResults(page);
   await expect(page.locator('#discovery-results thead')).toContainText('From center');
   const cells = await distanceCells(page);
   expect(cells.length).toBeGreaterThan(10);
@@ -196,6 +204,7 @@ test('sorting by distance from the center is explicit, deterministic and off by 
   await applyCoordinates(page, { lat: 45.54, lon: -123.17 }, 10);
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 180000 });
+  await openAllResults(page);
   await expect(page.locator('#discovery-sort option[value="distanceFromCenter"]')).toHaveText('Distance from center (m)');
   expect(await page.locator('#discovery-sort').inputValue()).not.toBe('distanceFromCenter');
   expect(await page.locator('#discovery-sort').inputValue()).toBe(DEFAULT_SORT);
@@ -218,6 +227,7 @@ test('at 390px the context stays readable without widening the page', async ({ p
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
   await expect(page.locator('#discovery-summary')).toContainText('Near Forest Grove, OR');
+  await openAllResults(page);
   const header = page.locator('#discovery-results thead');
   await expect(header).toContainText('From center');
   // The distance column survives at 390px; the ecoregion column is the one that collapses (CSS), and the
@@ -242,6 +252,7 @@ test('a promoted corridor keeps the search context from the row through to the c
   await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
   const rowCell = (await distanceCells(page))[0];
   expect(rowCell).toMatch(DISTANCE_CELL);
+  await openAllResults(page);
   await page.locator('#discovery-results tbody tr button').first().click();
   const panelFact = await page.locator('#discovery-selected .discovery-facts div', { hasText: 'From search center' }).locator('dd').innerText();
   expect(panelFact).toContain(rowCell.split(' ')[0]);
@@ -283,11 +294,13 @@ test('a corridor promoted from a chosen place keeps the place name, not an infer
   await page.locator('#discovery-place').fill('Hillsboro');
   await expect(page.locator('#discovery-place-results')).toBeVisible();
   await page.locator('#discovery-place-results .discovery-place-option').first().click();
+  await openAdvancedSearch(page);
   await page.locator('#discovery-radius-input').fill('5');
   await page.locator('#discovery-radius-input').press('Enter');
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
   const rowCell = (await distanceCells(page))[0];
+  await openAllResults(page);
   await page.locator('#discovery-results tbody tr button').first().click();
   await page.locator('#discovery-promote').click();
   const context = page.locator('#candidate-detail #candidate-search-context');

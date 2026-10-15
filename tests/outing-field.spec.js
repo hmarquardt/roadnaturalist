@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 import { OUTINGS_KEY } from '../src/state/outings.js';
 import { CANDIDATES_KEY } from '../src/state/candidate-persistence.js';
@@ -52,6 +53,7 @@ test('a plan is worked through on a phone, and survives a reload', async ({ page
     if (message.type() === 'error' && !/Failed to load resource/.test(message.text())) errors.push(message.text());
   });
 
+  await openAllResults(page);
   const rows = () => page.locator('#discovery-results tbody tr');
   const fieldRoads = () => page.locator('#field-road-list li.field-road').evaluateAll(items =>
     items.map(item => ({ roadId: item.dataset.roadId, visited: item.dataset.visited === 'true',
@@ -76,6 +78,7 @@ test('a plan is worked through on a phone, and survives a reload', async ({ page
 
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(princeton.center[1].toFixed(4));
   await page.locator('#discovery-center-lon').fill(princeton.center[0].toFixed(4));
   await page.locator('#discovery-center-apply').click();

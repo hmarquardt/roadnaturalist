@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // The regional path, as the application actually offers it: discovery reads the precomputed derived
 // corridor-metrics cells, and the detailed panel measures the raw regional partitions for the promoted
@@ -18,6 +19,7 @@ test('regional discovery reads precomputed metrics, and promotion verifies the r
   });
   page.on('pageerror', error => failures.push(error.message));
   await page.goto('/');
+  await openAdvancedSearch(page);
   await expect(page.locator('#discovery-area')).toBeVisible();
   await page.locator('#discovery-area').selectOption('or-portland-west-regional');
   const started = Date.now();
@@ -27,6 +29,7 @@ test('regional discovery reads precomputed metrics, and promotion verifies the r
   await expect(page.locator('#discovery')).toContainText('Discovery metrics', { timeout: 120000 });
   await expect(page.locator('#discovery')).toContainText('metric cell(s) selected');
   const elapsedMs = Date.now() - started;
+  await openAllResults(page);
   await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 60000 });
   const count = Number(await page.locator('#discovery-count').innerText());
   expect(count).toBeGreaterThan(100);
@@ -98,8 +101,10 @@ test('a missing derived cell fails explicitly and never silently re-runs the raw
   page.on('request', request => { if (request.url().includes('/data/regional/partitions/')) partitions.push(request.url()); });
   await page.route('**/data/derived/corridor-metrics/**/cells/*.parquet', route => route.fulfill({ status: 404, body: 'missing' }));
   await page.goto('/');
+  await openAdvancedSearch(page);
   await page.locator('#discovery-area').selectOption('or-portland-west-regional');
   await page.locator('#discover-roads').click();
+  await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage UNKNOWN', { timeout: 60000 });
   await expect(page.locator('#discovery')).toContainText('HTTP 404');
   await expect(page.locator('#discovery-count')).toHaveText('0');

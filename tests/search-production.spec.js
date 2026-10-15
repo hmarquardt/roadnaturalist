@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // Opt-in verification of the *deployed* arbitrary-search path in a real browser.
 //
@@ -21,17 +22,19 @@ const SCENARIOS = [{ radius: 10, center: BENCHMARK_CENTER, coverage: 'FULL', lab
   { radius: 25, center: ARBITRARY_CENTER, coverage: 'FULL', label: 'Near Forest Grove, OR' }];
 
 async function setSearch(page, { lat, lon, radius }) {
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(String(lat));
   await page.locator('#discovery-center-lon').fill(String(lon));
   await page.locator('#discovery-center-apply').click();
   await page.locator('#discovery-radius-input').fill(String(radius));
   await page.locator('#discovery-radius-input').press('Enter');
-  await expect(page.locator('#discovery-search-status')).toContainText(`Custom radius search · ${radius} mi`);
+  await expect(page.locator('#discovery-active-search')).toContainText(`Custom radius search · ${radius} mi`);
   // The centre line names the search the way the panel does, and always keeps the coordinates beside it.
   await expect(page.locator('#discovery-center-label')).toContainText(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
 }
 
 async function distanceCells(page) {
+  await openAllResults(page);
   return page.locator('#discovery-results tbody tr')
     .evaluateAll(nodes => nodes.map(node => node.children[2].textContent.trim()));
 }
@@ -41,6 +44,7 @@ function milesOf(text) {
 }
 
 async function checkSearchContext(page, { radius, label }) {
+  await openAllResults(page);
   await expect(page.locator('#discovery-results thead')).toContainText('From center');
   await expect(page.locator('#discovery-summary')).toContainText(label);
   const cells = await distanceCells(page);
@@ -82,8 +86,10 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
     const cellsBefore = derivedCells.length;
     const started = Date.now();
     await page.locator('#discover-roads').click();
+    await openAllResults(page);
     await expect(page.locator('#discovery')).toContainText('Discovery coverage', { timeout: 300000 });
     await expect(page.locator('#discovery-summary')).toContainText(`${radius}-mile radius search`, { timeout: 300000 });
+    await openAllResults(page);
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 120000 });
     const elapsedMs = Date.now() - started;
     const banner = await page.locator('#discovery').innerText();
@@ -109,9 +115,10 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 120000 });
   await setSearch(page, { lat: 46.30, lon: -122.90, radius: 25 });
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: PARTIAL', { timeout: 60000 });
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: PARTIAL', { timeout: 60000 });
   const edgeBefore = derivedCells.length;
   await page.locator('#discover-roads').click();
+  await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage PARTIAL', { timeout: 300000 });
   report.edge = { coverage: 'PARTIAL', cellsRead: derivedCells.length - edgeBefore,
     corridors: Number(await page.locator('#discovery-count').innerText()) };
@@ -119,10 +126,11 @@ test('deployed arbitrary-radius searches, a PARTIAL edge search, promotion and z
   expect(report.edge.cellsRead).toBeGreaterThan(0);
   // A centre that cannot reach the published region at all: known before the search, refused, nothing read.
   const beforeNone = derivedCells.length;
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill('43');
   await page.locator('#discovery-center-lon').fill('-120');
   await page.locator('#discovery-center-apply').click();
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: NONE', { timeout: 60000 });
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: NONE', { timeout: 60000 });
   await expect(page.locator('#discover-roads')).toBeDisabled();
   report.none = { refused: true, cellsRead: derivedCells.length - beforeNone };
   log(report.none);

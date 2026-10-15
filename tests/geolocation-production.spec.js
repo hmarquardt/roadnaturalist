@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // Opt-in verification of the *deployed* location-as-centre path, and of the deployed candidate lifecycle, in a
 // real browser.
@@ -45,6 +46,7 @@ test('a deployed location fix becomes a search centre, a candidate, a durable re
   await boot(page);
 
   // 1. THE FIX IS A CENTRE. The radius is chosen first, so a change to it would be visible.
+  await openAdvancedSearch(page);
   await page.locator('#discovery-radius-input').fill('10');
   await page.locator('#discovery-radius-input').press('Enter');
   await expect(page.locator('#discovery-radius-value')).toHaveText('10 mi');
@@ -54,7 +56,7 @@ test('a deployed location fix becomes a search centre, a candidate, a durable re
   await expect(page.locator('#discovery-radius-value')).toHaveText('10 mi');
   await expect(page.locator('#discovery-center-label')).toContainText('Near Hillsboro, OR');
   await expect(page.locator('#discovery-location-status')).toContainText('Browser location accuracy: about 120 m.');
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   log('centre', { url: new URL(page.url()).search, radius: '10 mi', label: 'Near Hillsboro, OR', coverage: 'FULL',
     accuracyLine: await page.locator('#discovery-location-status').innerText() });
   // No search has run: the location only chose where.
@@ -66,6 +68,7 @@ test('a deployed location fix becomes a search centre, a candidate, a durable re
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-summary')).toContainText('10-mile radius search', { timeout: 300000 });
   await expect(page.locator('#discovery-summary')).toContainText('Near Hillsboro, OR');
+  await openAllResults(page);
   expect(await page.locator('#discovery-results tbody tr').count()).toBeGreaterThan(0);
   log('search', { derivedCells: derived.length - derivedBefore, rawPartitions: partitions.length - partitionsBefore,
     summary: (await page.locator('#discovery-summary').innerText()).replace(/\s+/g, ' ').slice(0, 240) });

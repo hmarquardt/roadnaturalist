@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 import { cameraOf, fitCountOf } from './map-contract.js';
 
@@ -67,6 +68,7 @@ test('a trip is recorded only because it was asked for, and live location and re
 
   const calls = () => page.evaluate(() => globalThis.__RN_LOCATION_CALLS);
   const emit = (position) => page.evaluate(fix => globalThis.__RN_LOCATION.emit(fix), position);
+  await openAllResults(page);
   const rows = () => page.locator('#discovery-results tbody tr');
   const track = () => page.locator('#map [data-role="trip-track"]');
   const recordingStatus = () => page.locator('#field-recording-status');
@@ -102,6 +104,7 @@ test('a trip is recorded only because it was asked for, and live location and re
 
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(princeton.center[1].toFixed(4));
   await page.locator('#discovery-center-lon').fill(princeton.center[0].toFixed(4));
   await page.locator('#discovery-center-apply').click();
@@ -326,12 +329,14 @@ async function fourRoadFieldPlan(page, context) {
   await page.setViewportSize(PHONE);
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(princeton.center[1].toFixed(4));
   await page.locator('#discovery-center-lon').fill(princeton.center[0].toFixed(4));
   await page.locator('#discovery-center-apply').click();
   await page.locator('#discovery-radius-input').fill(String(princeton.radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
   await page.locator('#discover-roads').click();
+  await openAllResults(page);
   const rows = page.locator('#discovery-results tbody tr');
   await expect(rows.first()).toBeVisible({ timeout: 600000 });
   const ids = await rows.evaluateAll(list => list.slice(0, 4).map(row => row.dataset.candidateId));

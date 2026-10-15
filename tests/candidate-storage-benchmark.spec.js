@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // Candidate storage benchmark (opt-in): what a stored candidate set costs to read, validate, hydrate and render.
 //
@@ -18,6 +19,7 @@ test('benchmark storing 0, 10, 50 and 100 candidates', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
   // One real promoted candidate, so the records measured are the records the application writes.
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill('45.5400');
   await page.locator('#discovery-center-lon').fill('-123.1700');
   await page.locator('#discovery-center-apply').click();
@@ -25,6 +27,7 @@ test('benchmark storing 0, 10, 50 and 100 candidates', async ({ page }) => {
   await page.locator('#discovery-radius-input').press('Enter');
   await page.locator('#discover-roads').click();
   await expect(page.locator('#discovery-summary')).toContainText('5-mile radius search', { timeout: 180000 });
+  await openAllResults(page);
   await page.locator('#discovery-results tbody tr').first().locator('.discovery-row').click();
   await page.locator('#discovery-promote').click();
   await expect(page.locator('#candidate-detail #candidate-search-context'), { timeout: 180000 }).toBeVisible();

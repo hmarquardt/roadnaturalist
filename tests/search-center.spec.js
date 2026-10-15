@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 // An arbitrary search: a centre a person chose on the map or typed, and a radius they chose, run through the
 // same derived discovery pipeline the committed 10/25/50-mile benchmarks verify. These tests cover the
@@ -23,11 +24,12 @@ async function boot(page) {
   await page.goto('/');
   // The button stays disabled until the search-area declaration has loaded: a search cannot run without one.
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage:');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage:');
 }
 
 async function setRadius(page, miles) {
   // A typed radius commits on change (blur or Enter), exactly as a person experiences it.
+  await openAdvancedSearch(page);
   await page.locator('#discovery-radius-input').fill(String(miles));
   await page.locator('#discovery-radius-input').press('Enter');
   await expect(page.locator('#discovery-radius-value')).toHaveText(`${miles} mi`);
@@ -35,21 +37,24 @@ async function setRadius(page, miles) {
 
 async function setRadiusWithSlider(page, miles) {
   // The slider is the ordinary control; it previews while it moves and commits when it is released.
+  await openAdvancedSearch(page);
   await page.locator('#discovery-radius').fill(String(miles));
   await page.locator('#discovery-radius').dispatchEvent('change');
   await expect(page.locator('#discovery-radius-value')).toHaveText(`${miles} mi`);
 }
 
 async function setCenter(page, lat, lon) {
+  await openAdvancedSearch(page);
   await page.locator('#discovery-center-lat').fill(String(lat));
   await page.locator('#discovery-center-lon').fill(String(lon));
   await page.locator('#discovery-center-apply').click();
 }
 
 async function search(page, { radius, timeout = 180000 } = {}) {
-  await expect(page.locator('#discovery-search-status')).toContainText(`Custom radius search · ${radius} mi`);
+  await expect(page.locator('#discovery-active-search')).toContainText(`Custom radius search · ${radius} mi`);
   await expect(page.locator('#discovery-center-label')).not.toBeEmpty();
   await page.locator('#discover-roads').click();
+  await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage', { timeout });
   await expect(page.locator('#discovery-summary')).toContainText(`${radius}-mile radius search`, { timeout });
 }
@@ -61,6 +66,7 @@ test('a map-picked centre and a typed centre run the same derived search, and re
   await boot(page);
   // The published region is on the map before anything is drawn, so a centre can be chosen first.
   await expect(page.locator('#map .search-region')).toHaveCount(1);
+  await openAdvancedSearch(page);
   const beforeLat = await page.locator('#discovery-center-lat').inputValue();
   expect(beforeLat).toBe('45.5950');
   await expect(page.locator('#discovery-recent')).toHaveCount(0);
@@ -91,16 +97,16 @@ test('a map-picked centre and a typed centre run the same derived search, and re
   await setRadius(page, 5);
   const smaller = Number(await page.locator('#map .search-disk').getAttribute('rx'));
   expect(smaller).toBeLessThan(preview);
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   await setRadius(page, 10);
   await search(page, { radius: 10 });
   const firstCount = Number(await page.locator('#discovery-count').innerText());
   expect(firstCount).toBeGreaterThan(0);
-  await expect(page.locator('#discovery-summary')).toContainText('metric cell(s) loaded');
-  await expect(page.locator('#discovery-summary')).toContainText('MiB');
+  await expect(page.locator('#discovery-diagnostics')).toContainText('metric cell(s) loaded');
+  await expect(page.locator('#discovery-diagnostics')).toContainText('MiB');
   // A typed centre moves the search, and the results on screen are marked as belonging to the previous one.
   await setCenter(page, 45.51, -123.12);
-  await expect(page.locator('#discovery-search-status')).toContainText('45.5100, -123.1200');
+  await expect(page.locator('#discovery-center-label')).toContainText('45.5100, -123.1200');
   await expect(page.locator('#discovery-recent')).toContainText('mi');
   await setRadius(page, 25);
   await expect(page.locator('#discovery')).toContainText('These results are from the previous search');
@@ -126,18 +132,21 @@ test('a search that crosses the published edge is PARTIAL, and one that misses i
   // of it, with a radius that reaches back in, is PARTIAL rather than a silent FULL or NONE.
   await setCenter(page, 49.9, -95.0);
   await setRadius(page, 50);
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: PARTIAL');
-  await expect(page.locator('#discovery-search-status')).toContainText('crosses the edge of the published');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: PARTIAL');
+  await expect(page.locator('#discovery-active-search')).toContainText('crosses the edge of the published');
   await expect(page.locator('#discover-roads')).toBeEnabled();
   await search(page, { radius: 50 });
+  await openAllResults(page);
   await expect(page.locator('#discovery')).toContainText('Discovery coverage PARTIAL');
   const read = derivedRequests.length;
   expect(read).toBeGreaterThan(0);
   // A centre whose circle cannot reach the region is answered before the search: status, reason, and a
   // disabled button - and no metric cell is read to find that out.
   await setCenter(page, 25.0, -140.0);
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: NONE');
-  await expect(page.locator('#discovery-search-status')).toContainText('does not overlap the published');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: NONE');
+  // The reason is stated twice, and both are in the ordinary flow: as the coverage line's own reason (with the rest of
+  // the coverage vocabulary) and as the consequence a person reads without opening anything.
+  await expect(page.locator('#discovery-coverage-note')).toContainText('does not overlap the published');
   await expect(page.locator('#discovery')).toContainText('Cannot search');
   await expect(page.locator('#discover-roads')).toBeDisabled();
   await page.waitForTimeout(500);
@@ -157,6 +166,7 @@ test('promotion of a national corridor is refused with the reason the data suppo
   await search(page, { radius: 10, timeout: 240000 });
   expect(partitions).toEqual([]);
   // A corridor with FULL habitat coverage is the strongest case.
+  await openAllResults(page);
   const fullRow = page.locator('#discovery-results tbody tr').filter({ has: page.locator('td:text-is("FULL")') }).first();
   await expect(fullRow).toBeVisible({ timeout: 60000 });
   await fullRow.locator('.discovery-row').click();
@@ -184,11 +194,12 @@ test('a shared link restores the search without running it, and the last search 
   page.on('request', request => { if (request.url().includes('/derived/corridor-metrics/')) derivedRequests.push(request.url()); });
   await page.goto('/?lat=45.51&lon=-123.12&r=15');
   await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 60000 });
+  await openAdvancedSearch(page);
   await expect(page.locator('#discovery-area')).toHaveValue('custom-radius');
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5100');
   await expect(page.locator('#discovery-center-lon')).toHaveValue('-123.1200');
   await expect(page.locator('#discovery-radius-input')).toHaveValue('15');
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   // A link restores a definition and waits for the button: no metric cell is read, and no result is claimed.
   expect(derivedRequests).toEqual([]);
   await expect(page.locator('#discovery')).not.toContainText('Discovery coverage');
@@ -207,7 +218,7 @@ test('a shared link restores the search without running it, and the last search 
   await expect(page.locator('#discovery')).toContainText('The search parameters in this link were ignored');
   await expect(page.locator('#discovery')).toContainText('Latitude must be a decimal number');
   await expect(page.locator('#discovery-center-lat')).toHaveValue('45.5100');
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   await page.waitForTimeout(300);
   expect(derivedRequests.length).toBe(read);
   expect(external).toEqual([]);
@@ -218,6 +229,7 @@ test('the search workflow stays usable at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const external = await watchExternal(page);
   await boot(page);
+  await openAdvancedSearch(page);
   await expect(page.locator('#discovery-center-pick')).toBeVisible();
   await expect(page.locator('#discovery-radius')).toBeVisible();
   await expect(page.locator('#discovery-radius-input')).toBeVisible();
@@ -236,11 +248,12 @@ test('the search workflow stays usable at 390px', async ({ page }) => {
   await slider.press('ArrowRight');
   await slider.press('ArrowRight');
   await expect(page.locator('#discovery-radius-value')).toHaveText('3 mi');
-  await expect(page.locator('#discovery-search-status')).toContainText('Custom radius search · 3 mi');
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL');
+  await expect(page.locator('#discovery-active-search')).toContainText('Custom radius search · 3 mi');
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
   await search(page, { radius: 3 });
   await expect(page.locator('#discovery-summary')).toContainText('3-mile radius search');
+  await openAllResults(page);
   await page.locator('#discovery-results tbody tr button').first().click();
   await expect(page.locator('#discovery-selected')).toContainText('Selected discovery corridor');
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);

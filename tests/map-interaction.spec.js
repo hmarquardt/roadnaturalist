@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openAdvancedSearch, openAllResults } from './discovery-ui.js';
 
 import { MILES_TO_M, cameraOf, drawnSearchCentre, fitCountOf, mapAvailable, mapImplementation,
   movementCount, searchGeometry } from './map-contract.js';
@@ -38,10 +39,12 @@ async function runSearch(page, query, radiusMiles = 25) {
   await page.locator('#discovery-place').fill(query);
   await page.locator('#discovery-place-results .discovery-place-option').first().waitFor({ timeout: 120000 });
   await page.locator('#discovery-place-results .discovery-place-option').first().click();
+  await openAdvancedSearch(page);
   await page.locator('#discovery-radius-input').fill(String(radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
-  await expect(page.locator('#discovery-search-status')).toContainText('Coverage: FULL', { timeout: 120000 });
+  await expect(page.locator('#discovery-active-search')).toContainText('Coverage: FULL', { timeout: 120000 });
   await page.locator('#discover-roads').click();
+  await openAllResults(page);
   await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
   await expect(page.locator('#candidate-list .discovery-row, #discovery-results .discovery-row').first())
     .toBeVisible({ timeout: 120000 });

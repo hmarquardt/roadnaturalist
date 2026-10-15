@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ADVANCED_HEADING, BEST_OVERALL_LABEL, NEAR_TIE_POINTS, RECOMMENDATION_HEADING_AREA,
-  RECOMMENDATION_HEADING_CENTERED, RECOMMENDATION_LIMIT, RECOMMENDED_TERM, recommendationHeading,
-  recommendationRankText, recommendationSummary, recommendations } from '../src/discovery/recommendation.js';
+import { ADVANCED_HEADING, BEST_OVERALL_LABEL, NEAR_TIE_POINTS, RECOMMENDATION_CAVEAT, RECOMMENDATION_EXPLAINER,
+  RECOMMENDATION_HEADING_AREA, RECOMMENDATION_HEADING_CENTERED, RECOMMENDATION_LIMIT, RECOMMENDED_TERM,
+  recommendationHeading, recommendationRankText, recommendationSummary,
+  recommendations } from '../src/discovery/recommendation.js';
 import { EXPLORATION_ORDER_VERSION } from '../src/discovery/exploration-order.js';
 import { naturalistInterest } from '../src/discovery/ranking.js';
 
@@ -166,6 +167,46 @@ test('a search with no centre has no distance, so no distance is shown or implie
   assert.equal(recommendationHeading({}), RECOMMENDATION_HEADING_AREA);
   assert.equal(RECOMMENDATION_HEADING_CENTERED, 'Best road-naturalist drives near this search');
   assert.equal(RECOMMENDATION_HEADING_AREA, 'Top roads in this search area');
+  // THE ASSUMPTION IS STATED, NOT CONFIGURED: a radius search says the radius it used, in whole miles, and never says
+  // anything about how the search was configured or which ranking version answered it.
+  assert.equal(recommendationHeading({ radiusMiles: 25, hasCenter: true }),
+    'Best road-naturalist drives within 25 miles');
+  assert.equal(recommendationHeading({ radiusMiles: 10, hasCenter: true }),
+    'Best road-naturalist drives within 10 miles');
+  assert.equal(recommendationHeading({ radiusMiles: 12.5, hasCenter: true }),
+    'Best road-naturalist drives within 13 miles');
+  // A declared search area has no radius, and a radius of zero or nonsense is not a claim: both fall back to words.
+  assert.equal(recommendationHeading({ radiusMiles: null, hasCenter: true }), RECOMMENDATION_HEADING_CENTERED);
+  assert.equal(recommendationHeading({ radiusMiles: 0, hasCenter: true }), RECOMMENDATION_HEADING_CENTERED);
+  assert.equal(recommendationHeading({ radiusMiles: Number.NaN, hasCenter: false }), RECOMMENDATION_HEADING_AREA);
+});
+
+test('the ordinary copy states the caveat once, and names no machinery', () => {
+  // ONE CAVEAT FOR THE WHOLE SECTION, not five: it says what recommendations do not know, in one sentence.
+  assert.match(RECOMMENDATION_CAVEAT, /do not guarantee wildlife/);
+  assert.match(RECOMMENDATION_CAVEAT, /road access/);
+  assert.match(RECOMMENDATION_CAVEAT, /road condition/);
+  assert.match(RECOMMENDATION_CAVEAT, /safe places to stop/);
+  // THE SHORT EXPLANATION NAMES ONLY WHAT WAS COMPARED, and it does not promise anything about the ground.
+  assert.match(RECOMMENDATION_EXPLAINER, /mapped wetlands/);
+  assert.match(RECOMMENDATION_EXPLAINER, /water/);
+  assert.match(RECOMMENDATION_EXPLAINER, /ecological variety/);
+  assert.match(RECOMMENDATION_EXPLAINER, /distance/);
+  assert.ok(RECOMMENDATION_EXPLAINER.length <= 220, 'the explanation stays one short sentence');
+  // THE NORMAL-FLOW COPY CARRIES NO RANKING OR DATA VOCABULARY. The names stay available in the workbench, the detail
+  // panel and the documentation; they are not what a first-time reader meets.
+  const machinery = /exploration[- ]order|exploration-order-v1|naturalist[- ]interest|naturalist-interest-v2|wetlandArea250|ranking version|derived plane|coverage set|partition/i;
+  for (const [name, text] of Object.entries({ RECOMMENDED_TERM, RECOMMENDATION_EXPLAINER, RECOMMENDATION_CAVEAT,
+    ADVANCED_HEADING, RECOMMENDATION_HEADING_CENTERED, RECOMMENDATION_HEADING_AREA, BEST_OVERALL_LABEL,
+    heading: recommendationHeading({ radiusMiles: 25, hasCenter: true }) })) {
+    assert.equal(machinery.test(text), false, `${name} carries no machinery: ${text}`);
+  }
+  // AND NOTHING ON THE ORDINARY PATH CLAIMS SOMETHING UNMEASURED.
+  const fabrication = /wildlife|birding|bird-watch|deer|guaranteed|scenic|abundance|habitat quality|best chance/i;
+  assert.equal(fabrication.test(RECOMMENDATION_EXPLAINER), false);
+  assert.equal(fabrication.test(recommendationHeading({ radiusMiles: 25, hasCenter: true })), false);
+  // The caveat is the one place the word "wildlife" may appear, and it appears as a denial.
+  assert.equal(fabrication.test(RECOMMENDATION_CAVEAT.replace('do not guarantee wildlife', '')), false);
 });
 
 

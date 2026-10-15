@@ -11,7 +11,8 @@ import { CENTER_LABEL_KIND, CONTEXT_NOTE, centerPresentation, formatContextDista
 import { requestedRadiusM } from '../discovery/search-area.js';
 import { naturalistInterest } from '../discovery/ranking.js';
 import { EXPLORATION_ORDER_NOTE, explorationOrder } from '../discovery/exploration-order.js';
-import { ADVANCED_HEADING, ADVANCED_NOTE, RECOMMENDATION_LIMIT, RECOMMENDATION_NOTE, RECOMMENDED_TERM,
+import { ADVANCED_HEADING, ADVANCED_NOTE, ADVANCED_SEARCH_HEADING, ADVANCED_SEARCH_NOTE, RECOMMENDATION_CAVEAT,
+  RECOMMENDATION_EXPLAINER, RECOMMENDATION_HOW_HEADING, RECOMMENDATION_LIMIT, RECOMMENDATION_NOTE, RECOMMENDED_TERM,
   recommendationHeading, recommendations } from '../discovery/recommendation.js';
 import { LOCATION_STATUS, accuracyLabel } from '../discovery/geolocation.js';
 import { formatArea, formatDistance, formatLength } from './render.js';
@@ -27,6 +28,33 @@ function el(tag, className, text) { const node = document.createElement(tag); if
 
 const CLASS_LABELS = Object.freeze({ S1200: 'Secondary road', S1400: 'Local road' });
 
+// THE ONE BUTTON A FIRST-TIME USER PRESSES, and it says what it does. "Discover roads" was the panel's own name for the
+// machinery; a person pressing this is asking for roads.
+const PRIMARY_ACTION_LABEL = 'Find roads';
+
+
+// THE DISCLOSURE PRIMITIVE. A real `<details>`/`<summary>`: keyboard-native, and collapsed content is genuinely absent
+// from the tab order rather than hidden by CSS. Its open state is remembered for this session only, so a re-render (a
+// selection, a promotion, a note) never slams a section shut while somebody is reading it - and nothing is persisted.
+const disclosureState = { advancedSearch: false, results: false, how: false };
+
+function disclosure({ id, key, label, note = null, className = 'discovery-disclosure' }) {
+  const details = el('details', className);
+  details.id = id;
+  details.open = Boolean(disclosureState[key]);
+  const summary = el('summary', 'discovery-disclosure-summary');
+  summary.id = `${id}-heading`;
+  summary.append(el('span', 'discovery-disclosure-label', label));
+  details.append(summary);
+  if (note) details.append(el('p', 'small muted discovery-disclosure-note', note));
+  // THE OPEN STATE IS WRITTEN WHEN THE PERSON ACTS, not when the browser gets round to announcing it. The `toggle` event is
+  // queued, so a re-render between a click and that event would build the next section closed - a lost click. The click
+  // handler runs synchronously, before the element's own activation toggles it, so the value it is about to have is known
+  // here; keyboard activation (Enter or Space on the summary) fires the same event, so both paths are covered.
+  summary.addEventListener('click', () => { disclosureState[key] = !details.open; });
+  return details;
+}
+
 export function renderDiscovery(container, { discovery, searchAreas = [], searchAreaId = null, search = null,
   presets = [], region = null, gazetteer = null, loadPlaceTier = null, onDiscover, onSelect, onPromote, onDismiss,
   onFilters, onSort, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace,
@@ -35,9 +63,12 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
   // The radius this run asked for, in metres. The exploration order normalises distance against it, and the panel
   // shows it beside the two scores; a declared box search has none, so the order falls back to the interest score.
   const radiusM = requestedRadiusM(discovery.searchArea);
+  const coverage = coverageOf({ search, searchAreas, searchAreaId, region });
   container.append(controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, loadPlaceTier,
     onDiscover, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation,
     locationSupported }));
+  // STATUS AND ERRORS ARE NEVER BEHIND A DISCLOSURE. A search that failed, a stale result set and a promotion that was
+  // refused all stay in the ordinary flow, where they were before.
   if (discovery.error) container.append(el('p', 'discovery-error', discovery.error));
   // A promotion that could not be completed says so, with the reason the application actually hit. It used to
   // be state that nothing rendered: pressing Promote on a published object that was never uploaded looked
@@ -48,29 +79,55 @@ export function renderDiscovery(container, { discovery, searchAreas = [], search
     container.append(note);
   }
   if (search?.error) container.append(el('p', 'discovery-error', search.error));
-  if (discovery.coverage) container.append(coverageBanner(discovery.coverage, discovery.diagnostics, discovery.searchArea,
-    runCenterLabel({ discovery, search, gazetteer })));
+  const coverageNote = coverageConsequence(coverage);
+  if (coverageNote) container.append(coverageNote);
   const stale = staleResults({ discovery, search, searchAreaId });
   if (stale) container.append(el('p', 'discovery-note', stale));
   const selected = discovery.selectedId ? discovery.results.find(result => result.id === discovery.selectedId) : null;
   if (discovery.status === 'ready' && discovery.results.length) {
-    // RECOMMENDATIONS FIRST, THE WORKBENCH SECOND. The same measured results, the same selection and the same promote
-    // action: the cards are the top of one order over what was measured, and everything the workspace could always do is
-    // still below them, unchanged and one heading away.
+    // RECOMMENDATIONS FIRST, THE DETAIL SECOND, THE WORKBENCH THIRD.
+    //
+    // The cards are the answer. The selected road's own detail sits immediately under them, so inspecting the road a
+    // person just chose never requires opening the full result set - and everything the workspace could always do
+    // (filters, sort, every measured column, the coverage internals, the sort explanation) is one deliberate click away
+    // in "Explore all results".
+    const summaryLine = searchSummaryLine(discovery.diagnostics, discovery.searchArea,
+      runCenterLabel({ discovery, search, gazetteer }));
+    if (summaryLine) container.append(summaryLine);
     container.append(recommendationsSection({ discovery, radiusM, onSelect, onPromote }));
-    container.append(advancedBoundary());
-    const view = filterAndSort(discovery.results, discovery.filters, discovery.sort, { radiusM });
-    container.append(toolbar({ discovery, results: discovery.results, view, onFilters, onSort }));
-    container.append(resultTable(view, discovery, onSelect));
-    container.append(el('p', 'discovery-note', sortNote(discovery.sort, { radiusM })));
-    container.append(el('p', 'discovery-note', SEGMENTED_ROAD_NOTE));
+    if (selected) container.append(selectedResult(selected, { onPromote, onDismiss, onSelect, radiusM, outings,
+      selectedOutingId, onAddToOuting }));
+    container.append(workbench({ discovery, radiusM, onFilters, onSort, onSelect,
+      // THE BANNER DESCRIBES THE RUN THAT PRODUCED THESE RESULTS, so it uses the run's own coverage - which carries the
+      // counts, the selection and the timings the run actually measured - and only falls back to the definition's
+      // coverage when a run reported none. The consequence note above is the other way round on purpose: it is about the
+      // search as it is currently defined, which is what a person is about to run.
+      coverage: discovery.coverage ?? coverage,
+      centerLabel: runCenterLabel({ discovery, search, gazetteer }) }));
   } else if (discovery.status === 'ready') {
     container.append(el('p', 'discovery-note', 'No discovery corridor was proposed in this search area. That is a result about the declared filters and data coverage, not a statement about the roads on the ground.'));
   }
-  if (selected) container.append(selectedResult(selected, { onPromote, onDismiss, onSelect, radiusM, outings,
-    selectedOutingId, onAddToOuting }));
   return container;
 }
+
+// WHAT A LIMITATION MEANS, IN PLAIN WORDS, IN THE ORDINARY FLOW. A healthy search says nothing technical here: the
+// coverage internals (FULL/PARTIAL/NONE, cells, partitions, timings) live under "Explore all results", and only a real
+// consequence is stated where a person will read it.
+function coverageConsequence(coverage) {
+  if (!coverage || coverage.coverage === COVERAGE.FULL) return null;
+  const note = el('p', 'discovery-coverage-note');
+  note.id = 'discovery-coverage-note';
+  // EACH LIMITATION GETS ITS OWN SENTENCE, because they are different claims: no data at all, some data missing, and data
+  // that could not be checked are not the same thing and must not be flattened into one cautious phrase.
+  const consequence = {
+    [COVERAGE.NONE]: 'No published environmental data covers this search area, so no recommendations can be made from it.',
+    [COVERAGE.UNKNOWN]: 'The environmental data coverage of this search area could not be determined, so recommendations '
+      + 'may use fewer signals.',
+  }[coverage.coverage] ?? 'Some environmental data is unavailable here, so recommendations may use fewer signals.';
+  note.textContent = coverage.reason ? `${consequence} ${coverage.reason}` : consequence;
+  return note;
+}
+
 
 // Changing the search does not silently re-run it: the results stay on screen, marked as belonging to the
 // search that produced them, until a person starts the new one.
@@ -87,36 +144,55 @@ function staleResults({ discovery, search, searchAreaId }) {
   return `These results are from the previous search (${previous}). Choose a centre and radius, then search again to replace them.`;
 }
 
+// THE SEARCH SURFACE, SPLIT BY WHAT A FIRST-TIME USER NEEDS.
+//
+// The ordinary path answers one question - where should I search? - and gets out of the way: a place name or this device's
+// location, then one button. Everything that configures *how* the search is bounded (declared areas, exact coordinates, the
+// map picker, the radius and its presets, the benchmark scenarios) is one disclosure below it, unchanged and complete.
 function controls({ discovery, searchAreas, searchAreaId, search, presets, region, gazetteer, loadPlaceTier = null,
   onDiscover, onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace,
   onUseLocation, locationSupported }) {
   const block = el('div', 'discovery-controls');
-  if (searchAreas.length > 1) {
-    const label = el('label', 'discovery-field', 'Search area');
-    const select = el('select', 'discovery-select');
-    select.id = 'discovery-area';
-    const custom = el('option', null, 'Custom radius search (centre + radius)');
-    custom.value = CUSTOM_SEARCH_AREA_ID;
-    if (searchAreaId === CUSTOM_SEARCH_AREA_ID) custom.selected = true;
-    select.append(custom);
-    for (const area of searchAreas) {
-      const option = el('option', null, area.name);
-      option.value = area.id;
-      if (area.id === searchAreaId) option.selected = true;
-      select.append(option);
-    }
-    select.addEventListener('change', event => onSearchArea?.(event.target.value));
-    label.append(select);
-    block.append(label);
-  } else if (searchAreas.length === 1) {
-    block.append(el('p', 'discovery-area', `Search area: ${searchAreas[0].name}`));
-  }
-  block.append(searchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, loadPlaceTier,
-    onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }));
+  block.append(searchSurface({ discovery, search, searchAreas, searchAreaId, region, gazetteer, loadPlaceTier,
+    onSelectPlace, onUseLocation, locationSupported, onSearchDefinition, onDiscover }));
+  block.append(advancedSearch({ searchAreas, searchAreaId, search, presets, region, gazetteer, loadPlaceTier,
+    onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace }));
+  return block;
+}
+
+// WHERE SHOULD I SEARCH? A place, or where I am - and then one button that says what it does.
+function searchSurface({ discovery, search, searchAreas, searchAreaId, region, gazetteer, loadPlaceTier = null,
+  onSelectPlace, onUseLocation, locationSupported, onSearchDefinition, onDiscover }) {
+  const block = el('div', 'discovery-primary');
+  const draft = search?.definition ?? null;
+  const radiusMiles = draft?.radiusMiles ?? DEFAULT_RADIUS_MILES;
   const customSearch = searchAreaId === CUSTOM_SEARCH_AREA_ID;
   const coverage = coverageOf({ search, searchAreas, searchAreaId, region });
-  const runnable = customSearch ? Boolean(search?.definition) && searchIsRunnable({ ok: true, coverage }) : true;
-  const button = el('button', 'primary-button', discovery.status === 'running' ? 'Discovering…' : 'Discover roads');
+  const presentation = centerPresentation({ place: search?.place ?? null, near: search?.near ?? null,
+    center: draft?.center ?? null });
+  const runnable = customSearch ? Boolean(draft) && searchIsRunnable({ ok: true, coverage }) : true;
+
+  // ONE ROW: the place to search, and this device's own location beside it. The ordinary path is these two ways of saying
+  // where, one button, and nothing else - so the primary action stays on the first screen of the panel.
+  const row = el('div', 'discovery-primary-row');
+  row.append(placeFinder({ gazetteer, place: search?.place ?? null, onSelectPlace, loadPlaceTier }),
+    locationControl({ location: search?.location ?? null, supported: locationSupported, onUseLocation }));
+  block.append(row);
+  // WHERE THE SEARCH IS, AND WHAT THE ASSUMPTION IS, on one line: a place a person chose, otherwise the nearest published
+  // place, otherwise the coordinates - then the radius, so the answer can be read without opening the control that set it.
+  const context = el('div', 'discovery-search-context');
+  const centreLine = el('p', 'small discovery-center-label', centerLabelText(presentation));
+  centreLine.id = 'discovery-center-label';
+  context.append(centreLine);
+  const summary = el('p', 'small muted discovery-search-assumption', customSearch
+    ? (draft ? `within ${formatRadius(radiusMiles)}` : 'Choose a place, use your location, or set a centre under Advanced search.')
+    : `declared area: ${searchAreas.find(area => area.id === searchAreaId)?.name ?? searchAreaId ?? 'none selected'}`);
+  summary.id = 'discovery-search-assumption';
+  context.append(summary);
+  block.append(context);
+  block.append(recentSearches({ search, gazetteer, onSearchDefinition }));
+
+  const button = el('button', 'primary-button discovery-find', discovery.status === 'running' ? 'Finding…' : PRIMARY_ACTION_LABEL);
   button.type = 'button';
   button.id = 'discover-roads';
   // The button is created together with its listener, so it never needs a pre-attach disabled state. It does
@@ -126,15 +202,20 @@ function controls({ discovery, searchAreas, searchAreaId, search, presets, regio
   if (!runnable) button.setAttribute('aria-describedby', 'discovery-search-status');
   button.addEventListener('click', () => onDiscover?.());
   block.append(button);
-  if (!searchAreas.length) block.append(el('p', 'discovery-status', 'Loading the discovery search-area declaration…'));
-  else if (!runnable) block.append(el('p', 'discovery-status', 'Cannot search: this centre and radius do not overlap the published regional coverage.'));
-  if (discovery.status === 'running') {
-    block.append(el('p', 'discovery-status', discovery.phase || 'Preparing search…'));
-  } else if (discovery.status === 'unavailable' && !discovery.error) {
-    block.append(el('p', 'discovery-status', 'The road-network extract could not be read.'));
+
+  const status = el('div', 'discovery-search-status-block');
+  status.id = 'discovery-search-status';
+  status.setAttribute('aria-live', 'polite');
+  if (!searchAreas.length) status.append(el('p', 'discovery-status', 'Loading the discovery search-area declaration…'));
+  else if (!runnable) status.append(el('p', 'discovery-status', 'Cannot search: this centre and radius do not overlap the published regional coverage.'));
+  if (discovery.status === 'running') status.append(el('p', 'discovery-status', discovery.phase || 'Preparing search…'));
+  else if (discovery.status === 'unavailable' && !discovery.error) {
+    status.append(el('p', 'discovery-status', 'The road-network extract could not be read.'));
   }
+  block.append(status);
   return block;
 }
+
 
 // What the panel calls the current centre: the label first, then the coordinates it is only a label for, plus
 // how far the inferred place is. The coordinates are always shown, because they are the search.
@@ -157,39 +238,63 @@ function coverageOf({ search, searchAreas, searchAreaId, region }) {
   return search?.definition ? searchRegionCoverage(search.definition, region) : null;
 }
 
-// The centre and the radius. Every control here produces the same plain value, and a map pick, a preset, a
-// shared URL and a remembered search are all just other ways of arriving at it.
-function searchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, loadPlaceTier = null,
-  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace, onUseLocation, locationSupported }) {
+// THE TECHNICAL HALF OF CHOOSING WHERE, INSIDE ITS OWN DISCLOSURE. Declared areas, exact coordinates, the map picker, the
+// radius and its presets, and the benchmark scenarios: every one of them still produces the same plain centre-and-radius
+// definition the ordinary path produces, and none of them is required to get recommendations.
+function advancedSearch({ searchAreas, searchAreaId, search, presets, region, gazetteer, loadPlaceTier = null,
+  onSearchArea, onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace }) {
+  const details = disclosure({ id: 'discovery-advanced-search', key: 'advancedSearch', label: ADVANCED_SEARCH_HEADING,
+    note: ADVANCED_SEARCH_NOTE });
+  const body = el('div', 'discovery-advanced-search-body');
+  if (searchAreas.length > 1) {
+    const label = el('label', 'discovery-field', 'Search area');
+    const select = el('select', 'discovery-select');
+    select.id = 'discovery-area';
+    const custom = el('option', null, 'Custom radius search (centre + radius)');
+    custom.value = CUSTOM_SEARCH_AREA_ID;
+    if (searchAreaId === CUSTOM_SEARCH_AREA_ID) custom.selected = true;
+    select.append(custom);
+    for (const area of searchAreas) {
+      const option = el('option', null, area.name);
+      option.value = area.id;
+      if (area.id === searchAreaId) option.selected = true;
+      select.append(option);
+    }
+    select.addEventListener('change', event => onSearchArea?.(event.target.value));
+    label.append(select);
+    body.append(label);
+  } else if (searchAreas.length === 1) {
+    body.append(el('p', 'discovery-area', `Search area: ${searchAreas[0].name}`));
+  }
+  body.append(advancedSearchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, loadPlaceTier,
+    onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace }));
+  details.append(body);
+  return details;
+}
+
+// THE TECHNICAL HALF OF CHOOSING WHERE, inside its own disclosure: the active-search statement, the coverage line, exact
+// coordinates, the map picker, the radius and its presets. Every control here produces the same plain centre-and-radius
+// definition the ordinary path produces, and none of it is required to get recommendations.
+function advancedSearchControls({ search, searchAreas, searchAreaId, presets, region, gazetteer, loadPlaceTier = null,
+  onSearchDefinition, onSearchRadius, onSearchPicking, onPreview, onSelectPlace }) {
   const block = el('div', 'discovery-search');
   const draft = search?.definition ?? null;
   const custom = searchAreaId === CUSTOM_SEARCH_AREA_ID;
   const coverage = coverageOf({ search, searchAreas, searchAreaId, region });
   const radiusMiles = draft?.radiusMiles ?? DEFAULT_RADIUS_MILES;
   const picking = Boolean(search?.picking);
-  const place = search?.place ?? null;
-  const near = search?.near ?? null;
-  const presentation = centerPresentation({ place, near, center: draft?.center ?? null });
   const active = custom
     ? (draft ? `Custom radius search · ${formatRadius(draft.radiusMiles)}` : 'Custom radius search · no centre chosen yet')
     : `Declared search area · ${searchAreas.find(area => area.id === searchAreaId)?.name ?? searchAreaId ?? 'none selected'}`;
   const status = el('div', 'discovery-coverage-status');
-  status.id = 'discovery-search-status';
+  status.id = 'discovery-active-search';
   status.setAttribute('aria-live', 'polite');
   status.append(el('p', 'small', `Active search: ${active}${custom ? '' : ' (the centre and radius below define a custom search)'}`));
-  // Where the search is, in the one vocabulary every surface uses: a place a person chose, otherwise the
-  // nearest published place ("Near Vernonia, OR"), otherwise the coordinates. The coordinates stay visible in
-  // every case, because they are the search.
-  const centreLine = el('p', 'small discovery-center-label', centerLabelText(presentation));
-  centreLine.id = 'discovery-center-label';
-  status.append(centreLine);
+  // The coverage vocabulary - FULL, PARTIAL, NONE, UNKNOWN and the reason - is a data-coverage statement, and it lives with
+  // the rest of the internals. The ordinary flow states the consequence instead (see `coverageConsequence`).
   status.append(el('p', `small discovery-coverage-line ${(coverage?.coverage ?? COVERAGE.UNKNOWN).toLowerCase()}`,
     `Coverage: ${coverage?.coverage ?? COVERAGE.UNKNOWN}${coverage?.reason ? ` — ${coverage.reason}` : ''}`));
   block.append(status);
-  block.append(placeFinder({ gazetteer, place, onSelectPlace, loadPlaceTier }));
-  // Another way to say where: the browser's own location, after an explicit click and nothing else. It sits
-  // beside the other centre inputs rather than above them, and the radius below stays the person's.
-  block.append(locationControl({ location: search?.location ?? null, supported: locationSupported, onUseLocation }));
 
   const form = el('form', 'discovery-search-fields');
   form.id = 'discovery-search-fields';
@@ -274,26 +379,30 @@ function searchControls({ search, searchAreas, searchAreaId, presets, region, ga
     block.append(presetBlock);
   }
 
-  const history = (search?.history ?? []).filter(entry => storedDefinition(entry));
-  if (history.length) {
-    const recent = el('div', 'discovery-presets');
-    recent.id = 'discovery-recent';
-    recent.append(el('span', 'eyebrow', 'Recent searches'));
-    history.forEach((entry, index) => {
-      const definition = storedDefinition(entry);
-      // The same precedence as everywhere else: the place a person chose, otherwise the nearest published
-      // place (regenerated from the gazetteer, never stored), otherwise the coordinates.
-      const label = entry.place?.label
-        ?? (nearestPlace(entry.center, gazetteer)?.label ?? formatCenter(entry.center));
-      const chip = el('button', 'quiet-button', `${label} · ${formatRadius(definition.radiusMiles)}`);
-      chip.type = 'button';
-      chip.id = `discovery-recent-${index}`;
-      chip.addEventListener('click', () => onSearchDefinition?.(definition, { source: 'recent', place: entry.place ?? null }));
-      recent.append(chip);
-    });
-    block.append(recent);
-  }
   return block;
+}
+
+// RECENT SEARCHES ARE PART OF THE ORDINARY PATH: searching somewhere else is a normal thing to want, and one chip is the
+// whole of it. They stay in the primary surface; only the radius they were made with travels with them.
+function recentSearches({ search, gazetteer, onSearchDefinition }) {
+  const history = (search?.history ?? []).filter(entry => storedDefinition(entry));
+  if (!history.length) return el('div', 'discovery-recent-empty');
+  const recent = el('div', 'discovery-presets');
+  recent.id = 'discovery-recent';
+  recent.append(el('span', 'eyebrow', 'Recent searches'));
+  history.forEach((entry, index) => {
+    const definition = storedDefinition(entry);
+    // The same precedence as everywhere else: the place a person chose, otherwise the nearest published
+    // place (regenerated from the gazetteer, never stored), otherwise the coordinates.
+    const label = entry.place?.label
+      ?? (nearestPlace(entry.center, gazetteer)?.label ?? formatCenter(entry.center));
+    const chip = el('button', 'quiet-button', `${label} · ${formatRadius(definition.radiusMiles)}`);
+    chip.type = 'button';
+    chip.id = `discovery-recent-${index}`;
+    chip.addEventListener('click', () => onSearchDefinition?.(definition, { source: 'recent', place: entry.place ?? null }));
+    recent.append(chip);
+  });
+  return recent;
 }
 
 // "Find a place": a small local lookup over the committed regional gazetteer, above the coordinate fields it
@@ -312,7 +421,7 @@ function locationControl({ location = null, supported = false, onUseLocation = n
   status.setAttribute('aria-live', 'polite');
   if (!supported) {
     // A browser without the API is not an error state: the feature is simply absent and the panel says so.
-    status.textContent = 'This browser does not offer a location. Choose a place, click the map, or enter coordinates.';
+    status.textContent = 'This browser does not offer a location. Choose a place, or set a centre under Advanced search.';
     block.append(status);
     return block;
   }
@@ -323,17 +432,19 @@ function locationControl({ location = null, supported = false, onUseLocation = n
   // One request at a time: a second click while the browser is looking would only start a race with itself.
   button.disabled = requesting;
   button.addEventListener('click', () => onUseLocation?.());
-  const line = el('p', 'small muted discovery-location-note');
-  line.id = 'discovery-location-note';
+  block.append(button);
+  // THE STATUS LINE IS THE OUTCOME, and the note is one short sentence about what asking costs. Both are here rather than
+  // under a disclosure because this is a privacy decision a person makes on the ordinary path.
   if (requesting) status.textContent = 'Asking this browser for its location…';
   else if (location?.status === LOCATION_STATUS.OK) {
     status.textContent = `Search centre set from this device's location. ${accuracyLabel(location.accuracyM) ?? ''}`.trim();
   } else if (location?.message) status.textContent = location.message;
-  block.append(button, status);
+  const line = el('p', 'small muted discovery-location-note');
+  line.id = 'discovery-location-note';
   line.textContent = location?.status === LOCATION_STATUS.OK
-    ? 'The radius above is unchanged, and no search has run: press "Discover roads" when you are ready.'
-    : 'Asks the browser for one current position and uses it as the search centre. Nothing is sent anywhere, and nothing is tracked.';
-  block.append(line);
+    ? 'No search has run: press "Find roads" when you are ready.'
+    : 'One position, used as the search centre. Nothing is sent anywhere and nothing is tracked.';
+  block.append(status, line);
   return block;
 }
 
@@ -372,8 +483,9 @@ function placeFinder({ gazetteer, place, onSelectPlace, loadPlaceTier = null }) 
   input.addEventListener('keydown', event => onPlaceKey(event, finder, gazetteer, onSelectPlace));
   input.addEventListener('blur', () => closePlaceResults(finder));
   if (place) {
-    // The chosen place is stated where the centre is stated, so the field itself stays a query box.
-    status.textContent = `Centre set to ${place.label}.`;
+    // The chosen place is stated where the centre is stated, so the field itself stays a query box and this line stays for
+    // what the lookup itself is doing (a lazy tier loading, a query with no match).
+    status.textContent = '';
   }
   return box;
 }
@@ -508,18 +620,28 @@ function textField(id, label, value) {
 }
 
 
-// The run's own summary: what was asked for, what came back, and how long each stage took. It reports the
-// search that produced these results, not the search currently typed into the controls above.
-function searchSummary(diagnostics, searchArea, centerLabel = null) {
+// WHAT WAS SEARCHED, IN ONE PLAIN LINE, IN THE ORDINARY FLOW: the radius and the place, or the declared area. It reports
+// the search that produced these results, not the search currently typed into the controls above.
+function searchSummaryLine(diagnostics, searchArea, centerLabel = null) {
   const shape = diagnostics?.searchShape;
   if (!shape || shape.kind !== 'radius' || !Array.isArray(shape.center)) return null;
+  const line = el('p', 'small discovery-search-summary');
+  line.id = 'discovery-summary';
+  line.textContent = `${shape.radiusMiles}-mile radius search · ${centerLabel ?? formatCenter(shape.center)}`;
+  return line;
+}
+
+// THE RUN'S OWN INTERNALS: what was read, how many cells or partitions, how long each stage took. Diagnostic detail, and
+// it lives with the rest of the machinery under "Explore all results".
+function diagnosticsBlock(diagnostics, searchArea, centerLabel = null) {
+  const shape = diagnostics?.searchShape;
+  if (!shape || shape.kind !== 'radius' || !Array.isArray(shape.center)) return el('div', 'discovery-diagnostics-empty');
   const derivedSelection = diagnostics.derivedSelection ?? null;
   const timing = diagnostics.derivedTimingMs ?? diagnostics.partitionTimingMs ?? {};
-  const block = el('div', 'discovery-summary');
-  block.id = 'discovery-summary';
-  block.append(el('span', 'eyebrow', 'Search summary'));
-  block.append(el('p', 'small', `${shape.radiusMiles}-mile radius search · ${centerLabel ?? formatCenter(shape.center)}`));
-  // The coordinates stay in the summary as the search's own state, whatever the label says.
+  const block = el('div', 'discovery-diagnostics');
+  block.id = 'discovery-diagnostics';
+  block.append(el('span', 'eyebrow', 'Search diagnostics'));
+  // The coordinates stay here as the search's own state, whatever the label says.
   block.append(el('p', 'small muted', `centre ${formatCenter(shape.center)}`
     + `${searchArea?.id === CUSTOM_SEARCH_AREA_ID ? ' (custom search centre)' : ''}`));
   const parts = [`${diagnostics.counts?.corridors ?? 0} corridor(s) found`];
@@ -541,6 +663,7 @@ function searchSummary(diagnostics, searchArea, centerLabel = null) {
   return block;
 }
 
+
 // The summary describes the search that produced the results, so it is labelled from that search's own centre:
 // the place a person chose when it still describes that centre, otherwise the nearest published place to it,
 // otherwise the coordinates. A newer centre can never relabel an older run. The label comes from the same helper
@@ -556,8 +679,7 @@ function coverageBanner(coverage, diagnostics, searchArea = null, centerLabel = 
   const block = el('div', `discovery-coverage ${coverage.coverage === COVERAGE.FULL ? 'ok' : 'caution'}`);
   block.append(el('span', 'eyebrow', 'Discovery coverage'));
   block.append(el('strong', null, `Discovery coverage ${coverage.coverage}`));
-  const summary = searchSummary(diagnostics, searchArea, centerLabel);
-  if (summary) block.append(summary);
+  if (diagnostics) block.append(diagnosticsBlock(diagnostics, searchArea, centerLabel));
   const counts = coverage.counts ?? {};
   block.append(el('p', 'small', `${counts.corridors ?? 0} discovery corridor(s) proposed in this area · `
     + `${counts.fullHabitat ?? 0} with full wetland and hydrography coverage · `
@@ -627,8 +749,12 @@ function coverageBanner(coverage, diagnostics, searchArea = null, centerLabel = 
 // THE RECOMMENDATION SECTION: THE ANSWER BEFORE THE MACHINERY.
 //
 // One order, one prefix of it, and one card per road: the rank, the name, one short verdict, two or three reasons in plain
-// English, how far and how long, and two actions. Every word comes from `recommendation.js`, which reads only the
+// English, how far and how long, and the actions. Every word comes from `recommendation.js`, which reads only the
 // measurements the discovery run already made - so a card cannot claim anything the analysis did not measure.
+//
+// The section carries the whole ordinary flow: the assumption in its heading ("within 25 miles"), one sentence saying what
+// was compared, one caveat for all five cards, a way to search somewhere else, and "How recommendations work" for the
+// longer explanation. None of the machinery is required to read it.
 function recommendationsSection({ discovery, radiusM = null, onSelect, onPromote }) {
   const section = el('section', 'discovery-recommendations');
   section.id = 'discovery-recommendations';
@@ -640,11 +766,37 @@ function recommendationsSection({ discovery, radiusM = null, onSelect, onPromote
   const hasCenter = results.some(result => result.distanceFromCenterM != null);
   const head = el('div', 'discovery-recommendations-head');
   head.append(el('p', 'eyebrow', RECOMMENDED_TERM));
-  const title = el('h3', null, recommendationHeading({ hasCenter }));
+  const title = el('h3', null, recommendationHeading({ radiusMiles: discovery.searchArea?.radiusMiles ?? null, hasCenter }));
   title.id = 'recommendations-heading';
   head.append(title);
+  // HOW MANY ROADS WERE FOUND, in plain words, so the five cards are visibly a selection rather than a coincidence.
+  const found = el('p', 'small muted recommendations-found');
+  found.id = 'recommendations-found';
+  found.textContent = `Found ${(discovery.results ?? []).length} road${(discovery.results ?? []).length === 1 ? '' : 's'} `
+    + 'in this search.';
+  head.append(found);
   section.append(head);
-  section.append(el('p', 'small muted recommendations-note', RECOMMENDATION_NOTE));
+  // WHAT WAS COMPARED, in one sentence; the caveat, once for the whole section; and the long explanation one click away.
+  section.append(el('p', 'small muted recommendations-explainer', RECOMMENDATION_EXPLAINER));
+  const actions = el('div', 'recommendations-actions');
+  const how = disclosure({ id: 'recommendations-how', key: 'how', label: RECOMMENDATION_HOW_HEADING,
+    className: 'discovery-disclosure recommendations-how' });
+  how.append(el('p', 'small muted recommendations-note', RECOMMENDATION_NOTE));
+  actions.append(how);
+  // SEARCHING SOMEWHERE ELSE IS ONE BUTTON IN THE ORDINARY FLOW: it brings the search surface into view and puts the
+  // cursor in the place field. Nothing has to be hunted for under a disclosure.
+  const change = el('button', 'quiet-button recommendations-change', 'Change location');
+  change.type = 'button';
+  change.id = 'recommendations-change-location';
+  change.addEventListener('click', () => {
+    const place = document.getElementById('discovery-place');
+    const surface = document.querySelector('.discovery-primary');
+    surface?.scrollIntoView?.({ block: 'nearest' });
+    place?.focus?.();
+  });
+  actions.append(change);
+  section.append(actions);
+  section.append(el('p', 'small muted recommendations-caveat', RECOMMENDATION_CAVEAT));
   // THE TABLE'S OWN ORDER IS NOT THE RECOMMENDATION ORDER, and when they differ the panel says so rather than letting two
   // lists on one screen disagree silently.
   if (discovery.sort !== DEFAULT_SORT) {
@@ -678,16 +830,26 @@ function recommendationsSection({ discovery, radiusM = null, onSelect, onPromote
   return section;
 }
 
-// THE BOUNDARY. Everything the workspace could always do is below this heading, unchanged: the filters, the sort control,
-// the full table, the coverage notes and the detail panel. Pass 1 establishes the hierarchy by order and by name; it hides
-// nothing and removes nothing.
-function advancedBoundary() {
-  const block = el('div', 'discovery-advanced');
-  block.id = 'discovery-advanced';
-  const title = el('h3', null, ADVANCED_HEADING);
-  title.id = 'discovery-advanced-heading';
-  block.append(title, el('p', 'small muted discovery-advanced-note', ADVANCED_NOTE));
-  return block;
+// THE WORKBENCH, BEHIND A REAL DISCLOSURE. Everything the workspace could always do is inside it, unchanged: the coverage
+// internals, the filters, the sort control, the full table, the sort explanation and the segmented-road note. It starts
+// collapsed, so the answer is what a person sees first - and opening it removes nothing and hides nothing.
+function workbench({ discovery, radiusM = null, coverage = null, onFilters, onSort, onSelect, centerLabel = null }) {
+  const details = disclosure({ id: 'discovery-advanced', key: 'results', label: ADVANCED_HEADING, note: ADVANCED_NOTE });
+  const body = el('div', 'discovery-advanced-body');
+  // The coverage banner and the run's own summary are diagnostics about how the answer was produced: they belong with the
+  // other internals, and the ordinary flow states only their consequence.
+  if (coverage) {
+    body.append(coverageBanner(coverage, discovery.diagnostics, discovery.searchArea, centerLabel));
+  } else if (discovery.diagnostics) {
+    body.append(diagnosticsBlock(discovery.diagnostics, discovery.searchArea, centerLabel));
+  }
+  const view = filterAndSort(discovery.results, discovery.filters, discovery.sort, { radiusM });
+  body.append(toolbar({ discovery, results: discovery.results, view, onFilters, onSort }));
+  body.append(resultTable(view, discovery, onSelect));
+  body.append(el('p', 'discovery-note', sortNote(discovery.sort, { radiusM })));
+  body.append(el('p', 'discovery-note', SEGMENTED_ROAD_NOTE));
+  details.append(body);
+  return details;
 }
 
 // ONE CARD. It carries the measurements behind its own sentences as data attributes, so a reader (and a committed test)
@@ -738,17 +900,27 @@ function recommendationCard({ result, summary }, { discovery, onSelect, onPromot
   }
 
   const actions = el('div', 'recommendation-actions');
-  // SHOW ON MAP IS THE ORDINARY SELECTION, and nothing else: the same call the table row and a map click make. It
+  // SHOW ON MAP IS THE PRIMARY ACTION AND THE ORDINARY SELECTION: the same call the table row and a map click make. It
   // emphasises this corridor and moves no camera.
-  const show = el('button', 'quiet-button', 'Show on map');
+  const show = el('button', 'primary-button', 'Show on map');
   show.type = 'button';
   show.id = `recommendation-show-${result.id}`;
   show.addEventListener('click', () => onSelect?.(result.id));
   actions.append(show);
+  // MORE DETAILS IS THE SAME SELECTION, and it brings the road's own detail into view: a card on a phone can sit far above
+  // the panel that explains it, and the person should not have to guess that the road's name is also a control.
+  const more = el('button', 'quiet-button', 'More details');
+  more.type = 'button';
+  more.id = `recommendation-more-${result.id}`;
+  more.addEventListener('click', () => {
+    onSelect?.(result.id);
+    document.getElementById('discovery-selected')?.scrollIntoView?.({ block: 'nearest' });
+  });
+  actions.append(more);
   // SAVE IS THE EXISTING PROMOTION, unchanged: the road is kept on this device through exactly the path the detail
   // panel's own control runs. A road already kept says so instead of offering to keep it twice.
   const saved = result.status === DISCOVERY_STATUS.PROMOTED;
-  const save = el('button', saved ? 'quiet-button' : 'primary-button', saved ? 'Saved' : 'Save');
+  const save = el('button', 'quiet-button', saved ? 'Saved' : 'Save');
   save.type = 'button';
   save.id = `recommendation-save-${result.id}`;
   save.disabled = saved;
