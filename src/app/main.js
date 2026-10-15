@@ -27,7 +27,7 @@ import { buildDiscoveryUnits } from '../discovery/units.js';
 import { segmentUnit } from '../discovery/segment.js';
 import { eligibleClasses } from '../discovery/eligibility.js';
 import { ANALYSIS_DISTANCES_M } from '../gis/habitat-result.js';
-import { renderDiscovery, eligibilityNote } from '../ui/discovery.js';
+import { renderDiscovery, eligibilityNote, revealRecommendations } from '../ui/discovery.js';
 import { renderSavedRoads } from '../ui/saved-roads.js';
 import { renderOutings } from '../ui/outings.js';
 import { renderTrips } from '../ui/trips.js';
@@ -145,6 +145,9 @@ const nodes = {
   fitSelected: document.getElementById('fit-selected'), fitOuting: document.getElementById('fit-outing'),
   basemapToggle: document.getElementById('basemap-toggle'),
   basemapNote: document.getElementById('basemap-note'),
+  mapSelection: document.getElementById('map-selection'),
+  mapSelectionName: document.getElementById('map-selection-name'),
+  mapBackToRecommendations: document.getElementById('map-back-to-recommendations'),
   load: document.getElementById('load-pilot'), overlayNote: document.getElementById('habitat-layers-note'),
   discovery: document.getElementById('discovery'), discoveryCount: document.getElementById('discovery-count'),
   savedRoads: document.getElementById('saved-roads'), savedCount: document.getElementById('saved-count'),
@@ -1133,6 +1136,23 @@ function badgeText(roads) {
   return `${String(vintage).toUpperCase()} · ${evidence.geometry.label} · ${evidence.access.label}`;
 }
 
+// WHAT THE MAP IS SHOWING, SAID WHERE THE MAP IS.
+//
+// A recommendation card sends a person here, and on a phone that is two screens from the card they tapped. The strip above
+// the map states which road they are looking at, and offers the way back - the same selection, the same search, the same
+// cards, no new run. It reads the one selection state the whole workspace shares; it does not keep one of its own.
+function renderMapSelection(state) {
+  const strip = nodes.mapSelection;
+  if (!strip) return;
+  const selectedId = state.discovery.selectedId ?? null;
+  const result = selectedId ? (state.discovery.results ?? []).find(entry => entry.id === selectedId) ?? null : null;
+  strip.hidden = !result;
+  if (!result) return;
+  if (nodes.mapSelectionName) nodes.mapSelectionName.textContent = result.name ?? 'this corridor';
+  // The way back only exists when there is somewhere to go back to.
+  if (nodes.mapBackToRecommendations) nodes.mapBackToRecommendations.hidden = !(state.discovery.results ?? []).length;
+}
+
 function caption(state) {
   const selected = state.candidates.find(candidate => candidate.id === state.selectedId);
   if (!selected) return 'Select a corridor to see its mapped geometry. Geometry is evidence, not an invented route.';
@@ -1539,6 +1559,7 @@ store.subscribe(state => {
   nodes.fitResults.disabled = !(state.discovery.status === 'ready' && state.discovery.results.length);
   nodes.fitSelected.disabled = !selected;
   nodes.caption.textContent = caption(state);
+  renderMapSelection(state);
   // THE OVERLAY BELONGS TO THE CORRIDOR THE MAP IS SHOWING, by the same rule the habitat action used to name it. Reading
   // only the candidate selection is why a discovery corridor's analysis could never reach the map even once it ran.
   const shownId = shownCorridorId(state);
@@ -1807,6 +1828,8 @@ nodes.fitSelected.addEventListener('click', () => map.fitSelected());
 // FITTING A PLAN IS A CAMERA MOVE THE PERSON ASKED FOR. Nothing else in the outing workflow moves the viewport: adding,
 // removing, reordering and noting a road all leave the camera exactly where it was.
 nodes.fitOuting.addEventListener('click', () => map.fitOuting());
+// BACK TO THE ANSWER IS A PAGE MOVE, NOT A CAMERA MOVE: the same cards, the same selection, the same search, and no run.
+nodes.mapBackToRecommendations?.addEventListener('click', () => revealRecommendations());
 nodes.basemapToggle?.addEventListener('change', event => map.setBasemap(event.target.checked));
 nodes.occurrenceNote = document.getElementById('occurrence-note');
 nodes.occurrenceToggle = document.getElementById('occurrence-layer');

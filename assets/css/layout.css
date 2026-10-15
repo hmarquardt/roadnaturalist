@@ -16,3 +16,16 @@
 .saved-panel{grid-column:1 / -1;grid-row:5}
 @media(max-width:1050px){.saved-panel{grid-column:1 / -1;grid-row:5}}
 @media(max-width:700px){.saved-panel{order:6}}
+/* WHAT THE MAP IS SHOWING. A recommendation card can send a person two screens down the page, so the map says which road
+   arrived with them and offers the way back - the same selection, no new search. */
+.map-selection{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem .75rem;padding:.55rem 1.15rem;border-bottom:1px solid #dce3d9;background:#f4f7f1}
+.map-selection[hidden]{display:none}
+.map-selection-line{margin:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .5rem;min-width:0}
+.map-selection-line .eyebrow{margin:0}
+.map-selection-line strong{font-family:Georgia,serif;font-size:1rem;color:#25473b;overflow-wrap:anywhere}
+.map-selection .quiet-button{min-height:2.4rem;white-space:nowrap}
+@media(max-width:700px){.map-selection{align-items:stretch}.map-selection .quiet-button{width:100%}}
+/* THE MAP PANEL TAKES FOCUS WHEN A CARD SENDS SOMEONE HERE, and a focus ring around a whole panel would read as a
+   selection: the region states itself through its heading instead. */
+#map-panel:focus{outline:none}
+#map-panel:focus-visible{outline:2px solid #205646;outline-offset:-2px}

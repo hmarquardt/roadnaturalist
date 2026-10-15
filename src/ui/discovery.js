@@ -255,6 +255,42 @@ function compactSearch({ discovery, search, gazetteer }) {
   return box;
 }
 
+// SHOW ON MAP MEANS SHOW THE MAP.
+//
+// Selecting a corridor and *seeing* the map that draws it are two different things, and the card promised both: on a phone
+// the map sits two screens below the answer, so a tap that only changed a highlight the person cannot see looked like
+// nothing happened. This brings the map panel into view when it is not already there, and does nothing when it is.
+//
+// IT NEVER TOUCHES THE CAMERA. The page scrolls; the geographic camera does not. Panning, zooming and fitting stay where
+// they have always been - with the map's own controls (Fit results, Fit selected, Fit outing) - because a person who
+// scrolled a page has not asked to move the world.
+const MAP_VISIBLE_ENOUGH = 0.6;
+
+function revealMap() {
+  const panel = document.getElementById('map-panel');
+  if (!panel) return;
+  const viewport = window.innerHeight || 0;
+  const rect = panel.getBoundingClientRect();
+  const visible = Math.min(rect.bottom, viewport) - Math.max(rect.top, 0);
+  const enough = Math.min(rect.height, viewport) * MAP_VISIBLE_ENOUGH;
+  // ALREADY THERE? THEN NOTHING MOVES. A desktop layout can show the map beside the answer, and a page that jumps under a
+  // person who can already see what they asked for is worse than no movement at all.
+  if (visible >= enough) return;
+  panel.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  // The region takes focus so a keyboard or screen-reader user is taken with the page, and `preventScroll` keeps focus from
+  // starting a second, competing scroll of its own.
+  panel.focus({ preventScroll: true });
+}
+
+// AND BACK AGAIN. The answer is where a person came from, and it is still there: the same cards, the same selection, the
+// same search. This moves the page and nothing else - no store write, no new run, no camera.
+export function revealRecommendations() {
+  const section = document.getElementById('discovery-recommendations');
+  const heading = document.getElementById('recommendations-heading');
+  section?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+  heading?.focus?.({ preventScroll: true });
+}
+
 // The one place that opens the search surface again, whether it is opened from the summary beside the answer or from the
 // recommendation section: the disclosure is opened for the session (so a re-render keeps it open) and the place field takes
 // focus, because that is the field a person came here to use.
@@ -992,12 +1028,17 @@ function recommendationCard({ result, summary }, { discovery, onSelect, onPromot
   }
 
   const actions = el('div', 'recommendation-actions');
-  // SHOW ON MAP IS THE PRIMARY ACTION AND THE ORDINARY SELECTION: the same call the table row and a map click make. It
-  // emphasises this corridor and moves no camera.
+  // SHOW ON MAP IS THE PRIMARY ACTION, AND IT MEANS WHAT IT SAYS: select this corridor through the ordinary selection state,
+  // then bring the map that draws it into view. The scroll happens on the next frame, because the selection itself changes
+  // the panel's height - the detail panel appears with it - and a page measured before that change would land in the wrong
+  // place. The map's camera is not touched: this is a page scroll, not a fit.
   const show = el('button', 'primary-button', 'Show on map');
   show.type = 'button';
   show.id = `recommendation-show-${result.id}`;
-  show.addEventListener('click', () => onSelect?.(result.id));
+  show.addEventListener('click', () => {
+    onSelect?.(result.id);
+    requestAnimationFrame(() => revealMap());
+  });
   actions.append(show);
   // MORE DETAILS IS THE SAME SELECTION, and it brings the road's own detail into view: a card on a phone can sit far above
   // the panel that explains it, and the person should not have to guess that the road's name is also a control.

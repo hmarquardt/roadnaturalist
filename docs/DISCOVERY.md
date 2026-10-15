@@ -106,6 +106,20 @@ uses, and the ranking's own names (`exploration-order-v1`, `naturalist-interest-
 **Searching somewhere else is still one click.** `Change location` in the recommendation section brings the search surface
 into view and puts the cursor in the place field, and the compact search controls stay directly above the recommendations.
 
+**Show on map shows the map.** On a phone the map sits about two screens below the answer, so a primary action that only
+changed a highlight nobody could see looked like nothing had happened. `Show on map` now selects the corridor through the one
+selection state and brings the map panel into view - and it stops there. It never pans, zooms or fits: the page scrolls, the
+geographic camera does not, and the camera and the map's own fit count are identical before and after (the map's gates assert
+both). Panning and fitting stay where they have always been, with the controls that say so: *Fit results*, *Fit selected*, *Fit
+outing*.
+
+The rule is **visibility, not width**: if the map is already substantially on screen - a desktop layout, or a person who has
+scrolled to it - nothing moves at all. The map region takes focus (`#map-panel`, `tabindex="-1"`, labelled by its heading) so a
+keyboard or screen-reader user is taken with the page, and a strip above the map states which road arrived with them
+(*Shown on the map: US Hwy 380*) with one **Back to recommendations** control that returns to the same cards, the same
+selection and the same search - no new run, no data read, no camera move. Nothing else in the panel scrolls: the table row, the
+sort control, a map click, a save and the source-evidence step all leave the page where it is.
+
 **Selecting a road needs no disclosure.** The selected corridor's detail panel sits between the cards and
 `Explore all results`, so choosing a recommendation (or `More details`) shows what that road measured without opening the
 full result set. `Show on map` is the primary card action and is still the ordinary discovery selection: one selection

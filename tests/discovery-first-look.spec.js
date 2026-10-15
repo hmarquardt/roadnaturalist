@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 import { openAdvancedSearch, openChangeLocation } from './discovery-ui.js';
 import { DEFAULT_RADIUS_MILES } from '../src/discovery/search-definition.js';
+import { cameraOf, fitCountOf } from './map-contract.js';
 
 // WHAT A PERSON SEES COLD, AND WHERE THE ANSWER LANDS.
 //
@@ -305,4 +306,113 @@ test('on a desktop the answer leads, the intro still reads as intentional, and t
   await expect(page.locator('#recommendation-list li.recommendation')).toHaveCount(5);
   await expect(page.locator('#recommendations-heading')).toBeVisible();
   console.log(`FIRST_LOOK_DESKTOP_ORDER ${JSON.stringify(order)}`);
+});
+
+// SHOW ON MAP HAS TO SHOW THE MAP.
+//
+// On a phone the map sits about two screens below the answer, so a primary action that only changed a highlight nobody could
+// see looked like nothing happened. This workflow proves the promise: the exact corridor is selected, the map is brought into
+// view, the camera and the fit count are untouched, and there is a way back that changes nothing at all.
+test('Show on map selects the road and brings the map into view, without touching the camera', async ({ page }) => {
+  test.setTimeout(1800000);
+  await freshPage(page, PHONE);
+  await findRoadsByPlace(page, 'Princeton');
+  // Data-plane reads, watched from here on: the search reads the derived plane as it must, and this assertion is about what
+  // SHOW ON MAP does afterwards - which is nothing at all on the data plane.
+  const reads = [];
+  page.on('request', request => {
+    const url = request.url();
+    if (url.includes('/derived/') || url.includes('/regional/partitions/') || url.includes('data.roadnaturalist.com')) reads.push(url);
+  });
+  const cards = page.locator('#recommendation-list li.recommendation');
+  await expect(cards).toHaveCount(5);
+  const first = await cards.first().getAttribute('data-candidate-id');
+  const fifth = await cards.nth(4).getAttribute('data-candidate-id');
+  await expect(page.locator(`#recommendation-rank-${first}`)).toHaveText('#1 Best overall');
+
+  // BEFORE: the map is well below the answer, and the person can see the answer.
+  const before = await layout(page, ['#map-panel', '#recommendation-list li.recommendation', '#discovery-recommendations']);
+  const cameraBefore = await cameraOf(page);
+  const fitsBefore = await fitCountOf(page);
+  expect(before.boxes['#map-panel'].top, 'the map starts below the first screen').toBeGreaterThan(before.viewport);
+  expect(before.boxes['#recommendation-list li.recommendation'].top).toBeLessThan(before.viewport);
+
+  // TAP SHOW ON MAP: the exact corridor, and the map on screen.
+  await page.locator(`#recommendation-show-${first}`).click();
+  await expect(page.locator(`#recommendation-show-${first}`)).toBeVisible();
+  await expect.poll(async () => (await layout(page, ['#map-panel'])).boxes['#map-panel'].top,
+    { timeout: 15000, message: 'the map is brought into view' }).toBeLessThanOrEqual(0);
+  const shown = await layout(page, ['#map-panel', '#map']);
+  expect(shown.boxes['#map-panel'].top, 'the map region is at the top of the viewport').toBeLessThanOrEqual(4);
+  expect(shown.boxes['#map-panel'].bottom, 'and substantially on screen').toBeGreaterThan(shown.viewport * 0.5);
+  // THE EXACT CORRIDOR, through the one selection state the whole workspace shares.
+  await expect.poll(async () => page.locator('#map [data-role="candidate"][data-selected="true"]')
+    .evaluateAll(nodes => [...new Set(nodes.map(node => node.dataset.corridorId))])).toEqual([first]);
+  // THE MAP SAYS WHICH ROAD ARRIVED WITH THE PERSON, and offers the way back.
+  await expect(page.locator('#map-selection')).toBeVisible();
+  await expect(page.locator('#map-selection-name')).not.toBeEmpty();
+  await expect(page.locator('#map-panel')).toBeFocused();
+  // AND THE CAMERA IS EXACTLY WHERE IT WAS: a page scroll is not a fit.
+  expect(await cameraOf(page)).toEqual(cameraBefore);
+  expect(await fitCountOf(page), 'no fit is asked for').toBe(fitsBefore);
+  console.log(`SHOWMAP_PHONE ${JSON.stringify({ before: before.boxes['#map-panel'], after: shown.boxes['#map-panel'],
+    camera: cameraBefore, fits: fitsBefore })}`);
+
+  // BACK TO THE ANSWER: the same cards, the same selection, the same search - and no data read to get there.
+  await page.locator('#map-back-to-recommendations').click();
+  await expect.poll(async () => (await layout(page, ['#discovery-recommendations'])).boxes['#discovery-recommendations'].top,
+    { timeout: 15000, message: 'the recommendations are back on screen' }).toBeLessThan(200);
+  await expect(cards).toHaveCount(5);
+  await expect(page.locator(`#recommendation-rank-${first}`)).toHaveText('#1 Best overall');
+  await expect(page.locator(`#recommendation-open-${first}`)).toHaveAttribute('aria-current', 'true');
+  await expect(page.locator('#recommendations-heading')).toContainText('Best road-naturalist drives within');
+
+  // THE FIFTH CARD BEHAVES LIKE THE FIRST: same map region, its own corridor. The interaction does not depend on card order.
+  await page.locator(`#recommendation-show-${fifth}`).click();
+  await expect.poll(async () => (await layout(page, ['#map-panel'])).boxes['#map-panel'].top,
+    { timeout: 15000, message: 'the fifth card brings the map into view too' }).toBeLessThanOrEqual(0);
+  await expect.poll(async () => page.locator('#map [data-role="candidate"][data-selected="true"]')
+    .evaluateAll(nodes => [...new Set(nodes.map(node => node.dataset.corridorId))])).toEqual([fifth]);
+  expect(await cameraOf(page)).toEqual(cameraBefore);
+  expect(await fitCountOf(page)).toBe(fitsBefore);
+  expect(reads, 'showing a road on the map reads no data plane').toEqual([]);
+  console.log(`SHOWMAP_PHONE_FIFTH ${JSON.stringify({ fifth })}`);
+});
+
+// THE RULE IS VISIBILITY, NOT WIDTH.
+//
+// A page that already shows the map must not jump when a card is tapped, and a page that does not must be taken to it. The
+// layout decides which case a person is in, so the test sets up the visible case directly: the map on screen, then the card's
+// action dispatched without the browser scrolling the button into view (which is exactly what a person whose viewport already
+// shows the map would do - they tap a button they can see, and the page stays where it is).
+test('Show on map does not move a page that already shows the map, and never moves the camera', async ({ page }) => {
+  test.setTimeout(1800000);
+  await freshPage(page, DESKTOP);
+  await findRoadsByPlace(page, 'Princeton');
+  const first = await page.locator('#recommendation-list li.recommendation').first().getAttribute('data-candidate-id');
+  const cameraBefore = await cameraOf(page);
+  const fitsBefore = await fitCountOf(page);
+  // FIRST TAP: the exact corridor, and the map on screen - dispatched without the browser scrolling the button into view,
+  // which is what a person whose viewport already shows the map would do.
+  await page.evaluate(id => document.getElementById(id).click(), `recommendation-show-${first}`);
+  await expect.poll(async () => page.locator('#map [data-role="candidate"][data-selected="true"]')
+    .evaluateAll(nodes => [...new Set(nodes.map(node => node.dataset.corridorId))])).toEqual([first]);
+  await expect.poll(async () => (await layout(page, ['#map-panel'])).boxes['#map-panel'].top,
+    { timeout: 15000, message: 'the map is on screen after the tap' }).toBeLessThanOrEqual(4);
+
+  // SECOND TAP, THE CASE THE RULE IS FOR: the road is already selected, so nothing about the layout changes - the page is
+  // already showing the map, and it must not move at all.
+  await page.locator('#map-panel').evaluate(node => node.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(500);
+  const settled = await layout(page, ['#map-panel']);
+  expect(settled.boxes['#map-panel'].top).toBeLessThan(settled.viewport);
+  const scrollBefore = settled.scrollY;
+  await page.evaluate(id => document.getElementById(id).click(), `recommendation-show-${first}`);
+  await page.waitForTimeout(1200);
+  const after = await layout(page, ['#map-panel']);
+  expect(after.scrollY, 'a page that already shows the map does not jump').toBe(scrollBefore);
+  expect(after.boxes['#map-panel'].top).toBeLessThan(after.viewport);
+  expect(await cameraOf(page)).toEqual(cameraBefore);
+  expect(await fitCountOf(page)).toBe(fitsBefore);
+  console.log(`SHOWMAP_VISIBLE_NO_JUMP ${JSON.stringify({ scrollBefore, scrollAfter: after.scrollY, mapTop: after.boxes['#map-panel'].top })}`);
 });
