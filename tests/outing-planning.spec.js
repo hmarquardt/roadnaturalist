@@ -46,7 +46,6 @@ test('a plan survives the session that made it, and grows across searches', asyn
     if (message.type() === 'error' && !/Failed to load resource/.test(message.text())) errors.push(message.text());
   });
 
-  await openAllResults(page);
   const rows = () => page.locator('#discovery-results tbody tr');
   const topIds = () => rows().evaluateAll(list => list.slice(0, 3).map(row => row.dataset.candidateId));
   const planIds = () => page.locator('[data-role="outing"]').evaluateAll(paths =>
@@ -129,6 +128,8 @@ test('a plan survives the session that made it, and grows across searches', asyn
     await page.locator('#discovery-radius-input').fill(String(place.radiusMiles));
     await page.locator('#discovery-radius-input').press('Enter');
     await page.locator('#discover-roads').click();
+    // THE ROWS ARE BEHIND "Explore all results": the gate opens the workbench after each search, like a person would.
+    await openAllResults(page);
     await expect(rows().first()).toBeVisible({ timeout: 600000 });
   }
   // ADDING A DISCOVERED ROAD KEEPS IT FIRST: an outing references saved roads, so the control goes through the same

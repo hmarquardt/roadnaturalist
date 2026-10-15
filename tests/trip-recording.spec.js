@@ -68,7 +68,6 @@ test('a trip is recorded only because it was asked for, and live location and re
 
   const calls = () => page.evaluate(() => globalThis.__RN_LOCATION_CALLS);
   const emit = (position) => page.evaluate(fix => globalThis.__RN_LOCATION.emit(fix), position);
-  await openAllResults(page);
   const rows = () => page.locator('#discovery-results tbody tr');
   const track = () => page.locator('#map [data-role="trip-track"]');
   const recordingStatus = () => page.locator('#field-recording-status');
@@ -111,6 +110,8 @@ test('a trip is recorded only because it was asked for, and live location and re
   await page.locator('#discovery-radius-input').fill(String(princeton.radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
   await page.locator('#discover-roads').click();
+  // THE ROWS ARE BEHIND "Explore all results": the gate opens the workbench after the search, like a person would.
+  await openAllResults(page);
   await expect(rows().first()).toBeVisible({ timeout: 600000 });
 
   // 1-2. A PERSISTED FOUR-ROAD OUTING, OPENED IN FIELD MODE.

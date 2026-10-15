@@ -53,7 +53,6 @@ test('a plan is worked through on a phone, and survives a reload', async ({ page
     if (message.type() === 'error' && !/Failed to load resource/.test(message.text())) errors.push(message.text());
   });
 
-  await openAllResults(page);
   const rows = () => page.locator('#discovery-results tbody tr');
   const fieldRoads = () => page.locator('#field-road-list li.field-road').evaluateAll(items =>
     items.map(item => ({ roadId: item.dataset.roadId, visited: item.dataset.visited === 'true',
@@ -85,6 +84,8 @@ test('a plan is worked through on a phone, and survives a reload', async ({ page
   await page.locator('#discovery-radius-input').fill(String(princeton.radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
   await page.locator('#discover-roads').click();
+  // THE ROWS ARE BEHIND "Explore all results": the gate opens the workbench after the search, like a person would.
+  await openAllResults(page);
   await expect(rows().first()).toBeVisible({ timeout: 600000 });
 
   // 1. AN OUTING WITH FOUR ROADS, built from the search the way a person builds one.

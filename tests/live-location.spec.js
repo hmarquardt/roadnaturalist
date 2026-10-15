@@ -63,7 +63,6 @@ test('a position is asked for, shown, measured, and stopped - and never decides 
   // A READING, DELIVERED BY THE GATE. Nothing happens on the device's own schedule here.
   const emit = (position) => page.evaluate(fix => globalThis.__RN_LOCATION.emit(fix), position);
   const refuse = (code) => page.evaluate(value => globalThis.__RN_LOCATION.fail(value), code);
-  await openAllResults(page);
   const rows = () => page.locator('#discovery-results tbody tr');
   const camera = async () => JSON.stringify(await cameraOf(page));
   const positions = () => page.locator('[data-role="user-location"]');
@@ -101,6 +100,8 @@ test('a position is asked for, shown, measured, and stopped - and never decides 
   await page.locator('#discovery-radius-input').fill(String(princeton.radiusMiles));
   await page.locator('#discovery-radius-input').press('Enter');
   await page.locator('#discover-roads').click();
+  // THE ROWS ARE BEHIND "Explore all results": the gate opens the workbench after the search, like a person would.
+  await openAllResults(page);
   await expect(rows().first()).toBeVisible({ timeout: 600000 });
 
   // 1-2. A PERSISTED FOUR-ROAD OUTING, OPENED IN FIELD MODE.

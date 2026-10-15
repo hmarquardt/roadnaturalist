@@ -39,7 +39,6 @@ test('a chosen sort comes back after a reload, and a default never becomes a cho
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
 
-  await openAllResults(page);
   const sortSelect = () => page.locator('#discovery-sort');
   const topIds = () => page.locator('#discovery-results tbody tr').evaluateAll(rows =>
     rows.slice(0, 10).map(row => row.dataset.candidateId));
@@ -50,6 +49,9 @@ test('a chosen sort comes back after a reload, and a default never becomes a cho
   async function runSearch() {
     await expect(page.locator('#discover-roads')).toBeEnabled({ timeout: 180000 });
     await page.locator('#discover-roads').click();
+    // THE ROWS THIS GATE COMPARES LIVE BEHIND "Explore all results", so the workbench is opened the way a person opens it
+    // - once, after the search, rather than before the page has even loaded.
+    await openAllResults(page);
     await expect(page.locator('#discovery-results tbody tr').first()).toBeVisible({ timeout: 600000 });
   }
 
