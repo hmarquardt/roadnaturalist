@@ -25,7 +25,7 @@ import { validateRawRegionsIndex } from '../src/discovery/raw-catalog.js';
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
 const DIST = join(ROOT, 'dist');
 const MARKER = 'deployment.json';
-const SITE_ENTRIES = ['index.html', 'assets', 'src', 'data', 'config/pages-headers'];
+const SITE_ENTRIES = ['index.html', 'assets', 'src', 'data', 'config/pages-headers', 'robots.txt', 'sitemap.xml'];
 const UNSTAGED_DATA = ['data/national-work', 'data/national-wetlands-work', 'data/national',
   'data/regional/partitions', 'data/derived']
   .map(path => join(ROOT, path));
