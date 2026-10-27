@@ -31,12 +31,22 @@
     window.addEventListener('error', event => {
       const target = event.target;
       if (!target || target.tagName !== 'SCRIPT') return;
+      // The first-party analytics beacon is not the application: a blocked or
+      // unavailable beacon must never make this page claim it could not boot.
+      if (target.id === 'cflab-analytics') return;
       const note = document.getElementById('boot-note');
       if (note) note.hidden = false;
     }, true);
   </script>
   <script src="assets/vendor/leaflet/1.9.4/leaflet.js"></script>
   <script type="module" src="src/app/main.js"></script>
+  <!-- First-party analytics: one deferred classic script from the CFLab Analytics Worker. It sets no cookies, keeps
+       its anonymous session id in sessionStorage only, and honours Do Not Track and Global Privacy Control in both
+       the script and the collector. It is server-verified against this site's registered origin (roadnaturalist.com
+       and www.roadnaturalist.com), so it cannot post as another site. Its failure to load is deliberately ignored by
+       the boot note above. Change the data-site value only together with the CFLab Analytics Site record. -->
+  <script defer id="cflab-analytics" src="https://analytics.aismallbizguru.com/script.js"
+    data-site="as_ieqirphcgPaoX2E6aUExao"></script>
 </head>
 <body>
   <header class="site-header">
