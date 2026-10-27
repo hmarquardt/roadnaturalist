@@ -82,6 +82,7 @@ test('the field says what the browser said, in its own words', () => {
   assert.equal(liveLocationAccuracyLabel({ status: LIVE_LOCATION_STATUS.ACTIVE, accuracyM: 1500 }), 'GPS accuracy ≈ 1.5 km');
   assert.equal(liveLocationAccuracyLabel({ status: LIVE_LOCATION_STATUS.ACTIVE, accuracyM: null }), null);
   assert.equal(liveLocationAccuracyLabel({ status: LIVE_LOCATION_STATUS.DENIED, accuracyM: 18 }), null);
+});
 
 test('one watch, one reading at a time, stopped cleanly and idempotently', () => {
   const fake = fakeGeolocation();
@@ -162,6 +163,4 @@ test('a reading is never written down: not to storage, not to the plan, and neve
   store.setFieldMode(false);
   assert.equal(store.getState().liveLocation.point, null);
   assert.equal(store.getState().liveLocation.status, LIVE_LOCATION_STATUS.IDLE);
-});
-
 });

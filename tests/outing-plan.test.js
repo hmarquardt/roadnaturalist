@@ -196,6 +196,7 @@ test('a road that is no longer saved stays in the plan, is not measured, and is 
   assert.deepEqual(outingMapRoads(plan).map(road => road.id), ['road-a']);
   assert.equal(outingMapRoads(plan)[0].stop, 1);
   assert.equal(outingMapRoads(plan)[0].of, 2, 'the stop is stated against the plan it belongs to');
+});
 
 test('a plan assembled from two searches keeps each road’s own centre and order', () => {
   const first = promotedRoad({ id: 'road-a', lat: 45.50, center: [-122.90, 45.55], radiusMiles: 25 });
@@ -269,6 +270,4 @@ test('the plan is read through the same store an outing is written to', () => {
     'the workspace reads the same score the search produced');
   assert.equal(plan.summary.roads, 1);
   assert.equal(plan.legs.length, 0, 'a plan of one road has no separation to state');
-});
-
 });

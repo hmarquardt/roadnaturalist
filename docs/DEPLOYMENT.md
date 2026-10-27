@@ -205,6 +205,20 @@ The deployed-mode run reports, per probe: HTTP result, cache state, extraction, 
 and then coverage and the deterministic finding per corridor. The production browser run reports the same through the
 real UI and asserts that no official source was contacted by the browser itself.
 
+### The offline suite runs on the CI runtime
+
+The offline suite (`npm test`, `node --test tests/*.test.js`) is what the release workflow runs before it stages
+anything, and the workflow uses Node 22. Run it on that version as well when you touch test structure:
+
+```sh
+npx --yes node@22 --test tests/*.test.js
+```
+
+A `test(...)` registered while another test is running becomes an un-awaited subtest. On Node 22 the runner cancels it
+when the parent returns (`failureType: 'cancelledByParent'`, "test did not finish before its parent"); on Node 24 and
+later the same file passes, so a lifecycle defect can be invisible on a newer local runtime and red in CI. Every test
+must close its own body — a missing `});` is what put seven suites in that state.
+
 Bounded smoke checks against the deployed API (no high-volume traffic; the cache absorbs repeats):
 
 ```sh

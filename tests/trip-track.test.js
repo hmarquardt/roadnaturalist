@@ -42,6 +42,7 @@ test('a point is validated: finite, in-world coordinates and a usable time, and 
   assert.equal(fromReading.accuracyM, 8);
   assert.equal(fromReading.recordedAt, '2026-10-14T15:00:00.000Z');
   assert.equal(trackPointFromReading({ point: null }, { at: '2026-10-14T15:00:00.000Z' }), null);
+});
 
 test('the sampling rule keeps the first point, a real movement, and a slow drift - and nothing else', () => {
   const first = trackPoint(northOf(0, 0));
@@ -97,8 +98,6 @@ test('a reading that cannot be validated or is not needed is counted, never stor
   assert.equal(capped.reason, 'full');
   assert.equal(capped.full, true);
   assert.equal(TRIP_SAMPLING.MAX_POINTS, 5000);
-});
-
 });
 
 

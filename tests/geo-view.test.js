@@ -1408,6 +1408,13 @@ test('a new reading repaints the position and moves nothing else', () => {
   const drawnBefore = calls.groups[LAYER.results].added.length;
   view.setUserLocation(AT);
   view.setUserLocation({ point: [-87.51, 38.31], accuracyM: 12 });
+  assert.deepEqual(view.camera(), cameraBefore, 'a reading never moves the camera');
+  assert.equal(view.fitCount(), fitsBefore, 'and never counts as a fit');
+  assert.equal(view.movementCount(), movementsBefore, 'and is not a camera movement at all');
+  assert.equal(calls.groups[LAYER.results].added.length, drawnBefore, 'the corridors are not repainted by a reading');
+  assert.equal(calls.groups[LAYER.outing].added.length, PLAN_ROADS.length, 'nor the plan');
+  assert.equal(view.outingRoadIds().length, 2);
+});
 
 test('the two camera moves a position offers are asked for, and counted as fits only when they fit', () => {
   const { leaflet, calls } = fakeLeaflet();
@@ -1458,14 +1465,6 @@ test('a position never intercepts a road, and the plan keeps working around it',
   assert.deepEqual(calls.fits.at(-1).bounds, [[38.3, -87.5], [38.33, -87.35]]);
   view.setSelected('PLAN-A');
   assert.equal(view.fitSelected(), true, 'and fitting the selected road still works');
-});
-
-  assert.deepEqual(view.camera(), cameraBefore, 'a reading never moves the camera');
-  assert.equal(view.fitCount(), fitsBefore, 'and never counts as a fit');
-  assert.equal(view.movementCount(), movementsBefore, 'and is not a camera movement at all');
-  assert.equal(calls.groups[LAYER.results].added.length, drawnBefore, 'the corridors are not repainted by a reading');
-  assert.equal(calls.groups[LAYER.outing].added.length, PLAN_ROADS.length, 'nor the plan');
-  assert.equal(view.outingRoadIds().length, 2);
 });
 
 

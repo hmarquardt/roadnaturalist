@@ -55,6 +55,7 @@ test('a coordinate outside the world is refused rather than handed to an app', (
   // The extremes themselves are places, and are allowed.
   assert.equal(coordinateText(navigationDestination(member([180, 90]))), '90.00000,180.00000');
   assert.equal(coordinateText(navigationDestination(member([-180, -90]))), '-90.00000,-180.00000');
+});
 
 test('nothing a person typed can reach a navigation URL', () => {
   const hostile = { roadId: 'road-a', representative: [-87.5, 38.3], representativeRule: REPRESENTATIVE_RULE.MEASURED,
@@ -92,6 +93,4 @@ test('the wording never claims a route, a drive time or an arrival', () => {
   assert.match(NAVIGATION_DESTINATION_NOTE, /representative point on the road in your mapping app/);
   assert.match(NAVIGATION_DESTINATION_NOTE, /not an access, parking or road-condition recommendation/);
   assert.match(NAVIGATION_VERIFY_NOTE, /Verify access, road conditions and where you can safely stop/);
-});
-
 });

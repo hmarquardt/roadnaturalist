@@ -179,6 +179,16 @@ test('an index the runtime cannot trust is refused rather than half-read', () =>
   const badStep = clone(); badStep.planes[0].cellStepDeg = 0.5;
   assert.throws(() => validateRawRegionsIndex(badStep), /Invalid raw plane roads/);
   const badCatalogPath = clone(); badCatalogPath.regions[0].catalogUrl = 'national/derived-catalog.json';
+  assert.throws(() => validateRawRegionsIndex(badCatalogPath), /Invalid raw region catalog path/);
+  const noOrigin = clone(); delete noOrigin.regions[0].assetBaseUrl;
+  assert.throws(() => validateRawRegionsIndex(noOrigin), /does not name the origin/);
+  const badDigest = clone(); badDigest.regions[0].catalogSha256 = 'nope';
+  assert.throws(() => validateRawRegionsIndex(badDigest), /Invalid raw region catalog digest/);
+  const noCellList = clone(); delete noCellList.regions[0].publishedCellIds;
+  assert.throws(() => validateRawRegionsIndex(noCellList), /does not list its published cells/);
+  const badCellId = clone(); badCellId.regions[0].publishedCellIds.roads = ['nowhere'];
+  assert.throws(() => validateRawRegionsIndex(badCellId), /does not list its published cells/);
+});
 
 // ---------------------------------------------------------------- the documents a publication writes
 
@@ -227,16 +237,5 @@ test('the region rectangle, object keys and index entry follow the published pla
   // The catalog's own digest is added by the publisher once the catalog is uploaded, which is what the audit reads.
   assert.equal(validateRawRegionsIndex({ ...rawIndex(),
     regions: [{ ...entry, catalogBytes: 4096, catalogSha256: 'a'.repeat(64) }] }).regions.length, 1);
-});
-
-  assert.throws(() => validateRawRegionsIndex(badCatalogPath), /Invalid raw region catalog path/);
-  const noOrigin = clone(); delete noOrigin.regions[0].assetBaseUrl;
-  assert.throws(() => validateRawRegionsIndex(noOrigin), /does not name the origin/);
-  const badDigest = clone(); badDigest.regions[0].catalogSha256 = 'nope';
-  assert.throws(() => validateRawRegionsIndex(badDigest), /Invalid raw region catalog digest/);
-  const noCellList = clone(); delete noCellList.regions[0].publishedCellIds;
-  assert.throws(() => validateRawRegionsIndex(noCellList), /does not list its published cells/);
-  const badCellId = clone(); badCellId.regions[0].publishedCellIds.roads = ['nowhere'];
-  assert.throws(() => validateRawRegionsIndex(badCellId), /does not list its published cells/);
 });
 

@@ -92,6 +92,7 @@ test('progress counts the roads the person marked, out of the roads the plan hol
     assert.ok(['total', 'visited', 'remaining', 'percent'].includes(key), `no invented progress field: ${key}`);
   }
   assert.equal(FIELD_MODE_NOTE, 'Field mode helps you work through the roads you saved for this outing.');
+});
 
 test('an unresolvable road keeps its place, its state and its neighbours', () => {
   const base = createOuting({ title: 'Loop', roadIds: ['a', 'gone', 'c'] });
@@ -169,6 +170,4 @@ test('the field view reads a real plan, with the plan’s own facts and separati
   const destination = navigationLinks(view.current)[0];
   assert.match(destination.url, /destination=45\.\d{5},-122\.\d{5}$/,
     'the navigation point is the plan’s own representative point on this road');
-});
-
 });
