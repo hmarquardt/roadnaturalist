@@ -331,6 +331,17 @@ and `https://www.roadnaturalist.com/` answer 200, and the bytes at the apex are 
 to the commit under review (sha256 comparison). `roadnaturalist.com` is therefore the canonical host in the crawler
 files, and the Pages hostnames are marked `X-Robots-Tag: noindex` (§9) so one page is not indexed twice.
 
+**Update (2026-10-27), the crawl release.** Pages deployment `8207cff8` published commit `97fd441` — the crawl rules,
+the homepage metadata and `WebApplication` block, and the staging and verification gates in §9. Verified afterwards:
+`/`, `/robots.txt` and `/sitemap.xml` answer 200 from `https://roadnaturalist.com` as `text/html`, `text/plain` and
+`application/xml`, byte-identical to the staged payload (sha256), and `https://roadnaturalist.pages.dev` serves the
+same bytes with `X-Robots-Tag: noindex`. A browser on the deployed origin booted the workspace with no page errors,
+initialised the Leaflet map (12 basemap tiles, all three pilot corridors drawn), fetched three candidate cards, and
+read all six declared access sources for `NW Cornelius Pass Rd` through the Worker boundary with `0 replayed` and
+finding `VERIFIED PUBLIC`; the browser itself contacted no official source. `npm run verify:investigator:worker`
+against the deployed Worker reported 14/14 probes, 0 failures, drift `UNCHANGED 12 / NO_LONGER_MATCHES 2`, and a
+repeat corridor served entirely from the Worker cache.
+
 
 ## 9. Releasing the static site, and the crawler contract
 
@@ -405,6 +416,13 @@ The guarantees the workflow preserves, and the one difference:
 
 `verify:pages:release` does not verify browser behaviour. Application startup, map initialisation and representative
 discovery stay with the opt-in browser gates in §5 and the `RUN_*_PRODUCTION` specs, run against the deployed origin.
+Two known limits of those gates, so a red run is read correctly: `tests/production-live.spec.js` asserts that a repeat
+access run used the Worker cache, but it re-reads the panel without waiting for the second run to finish, so it reads
+the first run's counters and fails when that first run was cold — the Worker itself verifies clean, and the same
+deployed panel reports `0 live, 6 from the worker cache` once warm. `tests/map-interaction.spec.js` requires a map
+click not to move the camera to 0.0005°; opening a corridor card runs Leaflet's `autoPan`, which moves it by about
+0.00056°, so that assertion fails on the deployed build while everything it checked before it — startup, place
+search, discovery, fit, click selection — passes.
 
 ### Rolling back
 
