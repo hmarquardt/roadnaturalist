@@ -22,6 +22,7 @@ import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { dirname, join, relative, resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { validateNationalDerivedCatalog } from '../src/discovery/national-catalog.js';
 import { validateRawRegionsIndex } from '../src/discovery/raw-catalog.js';
 import { verifyPublishedArtifacts } from './published-artifacts.mjs';
@@ -297,7 +298,11 @@ async function stage({ publishedArtifacts = false } = {}) {
   return info;
 }
 
-await stage({
-  publishedArtifacts: process.argv.includes('--published-artifacts') || process.env.PAGES_PUBLISHED_ARTIFACTS === '1',
-});
+// `npm run stage:pages` stages and exits. An importer (deploy-pages.mjs) calls stage() itself, on its own terms, and
+// must not have a second identical payload built underneath it by the import.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await stage({
+    publishedArtifacts: process.argv.includes('--published-artifacts') || process.env.PAGES_PUBLISHED_ARTIFACTS === '1',
+  });
+}
 export { stage };
