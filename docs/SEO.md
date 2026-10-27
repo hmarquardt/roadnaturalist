@@ -11,6 +11,9 @@ Canonical site: https://roadnaturalist.com/
 
 ## Release and owner verification
 1. Run `npm run stage:pages` and verify the built deployment contains `robots.txt`, `sitemap.xml`, and the updated `index.html`.
+   `node scripts/verify-pages-release.mjs --staged` checks the staged payload, the crawler files and the metadata offline;
+   `npm run verify:pages:release` checks the same things against what production actually serves. On pushes to `main`
+   `.github/workflows/deploy-pages.yml` runs both, deploys, and does not go green unless production serves the commit.
 2. Cloudflare Pages direct-upload staging; a source commit alone does not establish a live release.
 3. Once production deployment is confirmed, retrieve the homepage, `/robots.txt` and `/sitemap.xml` through the canonical hostname and confirm HTTP 200, correct contents, and expected canonical metadata.
 4. In Google Search Console, verify the domain property and submit `https://roadnaturalist.com/sitemap.xml`; inspect the homepage using URL Inspection. Indexing is up to Google.

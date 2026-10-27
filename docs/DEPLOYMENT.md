@@ -359,15 +359,17 @@ that were served, and `X-Robots-Tag` on the host that was asked. It never report
 
 | File | Requirement |
 | --- | --- |
-| `index.html` | one `<title>`; one canonical `https://roadnaturalist.com/`; one 50–300 character meta description; `robots: index, follow`; `og:type`, `og:site_name`, `og:url`, `og:title`, `og:description`, `twitter:card`, `twitter:title`, `twitter:description` |
-| `index.html` JSON-LD | exactly one block, valid JSON, `@context` schema.org, `@type` `WebApplication`, `url` the canonical URL, `name` Road Naturalist, a description and an `applicationCategory`, `isAccessibleForFree: true`; never an invented `aggregateRating`, `review` or `ratingValue` |
-| `robots.txt` | `User-agent: *`, `Allow: /`, only `/data/` disallowed, exactly one `Sitemap: https://roadnaturalist.com/sitemap.xml` |
+| `index.html` | one `<title>`; one canonical `https://roadnaturalist.com/`; one 50–300 character meta description; `og:type` `website`, `og:url` the canonical URL, `og:title`, `og:description`; a `twitter:card`; no `noindex` |
+| `index.html` JSON-LD | exactly one block, valid JSON, `@context` schema.org, `@type` `WebApplication`, `url` the canonical URL, `name` Road Naturalist, a description and an `applicationCategory`; never an invented `aggregateRating`, `review` or `ratingValue` |
+| `robots.txt` | `User-agent: *`, `Allow: /`, no site-wide `Disallow`, exactly one `Sitemap: https://roadnaturalist.com/sitemap.xml` |
 | `sitemap.xml` | XML declaration, sitemap namespace, one `<loc>` per page (currently only the canonical root), every `<loc>` https on the canonical host with no query or fragment |
 | `_headers` | `https://:project.pages.dev/*` and `https://:version.:project.pages.dev/*` carry `X-Robots-Tag: noindex`, so the canonical domain is the only indexable host |
 
 There is one page, so the sitemap has one URL. Nothing on the site rates, reviews or prices itself, so the structured
 data does not either. Both rules are enforced rather than documented only: `tests/seo.test.js` mutilates each of them
 and asserts the gate fails, and `stage:pages` applies the same contract to `dist/` before anything can upload.
+`docs/SEO.md` holds the owner-facing side of this — what the page says about itself, and the Search Console steps that
+follow a release.
 
 `dist/deployment.json` (the marker that lets `stage:pages` replace a `dist/` it created) is uploaded with the rest of
 the payload, so it is publicly readable: it records file paths, sizes, digests, the commit and the artifact-verification
