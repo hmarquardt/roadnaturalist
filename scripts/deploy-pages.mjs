@@ -40,6 +40,15 @@ catch { originTip = null; }
 if (!originTip) throw new Error(`cannot read origin/${BRANCH}: refusing to deploy a commit that cannot be checked against it`);
 if (originTip !== head) throw new Error(`HEAD (${head.slice(0, 7)}) is not what is on origin/${BRANCH} (${originTip.slice(0, 7)}): push first, then deploy`);
 
+// A release authenticated by an API token must name the account that owns the project: wrangler's automatic account
+// discovery asks for a permission this token deliberately does not have, and a release should fail here with that
+// sentence rather than inside wrangler with a stack trace. The local path keeps working: an operator's logged-in
+// session resolves its own account.
+if (process.env.CLOUDFLARE_API_TOKEN && !process.env.CLOUDFLARE_ACCOUNT_ID) {
+  throw new Error('CLOUDFLARE_API_TOKEN is set but CLOUDFLARE_ACCOUNT_ID is not: name the account that owns the '
+    + 'Pages project (a CLOUDFLARE_ACCOUNT_ID repository variable, see docs/DEPLOYMENT.md §9)');
+}
+
 const info = await stage({
   publishedArtifacts: process.argv.includes('--published-artifacts') || process.env.PAGES_PUBLISHED_ARTIFACTS === '1',
 });

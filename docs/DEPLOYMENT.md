@@ -410,7 +410,7 @@ project, no Git integration, no DNS change, and nothing that touches the Worker 
 | Secret | Scope |
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | a Cloudflare API token with `Account → Cloudflare Pages → Edit` for this account only — no `Zone → DNS`, no Workers, no R2, so a leaked release token cannot change DNS, the Worker or the data plane |
-| `CLOUDFLARE_ACCOUNT_ID` | optional; the account that owns the Pages project (`b1aa310aa0a1638d72b8b086a21e557c`) |
+| `CLOUDFLARE_ACCOUNT_ID` | required with an API token: the account that owns the Pages project (`b1aa310aa0a1638d72b8b086a21e557c`). It is configuration, not a credential, so a repository **variable** is the right place; a secret works too. An API token cannot list accounts, so without it `deploy:pages` refuses with that sentence instead of failing inside `wrangler` |
 
 Create the token in the dashboard (My Profile → API Tokens → Create Token → custom token), then
 `gh secret set CLOUDFLARE_API_TOKEN --repo hmarquardt/roadnaturalist`, and re-run the workflow. Until the secret

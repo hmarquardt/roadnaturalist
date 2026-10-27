@@ -65,15 +65,16 @@ jobs:
       - name: Deploy to the existing Pages project
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID_VARIABLE: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_ACCOUNT_ID_SECRET: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           PAGES_PUBLISHED_ARTIFACTS: '1'
         run: |
           set -euo pipefail
-          # The account id is not a credential, but it is read from a secret when one is configured so the workflow
-          # never has to guess which account owns the project.
-          if [ -n "${CLOUDFLARE_ACCOUNT_ID_SECRET}" ]; then
-            export CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID_SECRET}"
-          fi
+          # An API token cannot list accounts, so the account that owns the project must be named. It is configuration,
+          # not a credential (it is in every dashboard URL), so a repository variable is the right place; a secret is
+          # accepted too, for a repository that prefers to keep it there.
+          account="${CLOUDFLARE_ACCOUNT_ID_VARIABLE:-${CLOUDFLARE_ACCOUNT_ID_SECRET:-}}"
+          if [ -n "${account}" ]; then export CLOUDFLARE_ACCOUNT_ID="${account}"; fi
           npm run deploy:pages
 
       # The settle gate. Pages serves the previous deployment for a short window after an upload, so the verifier
