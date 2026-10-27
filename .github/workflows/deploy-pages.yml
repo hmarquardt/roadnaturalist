@@ -1,0 +1,85 @@
+name: Deploy the static site
+
+# Validate, stage and verify the static site on every push to main.
+#
+# Nothing is built here: the site is the files in the repository, and the release is a direct upload of exactly
+# what `npm run stage:pages` produces. What the workflow adds is the two things a manual deploy cannot promise on
+# its own - that the tests passed for this exact commit, and that production was checked afterwards to serve the
+# bytes that were uploaded, from the canonical domain as well as from the Pages host.
+#
+# The manual path stays: `npm run deploy:pages && npm run verify:pages:release` applies the same gates with the
+# operator's own wrangler session. See docs/DEPLOYMENT.md §9.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One release at a time, and a release already uploading is never cancelled.
+concurrency:
+  group: pages-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@v4
+
+      # Fail closed and fail early: a push to main that cannot deploy must say so, not skip quietly.
+      - name: Require the deployment token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ]; then
+            echo "::error::The repository secret CLOUDFLARE_API_TOKEN is not set, so this commit is not deployed. Add a Cloudflare API token scoped to Account → Cloudflare Pages → Edit for this account only (docs/DEPLOYMENT.md §9), then re-run this workflow."
+            exit 1
+          fi
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install the test runner
+        run: npm ci
+
+      - name: Run the offline test suite
+        run: npm test
+
+      # The GIS artifact planes are published to R2 and are not in Git, so this checkout has no local copy to hash.
+      # `--published-artifacts` moves that gate to the published objects (length, content type, digest sample)
+      # instead of skipping it; without the flag, staging still fails as it always has.
+      - name: Stage the Pages payload
+        run: npm run stage:pages -- --published-artifacts
+
+      - name: Verify the staged payload before uploading it
+        run: node scripts/verify-pages-release.mjs --staged
+
+      - name: Deploy to the existing Pages project
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID_SECRET: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PAGES_PUBLISHED_ARTIFACTS: '1'
+        run: |
+          set -euo pipefail
+          # The account id is not a credential, but it is read from a secret when one is configured so the workflow
+          # never has to guess which account owns the project.
+          if [ -n "${CLOUDFLARE_ACCOUNT_ID_SECRET}" ]; then
+            export CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID_SECRET}"
+          fi
+          npm run deploy:pages
+
+      # The settle gate. Pages serves the previous deployment for a short window after an upload, so the verifier
+      # polls until the origin serves this build's bytes rather than sampling once.
+      - name: Verify production serves this commit
+        run: node scripts/verify-pages-release.mjs --origin https://roadnaturalist.com --attempts 24 --interval 5
+
+      - name: Verify the Pages hostname is not indexable
+        run: node scripts/verify-pages-release.mjs --origin https://roadnaturalist.pages.dev --attempts 24 --interval 5

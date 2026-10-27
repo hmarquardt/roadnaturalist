@@ -3,14 +3,17 @@
  * Stage the static application for Cloudflare Pages direct upload.
  *
  *   npm run stage:pages
+ *   npm run stage:pages -- --published-artifacts     # a checkout without the GIS artifact plane (CI)
  *
- * There is no build step and no bundler: the site is exactly the files it already ships (index.html, assets/, src/,
- * data/). This script copies them into dist/, refuses to replace a dist/ it did not create, and checks the payload
- * before it can be uploaded:
+ * There is no build step and no bundler: the site is exactly the files it already ships (index.html, robots.txt,
+ * sitemap.xml, assets/, src/, data/). This script copies them into dist/, refuses to replace a dist/ it did not
+ * create, and checks the payload before it can be uploaded:
  *
  *   * every local stylesheet, icon, and script referenced by index.html is staged;
  *   * every relative `import` in the src/ module graph resolves to a staged file;
- *   * every dataset url in data/manifest.json exists in the staged output.
+ *   * every dataset url in data/manifest.json exists in the staged output;
+ *   * the crawler files are present and the homepage metadata, JSON-LD, robots.txt and sitemap.xml satisfy the
+ *     contract in scripts/seo.mjs, all pointing at the canonical domain.
  *
  * A missing file therefore fails here rather than as a 404 in a deployed browser. It also refuses to stage a GIS
  * dataset whose byte length disagrees with the manifest, because the manifest is what the browser verifies against.
@@ -21,6 +24,8 @@ import { execFileSync } from 'node:child_process';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { validateNationalDerivedCatalog } from '../src/discovery/national-catalog.js';
 import { validateRawRegionsIndex } from '../src/discovery/raw-catalog.js';
+import { verifyPublishedArtifacts } from './published-artifacts.mjs';
+import { CRAWLER_FILES, validatePreviewNoindex, validateSeo } from './seo.mjs';
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
 const DIST = join(ROOT, 'dist');
@@ -45,7 +50,7 @@ function assertDistIsOurs() {
   rmSync(DIST, { recursive: true, force: true });
 }
 
-function stage() {
+async function stage({ publishedArtifacts = false } = {}) {
   assertDistIsOurs();
   mkdirSync(DIST, { recursive: true });
   for (const entry of SITE_ENTRIES) {
@@ -65,6 +70,10 @@ function stage() {
   const nationalCatalog = validateNationalDerivedCatalog(readJson(nationalCatalogPath));
   mkdirSync(join(DIST, 'data/national'), { recursive: true });
   cpSync(nationalCatalogPath, join(DIST, 'data/national/derived-catalog.json'));
+  // Problems found while checking the payload, and the declared artifacts this checkout does not carry. The
+  // artifact planes are excluded from the payload either way; what changes is where their gate is applied.
+  const regionalProblems = [];
+  const unpublished = [];
   // The raw region index is the second small file that belongs to Pages: it answers "is the raw source for this
   // corridor online?" without probing object URLs, and it is what lets a promotion refuse precisely instead of
   // fetching its way to an answer. It is validated here with the very contract the runtime applies, so a release
@@ -83,7 +92,6 @@ function stage() {
   // Regional GeoParquet belongs to R2. The copy filter keeps raw, derived, and national build files out
   // of Pages; validate local regional artifacts against their small catalog before inventorying the site.
   const regionalPath = join(DIST, 'data/regional/manifest.json');
-  const regionalProblems = [];
   // The interface classifies a search centre against the declaration's discoveryRegion while the runtime selects
   // cells against the national catalog's region, so the two must agree or a runnable centre would select no cells.
   const searchAreasPath = join(DIST, 'data/discovery/search-areas.json');
@@ -109,7 +117,7 @@ function stage() {
     for (const dataset of regional.datasets ?? []) for (const part of dataset.partitions ?? []) {
       if (part.state === 'empty') continue;
       const file = join(ROOT, 'data', part.url);
-      if (!existsSync(file)) { regionalProblems.push(`regional artifact missing: ${part.url}`); continue; }
+      if (!existsSync(file)) { unpublished.push(part.url); continue; }
       const bytes = readFileSync(file);
       if (bytes.length !== part.bytes || sha256(bytes) !== part.sha256) regionalProblems.push(`regional artifact digest mismatch: ${part.url}`);
     }
@@ -124,11 +132,31 @@ function stage() {
         for (const cell of manifest.cells ?? []) {
           if (cell.state === 'empty') continue;
           const file = join(ROOT, 'data', cell.url);
-          if (!existsSync(file)) { regionalProblems.push(`derived cell missing: ${cell.url}`); continue; }
+          if (!existsSync(file)) { unpublished.push(cell.url); continue; }
           const bytes = readFileSync(file);
           if (bytes.length !== cell.bytes || sha256(bytes) !== cell.sha256) regionalProblems.push(`derived cell digest mismatch: ${cell.url}`);
         }
       }
+    }
+  }
+
+  // The artifact planes are published to R2 and are not part of the Pages payload, so a checkout may simply not
+  // have them: they are `.parquet`, `.gitignore` excludes them, and CI checks out this repository only. Absence is
+  // therefore not quietly tolerated - without the flag it fails, as it always has - but `--published-artifacts`
+  // moves the same gate to the copies the browser actually reads: every declared object must be online with the
+  // declared length and content type, and a bounded digest sample is re-fetched. The mode is recorded in
+  // deployment.json so a release never claims a local byte check it did not perform.
+  let artifactVerification = 'local';
+  if (unpublished.length) {
+    if (!publishedArtifacts) {
+      for (const url of unpublished) regionalProblems.push(`artifact missing from this checkout: data/${url} `
+        + '(pass --published-artifacts to verify the published copies instead)');
+    } else if (!existsSync(regionalPath)) {
+      regionalProblems.push('the regional catalog is not staged, so the published artifact plane cannot be verified');
+    } else {
+      const result = await verifyPublishedArtifacts(readJson(regionalPath));
+      regionalProblems.push(...result.problems);
+      artifactVerification = `published (${result.checked}/${result.total} objects, ${result.sampled} digest sample)`;
     }
   }
   // The place gazetteer is path-loaded like the search-area declaration, and it is checked against its own
@@ -197,6 +225,15 @@ function stage() {
   const staged = new Set(listFiles(DIST).map(file => relative(DIST, file)));
   const problems = [...regionalProblems];
 
+  // 0. the crawler files and the search-result metadata. No browser test sees these, and a release that loses them
+  // or points them at a preview hostname is invisible until a crawler finds it, so the payload is not uploadable
+  // until the contract in scripts/seo.mjs holds. The same contract is applied again to the bytes the origin serves.
+  const readStaged = name => (staged.has(name) ? readFileSync(join(DIST, name), 'utf8') : '');
+  for (const file of CRAWLER_FILES) if (!staged.has(file)) problems.push(`${file} is a crawler file but was not staged`);
+  problems.push(...validateSeo({ html: readStaged('index.html'), robots: readStaged('robots.txt'),
+    sitemap: readStaged('sitemap.xml') }));
+  problems.push(...validatePreviewNoindex(readStaged('_headers')));
+
   // 1. index.html references
   const html = readFileSync(join(DIST, 'index.html'), 'utf8');
   for (const match of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
@@ -251,12 +288,16 @@ function stage() {
     return { path: name, bytes: buffer.length, sha256: sha256(buffer) }; });
   const commit = (() => { try { return execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return null; } })();
   const status = (() => { try { return execFileSync('git', ['-C', ROOT, 'status', '--porcelain'], { encoding: 'utf8' }).trim(); } catch { return ''; } })();
-  const info = { project: 'roadnaturalist', commit, dirty: Boolean(status), stagedAt: new Date().toISOString(), files };
+  const info = { project: 'roadnaturalist', commit, dirty: Boolean(status), stagedAt: new Date().toISOString(),
+    artifactVerification, files };
   writeFileSync(join(DIST, MARKER), `${JSON.stringify(info, null, 1)}\n`);
   const bytes = files.reduce((total, file) => total + file.bytes, 0);
   console.log(`Staged ${files.length} file(s), ${(bytes / 1024 / 1024).toFixed(2)} MiB into dist/${commit ? ` at commit ${commit.slice(0, 7)}` : ''}${status ? ' (working tree dirty)' : ''}`);
+  if (artifactVerification !== 'local') console.log(`GIS artifact plane verified against the published copies: ${artifactVerification}.`);
   return info;
 }
 
-stage();
+await stage({
+  publishedArtifacts: process.argv.includes('--published-artifacts') || process.env.PAGES_PUBLISHED_ARTIFACTS === '1',
+});
 export { stage };

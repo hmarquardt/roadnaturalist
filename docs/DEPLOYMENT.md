@@ -39,7 +39,7 @@ verifiable. CORS is the price, and it is already the project's model.
 | Worker custom domain | `api.roadnaturalist.com` | declared in `worker/wrangler.toml`; DNS record + certificate created by Cloudflare |
 | Worker smoke host | `roadnaturalist-investigator.hmarquardt.workers.dev` | `workers_dev = true`; useful for a first check |
 | Pages project | `roadnaturalist` | direct upload from `dist/`; production branch `main`; live at `https://roadnaturalist.pages.dev` |
-| Pages custom domains | `roadnaturalist.com`, `www.roadnaturalist.com` | attached to the Pages project; **pending a DNS record** — see §8 |
+| Pages custom domains | `roadnaturalist.com`, `www.roadnaturalist.com` | attached to the Pages project and resolving; `roadnaturalist.com` is the canonical host for crawlers — see §9 |
 | Zone | `roadnaturalist.com` | already in the account that owns the domain |
 | R2 bucket | `roadnaturalist-data` | Standard class; immutable regional analytical GeoParquet only |
 | R2 custom domain | `data.roadnaturalist.com` | direct object delivery, CORS policy at `config/regional-r2-cors.json` |
@@ -135,8 +135,19 @@ reviewed commit):
 
 ```sh
 npm run stage:pages              # validates and stages dist/ (no upload)
-npm run deploy:pages             # stages, then uploads to the Pages project
+npm run deploy:pages             # validates, stages, uploads, and names the command that verifies it
+npm run verify:pages:release     # the settle gate: the origin must serve exactly the staged bytes
 ```
+
+`deploy:pages` accepts a detached HEAD only when that HEAD is still exactly `origin/main` (a CI checkout of a push to
+main), requires a clean tree, and refuses to run at all when `origin/main` cannot be read: a release must always be
+able to say which commit it published. It authenticates with `CLOUDFLARE_API_TOKEN` when the environment sets one and
+otherwise with the operator's logged-in `wrangler` session; it never reads or prints a credential itself.
+
+The crawler files (`robots.txt`, `sitemap.xml`) and the homepage metadata are staged with the page and are gated by
+`scripts/seo.mjs`: `stage:pages` refuses to build a payload whose canonical URL, meta description, Open Graph tags,
+`WebApplication` JSON-LD, robots directives or sitemap disagree, or whose `_headers` stops marking the Pages
+hostnames `noindex`. §9 describes the contract and the release procedure that applies it.
 
 The staged payload includes the investigator probe catalog and its schema
 (`data/investigator/probe-catalog.json`, `probe-catalog.schema.json`), because the browser Investigator loads them as
@@ -315,7 +326,88 @@ origin allow-list, and the API is already live at `https://api.roadnaturalist.co
 the records are fixed: the app resolves its boundary from the deployed origin, and no code or configuration depends on
 the hostname.
 
+**Update (2026-10-27).** Both custom domains now resolve and serve the Pages project: `https://roadnaturalist.com/`
+and `https://www.roadnaturalist.com/` answer 200, and the bytes at the apex are identical to the Pages deployment and
+to the commit under review (sha256 comparison). `roadnaturalist.com` is therefore the canonical host in the crawler
+files, and the Pages hostnames are marked `X-Robots-Tag: noindex` (§9) so one page is not indexed twice.
 
-   unless you point the override at a local Worker.
 
-No secret exists anywhere in this path. The sources are public pages.
+## 9. Releasing the static site, and the crawler contract
+
+The static site is released from a reviewed commit and verified afterwards from the canonical domain. Two paths run
+the same gates: the manual command and the GitHub Actions workflow. The manual one stays the authority when the
+workflow is unavailable.
+
+### Manual release
+
+```sh
+npm test                                              # includes tests/seo.test.js: the crawler contract
+npm run stage:pages                                   # validates and stages dist/ (no upload)
+node scripts/verify-pages-release.mjs --staged        # the staged payload is self-consistent
+git push origin main                                  # deploy:pages refuses a HEAD that is not origin/main
+npm run deploy:pages                                  # uploads exactly the staged payload
+npm run verify:pages:release                          # settle gate against https://roadnaturalist.com
+node scripts/verify-pages-release.mjs --origin https://roadnaturalist.pages.dev
+```
+
+`verify:pages:release` polls `/`, `/robots.txt` and `/sitemap.xml` until they match the staged bytes — Pages serves
+the previous deployment for a short window after an upload, so a single sample would describe the previous release —
+then checks five application files the same way, the served content types, the crawler contract applied to the bytes
+that were served, and `X-Robots-Tag` on the host that was asked. It never reports success for a partial match.
+
+### What the crawler contract requires
+
+| File | Requirement |
+| --- | --- |
+| `index.html` | one `<title>`; one canonical `https://roadnaturalist.com/`; one 50–300 character meta description; `robots: index, follow`; `og:type`, `og:site_name`, `og:url`, `og:title`, `og:description`, `twitter:card`, `twitter:title`, `twitter:description` |
+| `index.html` JSON-LD | exactly one block, valid JSON, `@context` schema.org, `@type` `WebApplication`, `url` the canonical URL, `name` Road Naturalist, a description and an `applicationCategory`, `isAccessibleForFree: true`; never an invented `aggregateRating`, `review` or `ratingValue` |
+| `robots.txt` | `User-agent: *`, `Allow: /`, only `/data/` disallowed, exactly one `Sitemap: https://roadnaturalist.com/sitemap.xml` |
+| `sitemap.xml` | XML declaration, sitemap namespace, one `<loc>` per page (currently only the canonical root), every `<loc>` https on the canonical host with no query or fragment |
+| `_headers` | `https://:project.pages.dev/*` and `https://:version.:project.pages.dev/*` carry `X-Robots-Tag: noindex`, so the canonical domain is the only indexable host |
+
+There is one page, so the sitemap has one URL. Nothing on the site rates, reviews or prices itself, so the structured
+data does not either. Both rules are enforced rather than documented only: `tests/seo.test.js` mutilates each of them
+and asserts the gate fails, and `stage:pages` applies the same contract to `dist/` before anything can upload.
+
+`dist/deployment.json` (the marker that lets `stage:pages` replace a `dist/` it created) is uploaded with the rest of
+the payload, so it is publicly readable: it records file paths, sizes, digests, the commit and the artifact-verification
+mode, never a credential.
+
+### Automatic release from GitHub Actions (`deploy-pages.yml`)
+
+On every push to `main` the workflow requires the deployment secret, installs the test runner, runs `npm test`,
+stages the payload, verifies it offline, deploys with `npm run deploy:pages`, and then runs both settle gates
+(`roadnaturalist.com` and `roadnaturalist.pages.dev`). It is a direct upload to the same Pages project: no second
+project, no Git integration, no DNS change, and nothing that touches the Worker or the R2 data plane.
+
+| Secret | Scope |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | a Cloudflare API token with `Account → Cloudflare Pages → Edit` for this account only — no `Zone → DNS`, no Workers, no R2, so a leaked release token cannot change DNS, the Worker or the data plane |
+| `CLOUDFLARE_ACCOUNT_ID` | optional; the account that owns the Pages project (`b1aa310aa0a1638d72b8b086a21e557c`) |
+
+Create the token in the dashboard (My Profile → API Tokens → Create Token → custom token), then
+`gh secret set CLOUDFLARE_API_TOKEN --repo hmarquardt/roadnaturalist`, and re-run the workflow. Until the secret
+exists the workflow fails at its first step with an explicit message: a push to `main` that cannot deploy is
+reported, never skipped silently.
+
+The guarantees the workflow preserves, and the one difference:
+
+* the deployable commit is the pushed `main` commit and the working tree must be clean (`deploy:pages`);
+* the uploaded payload is exactly what `stage:pages` produced, with every file digest recorded in `deployment.json`;
+* production must serve exactly those bytes before the run can be green;
+* **difference** — a CI checkout has no local GIS artifact plane (`.parquet` is gitignored and published to R2), so
+  `stage:pages --published-artifacts` moves that gate from local bytes to the published objects: every declared
+  object must be online with the declared length and content type, plus a four-object digest sample. The mode is
+  recorded in `deployment.json` as `artifactVerification`, and full byte-level auditing of that plane remains
+  `npm run audit:regional:remote`. Without the flag, a checkout missing those files fails exactly as before.
+
+`verify:pages:release` does not verify browser behaviour. Application startup, map initialisation and representative
+discovery stay with the opt-in browser gates in §5 and the `RUN_*_PRODUCTION` specs, run against the deployed origin.
+
+### Rolling back
+
+Pages keeps every deployment (`npx wrangler@4.135.0 pages deployment list --project-name roadnaturalist`), and the
+dashboard can roll back to any of them. `deploy:pages` will not publish an older commit as production — it requires
+HEAD to be `origin/main` — so the reviewed rollback is `git revert <commit>`, push, and let the release publish the
+revert like any other commit.
+

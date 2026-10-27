@@ -12,6 +12,7 @@
     "verify:investigator:worker": "node scripts/verify-investigator-worker.mjs",
     "stage:pages": "node scripts/stage-pages.mjs",
     "deploy:pages": "node scripts/deploy-pages.mjs",
+    "verify:pages:release": "node scripts/verify-pages-release.mjs",
     "deploy:worker": "cd worker && npx --yes wrangler@4.135.0 deploy",
     "verify:production:browser": "RUN_PRODUCTION_LIVE=1 playwright test tests/production-live.spec.js",
     "validate:probes": "node scripts/validate-probes.mjs",

@@ -2,3 +2,12 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Cache-Control: public, no-transform, max-age=0, must-revalidate
+
+# The canonical site is roadnaturalist.com. The Pages hostnames serve the same bytes for previews and for the
+# release verification, and a search engine that indexed them would split one page across two hosts, so they are
+# told not to index. The custom domains are not matched here and stay indexable.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:version.:project.pages.dev/*
+  X-Robots-Tag: noindex

@@ -4,12 +4,15 @@
  *
  *   npm run deploy:pages
  *
- * Production deployment requires a clean `main` checkout whose HEAD is on origin/main, so what is deployed is always
- * a reviewed commit rather than a working tree. The payload is exactly what `stage:pages` produces.
+ * Production deployment requires a clean checkout whose HEAD is the tip of `origin/main`, so what is deployed is
+ * always a reviewed commit rather than a working tree. `main` is the expected branch; a detached HEAD is accepted
+ * only because that is what a CI checkout of a push to main looks like, and the commit must still be exactly the
+ * published tip. The payload is exactly what `stage:pages` produces.
  *
  * The Worker is deployed separately, from worker/:  npm run deploy:worker
  *
- * No credential is read or written here: `wrangler` uses the operator's own logged-in session.
+ * Authentication is `CLOUDFLARE_API_TOKEN` from the environment when one is set (the release workflow's repository
+ * secret), otherwise the operator's logged-in `wrangler` session. No credential is read, printed or written here.
  */
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -25,20 +28,28 @@ const git = (...args) => execFileSync('git', ['-C', ROOT, ...args], { encoding: 
 
 const branch = git('branch', '--show-current');
 const status = git('status', '--porcelain');
-if (branch !== BRANCH) throw new Error(`production deployment runs from ${BRANCH}, not ${branch || 'a detached HEAD'}`);
 if (status) throw new Error('production deployment requires a clean checkout: commit and review the changes first');
+if (branch && branch !== BRANCH) throw new Error(`production deployment runs from ${BRANCH}, not ${branch}`);
 const head = git('rev-parse', 'HEAD');
 // Compare against the remote's current tip rather than a possibly stale local ref, so a checkout that has not fetched
-// the latest main cannot publish an older commit as production.
+// the latest main cannot publish an older commit as production. A remote that cannot be read is not permission to
+// deploy unproven either: without it nothing can say which commit production is.
 let originTip = null;
 try { originTip = execFileSync('git', ['-C', ROOT, 'ls-remote', 'origin', `refs/heads/${BRANCH}`], { encoding: 'utf8' }).trim().split(/\s+/)[0] || null; }
 catch { originTip = null; }
-if (originTip && originTip !== head) throw new Error(`HEAD (${head.slice(0, 7)}) is not what is on origin/${BRANCH} (${originTip.slice(0, 7)}): push first, then deploy`);
+if (!originTip) throw new Error(`cannot read origin/${BRANCH}: refusing to deploy a commit that cannot be checked against it`);
+if (originTip !== head) throw new Error(`HEAD (${head.slice(0, 7)}) is not what is on origin/${BRANCH} (${originTip.slice(0, 7)}): push first, then deploy`);
 
-const info = stage();
+const info = await stage({
+  publishedArtifacts: process.argv.includes('--published-artifacts') || process.env.PAGES_PUBLISHED_ARTIFACTS === '1',
+});
 console.log(`Deploying to Pages project ${PROJECT} (branch ${BRANCH}, commit ${info.commit?.slice(0, 7) ?? 'unknown'})…`);
+console.log(process.env.CLOUDFLARE_API_TOKEN
+  ? 'Authenticating with CLOUDFLARE_API_TOKEN from the environment.'
+  : 'Authenticating with the logged-in wrangler session.');
 execFileSync('npx', ['--yes', WRANGLER, 'pages', 'deploy', resolve(ROOT, 'dist'), '--project-name', PROJECT, '--branch', BRANCH,
   ...(info.commit ? ['--commit-hash', info.commit] : []), '--commit-dirty=false'], { cwd: ROOT, stdio: 'inherit' });
 
 const staged = readFileSync(resolve(ROOT, 'dist/deployment.json'), 'utf8').length;
 console.log(`Deployed ${info.files.length} file(s). deployment.json is ${staged} bytes and records every staged file hash.`);
+console.log('Verify what production serves with: npm run verify:pages:release');
